@@ -11,3 +11,7 @@ Public home for Tool Mode implementations for multiple agent runtimes.
 The DSH implementation is the full monorepo: plugin, contracts, extension SDK,
 recipes, first-party model extensions, qualification and verification artifacts.
 Build and test commands run from inside `dsh-tool-mode/`.
+
+**[Read the DSH Tool Mode documentation](dsh-tool-mode/docs/guide/index.md)** —
+installation, first tool, MCP, extensions, custom tools, security and
+troubleshooting.

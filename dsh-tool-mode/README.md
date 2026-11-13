@@ -1,5 +1,8 @@
 # dsh-tool-mode
 
+> **User documentation:** [docs/guide](docs/guide/index.md) — install, first call,
+> MCP, extensions, custom tools, security and troubleshooting.
+
 Expose on-device models to a DSH agent as **tools**, rather than as chat endpoints.
 
 Each model is wrapped by a **contract** — a stable name with explicit input and output
@@ -40,8 +43,8 @@ npm install @try-works/dsh-tool-mode
 Enable the plugin in your DSH configuration, then:
 
 ```
-model_tools            # list every catalogued model and why an unavailable one cannot run
-model_tools { "action": "describe", "model": "tongue" }
+tool_mode_list         # list every catalogued model and why an unavailable one cannot run
+tool_mode_describe { "tools": ["lang_detect"] }
 ```
 
 ## Remote Jev (optional)
@@ -95,7 +98,7 @@ Other checks:
 
 | Command | What it proves |
 | --- | --- |
-| `npm test` | 1452 tests across nine packages |
+| `npm test` | The full test suite across the monorepo |
 | `npm run verify:architecture` | The host holds no model-specific code |
 | `npm run verify:built` | **A real inference through the built artifact** — `lang_detect` on German text must return `de` |
 | `npm run verify:mcp` | 39 checks validating SAVED FIXTURES against the pinned `2026-07-28` schema — not live server conformance |

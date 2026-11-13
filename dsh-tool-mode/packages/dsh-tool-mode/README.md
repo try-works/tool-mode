@@ -1,5 +1,8 @@
 # dsh-tool-mode
 
+> **User documentation:** [docs/guide](../../docs/guide/index.md) — install, first
+> call, MCP, extensions, custom tools, security and troubleshooting.
+
 Install on-device models as DSH tools and skills, with per-platform capability
 gating. Ships with the [Desert Ant Labs](https://desertant.com/models/) catalog.
 
@@ -31,8 +34,9 @@ installs none of them still starts cleanly and reports exactly what is missing.
 | Tool | Model | Runs on Windows x64 | Notes |
 | --- | --- | --- | --- |
 | `lang_detect` | Tongue | **yes** | Pure JavaScript, 2 MB model inside the package, no network |
-| `transcribe_audio` | Voz | **yes** | Needs `onnxruntime-node`; ~349 MB weights download on first use |
-| `model_tools` | — | yes | Lists every catalogued model, and installs/removes tools |
+| `stt_transcribe` | Voz | **yes** | Needs `onnxruntime-node`; ~349 MB weights download on first use |
+| `tool_mode_list` / `tool_mode_describe` | — | yes | Discovery: live readiness, schemas, and unsupported cases |
+| `model_tools` | — | yes | Host-local management view |
 
 The other 16 catalog models are reported by `model_tools` with the exact reason
 they cannot run, for example:
