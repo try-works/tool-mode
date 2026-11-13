@@ -41,4 +41,7 @@ verification/ptc-confinement-evidence.json
 # Fixture extension entry files are source, not build output.
 !packages/*/tests/fixtures/**/lib/
 !packages/*/tests/fixtures/**/lib/**
+!fixtures/**/lib/
+!fixtures/**/lib/**
+
 
