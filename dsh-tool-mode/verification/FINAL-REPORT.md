@@ -1,6 +1,6 @@
 # Tool Mode — final report
 
-**Generated** 2026-11-13T07:21:57.330Z from commit `unknown` (branch `unknown`, working tree DIRTY — this describes a state that exists in no commit).
+**Generated** 2026-11-13T07:52:30.182Z from commit `db5801c46700d9c9d3f766ede3ca4be01afbefcf` (branch `main`, working tree clean).
 **Regenerate** with `npm run final-report`; `npm run final-report:check` fails when this file is stale and is wired into `npm run verify`.
 
 ## The headline, before the detail
@@ -379,7 +379,7 @@ These are not implementation gaps. There is no artifact to integrate, and no fur
 
 ## What actually runs on this host
 
-RECORDED at the verification run named in the header (2026-11-13T07:21:57.330Z); `npm run verify` re-runs the same check, so this block is a snapshot rather than a standing claim:
+RECORDED at the verification run named in the header (2026-11-13T07:52:30.182Z); `npm run verify` re-runs the same check, so this block is a snapshot rather than a standing claim:
 
 ```
 $ npm run verify:built

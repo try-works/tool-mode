@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-11-13T07:21:57.330Z",
+  "generatedAt": "2026-11-13T07:52:30.182Z",
   "git": {
-    "commit": "unknown",
-    "branch": "unknown",
-    "dirty": true
+    "commit": "db5801c46700d9c9d3f766ede3ca4be01afbefcf",
+    "branch": "main",
+    "dirty": false
   },
   "platform": {
     "os": "win32",
@@ -66,8 +66,8 @@
     },
     {
       "path": "package-lock.json",
-      "sha256": "b4e35ebd3003cbbd078009a9ed5ae3bf0818a85d612eeae297685e825e06a4db",
-      "bytes": 53444
+      "sha256": "107dfb10c6f93fc76ce1961f1747b779c6c9527c091524a7d8ca8cbf8752e56b",
+      "bytes": 80404
     }
   ],
   "packages": [
