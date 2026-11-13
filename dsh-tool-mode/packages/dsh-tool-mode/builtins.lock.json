@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "description": "Host-release trusted built-ins. This file is authoritative; a package manifest cannot grant itself built-in status or extra trust.",
+  "builtins": [
+    {
+      "extensionId": "@try-works/extension-embeddinggemma",
+      "package": "@try-works/extension-embeddinggemma",
+      "protected": true
+    },
+    {
+      "extensionId": "@try-works/extension-laya",
+      "package": "@try-works/extension-laya",
+      "protected": true
+    },
+    {
+      "extensionId": "@try-works/extension-needle",
+      "package": "@try-works/extension-needle",
+      "protected": true
+    },
+    {
+      "extensionId": "@try-works/extension-declarative-recipes",
+      "package": "@try-works/extension-declarative-recipes",
+      "protected": true
+    }
+  ]
+}

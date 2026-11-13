@@ -1,0 +1,30 @@
+{
+  "acceptance": "AT-87",
+  "recordedAt": "2026-11-05T14:23:09.702Z",
+  "package": {
+    "id": "@author/tmx10-add",
+    "version": "1.0.0",
+    "protocolVersion": "1.0.0",
+    "hashes": {
+      "package.json": "85f11d1a5c6bbad2ddacb40df54036fc98375a211c4e20dea049162e5b6e90f4",
+      "tool-mode.extension.json": "1653941792a8ccce9b803b788b645b8ef3ef7c4fc6f7ad25700a0b5a5c8d1491",
+      "index.js": "00f2e4eda76ffb5ed2a357662b0e4ea17fb6287d01ab2f67ab62e6a695176ee0"
+    }
+  },
+  "discovery": {
+    "execution": {
+      "kind": "module"
+    },
+    "activation": "active"
+  },
+  "nativeRun": {
+    "input": {
+      "a": 4,
+      "b": 5
+    },
+    "output": {
+      "sum": 9
+    }
+  },
+  "declarative11": "The existing SDK tests cover TMX 1.1 declarative packages negotiating required features and refusing to import an executable entry during install/discovery."
+}

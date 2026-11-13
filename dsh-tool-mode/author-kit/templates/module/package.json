@@ -1,0 +1,11 @@
+{
+  "name": "@acme/tool-mode-module-template",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    "./tool-mode": "./index.mjs"
+  },
+  "toolMode": {
+    "manifest": "./tool-mode.extension.json"
+  }
+}

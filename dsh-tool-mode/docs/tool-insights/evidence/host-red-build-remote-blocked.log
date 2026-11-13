@@ -1,0 +1,39 @@
+# BLOCKER — `npm run build:remote` cannot write the generated chunk
+
+Command (from `packages/dsh-tool-mode`):
+
+    npm run build:remote
+
+Output:
+
+    > @try-works/dsh-tool-mode@0.5.19 build:remote
+    > node scripts/gen-remote-artifacts.mjs
+
+    Error: EPERM: operation not permitted, open
+      'D:\DEV\dsh-tool-mode\packages\dsh-tool-mode\client\client.model-tools.js'
+        errno: -4048
+        code: 'EPERM'
+        syscall: 'open'
+        path: '...\\packages\\dsh-tool-mode\\client\\client.model-tools.js'
+
+Follow-up check:
+
+    npm run check:remote
+    gen-remote-artifacts: ...\client\client.model-tools.js is stale; run
+      node packages/dsh-tool-mode/scripts/gen-remote-artifacts.mjs
+
+Cause: this session's DSH Windows sandbox grants writes on the workspace root but not on
+existing subdirectories; every write under `packages/**` is refused (`EPERM` /
+`sandbox: file access denied under workspace-write mode`), including generated artifacts.
+The ACL repair needs an unconfined approval, which this session cannot request
+(`approval prompts are disabled`). Host/source edits were made through the host file tools,
+which are unaffected.
+
+Consequence: `remote/spec.mjs` is updated (source of truth) and `tool-insights-remote.test.ts`
+tests the spec/codecs directly, but the committed CJS chunk still embeds the five old
+descriptors, so `tests/remote-typert.test.ts` (deep-equal against `renderChunk()`) fails
+until a writable session runs:
+
+    node packages/dsh-tool-mode/scripts/gen-remote-artifacts.mjs
+
+No client source file was edited by this task; the chunk is generated output.

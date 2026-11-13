@@ -1,0 +1,35 @@
+{
+  "acceptance": "AT-74",
+  "recordedAt": "2026-11-05T14:32:45.918Z",
+  "package": {
+    "id": "at73-title-pkg",
+    "version": "0.1.0",
+    "kind": "declarative",
+    "protocolVersion": "1.1.0"
+  },
+  "install": {
+    "source": "local archive directory",
+    "installedInactive": true,
+    "observedActivationBefore": "inactive"
+  },
+  "activation": {
+    "store": "E:/tmp/dsh-home-at74/store",
+    "observedActivation": "active",
+    "publishedTools": [
+      "text_title",
+      "tool_mode_run"
+    ]
+  },
+  "mcp": {
+    "call": "tools/call text_title",
+    "title": "Deploy job failure due to expired registry token"
+  },
+  "codeMode": {
+    "call": "tool_mode_run -> tools.text_title",
+    "title": "Deploy Job Failure and Resolution After Registry Token Expiry"
+  },
+  "parity": "Both MCP and hosted Code Mode expose the same text_title contract and return a valid {title,description}; exact prose differs because the harness model is nondeterministic. Code Mode binds the host native tool registry, so the native registration is the same tool.",
+  "evidence": {
+    "codeModeLog": ".agent-scratch/tdd/at74-live.log"
+  }
+}

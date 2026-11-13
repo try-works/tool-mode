@@ -1,0 +1,47 @@
+{
+  "generatedAt": "2026-10-25T10:16:07.208Z",
+  "baseUrl": "http://127.0.0.1:3196",
+  "exitCode": 1,
+  "skipInvoke": false,
+  "rows": [
+    {
+      "id": "@try-works/extension-laya",
+      "name": "laya",
+      "status": "FAIL",
+      "durationMs": 10776,
+      "blocker": null,
+      "detail": "gateway/internal: the npm registry http://127.0.0.1:4873 could not be reached for adm-zip within 120000 ms (metadata timeout): fetch failed",
+      "tools": [
+        "decision_choose",
+        "decision_test",
+        "decision_score"
+      ]
+    },
+    {
+      "id": "@try-works/extension-minilm-rerank",
+      "name": "minilm-rerank",
+      "status": "FAIL",
+      "durationMs": 18973,
+      "blocker": null,
+      "detail": "gateway/internal: the npm registry http://127.0.0.1:4873 could not be reached for @huggingface/jinja within 120000 ms (metadata timeout): fetch failed",
+      "tools": [
+        "text_rerank"
+      ]
+    }
+  ],
+  "tools": [],
+  "summary": {
+    "total": 2,
+    "pass": 0,
+    "fail": 2,
+    "skipped": 0,
+    "skippedWithNamedBlocker": 0,
+    "coherenceIssues": [],
+    "invocationRan": false
+  },
+  "hostServices": {},
+  "surface": {
+    "lifecycle": "gateway RPC: GET /connect?token=… then POST /api/modelTools/<installExtension|describe|prepare|enable> with {type:\"client-request\",rpcId,method,payload:{args}}",
+    "invocation": "in-process shipping host (plugin apply + tool runtime + extension dispatch) over a snapshot of the profile store; the live web profile exposes no MCP/tool-execute endpoint"
+  }
+}

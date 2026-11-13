@@ -1,0 +1,40 @@
+# DEC-06 TDD red — canonical typed decision tools (task-27)
+
+Command (intended, from the repository root):
+
+    npx tsx --test packages/extension-laya/tests/typed-decision.test.ts
+
+## Execution status: NOT EXECUTED
+
+The shell is unusable in this session (same `sandbox-local windows-acl temp grant
+materialization failed and its cleanup also failed` failure; even
+`node -e "console.log('probe ok')"` fails). No test was run. This red is recorded
+statically, from the pre-change tree, and must not be reported as an execution.
+
+## Static red basis (why the new test fails before the change)
+
+1. `packages/extension-laya/tests/typed-decision.test.ts` imports
+   `../src/typed-decision.ts`, which does not exist yet: every case fails at module
+   load with ERR_MODULE_NOT_FOUND.
+2. Even with that module present, the manifest currently declares exactly three
+   tools (`decision_choose`, `decision_test`, `decision_score`) and three
+   implementations (`packages/extension-laya/tool-mode.extension.json:27-78`), so
+   the DEC-06 manifest test fails on the expected five-tool/five-implementation
+   lists, on the missing typed contract ids, and on the missing typed schema files.
+3. The four typed schema files (`decision-test-typed.{input,output}.json`,
+   `decision-score-typed.{input,output}.json`) do not exist, so the schema-exactness
+   test fails on ENOENT.
+4. `src/index.ts` handles only the three compatibility implementation ids
+   (`laya-onnx-decision-*`), so typed invocations would throw
+   `this extension implements the decision family, not "…-typed"` once wired.
+
+## Green requires
+
+- `src/typed-decision.ts` pure adapter/validation module;
+- the four closed schema files and the two manifest tools/implementations;
+- the typed branches in `src/index.ts` reusing `assertDecisionInputSafe` and
+  `validateProbabilityDistribution`;
+- the existing manifest assertion in `tests/laya-decision.test.ts` updated to five
+  tools/five implementations (the compatibility trio is otherwise untouched);
+- `npx tsx --test packages/extension-laya/tests/*.test.ts` and
+  `npx tsc --noEmit -p packages/extension-laya/tsconfig.json` run green.

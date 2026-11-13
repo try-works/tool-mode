@@ -1,0 +1,10 @@
+# BASE-04 TDD red — legacy requiredness inference
+
+Date: 2026-11-02
+Command: `npx tsx --test --test-name-pattern "does not infer requiredness" packages/dsh-tool-mode/tests/transport.test.ts`
+
+Before fix: 1 test, 0 pass, 1 fail.
+- `buildParameters(entryOf('tongue')).text.required` was `true` purely because `text` was
+  the first parameter in the catalog declaration. That is the legacy per-model path's
+  parameter-order inference, which BASE-04 forbids; the adapter, not the advertised
+  schema, validates the primary input.

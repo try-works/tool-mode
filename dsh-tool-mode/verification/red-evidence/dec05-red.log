@@ -1,0 +1,10 @@
+# DEC-05 TDD red — do not hide truncation
+
+Date: 2026-11-01
+Command: `npx tsx --test --test-name-pattern "DEC-05" packages/extension-laya/tests/laya-decision.test.ts`
+
+Before implementation: 0 pass, 1 file failure.
+- `assertDecisionInputSafe` / `DecisionInputError` do not exist.
+- The extension currently ignores the runtime's `usage` report entirely: it does not
+  reject `truncated:true`, `state_tokens_dropped>0`, or collapsed `options`, and the
+  manifest descriptions do not report the 512 state-token / 192 head-token limits.

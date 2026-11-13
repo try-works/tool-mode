@@ -1,0 +1,11 @@
+# DEC-03 TDD red — stable reversible provider-key mapping
+
+Date: 2026-11-01
+Command: `npx tsx --test --test-name-pattern "provider-key|safe labels" packages/extension-laya/tests/laya-decision.test.ts`
+
+Before implementation: 0 pass, 1 file failure.
+- `mapProviderOptionKeys` does not exist.
+- The current `decision_choose` uses the caller's labels directly as native criteria
+  keys, so reserved object keys (`__proto__`, `constructor`, `prototype`) have no
+  stable reversible surrogate and the returned `chosen`/probabilities are not mapped
+  back to the caller's original IDs.

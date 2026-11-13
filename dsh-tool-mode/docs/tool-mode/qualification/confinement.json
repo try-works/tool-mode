@@ -1,0 +1,34 @@
+{
+  "requirement": "CODE-09",
+  "assertion": "the confinement release gate is closed without the operator marker and opens ONLY when the operator starts the process with the explicit acceptance-test marker; the packed artifact ships the same gate bytes.",
+  "marker": {
+    "env": "DSH_PTC_CONFINEMENT_SEAM",
+    "value": "open-for-acceptance-test",
+    "note": "the marker is the operator action that arms the test seam; production never sets it"
+  },
+  "steps": [
+    {
+      "step": "without-operator-marker",
+      "pass": true,
+      "detail": "evidence=false; setter=refused: the confinement evidence is a release gate; the acceptance-test seam is closed in this process because the operator marker is absent"
+    },
+    {
+      "step": "with-operator-marker",
+      "pass": true,
+      "detail": "evidence after the marked setter = true"
+    },
+    {
+      "step": "packed-artifact-bytes",
+      "pass": true,
+      "detail": "the packed tarball's ptc-runtime.js is byte-identical to the built lib (sha256 equal)"
+    },
+    {
+      "step": "packed-install-without-marker",
+      "pass": true,
+      "detail": "the clean packed install completed and the seam stayed closed without the operator marker (PACKED-OK line observed)"
+    }
+  ],
+  "verdict": "accepted",
+  "verdictNote": "All four steps passed: refusal without the marker, success with it, byte-identical packed artifact, and the clean packed install refusing the seam.",
+  "recordedAt": "2026-11-04T19:21:32.026Z"
+}

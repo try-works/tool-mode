@@ -1,0 +1,71 @@
+=== task-22 TDD red: models-index-check.test.ts (before fix) ===
+run: npx --no-install tsx --test packages/dsh-tool-mode/tests/models-index-check.test.ts
+date: 2026-11-01T08:48:14.3365984+08:00
+▶ models-index --check reports one consistent verdict
+  ✖ stale index: exits 1 and prints NO success line (312.0374ms)
+  ✖ current index: exits 0 and prints the success line (248.9018ms)
+✖ models-index --check reports one consistent verdict (566.3192ms)
+ℹ tests 2
+ℹ suites 1
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1899.211
+
+✖ failing tests:
+
+test at packages\dsh-tool-mode\tests\models-index-check.test.ts:56:3
+✖ stale index: exits 1 and prints NO success line (312.0374ms)
+  AssertionError [ERR_ASSERTION]: a failed check must not print "models-index OK"; stdout was:
+  models-index OK — verification/models.lock.json current; compatibility.json and quality-gates.json parse with required keys.
+  
+  
+  true !== false
+  
+      at TestContext.<anonymous> (D:\DEV\dsh-tool-mode\packages\dsh-tool-mode\tests\models-index-check.test.ts:65:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.start (node:internal/test_runner/test:1003:17)
+      at node:internal/test_runner/test:1514:71
+      at node:internal/per_context/primordials:464:82
+      at new Promise (<anonymous>)
+      at new SafePromise (node:internal/per_context/primordials:433:3)
+      at node:internal/per_context/primordials:464:9
+      at Array.map (<anonymous>) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages\dsh-tool-mode\tests\models-index-check.test.ts:70:3
+✖ current index: exits 0 and prints the success line (248.9018ms)
+  AssertionError [ERR_ASSERTION]: expected exit 0, got 1
+  stdout: models-index OK — verification/models.lock.json current; compatibility.json and quality-gates.json parse with required keys.
+  
+  stderr: models-index: verification/models.lock.json is stale; run: node scripts/gen-models-index.mjs
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (D:\DEV\dsh-tool-mode\packages\dsh-tool-mode\tests\models-index-check.test.ts:72:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1516:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+=== exit code: 1 ===

@@ -1,0 +1,34 @@
+▶ OBS-02 — an external call is WIRED into the host receipt surface
+  ✖ a real tools/call lands in the external accounting ring, with sizes and class, never a payload (4639.1741ms)
+✖ OBS-02 — an external call is WIRED into the host receipt surface (4649.3413ms)
+ℹ tests 1
+ℹ suites 1
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 15886.7858
+
+✖ failing tests:
+
+test at packages\dsh-tool-mode\tests\obs02-external-receipts.test.ts:27:3
+✖ a real tools/call lands in the external accounting ring, with sizes and class, never a payload (4639.1741ms)
+  AssertionError [ERR_ASSERTION]: OBS-01: the external call gains a native-shaped provenance receipt
+  + actual - expected
+  
+  + 'invocation'
+  - 'external'
+  
+      at TestContext.<anonymous> (D:\DEV\dsh-tool-mode\packages\dsh-tool-mode\tests\obs02-external-receipts.test.ts:93:12)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1516:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'invocation',
+    expected: 'external',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

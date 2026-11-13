@@ -1,0 +1,116 @@
+{
+  "lockVersion": 1,
+  "assetSets": {
+    "voz-weights": {
+      "assets": [],
+      "groups": [
+        {
+          "id": "voz-onnx",
+          "enables": [
+            "text"
+          ],
+          "assets": [
+            {
+              "id": "voz-decoder-webgpu",
+              "file": "decoder.webgpu.onnx",
+              "bytes": 24472430,
+              "source": "https://huggingface.co/desert-ant-labs/voz/resolve/ed1294271423bbaede51aaef56a70ff44ee620b1/web/decoder.webgpu.onnx",
+              "digest": "c07e489aac6f5623ef418ede8bcee2bad14c59fd74f746d26ffa0fde3cadc2cb",
+              "executable": false
+            },
+            {
+              "id": "voz-embedding",
+              "file": "embedding.f16",
+              "bytes": 10487040,
+              "source": "https://huggingface.co/desert-ant-labs/voz/resolve/ed1294271423bbaede51aaef56a70ff44ee620b1/web/embedding.f16",
+              "digest": "3173388aaf6b5b4ae292d8777940bb8fb5c7c02e30adf708b9dde4d909c2000f",
+              "executable": false
+            },
+            {
+              "id": "voz-encoder",
+              "file": "encoder.onnx",
+              "bytes": 813056,
+              "source": "https://huggingface.co/desert-ant-labs/voz/resolve/ed1294271423bbaede51aaef56a70ff44ee620b1/web/encoder.onnx",
+              "digest": "6c0df35dea7cb88617f81412ebb752a0c5864c5421c97a250733a8f5e0453252",
+              "executable": false
+            },
+            {
+              "id": "voz-encoder-data",
+              "file": "encoder.onnx.data",
+              "bytes": 348981248,
+              "source": "https://huggingface.co/desert-ant-labs/voz/resolve/ed1294271423bbaede51aaef56a70ff44ee620b1/web/encoder.onnx.data",
+              "digest": "323282eb1c182d24af086e3818029b763d001bf18b31c8e4b2542e8d553b8eab",
+              "executable": false
+            },
+            {
+              "id": "voz-meta",
+              "file": "meta.json",
+              "bytes": 539,
+              "source": "https://huggingface.co/desert-ant-labs/voz/resolve/ed1294271423bbaede51aaef56a70ff44ee620b1/web/meta.json",
+              "digest": "2fb6b111dcf4f2477d7ff7699b2374c5f7194ae5fa20ef2a06f121c243119a37",
+              "executable": false
+            },
+            {
+              "id": "voz-vocab",
+              "file": "vocab.json",
+              "bytes": 78654,
+              "source": "https://huggingface.co/desert-ant-labs/voz/resolve/ed1294271423bbaede51aaef56a70ff44ee620b1/web/vocab.json",
+              "digest": "3eb2f73e8853dce5156c2ed97c0b1bb84eb4ebd201eb1761d15977fc1ea31490",
+              "executable": false
+            }
+          ],
+          "note": "The six files the vendor JavaScript bundle fetches from Hugging Face at the pinned revision; the cached bytes were measured and the meta.json network digest matched the cache."
+        }
+      ],
+      "pinning": {
+        "state": "measured",
+        "revision": "ed1294271423bbaede51aaef56a70ff44ee620b1",
+        "measuredOn": {
+          "os": "win32",
+          "arch": "x64",
+          "accelerator": "cpu",
+          "node": "v24.11.0"
+        },
+        "recordedAt": "2026-11-06",
+        "reason": "The @desert-ant-labs/voz 3.6.0 JavaScript bundle downloads six web/ files from Hugging Face at revision ed1294271423bbaede51aaef56a70ff44ee620b1. The files were already cached by a real Voz load; every digest above was measured from those bytes, and a fresh network fetch of web/meta.json matched the cached SHA-256 exactly. The vendor still downloads at model initiative, but the identity is now pinned and exact."
+      },
+      "engine": {
+        "version": "onnxruntime-node 1.30.0 (the version resolved beside the extension)",
+        "kind": "onnxruntime"
+      },
+      "tokenizer": {
+        "kind": "bundled",
+        "identity": "voz-tokenizer (vocab.json, 8192 tokens, blank_idx 8192)"
+      },
+      "model": {
+        "revision": "ed1294271423bbaede51aaef56a70ff44ee620b1",
+        "identity": "desert-ant-labs/voz (Voz 3.6.0 web ONNX bundle)",
+        "provider": "desert-ant-labs"
+      },
+      "note": "Voz downloads roughly 367 MB of weights into its own cache on first load; the lock now pins the exact Hugging Face revision and every fetched file digest, so the asset identity is exact even though the host does not fetch them itself.",
+      "platforms": [
+        {
+          "arch": "x64",
+          "accelerator": "cpu",
+          "os": "win32"
+        },
+        {
+          "arch": "arm64",
+          "accelerator": "gpu",
+          "os": "darwin"
+        },
+        {
+          "arch": "x64",
+          "accelerator": "cpu",
+          "os": "linux"
+        }
+      ],
+      "license": {
+        "url": "https://desertant.com/license",
+        "name": "Desert Ant Labs Source-Available License 1.0",
+        "attributionRequired": true,
+        "redistribution": "not-permitted"
+      }
+    }
+  }
+}

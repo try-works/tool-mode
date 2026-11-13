@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://try-works.dev/tool-mode/extension-needle/validate-record.output.schema.json",
+  "title": "validate_record output",
+  "description": "Output for validate_record. `valid` is the verdict; `issues` is EVERY violation the extraction path's validator found, not the first one, so a caller fixes all of them at once; `record` is the validated record as plain JSON when valid and null when it is not. A schema the engine's grammar cannot express is REFUSED as an error rather than reported here, because that is a fault in the caller's schema, not a verdict about the record.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "valid",
+    "issues",
+    "record",
+    "meta"
+  ],
+  "properties": {
+    "valid": {
+      "type": "boolean",
+      "description": "Whether the record is admissible under the caller's schema, judged by the same validator an extraction uses."
+    },
+    "issues": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "string",
+        "maxLength": 512
+      },
+      "description": "Every violation found, as path-qualified strings. Empty exactly when `valid` is true."
+    },
+    "record": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "The validated record, copied into plain JSON, or null when the record is invalid. Null rather than absent so a caller never has to distinguish 'no record' from a dropped property. The record's own fields are governed by the caller's schema, not by this envelope: the host's schema DSL cannot advertise `additionalProperties` on a union-typed node, so it is deliberately not repeated here (structured_extract's output schema has the same shape for the same reason)."
+    },
+    "meta": {
+      "$ref": "#/$defs/meta"
+    }
+  },
+  "allOf": [
+    {
+      "description": "A negative verdict carries no record: there is nothing admissible to return.",
+      "if": {
+        "properties": {
+          "valid": {
+            "const": false
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "record": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "description": "A positive verdict carries no unresolved issue. JSON Schema cannot correlate two fields without this conditional, and the code enforces the same rule directly.",
+      "if": {
+        "properties": {
+          "valid": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "issues": {
+            "type": "array",
+            "maxItems": 0
+          },
+          "record": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract",
+        "contractVersion",
+        "implementationId",
+        "extension",
+        "extensionVersion",
+        "activationGeneration",
+        "executionLocation",
+        "receiptId",
+        "warnings"
+      ],
+      "description": "The host stamps this envelope. The provider never authors it (EXT-17).",
+      "properties": {
+        "contract": {
+          "type": "string"
+        },
+        "contractVersion": {
+          "type": "string"
+        },
+        "implementationId": {
+          "type": "string"
+        },
+        "extension": {
+          "type": "string"
+        },
+        "extensionVersion": {
+          "type": "string"
+        },
+        "activationGeneration": {
+          "type": "integer"
+        },
+        "executionLocation": {
+          "type": "string",
+          "enum": [
+            "device",
+            "remote"
+          ]
+        },
+        "receiptId": {
+          "type": "string"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

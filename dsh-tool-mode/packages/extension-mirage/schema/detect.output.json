@@ -1,0 +1,185 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "mirage_detect output",
+  "description": "Detected objects. When maskFormat is none no mask is returned; bitmap masks are {size,counts} and polygons are nested point arrays. IDs are the model’s own object ids, not stable across runs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "objects",
+    "maskFormat",
+    "meta"
+  ],
+  "properties": {
+    "objects": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "bbox",
+          "score"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "bbox": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "score": {
+            "type": "number"
+          },
+          "position": {
+            "type": "string"
+          },
+          "mask": {
+            "type": [
+              "object",
+              "array",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "maskFormat": {
+      "type": "string",
+      "enum": [
+        "none",
+        "bitmap",
+        "polygons"
+      ]
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract",
+        "contractVersion",
+        "implementationId",
+        "extension",
+        "extensionVersion",
+        "activationGeneration",
+        "executionLocation",
+        "receiptId",
+        "warnings"
+      ],
+      "properties": {
+        "contract": {
+          "type": "string",
+          "minLength": 1
+        },
+        "contractVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "implementationId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "extension": {
+          "type": "string",
+          "minLength": 1
+        },
+        "extensionVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+"
+        },
+        "activationGeneration": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "executionLocation": {
+          "type": "string",
+          "enum": [
+            "host",
+            "device",
+            "team-server",
+            "remote"
+          ]
+        },
+        "receiptId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract",
+        "contractVersion",
+        "implementationId",
+        "extension",
+        "extensionVersion",
+        "activationGeneration",
+        "executionLocation",
+        "receiptId",
+        "warnings"
+      ],
+      "properties": {
+        "contract": {
+          "type": "string",
+          "minLength": 1
+        },
+        "contractVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "implementationId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "extension": {
+          "type": "string",
+          "minLength": 1
+        },
+        "extensionVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+"
+        },
+        "activationGeneration": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "executionLocation": {
+          "type": "string",
+          "enum": [
+            "host",
+            "device",
+            "team-server",
+            "remote"
+          ]
+        },
+        "receiptId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

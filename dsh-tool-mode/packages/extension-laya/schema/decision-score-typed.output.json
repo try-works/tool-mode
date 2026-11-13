@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "decision_score_typed output (DEC-06)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "expectedIndex", "probabilities", "probabilityKind"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["scored", "abstained"],
+      "description": "scored when the native ordinal distribution was produced; abstained when the model produced none or the runtime marked it low-confidence."
+    },
+    "expectedIndex": {
+      "type": ["number", "null"],
+      "description": "The native probability-weighted 0-based level index (Σ i·p_i), FRACTIONAL and unrounded. It is a mean over the ordinal distribution, not a hard level label; null when abstained."
+    },
+    "probabilities": {
+      "type": "array",
+      "description": "The native ordinal distribution in level order: one entry per input level, ids returned unchanged.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["levelId", "probability"],
+        "properties": {
+          "levelId": { "type": "string", "description": "The caller's level id, unchanged." },
+          "probability": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "The model's uncalibrated probability mass for that level (DEC-08)."
+          }
+        }
+      }
+    },
+    "probabilityKind": {
+      "const": "model_probability",
+      "description": "Names the probabilities as the model's own, uncalibrated probability mass."
+    }
+  }
+}

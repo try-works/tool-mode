@@ -1,0 +1,120 @@
+{
+  "generatedAt": "2026-10-25T07:35:08.365Z",
+  "baseUrl": "http://127.0.0.1:3189",
+  "exitCode": 1,
+  "skipInvoke": false,
+  "rows": [
+    {
+      "id": "@try-works/extension-desert-ant-tongue",
+      "name": "tongue",
+      "status": "FAIL",
+      "durationMs": 9866,
+      "blocker": null,
+      "detail": "gateway/internal: the tarball for @try-works/extension-desert-ant-tongue@0.1.3 from 127.0.0.1:4873 answered HTTP 500 after 8 attempts (not the size cap)",
+      "tools": [
+        "lang_detect"
+      ]
+    },
+    {
+      "id": "@try-works/extension-desert-ant-voz",
+      "name": "voz",
+      "status": "FAIL",
+      "durationMs": 8595,
+      "blocker": null,
+      "detail": "gateway/internal: the tarball for @try-works/extension-desert-ant-voz@0.1.5 from 127.0.0.1:4873 answered HTTP 500 after 8 attempts (not the size cap)",
+      "tools": [
+        "stt_transcribe"
+      ]
+    },
+    {
+      "id": "@try-works/extension-embeddinggemma",
+      "name": "embeddinggemma",
+      "status": "FAIL",
+      "durationMs": 12854,
+      "blocker": null,
+      "detail": "gateway/internal: the tarball for @try-works/extension-embeddinggemma@0.1.1 from 127.0.0.1:4873 answered HTTP 500 after 8 attempts (not the size cap)",
+      "tools": [
+        "multimodal_embed",
+        "semantic_similarity",
+        "semantic_rank",
+        "semantic_classify",
+        "semantic_deduplicate",
+        "media_find_moments"
+      ]
+    },
+    {
+      "id": "@try-works/extension-laya",
+      "name": "laya",
+      "status": "FAIL",
+      "durationMs": 9133,
+      "blocker": null,
+      "detail": "gateway/internal: the tarball for @try-works/extension-laya@1.0.1 from 127.0.0.1:4873 answered HTTP 500 after 8 attempts (not the size cap)",
+      "tools": [
+        "decision_choose",
+        "decision_test",
+        "decision_score"
+      ]
+    },
+    {
+      "id": "@try-works/extension-minilm-embed",
+      "name": "minilm-embed",
+      "status": "FAIL",
+      "durationMs": 10091,
+      "blocker": null,
+      "detail": "gateway/internal: the tarball for @try-works/extension-minilm-embed@1.0.0 from 127.0.0.1:4873 answered HTTP 500 after 8 attempts (not the size cap)",
+      "tools": [
+        "text_embed"
+      ]
+    },
+    {
+      "id": "@try-works/extension-minilm-rerank",
+      "name": "minilm-rerank",
+      "status": "FAIL",
+      "durationMs": 8861,
+      "blocker": null,
+      "detail": "gateway/internal: the tarball for @try-works/extension-minilm-rerank@1.0.0 from 127.0.0.1:4873 answered HTTP 500 after 8 attempts (not the size cap)",
+      "tools": [
+        "text_rerank"
+      ]
+    },
+    {
+      "id": "@try-works/extension-needle",
+      "name": "needle",
+      "status": "FAIL",
+      "durationMs": 8586,
+      "blocker": null,
+      "detail": "gateway/internal: the tarball for @try-works/extension-needle@0.1.2 from 127.0.0.1:4873 answered HTTP 500 after 8 attempts (not the size cap)",
+      "tools": [
+        "tools_plan",
+        "structured_extract"
+      ]
+    },
+    {
+      "id": "@try-works/extension-declarative-recipes",
+      "name": "declarative-recipes",
+      "status": "FAIL",
+      "durationMs": 8606,
+      "blocker": null,
+      "detail": "gateway/internal: the tarball for @try-works/extension-declarative-recipes@0.1.0 from 127.0.0.1:4873 answered HTTP 500 after 8 attempts (not the size cap)",
+      "tools": [
+        "text_title",
+        "describe_image"
+      ]
+    }
+  ],
+  "tools": [],
+  "summary": {
+    "total": 8,
+    "pass": 0,
+    "fail": 8,
+    "skipped": 0,
+    "skippedWithNamedBlocker": 0,
+    "coherenceIssues": [],
+    "invocationRan": false
+  },
+  "hostServices": {},
+  "surface": {
+    "lifecycle": "gateway RPC: GET /connect?token=… then POST /api/modelTools/<installExtension|describe|prepare|enable> with {type:\"client-request\",rpcId,method,payload:{args}}",
+    "invocation": "in-process shipping host (plugin apply + tool runtime + extension dispatch) over a snapshot of the profile store; the live web profile exposes no MCP/tool-execute endpoint"
+  }
+}

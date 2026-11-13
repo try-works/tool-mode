@@ -1,0 +1,9 @@
+# DECL-08 TDD red — recipe digest
+
+Date: 2026-11-02
+Command: `npx tsx --test --test-name-pattern "RESOLVES its declared recipes" packages/dsh-tool-mode/tests/declarative-install.test.ts`
+
+Before fix: 1 test, 0 pass, 1 fail.
+- `resolveDeclarativeImplementations` returned `recipeDigest: undefined` for each installed
+  recipe. DECL-08 requires the contribution to carry a recipe digest; it must be computed
+  from the installed bytes, not declared by the package.

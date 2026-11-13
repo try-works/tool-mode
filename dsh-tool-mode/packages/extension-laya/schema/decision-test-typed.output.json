@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "decision_test_typed output (DEC-06)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "answer", "probabilityTrue", "probabilityKind"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["answered", "abstained"],
+      "description": "answered when the native answer was produced; abstained when the model produced none or the runtime marked it low-confidence."
+    },
+    "answer": {
+      "type": ["boolean", "null"],
+      "description": "The disclosed boolean policy's answer over probabilityTrue, or null when abstained. Not a claim of truth."
+    },
+    "probabilityTrue": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 1,
+      "description": "The prepared head's native P(proposition). EXPLICITLY UNCALIBRATED (DEC-08); null when abstained."
+    },
+    "probabilityKind": {
+      "const": "model_probability",
+      "description": "Names the probability as the model's own, uncalibrated probability mass."
+    }
+  }
+}

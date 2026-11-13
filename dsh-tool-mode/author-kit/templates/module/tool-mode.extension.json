@@ -1,0 +1,33 @@
+{
+  "protocolVersion": "1.1.0",
+  "id": "@acme/tool-mode-module-template",
+  "version": "0.1.0",
+  "displayName": "Module template",
+  "description": "A minimal module extension for the author kit: no downloads, no model load, no tools until the author adds them.",
+  "license": "MIT",
+  "activation": {
+    "policy": "operator",
+    "deactivatable": true
+  },
+  "runtimeApi": 1,
+  "compatibility": {
+    "hostApi": "^1.1.0",
+    "requiredFeatures": []
+  },
+  "execution": {
+    "kind": "module",
+    "entry": "./index.mjs"
+  },
+  "permissions": {
+    "networkOrigins": [],
+    "inputFiles": false,
+    "storage": "extension-private",
+    "secrets": [],
+    "nativeCode": false
+  },
+  "models": [],
+  "tools": [],
+  "implementations": [],
+  "skills": [],
+  "licenses": []
+}

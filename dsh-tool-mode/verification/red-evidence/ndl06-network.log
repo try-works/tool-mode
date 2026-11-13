@@ -1,0 +1,16 @@
+# NDL-06 — runtime network observation (2026-11-02)
+
+Pinned engine: `needle.exe` (size/SHA-256 in the extension lock)
+Pinned weights: `needle3.cact`
+
+Command shape:
+`needle.exe --model needle3.cact --fail-input-overflow --max 32 --prompt "Say hello in one short sentence."`
+with the bridge's telemetry opt-outs (`NEEDLE_TELEMETRY=0`, `DO_NOT_TRACK=1`) inherited.
+
+Observation: while the child was alive (startup + inference), `Get-NetTCPConnection
+-OwningProcess <pid>` was polled every 250 ms. Result: **0 TCP connections**, exit 0,
+220 stdout bytes, empty stderr.
+
+This observes startup and inference, not just a static import table. It does not prove
+that no other network behavior (e.g. a short-lived UDP request not represented as TCP)
+could occur; the engine's telemetry opt-outs are additionally forced at the spawn boundary.

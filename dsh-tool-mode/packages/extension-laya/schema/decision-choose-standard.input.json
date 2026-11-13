@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["decision", "options"],
+  "properties": {
+    "decision": { "type": "string", "minLength": 1, "maxLength": 4096, "description": "The decision to make." },
+    "options": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 16,
+      "items": { "type": "string", "minLength": 1, "maxLength": 400 },
+      "description": "The mutually exclusive options; the answer is an index into this list."
+    }
+  }
+}

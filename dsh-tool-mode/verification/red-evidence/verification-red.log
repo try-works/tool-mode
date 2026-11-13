@@ -1,0 +1,96 @@
+# task-20 — TDD RED record (execution PENDING: sandbox blocks the shell)
+
+Date: 2026-11-01 (Asia/Shanghai). Repo: `D:\DEV\dsh-tool-mode`.
+
+## What was attempted
+
+```
+cd D:\DEV\dsh-tool-mode
+node packages/dsh-tool-mode/tests/verification-generator.test.ts
+node --check scripts/gen-verification.mjs
+node scripts/gen-verification.mjs
+```
+
+Every invocation of the `pwsh` tool (3 attempts, including a bare `node --version`) failed before the
+command started:
+
+```
+Error: sandbox-local windows-acl temp grant materialization failed and its cleanup also failed
+```
+
+This is the DSH Windows file-sandbox failure (the same failure mode that blocked the read-only
+audit task). No command executed, so there is NO captured test output from this session. This file is
+a record of the RED state by construction, not a claimed run.
+
+## The test written FIRST (before the generator fix)
+
+`packages/dsh-tool-mode/tests/verification-generator.test.ts` (new, the only test file added;
+`verification-evidence.test.ts` was not touched, per the Lead's coordination note).
+
+It imports the generator's pure helpers, so the expected RED is a link-time error that never
+evaluates the module (and therefore never writes artifacts):
+
+```
+SyntaxError: The requested module '../../../scripts/gen-verification.mjs' does not provide an
+export named 'countDrift'
+```
+
+After the fix the import links, and the artifact assertions below are the remaining RED until the
+generator is run:
+
+- `every inventory summary is a non-empty string`
+  Fails on the committed `verification/requirements.json`: **81 of 317** records have
+  `"summary": ""` because the old extractor only understood `**ID. text**`, not the
+  `**ID.** text` convention used by the main spec (spec line 64 is BASE-01). Representative IDs
+  from the audit: BASE-01, BASE-08, BASE-13, ARCH-*, RUN-*, MCP-*, … (81 rows; first empty at
+  `verification/evidence.json:90`).
+- `every evidence field is a string or null, never an object`
+  Fails on the committed artifacts: **90 of 317** records (AT-01..AT-90) carry
+  `"evidence": { "status": "...", "evidence": "..." }` because the old generator assigned
+  `status.acceptance[id]` instead of `.evidence`. First offender:
+  `verification/evidence.json:2820-2823` (AT-01); same shape in
+  `verification/requirements.json:2757-…` (90 blocks).
+- `--check content sees the committed artifacts as current`
+  Fails for the same two content drifts: old `--check` compares requirement IDs only
+  (`gen-verification.mjs:345-364` before the fix), so `node scripts/gen-verification.mjs --check`
+  exits **0** while the 81 summaries and 90 evidence fields are wrong. The new `checkArtifacts()`
+  reports both (plus any status/count/report drift) and exits nonzero.
+
+## The fix that makes the test GREEN (written, awaiting regeneration)
+
+`scripts/gen-verification.mjs`:
+
+1. `extractInventoryFromText()` now also parses `**ID.** body` (body continues until a blank line
+   or a structural line) while preserving `**ID. text**`; the acceptance table parser is unchanged.
+2. `normalizeEvidenceFor()` returns `status.requirements[id].evidence`, else
+   `status.acceptance[id].evidence` (object shape), else `null` for a legacy string record; it never
+   returns an object.
+3. `checkArtifacts()` / `--check` compare statuses, evidence, summaries, counts and the rendered
+   release report against a fresh run, excluding only volatile run identities
+   (`generatedAt`, git commit/dirty, platform). `--release-gate` is unchanged.
+
+## Exact commands to finish verification (one command regenerates; execution is pending)
+
+```
+cd D:\DEV\dsh-tool-mode
+node --check scripts/gen-verification.mjs
+node scripts/gen-verification.mjs
+node scripts/gen-verification.mjs --check
+node packages/dsh-tool-mode/tests/verification-generator.test.ts
+```
+
+Expected after regeneration: `--check` prints
+`verification artifacts up to date: 317 requirements, 18 PASS`; the test file passes 4 describe
+groups (16 tests); `verification/requirements.json` has 0 empty summaries and 0 object evidence;
+`verification/evidence.json` counts unchanged (18/252/3/44 — this change is shape-only and does not
+alter any status).
+
+## Cross-lane note (FINAL-REPORT)
+
+`verification/FINAL-REPORT.md` is currently generated from the pre-fix `requirements.json`, whose
+BASE-01/BASE-08/BASE-13 summaries are empty, so its done list reads “(no summary recorded)” for
+those three (`FINAL-REPORT.md:49-51`). Regenerating `requirements.json` fills those summaries, which
+changes what `scripts/gen-final-report.mjs` renders; the FINAL-REPORT owner must run their generator
+after this one to keep `final-report.test.ts` (“byte-identical to what the generator renders”)
+green. This task does not edit FINAL-REPORT.
+

@@ -1,0 +1,300 @@
+DSH Local Build
+0.2.1-rc.2-687f282-dirty
+New Session
+Ctrl
++
+Alt
++
+N
+Plugins
+Automation tasks
+Workspaces
+dsh-anti-slop
+New Session
+Untitled
+2mo
+Untitled
+2mo
+Untitled
+2mo
+Untitled
+2mo
+More
+Into the Unknown
+Preview
+dsh-anti-slop
+Standard mode
+Describe what you want to build, / commands, @ files or sessions
+Workspace Write
+Select model
+Get started
+
+Sign in to your DeepSeek account or add an API Key to get started. Your projects and files are stored locally.
+
+Add API Key
+Sign in
+Settings
+General
+Models
+Built-in plugins
+Agent presets
+Model as Tool
+Open configuration file
+Close
+Model as Tool
+
+On-device models from the Desert Ant catalog, exposed as tools and skills. A model becomes a tool only when this process can actually run it; extension-backed models are listed with the extension that provides them.
+
+2 of 18 catalog models are runnable in this process. Unavailable models are listed with the reason they cannot run here.
+
+Tongue
+extension
+
+On-device language identification for short text across 84 languages, from just a few words.
+
+tongue · @try-works/extension-desert-ant-tongue · 2 MB · source-available · provided by the Tool Mode extension; install and activate it to run
+Voz
+extension
+
+Transcribe 10 minutes of audio in 2s on an iPhone, 14x faster than Whisper, with word timestamps.
+
+voz · @try-works/extension-desert-ant-voz · 349 MB · source-available · provided by the Tool Mode extension; install and activate it to run
+Align
+unavailable here
+
+Word-timestamp refinement for any transcript, on device, from 0.7MB.
+
+align · @desert-ant-labs/align · 0.7 MB · source-available · Align has no prebuilt native build for win32-x64: @desert-ant-labs/align/native supports linux-x64, linux-arm64 and darwin-arm64 only.
+Clear
+unavailable here
+
+On-device speech enhancement: denoise, dereverb and loudness-normalize to 48 kHz.
+
+clear · @desert-ant-labs/clear · source-available · Clear has no prebuilt native build for win32-x64: @desert-ant-labs/clear/native supports linux-x64, linux-arm64 and darwin-arm64 only.
+Clips
+unavailable here
+
+Clip selection that turns a long recording into ranked shorts and highlights from a transcript.
+
+clips · no package · source-available · Clips has no npm package; run it through the Desert Ant CLI (macOS/Linux) with `cli.enabled`, or through a bridge with `remote.endpoint`.
+Ear
+unavailable here
+
+On-device spoken language identification across 102 languages from a short audio stretch.
+
+ear · @desert-ant-labs/ear · source-available · Ear has no prebuilt native build for win32-x64: @desert-ant-labs/ear/native supports linux-x64, linux-arm64 and darwin-arm64 only.
+Emo
+unavailable here
+
+Type a task or message and get the emoji that fit, in 22 languages, on the device.
+
+emo · @desert-ant-labs/emo · 10.2 MB · source-available · Emo has no prebuilt native build for win32-x64: @desert-ant-labs/emo/native supports linux-x64, linux-arm64 and darwin-arm64 only.
+Eye
+unavailable here
+
+On-device frame scoring that tells you which shot to keep, what is in it, and which shots repeat.
+
+eye · no package · source-available · Eye is in closed beta: the weights are published at https://huggingface.co/desert-ant-labs/eye but no SDK ships them yet, so it cannot be installed as a tool.
+Face
+unavailable here
+
+On-device face matching that finds the same person across a photo library or through a video.
+
+face · no package · source-available · Face is in closed beta: the weights are published at https://huggingface.co/desert-ant-labs/face but no SDK ships them yet, so it cannot be installed as a tool.
+Gist
+unavailable here
+
+On-device topic tagging across a 36-topic taxonomy, in 101 languages, with no server call.
+
+gist · @desert-ant-labs/gist · source-available · Gist has no prebuilt native build for win32-x64: @desert-ant-labs/gist/native supports linux-x64, linux-arm64 and darwin-arm64 only.
+Moderator
+unavailable here
+
+On-device NSFW detection that flags nudity before upload, trained only on licensed and synthetic data.
+
+moderator · @desert-ant-labs/moderator · 9.2 MB · source-available · Moderator has no prebuilt native build for win32-x64: @desert-ant-labs/moderator/native supports linux-x64, linux-arm64 and darwin-arm64 only.
+Redact
+unavailable here
+
+On-device redaction that strips personal data as you type, in 27 languages, with restore support.
+
+redact · @desert-ant-labs/redact · source-available · Redact has no prebuilt native build for win32-x64: @desert-ant-labs/redact/native supports linux-x64, linux-arm64 and darwin-arm64 only.
+Schemer
+unavailable here
+
+Extract typed fields from any text against your own schema, on device, with empty fields left empty.
+
+schemer · no package · source-available · Schemer is in closed beta: the weights are published at https://huggingface.co/desert-ant-labs/schemer but no SDK ships them yet, so it cannot be installed as a tool.
+Shapes
+unavailable here
+
+On-device shape recognition that turns one hand-drawn stroke into a rectangle, ellipse, triangle, star or line in under 10ms.
+
+shapes · @desert-ant-labs/shapes · source-available · Shapes has no prebuilt native build for win32-x64: @desert-ant-labs/shapes/native supports linux-x64, linux-arm64 and darwin-arm64 only.
+Title
+unavailable here
+
+On-device titles and descriptions: a short factual title and a one- or two-sentence description for any passage.
+
+title · no package · source-available · Title is Apple-only (Core ML/MLX through the Swift package); there is no JavaScript SDK, so it cannot run in a Node process. Point `remote.endpoint` at a bridge on an Apple machine to reach it.
+Toxic
+unavailable here
+
+On-device moderation that flags hateful, abusive and threatening text in 23 European languages.
+
+toxic · no package · source-available · Toxic is in closed beta: the weights are published at https://huggingface.co/desert-ant-labs/toxic but no SDK ships them yet, so it cannot be installed as a tool.
+Uhm
+unavailable here
+
+On-device filler detection that marks every um, uh and hmm to within 20ms, an hour of audio in 12s.
+
+uhm · no package · source-available · Uhm is Apple-only (Core ML/MLX through the Swift package); there is no JavaScript SDK, so it cannot run in a Node process. Point `remote.endpoint` at a bridge on an Apple machine to reach it.
+Who
+unavailable here
+
+On-device speaker labeling that turns a recording into per-person turns with face boxes and timestamps.
+
+who · no package · source-available · Who is in closed beta: the weights are published at https://huggingface.co/desert-ant-labs/who but no SDK ships them yet, so it cannot be installed as a tool.
+
+Tool Mode extensions shipped with this plugin. The host's extension store is the authority: Install copies a package into the store, then the switch activates it. Installation is not activation.
+
+declarative recipes
+not installed
+
+Ships NO CODE.
+
+@try-works/extension-declarative-recipes · contracts: text.title, image.describe · installed v0.1.0 · MIT
+
+Requirements checked: store ✓ · source ✓ · dependencies ✓ · platform ✓ · integrity ✓ · runtime ✓ · harness-model ✓ · executable ✓ · assets ✓ · activation ✓
+
+the npm registry https://registry.npmjs.org/ can supply @try-works/extension-declarative-recipes@latest, resolved and sha512-verified at install time; a directory fallback is available if the registry is unreachable
+
+Install
+desert ant tongue
+active
+
+Language identification over the Desert Ant Labs Tongue model, exposed as the standard tool-mode/lang_detect contract.
+
+@try-works/extension-desert-ant-tongue · tools: lang_detect · contracts: tool-mode/lang_detect · models: tongue · installed v0.1.3 · MIT
+
+Requirements checked: store ✓ · source ✓ · dependencies ✓ · platform ✓ · integrity ✓ · runtime ✓ · executable ✓ · assets ✓ · activation ✓
+
+desert ant voz
+not installed
+
+On-device speech recognition over the Desert Ant Labs Voz model, exposed as the standard tool-mode/stt_transcribe contract.
+
+@try-works/extension-desert-ant-voz · tools: stt_transcribe · contracts: tool-mode/stt_transcribe · models: voz · installed v0.1.5 · MIT
+
+Requirements checked: store ✓ · source ✓ · dependencies ✓ · platform ✓ · integrity ✓ · runtime ✓ · executable ✓ · activation ✓
+
+the npm registry https://registry.npmjs.org/ can supply @try-works/extension-desert-ant-voz@latest, resolved and sha512-verified at install time; a directory fallback is available if the registry is unreachable
+
+not installed; voz needs model assets prepared after installation
+
+Install
+EmbeddingGemma 2
+not installed
+
+Multimodal embedding and retrieval tools over EmbeddingGemma 2 (google/embeddinggemma-2 through a pinned ONNX conversion): multimodal_embed produces 768-, 51…
+
+@try-works/extension-embeddinggemma · tools: multimodal_embed, semantic_similarity, semantic_rank, semantic_classify, semantic_deduplicate, dedupe_and_rank, media_find_moments · contracts: @try-works/extension-embeddinggemma/multimodal_embed, @try-works/extension-embeddinggemma/semantic_similarity, @try-works/extension-embeddinggemma/semantic_rank, @try-works/extension-embeddinggemma/semantic_classify, @try-works/extension-embeddinggemma/semantic_deduplicate, @try-works/extension-embeddinggemma/dedupe_and_rank, @try-works/extension-embeddinggemma/media_find_moments · models: embeddinggemma-2 · installed v0.1.2 · MIT
+
+Requirements checked: store ✓ · source ✓ · dependencies ✓ · platform ✓ · integrity ✓ · runtime ✓ · executable ✓ · activation ✓
+
+the npm registry https://registry.npmjs.org/ can supply @try-works/extension-embeddinggemma@latest, resolved and sha512-verified at install time; a directory fallback is available if the registry is unreachable
+
+not installed; embeddinggemma-2 needs model assets prepared after installation
+
+Install
+Laya
+not installed
+
+The Laya decision family (H5): decision_choose (a choice over the caller's options), decision_test (yes/no) and decision_score (an ordinal level) over the pi…
+
+@try-works/extension-laya · tools: decision_choose, decision_test, decision_score · contracts: @try-works/extension-laya/decision_choose, @try-works/extension-laya/decision_test, @try-works/extension-laya/decision_score · models: laya · installed v1.0.3 · Apache-2.0
+
+Requirements checked: store ✓ · source ✓ · dependencies ✓ · platform ✓ · integrity ✓ · runtime ✓ · executable ✓ · activation ✓
+
+the npm registry https://registry.npmjs.org/ can supply @try-works/extension-laya@latest, resolved and sha512-verified at install time; a directory fallback is available if the registry is unreachable
+
+not installed; laya needs model assets prepared after installation
+
+Install
+MiniLM Rerank
+not installed
+
+The ms-marco MiniLM-L-6 cross-encoder reranking extension (TOOL-05): query/document pairs cross-encoded to ranking logits, returned with the caller's own ids…
+
+@try-works/extension-minilm-rerank · contracts: text.rerank · models: minilm-rerank · installed v1.0.0 · Apache-2.0
+
+Requirements checked: store ✓ · source ✓ · dependencies ✓ · platform ✓ · integrity ✓ · runtime ✓ · executable ✓ · activation ✓
+
+the npm registry https://registry.npmjs.org/ can supply @try-works/extension-minilm-rerank@latest, resolved and sha512-verified at install time; a directory fallback is available if the registry is unreachable
+
+not installed; minilm-rerank needs model assets prepared after installation
+
+Install
+MiniLM-L6
+not installed
+
+The legacy 384-dimensional MiniLM-L6 text embedding space (TOOL-04, BASE-12): mean pooling, L2 normalization, input order preserved.
+
+@try-works/extension-minilm-embed · contracts: text.embed · models: minilm-l6 · installed v1.0.0 · Apache-2.0
+
+Requirements checked: store ✓ · source ✓ · dependencies ✓ · platform ✓ · integrity ✓ · runtime ✓ · executable ✓ · activation ✓
+
+the npm registry https://registry.npmjs.org/ can supply @try-works/extension-minilm-embed@latest, resolved and sha512-verified at install time; a directory fallback is available if the registry is unreachable
+
+not installed; minilm-l6 needs model assets prepared after installation
+
+Install
+Needle 3
+not installed
+
+Tool proposal, structured extraction, record validation and one repair retry over the pinned Cactus Needle 3 native engine (Cactus-Compute/needle3, windows-x…
+
+@try-works/extension-needle · tools: tools_plan, structured_extract, validate_record, extract_with_repair · contracts: @try-works/extension-needle/tools_plan, @try-works/extension-needle/structured_extract, @try-works/extension-needle/validate_record, @try-works/extension-needle/extract_with_repair · models: needle3 · installed v0.1.3 · MIT
+
+Requirements checked: store ✓ · source ✓ · dependencies ✓ · platform ✓ · integrity ✓ · runtime ✓ · executable ✓ · activation ✓
+
+the npm registry https://registry.npmjs.org/ can supply @try-works/extension-needle@latest, resolved and sha512-verified at install time; a directory fallback is available if the registry is unreachable
+
+not installed; needle3 needs model assets prepared after installation
+
+Install
+Expose unavailable models
+
+Register a tool even when its runtime is missing, so a model turn can discover why it cannot run.
+
+Register skills
+
+Publish one skill per registered tool, teaching when to use it.
+
+Register the inspection tool
+
+Expose the model_tools inspection surface to authorised native callers.
+
+Allow in-process packages
+
+Resolve model packages from this installation. Turn off to force every call through the CLI or the bridge.
+
+Managed workers
+
+Run extension entries in a managed child process with a scrubbed environment.
+
+Repair attempts
+
+Bounded title-repair budget per call (0-8). Out-of-range values are refused, never clamped.
+
+Approved roots
+
+Comma-separated absolute paths file-reading tools may reach. Empty approves nothing.
+
+Allowlist override
+
+Advanced: comma-separated model ids. Empty means every enabled model below; set only to pin an exact set.
+
+Save
+
+Per-model toggles write the exclude list; the allowlist override pins an exact set. Credentials, the bridge endpoint, the extension store and the headless MCP listener live in the profile cordis.patch.yml row (id "model-tools"), where the launcher and doctor read them.

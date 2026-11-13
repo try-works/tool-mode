@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://try-works.dev/tool-mode/extension-needle/validate-record.input.schema.json",
+  "title": "validate_record input",
+  "description": "Input for validate_record: one record and the schema it must satisfy. The `schema` member is the SAME subset structured_extract accepts, and it is sanitised by the SAME code, because a validator that disagreed with the extractor would make a returned record valid in one tool and invalid in the other. `record` is deliberately open (`additionalProperties: true`): the caller's schema decides which fields are allowed, so closing the envelope here would turn an unknown record field into a violation of THIS input rather than a verdict about the record.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "record"
+  ],
+  "properties": {
+    "record": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "The record to validate. It is data only: nothing here is executed, resolved, persisted or sent to a model."
+    },
+    "schema": {
+      "type": "object",
+      "description": "A JSON Schema object describing the record. Only the subset the engine's grammar compiler accepts is used: `type`, `properties`, `required`, `items`, `enum`, `const` and `description`. Unsupported keywords are REFUSED by name rather than silently dropped, because a dropped constraint would make this validator accept a record the extraction path would then reject.",
+      "properties": {
+        "type": {
+          "const": "object"
+        },
+        "properties": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "required": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "properties"
+      ],
+      "additionalProperties": true
+    }
+  }
+}

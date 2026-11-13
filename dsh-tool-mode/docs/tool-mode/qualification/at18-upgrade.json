@@ -1,0 +1,24 @@
+{
+  "acceptance": "AT-18",
+  "recordedAt": "2026-11-05T14:00:21.218Z",
+  "priorRelease": {
+    "version": "0.5.41",
+    "installedVia": "dsh plugin --profile at18 add @try-works/dsh-tool-mode@0.5.41",
+    "booted": true,
+    "webPort": 3200
+  },
+  "upgradedRelease": {
+    "version": "0.5.42",
+    "installedVia": "dsh plugin --profile at18 add @try-works/dsh-tool-mode@0.5.42",
+    "booted": true,
+    "webPort": 3200
+  },
+  "preservedChoice": {
+    "disabledExtensions": [
+      "@try-works/extension-laya"
+    ],
+    "extensionStore": "E:/tmp/dsh-home-at18/store"
+  },
+  "profileConfigAfterUpgrade": "E:/tmp/dsh-home-at18/profiles/at18/cordis.patch.yml unchanged",
+  "stateMigration": "SDK store migration/durable-write/alias behavior covered by packages/tool-mode-extension-sdk/tests/migration.test.ts and packages/dsh-tool-mode/tests/persistence.test.ts"
+}

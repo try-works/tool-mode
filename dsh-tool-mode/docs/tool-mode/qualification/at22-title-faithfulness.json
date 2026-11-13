@@ -1,0 +1,72 @@
+{
+  "acceptance": "AT-22",
+  "recordedAt": "2026-11-05T15:38:44.544Z",
+  "scope": "Text coverage: semantic relevance ordering, embedding shape/finiteness, invalid decision choices, explicit abstention, title faithfulness evaluation, empty/overlength input. The first five are covered by the existing tool-mode-recipes/embedding/decision tests; this artifact records the title-faithfulness evaluation.",
+  "method": "Five representative documents were titled through the live text_title tool. Each completed title/description was checked against the source for invented names, numbers, versions or claims; a completion is faithful when every concrete detail is supported. Two long repeated documents were also run and are recorded as truncation failures, not as unfaithful titles.",
+  "cases": [
+    {
+      "id": "deploy-token",
+      "source": "deploy job failed because the registry token expired; on-call rotated it and reran; no customer traffic affected",
+      "title": "Deploy job failure from expired registry token",
+      "description": "The deploy job failed because the registry token expired; the on-call engineer rotated the token and reran the job, and no customer traffic was affected.",
+      "status": "faithful",
+      "supported": true
+    },
+    {
+      "id": "backup-restore",
+      "source": "orders table restored into an isolated database; row counts and checksums verified; nine minutes; no mismatches",
+      "title": "Isolated Backup Restore Test for Orders Table",
+      "description": "The orders table was restored into an isolated database and row counts and checksums were verified; the test finished in nine minutes with no mismatches.",
+      "status": "faithful",
+      "supported": true
+    },
+    {
+      "id": "production-access",
+      "source": "requests must name service, ticket and owner; temporary access four hours; monthly review; emergency on-call lead",
+      "title": "Production Access Request, Review, and Emergency Approval Rules",
+      "description": "Requests must name a specific service, incident or change ticket, and approving owner; temporary access expires after four hours, standing access is reviewed monthly, and emergency access may be granted by the on-call lead.",
+      "status": "faithful",
+      "supported": true
+    },
+    {
+      "id": "ingestion-incident",
+      "source": "ingestion workers stopped for eleven minutes; consumer group restarted; no events lost; review recommends five-minute lag alert and runbook",
+      "title": "Ingestion Processing Interruption and Review Recommendations",
+      "description": "Ingestion workers stopped processing events for eleven minutes; the on-call engineer restarted the consumer group with no events lost, and the review recommends a five-minute lag alert and a restart runbook.",
+      "status": "faithful",
+      "supported": true
+    },
+    {
+      "id": "release-2-4",
+      "source": "version 2.4 adds incremental asset preparation and bounded download timeout; upgrades in place; fixes stale-cache rollback bug",
+      "title": "Version 2.4 Asset Preparation, Download Timeout, and Rollback Cache Fix",
+      "description": "Version 2.4 adds incremental asset preparation and a bounded download timeout, upgrades existing installations in place without re-downloading verified weights, and fixes a stale-cache bug after rollback.",
+      "status": "faithful",
+      "supported": true
+    },
+    {
+      "id": "long-incident",
+      "source": "3x repeated incident text",
+      "status": "truncated",
+      "error": "MODEL_OUTPUT_TRUNCATED (512 and 1024 token recipes); 2048 refused at activation"
+    },
+    {
+      "id": "long-release",
+      "source": "long release note",
+      "status": "truncated",
+      "error": "MODEL_OUTPUT_TRUNCATED"
+    }
+  ],
+  "metrics": {
+    "completed": 5,
+    "truncated": 2,
+    "faithfulCompleted": 5,
+    "unfaithfulCompleted": 0,
+    "faithfulnessRateOfCompleted": 1,
+    "completionRate": 0.7142857142857143
+  },
+  "limitations": [
+    "The title path still truncates on the two long repeated documents at the host provider output ceiling. That is a quality defect recorded separately; it is not an unfaithful title and it does not remove the evaluation coverage.",
+    "The decision and embedding legs are deterministic unit tests, not this model evaluation."
+  ]
+}

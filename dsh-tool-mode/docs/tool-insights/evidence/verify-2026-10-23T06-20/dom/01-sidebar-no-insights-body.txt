@@ -1,0 +1,35 @@
+DSH Local Build
+0.2.1-rc.2-687f282-dirty
+New Session
+Ctrl
++
+Alt
++
+N
+Plugins
+Automation tasks
+Workspaces
+dsh-anti-slop
+New Session
+Untitled
+2mo
+Untitled
+2mo
+Untitled
+2mo
+Untitled
+2mo
+More
+Into the Unknown
+Preview
+dsh-anti-slop
+Standard mode
+Describe what you want to build, / commands, @ files or sessions
+Workspace Write
+Select model
+Get started
+
+Sign in to your DeepSeek account or add an API Key to get started. Your projects and files are stored locally.
+
+Add API Key
+Sign in

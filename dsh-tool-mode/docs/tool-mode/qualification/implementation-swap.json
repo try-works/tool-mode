@@ -1,0 +1,59 @@
+{
+  "schema": "implementation-swap-v1",
+  "generatedAt": "2026-11-13T02:24:59.263Z",
+  "contract": "text.title",
+  "tool": "text_title",
+  "selected": {
+    "extension": "@try-works/tool-mode-harness-text",
+    "implementationId": "text-title-harness",
+    "version": "0.1.0",
+    "execution": "declarative"
+  },
+  "alternative": {
+    "extension": "@try-works/extension-declarative-recipes",
+    "implementationId": "text-title",
+    "version": "0.1.0",
+    "execution": "declarative"
+  },
+  "input": {
+    "text": "The page cache keeps recently used pages in a small bounded store; eviction is approximate and the keys are file offsets, not names.",
+    "kind": "section"
+  },
+  "provider": {
+    "kind": "scripted-fixture",
+    "id": "qualification-swap-provider",
+    "note": "The harness model is a deployment fact and no model endpoint is composed in this qualification, so a deterministic provider answers the recipes. The receipts are the HOST's own; this proves implementation selection/substitution, not model output quality."
+  },
+  "before": {
+    "registry": "selected",
+    "result": "Page cache eviction: a bounded store with approximate eviction",
+    "resultPreview": "Page cache eviction: a bounded store with approximate eviction",
+    "receipt": {
+      "receiptId": "rcpt_000001",
+      "contract": "text.title",
+      "implementationId": "text-title",
+      "extension": "@try-works/tool-mode-harness-text",
+      "kind": "auxiliary",
+      "modelIdentity": "qualification-swap-provider"
+    }
+  },
+  "after": {
+    "registry": "alternative",
+    "result": "Page cache eviction: a bounded store with approximate eviction",
+    "resultPreview": "Page cache eviction: a bounded store with approximate eviction",
+    "receipt": {
+      "receiptId": "rcpt_000002",
+      "contract": "text.title",
+      "implementationId": "text-title",
+      "extension": "@try-works/extension-declarative-recipes",
+      "kind": "auxiliary",
+      "modelIdentity": "qualification-swap-provider"
+    }
+  },
+  "notes": [
+    "selected and alternative are distinct packages and distinct manifest implementation ids",
+    "the auxiliary receipt implementationId is the RECIPE id (text-title) and therefore collides across the two packages; the receipt extension field is the discriminator this record uses",
+    "the tool was absent between the swap: disable(@try-works/tool-mode-harness-text) removed text_title before the alternative was enabled"
+  ],
+  "outcome": "pass"
+}

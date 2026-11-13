@@ -1,0 +1,78 @@
+{
+  "schema": "laya-heldout-v1",
+  "description": "Held-out prompts authored for evaluation only; none is used by the adapter or schema tests.",
+  "items": [
+    {
+      "id": "fruit",
+      "kind": "choose",
+      "prompt": "Which of these is a fruit?",
+      "options": [
+        "apple",
+        "car",
+        "banana"
+      ],
+      "expected": "apple"
+    },
+    {
+      "id": "water",
+      "kind": "test",
+      "prompt": "Is water wet?",
+      "expected": "yes"
+    },
+    {
+      "id": "even",
+      "kind": "choose",
+      "prompt": "Which number is even?",
+      "options": [
+        "3",
+        "4",
+        "7"
+      ],
+      "expected": "4"
+    },
+    {
+      "id": "color",
+      "kind": "choose",
+      "prompt": "Which of these is a colour?",
+      "options": [
+        "blue",
+        "table",
+        "run"
+      ],
+      "expected": "blue"
+    },
+    {
+      "id": "sun",
+      "kind": "test",
+      "prompt": "Is the sun a star?",
+      "expected": "yes"
+    },
+    {
+      "id": "large",
+      "kind": "choose",
+      "prompt": "Which animal is larger?",
+      "options": [
+        "mouse",
+        "elephant"
+      ],
+      "expected": "elephant"
+    },
+    {
+      "id": "mammal",
+      "kind": "choose",
+      "prompt": "Which of these is a mammal?",
+      "options": [
+        "shark",
+        "dolphin"
+      ],
+      "expected": "dolphin"
+    },
+    {
+      "id": "ice",
+      "kind": "test",
+      "prompt": "Is ice hot?",
+      "expected": "no"
+    }
+  ],
+  "version": "1.0.0"
+}

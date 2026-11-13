@@ -1,0 +1,46 @@
+# Host half — green evidence (task-13)
+
+Environment note: `npx tsx --test` cannot run here (`spawn EPERM`: the sandbox refuses
+esbuild's piped child process). Node 24's native type support runs the same files
+in-process. Tests that import `src/index.ts` need `--experimental-transform-types`
+(parameter properties in `harness-serving.ts`).
+
+Commands from `packages/dsh-tool-mode` (except the root typecheck):
+
+| Slice | File | Command | Result |
+| --- | --- | --- | --- |
+| S1 projection | tests/tool-usage-projection.test.ts | `node --experimental-transform-types tests/tool-usage-projection.test.ts` | 19/19 |
+| S2 report | tests/tool-usage-report.test.ts | same | 6/6 |
+| S3 inventory | tests/tool-inventory.test.ts | same | 7/7 |
+| S4 MCP ledger | tests/mcp-usage.test.ts | same | 5/5 |
+| S5 MCP status | tests/mcp-status.test.ts | same | 5/5 |
+| S6 remote | tests/tool-insights-remote.test.ts | same | 5/5 |
+| S10 host integration | tests/tool-insights-host.test.ts | same | 4/4 |
+
+Related existing host tests re-run: `obs02-external-receipts` (pass),
+`sdk-v2-wire-adaptation` (pass), `plugin-package` (fails only at its
+`spawnSync(gen-client-catalog --check)` drift guard → `status === null`, the same sandbox
+EPERM; not a source failure), `remote-typert` (fails on the stale generated chunk above).
+
+Typecheck:
+
+    npm run typecheck        # repo root: exit 0 (all 10 project typechecks)
+
+The earlier duplicate-zod typecheck failure is gone: the projection no longer imports
+zod. Its strict schemas are hand-written `parse(value)` boundaries implementing the
+registry's only runtime use, so the workspace and harness zod copies never meet in a
+type position.
+
+Anti-slop lint (`anti_slop_lint` on each new src file):
+
+- tool-sources.ts, tool-usage-report.ts, mcp-status.ts: no findings.
+- tool-inventory.ts: 3 findings.
+- mcp-usage.ts: 10 findings.
+- tool-usage-projection.ts: 53 findings.
+
+All remaining findings are confined to the strict parsers: `no-unknown-parameters` /
+`no-runtime-typeof` / `no-unsafe-dictionary-type` fire on the functions whose JOB is to
+validate `unknown` at the I/O boundary, which is the rule's stated remedy, and
+`no-known-value-widening` fires on the named `Record<string, X>` day-record returns the
+state contract requires. No finding is in the fold, the aggregations, the CLI/API wiring
+or the wire contract.

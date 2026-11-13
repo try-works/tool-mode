@@ -1,0 +1,129 @@
+{
+  "name": "@try-works/dsh-tool-mode",
+  "version": "0.5.44",
+  "description": "Install Desert Ant Labs on-device models as DSH tools and skills, with per-platform capability gating",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "on-device",
+    "desert-ant-labs",
+    "models-as-tools"
+  ],
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/try-works/tool-mode.git",
+    "directory": "dsh-tool-mode/packages/dsh-tool-mode"
+  },
+  "homepage": "https://github.com/try-works/tool-mode#readme",
+  "bugs": {
+    "url": "https://github.com/try-works/tool-mode/issues"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": "./client/index.js",
+    "./typert": "./remote/typert.host.mjs",
+    "./remote": "./remote/typert.remote-client.mjs",
+    "./catalog": {
+      "types": "./lib/catalog.d.ts",
+      "default": "./lib/catalog.js"
+    },
+    "./catalog/desert-ant-models.json": "./catalog/desert-ant-models.json",
+    "./catalog/playbooks.json": "./catalog/playbooks.json",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/**/*.js",
+    "lib/**/*.d.ts",
+    "lib/**/*.d.ts.map",
+    "client/index.js",
+    "client/client.model-tools.js",
+    "remote/*.mjs",
+    "catalog/desert-ant-models.json",
+    "catalog/playbooks.json",
+    "cordis.patch.yml",
+    "builtins.lock.json",
+    "README.md",
+    "bin"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-slots",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-sidebar-right"
+      ],
+      "external": []
+    }
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": ">=0.2.0-rc.2 || >=0.2.1-rc.1",
+    "@deepseek-ai/dsh-skill": ">=0.2.0-rc.2 || >=0.2.1-rc.1",
+    "@deepseek-ai/dsh-tools": ">=0.2.0-rc.2 || >=0.2.1-rc.1"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh-skill": {
+      "optional": true
+    }
+  },
+  "scripts": {
+    "build": "node scripts/clean-lib.mjs && tsc -p tsconfig.build.json && node scripts/gen-client-catalog.mjs",
+    "build:client": "node scripts/gen-client-catalog.mjs",
+    "build:remote": "node scripts/gen-remote-artifacts.mjs",
+    "check:remote": "node scripts/gen-remote-artifacts.mjs --check",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "tsx --test tests/*.test.ts",
+    "prepack": "node scripts/stage-bundle.mjs && npm run build",
+    "prepare": "tsc -p tsconfig.build.json",
+    "postpack": "node scripts/stage-bundle.mjs --clean"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "2.3.1",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "^3.18.4",
+    "@modelcontextprotocol/node": "2.1.1",
+    "@modelcontextprotocol/server": "2.3.1",
+    "@try-works/tool-mode-contracts": "^0.1.0",
+    "@try-works/tool-mode-extension-sdk": "^0.1.0",
+    "ajv": "^8.20.0",
+    "adm-zip": "^0.5.18",
+    "@try-works/tool-mode-recipes": "^0.1.0"
+  },
+  "bin": {
+    "dsh-tool-mode": "bin/dsh-tool-mode.mjs",
+    "dsh-tool-mode-mcp-stdio": "bin/dsh-tool-mode-mcp-stdio.mjs",
+    "dsh-tool-mode-credentials": "bin/dsh-tool-mode-credentials.mjs"
+  },
+  "bundledDependencies": [
+    "@try-works/tool-mode-contracts",
+    "@try-works/tool-mode-extension-sdk",
+    "@try-works/tool-mode-recipes"
+  ],
+  "bundleDependencies": [
+    "@try-works/tool-mode-contracts",
+    "@try-works/tool-mode-extension-sdk",
+    "@try-works/tool-mode-recipes"
+  ]
+}

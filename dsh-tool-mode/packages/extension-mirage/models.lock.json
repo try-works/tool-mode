@@ -1,0 +1,120 @@
+{
+  "lockVersion": 1,
+  "assetSets": {
+    "mirage-wasm": {
+      "model": {
+        "provider": "cactus-compute",
+        "identity": "Cactus-Compute/mirage",
+        "url": "https://huggingface.co/Cactus-Compute/mirage",
+        "revision": "3d03cee88c0acbe4e71b94b567ab14e6e55f40c9",
+        "revisionKind": "the HuggingFace repository commit sha the artifacts were fetched at",
+        "modalities": ["image"],
+        "note": "mirage.cact is the 2-bit Cactus Quants archive (21,611,043 bytes) published with the model; config.json records cact_bits 2 and the architecture. No conversion is performed by this package."
+      },
+      "engine": {
+        "kind": "WebAssembly (cactus.js Emscripten loader + cactus.wasm)",
+        "version": "4.1.0",
+        "sourceRepository": "https://github.com/cactus-compute/cactus",
+        "sourceModelRepository": "https://huggingface.co/Cactus-Compute/cactus",
+        "revision": "4e822c9036be2eb0e47ef556df32a818bb1572ef",
+        "note": "The release tree is releases/4.1.0/wasm/ in the Cactus-Compute/cactus model repository. The WASM exports cactus_load, cactus_models and cactus_describe, which this extension calls directly in-process; the engine is not the Windows .exe CLI."
+      },
+      "tokenizer": {
+        "kind": "bundled",
+        "identity": "the vocabulary inside mirage.cact (config vocab size 8192)"
+      },
+      "assets": [
+        {
+          "id": "mirage-engine-loader",
+          "fileName": "cactus.js",
+          "url": "https://huggingface.co/Cactus-Compute/cactus/resolve/4e822c9036be2eb0e47ef556df32a818bb1572ef/releases/4.1.0/wasm/cactus.js",
+          "bytes": 62247,
+          "sha256": "707341e44776ab0eb8dfc8f6a579ed5ac41e2ffc6419a18012f61619a6dfc70c",
+          "role": "Emscripten loader that instantiates cactus.wasm and exposes the C ABI",
+          "verified": "downloaded and hashed on this host on 2026-11-08; instantiated in Node with wasmBinary supplied"
+        },
+        {
+          "id": "mirage-engine-wasm",
+          "fileName": "cactus.wasm",
+          "url": "https://huggingface.co/Cactus-Compute/cactus/resolve/4e822c9036be2eb0e47ef556df32a818bb1572ef/releases/4.1.0/wasm/cactus.wasm",
+          "bytes": 1241811,
+          "sha256": "6fb6cb41145cd51fd8af97644cd684fbdd434d4d3ce261881df58cbaef5b67f7",
+          "role": "Cactus 4.1.0 WASM inference engine (text, speech and vision)",
+          "verified": "downloaded and hashed on this host on 2026-11-08; cactus_models() returned 4 (vision) after loading mirage.cact"
+        },
+        {
+          "id": "mirage-weights",
+          "fileName": "mirage.cact",
+          "url": "https://huggingface.co/Cactus-Compute/mirage/resolve/3d03cee88c0acbe4e71b94b567ab14e6e55f40c9/mirage.cact",
+          "bytes": 21611043,
+          "sha256": "4249a0f7515272ff76b9414bec17d7e7daf84b15b66c7fb4f17fce1e66f9f237",
+          "role": "the 2-bit Mirage vision archive (weights and vocabulary)",
+          "verified": "downloaded and hashed on this host on 2026-11-08; loaded and executed real describe and extract calls"
+        },
+        {
+          "id": "mirage-config",
+          "fileName": "config.json",
+          "url": "https://huggingface.co/Cactus-Compute/mirage/resolve/3d03cee88c0acbe4e71b94b567ab14e6e55f40c9/config.json",
+          "bytes": 1430,
+          "sha256": "f7a3c37642086f954b1000fe80edb544a153c76fe68fb1b8173ddb97d465e915",
+          "role": "model architecture and quantisation metadata; not loaded at runtime",
+          "verified": "downloaded and hashed on this host on 2026-11-08"
+        }
+      ],
+      "groups": [
+        {
+          "id": "mirage-wasm",
+          "enables": ["image"],
+          "assets": [
+            {
+              "id": "mirage-engine-loader",
+              "file": "cactus.js",
+              "bytes": 62247,
+              "source": "https://huggingface.co/Cactus-Compute/cactus/resolve/4e822c9036be2eb0e47ef556df32a818bb1572ef/releases/4.1.0/wasm/cactus.js",
+              "digest": "707341e44776ab0eb8dfc8f6a579ed5ac41e2ffc6419a18012f61619a6dfc70c",
+              "executable": true
+            },
+            {
+              "id": "mirage-engine-wasm",
+              "file": "cactus.wasm",
+              "bytes": 1241811,
+              "source": "https://huggingface.co/Cactus-Compute/cactus/resolve/4e822c9036be2eb0e47ef556df32a818bb1572ef/releases/4.1.0/wasm/cactus.wasm",
+              "digest": "6fb6cb41145cd51fd8af97644cd684fbdd434d4d3ce261881df58cbaef5b67f7",
+              "executable": true
+            },
+            {
+              "id": "mirage-weights",
+              "file": "mirage.cact",
+              "bytes": 21611043,
+              "source": "https://huggingface.co/Cactus-Compute/mirage/resolve/3d03cee88c0acbe4e71b94b567ab14e6e55f40c9/mirage.cact",
+              "digest": "4249a0f7515272ff76b9414bec17d7e7daf84b15b66c7fb4f17fce1e66f9f237",
+              "executable": false
+            },
+            {
+              "id": "mirage-config",
+              "file": "config.json",
+              "bytes": 1430,
+              "source": "https://huggingface.co/Cactus-Compute/mirage/resolve/3d03cee88c0acbe4e71b94b567ab14e6e55f40c9/config.json",
+              "digest": "f7a3c37642086f954b1000fe80edb544a153c76fe68fb1b8173ddb97d465e915",
+              "executable": false
+            }
+          ],
+          "note": "One asset group: the loader cannot run without the WASM module, and the model cannot run without the archive. The loader and WASM are downloaded code and are marked executable (RES-02); preparing them requires the separate executable-preparation approval. The weights and config are data."
+        }
+      ],
+      "pinning": {
+        "state": "measured",
+        "revision": "3d03cee88c0acbe4e71b94b567ab14e6e55f40c9 (Mirage); 4e822c9036be2eb0e47ef556df32a818bb1572ef (Cactus engine)",
+        "reason": "All four artifacts were downloaded over HTTPS, their byte sizes recorded, their SHA-256 computed locally, and the engine was executed against mirage.cact with a real image. The outputs are recorded in docs/tool-mode/qualification/mirage.json.",
+        "measuredOn": "2026-11-08",
+        "platforms": [{ "os": "win32", "arch": "x64", "accelerator": "cpu" }]
+      },
+      "license": {
+        "name": "Apache License 2.0",
+        "url": "https://github.com/cactus-compute/cactus/blob/main/LICENSE",
+        "attributionRequired": true,
+        "redistribution": "permitted"
+      }
+    }
+  }
+}

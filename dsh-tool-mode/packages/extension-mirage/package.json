@@ -1,0 +1,47 @@
+{
+  "name": "@try-works/extension-mirage",
+  "version": "0.1.2",
+  "type": "module",
+  "description": "First-party Tool Mode extension for Cactus Mirage: scene description, objects and masks, OCR and constrained form extraction on the pinned 2-bit Cactus vision model",
+  "license": "Apache-2.0",
+  "exports": {
+    "./tool-mode": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "tool-mode.extension.json",
+    "lib",
+    "models.lock.json",
+    "schema",
+    "README.md"
+  ],
+  "toolMode": {
+    "manifest": "./tool-mode.extension.json"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "tsx --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "sharp": "^0.34.5"
+  },
+  "devDependencies": {
+    "@try-works/tool-mode-extension-sdk": "^0.1.0"
+  },
+  "peerDependencies": {
+    "@try-works/tool-mode-extension-sdk": ">=0.1.0"
+  },
+  "peerDependenciesMeta": {
+    "@try-works/tool-mode-extension-sdk": {
+      "optional": true
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

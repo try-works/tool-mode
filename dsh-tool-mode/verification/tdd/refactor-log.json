@@ -1,0 +1,609 @@
+{
+  "generatedAt": "2026-11-13T07:21:57.330Z",
+  "boundaries": [
+    "packages/dsh-tool-mode/tests/architecture.test.ts — model-free host boundary",
+    "packages/dsh-tool-mode/tests/mcp-conformance.test.ts — protocol identity"
+  ],
+  "runs": [
+    {
+      "generatedAt": "2026-11-04T22:17:48.866Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 273,
+        "FAIL": 0,
+        "BLOCKED": 44,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-04T22:27:04.168Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 274,
+        "FAIL": 0,
+        "BLOCKED": 43,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-04T22:55:29.499Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 275,
+        "FAIL": 0,
+        "BLOCKED": 42,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-04T23:21:39.327Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 274,
+        "FAIL": 0,
+        "BLOCKED": 43,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T00:23:38.057Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 275,
+        "FAIL": 0,
+        "BLOCKED": 42,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T01:01:20.928Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 276,
+        "FAIL": 0,
+        "BLOCKED": 41,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T10:59:36.052Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 277,
+        "FAIL": 0,
+        "BLOCKED": 40,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T11:12:09.035Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 279,
+        "FAIL": 0,
+        "BLOCKED": 38,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T11:46:08.773Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 280,
+        "FAIL": 0,
+        "BLOCKED": 37,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T12:14:07.582Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 281,
+        "FAIL": 0,
+        "BLOCKED": 36,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T12:31:09.223Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 282,
+        "FAIL": 0,
+        "BLOCKED": 35,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T12:36:19.407Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 283,
+        "FAIL": 0,
+        "BLOCKED": 34,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T13:05:18.204Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 284,
+        "FAIL": 0,
+        "BLOCKED": 33,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T13:28:06.186Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 285,
+        "FAIL": 0,
+        "BLOCKED": 32,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T13:34:04.261Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 286,
+        "FAIL": 0,
+        "BLOCKED": 31,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T13:44:31.588Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 287,
+        "FAIL": 0,
+        "BLOCKED": 30,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T13:51:45.586Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 288,
+        "FAIL": 0,
+        "BLOCKED": 29,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T14:00:22.504Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 289,
+        "FAIL": 0,
+        "BLOCKED": 28,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T14:13:50.205Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 290,
+        "FAIL": 0,
+        "BLOCKED": 27,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T14:23:10.925Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 291,
+        "FAIL": 0,
+        "BLOCKED": 26,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T14:32:47.660Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 292,
+        "FAIL": 0,
+        "BLOCKED": 25,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T14:55:15.022Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 293,
+        "FAIL": 0,
+        "BLOCKED": 24,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T15:09:18.221Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 293,
+        "FAIL": 0,
+        "BLOCKED": 24,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T15:17:41.069Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 294,
+        "FAIL": 0,
+        "BLOCKED": 23,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T15:34:16.828Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 295,
+        "FAIL": 0,
+        "BLOCKED": 22,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T15:38:45.427Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 296,
+        "FAIL": 0,
+        "BLOCKED": 21,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T15:42:58.964Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 297,
+        "FAIL": 0,
+        "BLOCKED": 20,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T16:11:27.941Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 297,
+        "FAIL": 0,
+        "BLOCKED": 20,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T16:15:49.808Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 297,
+        "FAIL": 0,
+        "BLOCKED": 20,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T16:46:36.022Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 297,
+        "FAIL": 0,
+        "BLOCKED": 20,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T17:40:50.032Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 298,
+        "FAIL": 0,
+        "BLOCKED": 19,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T17:52:27.039Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 299,
+        "FAIL": 0,
+        "BLOCKED": 18,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T17:58:33.551Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 300,
+        "FAIL": 0,
+        "BLOCKED": 17,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T18:02:19.872Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 300,
+        "FAIL": 0,
+        "BLOCKED": 17,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T18:09:04.428Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 301,
+        "FAIL": 0,
+        "BLOCKED": 16,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T18:36:22.300Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 301,
+        "FAIL": 0,
+        "BLOCKED": 16,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T18:43:54.961Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 301,
+        "FAIL": 0,
+        "BLOCKED": 16,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T19:14:03.587Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 302,
+        "FAIL": 0,
+        "BLOCKED": 15,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T20:09:43.814Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 302,
+        "FAIL": 0,
+        "BLOCKED": 15,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T21:29:27.676Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 303,
+        "FAIL": 0,
+        "BLOCKED": 14,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T21:57:04.275Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 304,
+        "FAIL": 0,
+        "BLOCKED": 13,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T22:29:59.862Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 305,
+        "FAIL": 0,
+        "BLOCKED": 12,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T22:34:22.370Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 305,
+        "FAIL": 0,
+        "BLOCKED": 12,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T23:49:11.674Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 308,
+        "FAIL": 0,
+        "BLOCKED": 9,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-05T23:53:29.807Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 309,
+        "FAIL": 0,
+        "BLOCKED": 8,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-06T00:27:43.932Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 309,
+        "FAIL": 0,
+        "BLOCKED": 8,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-13T00:04:11.668Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 309,
+        "FAIL": 0,
+        "BLOCKED": 8,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-13T02:27:13.328Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 309,
+        "FAIL": 0,
+        "BLOCKED": 8,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-13T06:17:22.422Z",
+      "commit": "5f4a33272ef417f64b99f1d255fbae0405c7d0fe",
+      "dirty": true,
+      "counts": {
+        "PASS": 309,
+        "FAIL": 0,
+        "BLOCKED": 8,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-13T07:21:57.330Z",
+      "commit": "unknown",
+      "dirty": true,
+      "counts": {
+        "PASS": 309,
+        "FAIL": 0,
+        "BLOCKED": 8,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+# DECL-07 TDD red — external read-only discovery
+
+Date: 2026-11-01
+Command: `npx tsx --test --test-name-pattern "DECL-07" packages/dsh-tool-mode/tests/mcp-host-binding.test.ts`
+
+Before implementation: 1 test, 0 pass, 1 fail.
+- MCP `listTools` returned only `lang_detect, stt_transcribe`.
+- `tool_mode_list` and `tool_mode_describe` are registered native tools but were withheld
+  from the external surface ("withheld rather than double-exported"), so an authorized
+  external caller could not read them. DECL-07 requires both to be available to native
+  AND external callers.

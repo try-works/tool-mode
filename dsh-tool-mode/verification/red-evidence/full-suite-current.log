@@ -1,0 +1,2338 @@
+▶ BASE-09 — the host purity gate fires on the real pre-extraction code
+  ✔ catches the vendor SDK import that used to be in adapters/voz.ts (53.1271ms)
+  ✔ catches the model-name switch that used to be in registrar.ts (1.3953ms)
+  ✔ catches the adapter list that used to hold both built-ins (2.1028ms)
+  ✔ accepts the empty list the host ships now (0.628ms)
+✔ BASE-09 — the host purity gate fires on the real pre-extraction code (63.5768ms)
+▶ BASE-09 — the gate distinguishes configuration from a built-in
+  ✔ accepts a comparison against an operator-configured override (1.6768ms)
+  ✔ rejects the same shape written with a literal (0.9567ms)
+  ✔ does not fire on the comment that documents the prohibition (0.7771ms)
+  ✔ reports every violation rather than stopping at the first (0.9414ms)
+✔ BASE-09 — the gate distinguishes configuration from a built-in (5.9869ms)
+▶ EXT-02 — the extension isolation gate
+  ✔ catches an extension importing host internals (2.2037ms)
+  ✔ catches an extension importing DSH (0.9654ms)
+  ✔ catches an extension climbing out of its package (0.602ms)
+  ✔ accepts the SDK dependency the extensions actually declare (0.5647ms)
+✔ EXT-02 — the extension isolation gate (5.2496ms)
+▶ the gates pass on the repository as it stands
+  ✔ reports no violations (1263.9869ms)
+✔ the gates pass on the repository as it stands (1264.3444ms)
+▶ AT-25 / BASE-09 — the host install stays model-runtime-free
+  ✔ reports no violation for the host manifest as it stands (77.5912ms)
+  ✔ catches a host optional dependency on a first-party model runtime (130.2645ms)
+  ✔ catches a host dependency on a native model engine (123.981ms)
+  ✔ catches a stale lockfile entry for a model runtime even when the manifest is clean (107.1967ms)
+✔ AT-25 / BASE-09 — the host install stays model-runtime-free (470.7319ms)
+▶ ARCH-01 / ARCH-05 — one dispatch authority
+  ✔ catches a definition being executed directly (1.5274ms)
+  ✔ catches ctx.tools.get(), whose execute would bypass the pipeline (25.7751ms)
+  ✔ ACCEPTS ctx.tools.execute, which IS the authority (0.4737ms)
+  ✔ ACCEPTS an INJECTED executor, which is dependency injection not a bypass (0.8866ms)
+✔ ARCH-01 / ARCH-05 — one dispatch authority (40.3816ms)
+▶ ARCH-06 — no hardcoded model-specific prompt
+  ✔ catches an instruction literal naming a model (25.6792ms)
+  ✔ ACCEPTS an error message that merely mentions a tool (15.1366ms)
+  ✔ ACCEPTS a parameter description naming example models (47.8054ms)
+  ✔ ACCEPTS a warning template naming a transcript (0.7205ms)
+✔ ARCH-06 — no hardcoded model-specific prompt (90.4405ms)
+▶ ARCH-02 — installing an extension must not require releasing the host
+  ✔ reports no violation for the packages as they stand (136.9815ms)
+  ✔ catches an extension that declares the host as a dependency (190.7263ms)
+✔ ARCH-02 — installing an extension must not require releasing the host (328.5745ms)
+▶ RES-03 — acquisition is atomic and verified
+  ✔ acquires a correct asset into a CONTENT-ADDRESSED path (5.585ms)
+  ✔ leaves NO partial at the final path when the transfer is truncated (1.6667ms)
+  ✔ REJECTS a digest mismatch and does not keep the wrong bytes (5.5643ms)
+  ✔ reports a transport failure as RETRYABLE and keeps the partial (1.2163ms)
+  ✔ does not re-download an asset it already holds (1.2057ms)
+✔ RES-03 — acquisition is atomic and verified (20.9849ms)
+▶ RES-03 — resumability has a documented precondition
+  ✔ resumes from an existing partial when the source supports ranges (1.7527ms)
+  ✔ RESTARTS rather than resuming when the source cannot serve ranges (1.3095ms)
+  ✔ a CANCELLED transfer leaves a verifiable partial and reports retryable (1.3572ms)
+  ✔ verifies in bounded chunks rather than buffering the whole asset (1.7143ms)
+✔ RES-03 — resumability has a documented precondition (7.8973ms)
+▶ RES-07 — enforced and estimated limits are reported separately
+  ✔ does NOT treat a V8 heap cap as a process-tree cap (1.1706ms)
+  ✔ keeps the enforced and estimated figures distinct (0.4567ms)
+  ✔ a null enforced figure means nothing is enforced (0.6227ms)
+✔ RES-07 — enforced and estimated limits are reported separately (3.0131ms)
+▶ RES-10 — initial per-leaf maxima, asserted individually
+  ✔ uses the numbers the requirement states (0.6164ms)
+  ✔ permits exactly one attempt and then refuses (0.4566ms)
+  ✔ permits no automatic repair by default (0.4638ms)
+  ✔ permits a repair only when explicitly allowed AND inside the root deadline (0.4444ms)
+✔ RES-10 — initial per-leaf maxima, asserted individually (2.7618ms)
+▶ RES-10 — narrowing only ever lowers
+  ✔ takes the minimum of every figure (1.1713ms)
+  ✔ REFUSES to widen above the base (0.5019ms)
+  ✔ never enables remote destinations that the base forbade (0.4524ms)
+  ✔ lets a request introduce a model-call limit where the base had none (0.5147ms)
+  ✔ a local-only profile prohibits remote destinations regardless of implementation (0.4845ms)
+✔ RES-10 — narrowing only ever lowers (4.0029ms)
+▶ RES-10 — unknown cost stays unknown
+  ✔ reports an unknown cost as unknown, NOT as free (0.8595ms)
+  ✔ reports a known cost with its currency (0.394ms)
+  ✔ the initial budget does not claim a cost it does not know (0.3412ms)
+✔ RES-10 — unknown cost stays unknown (2.3213ms)
+▶ RES-08 — a foreground invocation is not a persistent job
+  ✔ NEVER replays an interrupted invocation on reconnect (0.4711ms)
+  ✔ reports an ambiguous completion when work may have started (0.3926ms)
+✔ RES-08 — a foreground invocation is not a persistent job (1.3491ms)
+▶ RES-03 — atomicity against a REAL filesystem
+  ✔ lands a verified asset at the content path and nothing else (128.4119ms)
+  ✔ leaves only a partial behind after a truncated transfer, never the final path (3.9842ms)
+  ✔ resumes a real partial and verifies the joined bytes (110.5796ms)
+✔ RES-03 — atomicity against a REAL filesystem (243.7038ms)
+✔ insufficient space refuses with the named error and the exact byte math, before any transfer (16.4412ms)
+✔ a digest cache hit short-circuits: zero free space is fine when every blob is already cached (142.8237ms)
+✔ the config assetCacheRoot overrides the state-adjacent default end to end (5416.7969ms)
+▶ a seeded blob verifies regardless of the digest hex case (task-132)
+  ✔ treats an upper-case digest as the same content as the lower-case hash (4.0787ms)
+  ✔ hits the cache when the lock records the digest in upper case (64.2244ms)
+✔ a seeded blob verifies regardless of the digest hex case (task-132) (84.825ms)
+▶ SEC-06 — path authorization
+  ✔ admits an absolute path under an approved root (34.6082ms)
+  ✔ admits Unicode and space-containing valid paths (AT-13) (40.4186ms)
+  ✔ refuses a relative path rather than resolving it against the cwd (226.0027ms)
+  ✔ refuses an absolute-path escape outside every root (44.8426ms)
+  ✔ refuses `..` traversal that resolves outside the root (87.2067ms)
+  ✔ refuses a sibling directory sharing a name prefix (96.9009ms)
+  ✔ refuses a directory link that escapes the root, though its path looks inside (89.6585ms)
+  ✔ admits a directory link that stays inside the root, via its canonical target (72.1432ms)
+  ﹣ refuses a file symlink that escapes the root, where the platform allows one (35.2655ms) # file symlinks unavailable here: EPERM
+  ✔ refuses a UNC path (5.2935ms)
+  ✔ refuses a Windows device path (6.4547ms)
+  ✔ refuses a NUL byte in the path (3.3658ms)
+  ✔ refuses a path that does not exist, rather than authorizing a guess (2.5412ms)
+  ✔ fails closed when no roots are approved (3.1264ms)
+  ✔ drops an uncanonicalizable root rather than trusting it (3.6267ms)
+✔ SEC-06 — path authorization (806.6073ms)
+▶ SEC-03 — the grant is the authority, not the request
+  ✔ refuses a tool outside the grant (38.5963ms)
+  ✔ permits a granted tool (16.4123ms)
+  ✔ requires explicit authorization for a remote destination (SEC-10) (77.1933ms)
+  ✔ defaults to refusing hosted code and recording nothing (13.5419ms)
+  ✔ applies conservative limits by default (13.0966ms)
+  ✔ lets an operator narrow limits but not widen past the override (0.5849ms)
+✔ SEC-03 — the grant is the authority, not the request (160.7045ms)
+▶ BASE-05 — the invocation authority handed to implementations
+  ✔ carries the grant identity, caller kind and limits (2.4829ms)
+  ✔ resolves paths through the grant rather than trusting the caller (33.4458ms)
+  ✔ exposes no way for a caller to widen the grant (3.5542ms)
+✔ BASE-05 — the invocation authority handed to implementations (40.0784ms)
+▶ OBS-03 — the capture path names what this plugin does NOT control
+  ✔ lists every surface, including the ones outside this plugin (9.0164ms)
+  ✔ distinguishes "we do not write here" from "nothing is written here" (0.8344ms)
+  ✔ the DSH LLM service is named as the surface this plugin CANNOT close (1.291ms)
+  ✔ says of the journal that a harness run recording nothing CANNOT EXIST (1.9447ms)
+  ✔ every surface this plugin DOES write is metadata (99.0854ms)
+✔ OBS-03 — the capture path names what this plugin does NOT control (120.1869ms)
+▶ OBS-03 — the metadata-only profile
+  ✔ writes no bodies under EITHER profile (1.7368ms)
+  ✔ reports the residual surfaces in BOTH profiles (3.521ms)
+  ✔ PERMITS harness execution where the deployment has no conflict (0.7237ms)
+  ✔ REFUSES harness execution where no-retention conflicts with reconstructability (0.7165ms)
+  ✔ admits a NON-harness tool even under the refusing profile (0.8447ms)
+  ✔ refuses a HARNESS-BACKED tool, naming both forbidden alternatives (0.6651ms)
+  ✔ the STANDARD profile still serves harness tools under the same conflict (0.4856ms)
+✔ OBS-03 — the metadata-only profile (11.5064ms)
+✔ the module registers one keyed toolview per known tool (119.0103ms)
+✔ summaries describe each tool family and never invent fields (124.6535ms)
+✔ Code Mode has its own card and reads the sub-call trace (126.6614ms)
+✔ the card renders a settled call and a failed one without throwing (93.3949ms)
+✔ EVERY extension package gets an install card, including catalogue-backed ones (500.7733ms)
+✔ the generated bundle carries the cards INLINE and fetches no chunk (47.3288ms)
+✔ an implementations-only extension registers the STANDARD contract tool, callable through the registry (6999.7685ms)
+✔ disable unregisters the standard contract tool; re-enable restores it (5101.7319ms)
+✔ a manifest tool and an implementation of the same contract do NOT duplicate (1773.0758ms)
+▶ BASE-02 — one tool per contract, not per model
+  ✔ registers the contract tool once when two models implement it (3091.416ms)
+  ✔ reports the alternative implementation rather than hiding it (1207.2616ms)
+  ✔ honours a provider override and falls back when the override cannot run (2795.6329ms)
+  ✔ the standard catalog exposes the contract name for transcription (1502.1123ms)
+✔ BASE-02 — one tool per contract, not per model (8622.1611ms)
+▶ DECL-03 — host-stamped provenance
+  ✔ stamps the envelope with host identity and a receipt (1717.8277ms)
+  ✔ names the implementation that actually ran, not the contract (894.6068ms)
+  ✔ issues a distinct receipt per call (1082.7613ms)
+  ✔ an implementation cannot forge the provenance it reports (978.0849ms)
+✔ DECL-03 — host-stamped provenance (4686.8363ms)
+▶ BASE-03 — the deprecated alias is opt-in
+  ✔ is absent from the default catalog (789.8476ms)
+  ✔ appears only when explicitly enabled, keeping its own name (1026.925ms)
+  ✔ the alias validates against its own contract, not the canonical one (1040.148ms)
+✔ BASE-03 — the deprecated alias is opt-in (2858.4439ms)
+▶ BASE-05 / SEC-06 — the host enforces authority before inference
+  ✔ refuses a path outside the grant instead of transcribing it (1365.0603ms)
+  ✔ fails before loading the model, not after (933.4595ms)
+  ✔ admits a path under an approved root (29052.4493ms)
+✔ BASE-05 / SEC-06 — the host enforces authority before inference (31352.7258ms)
+▶ contract failures surface as tool errors
+  ✔ rejects an argument the contract forbids (1498.9253ms)
+  ✔ rejects whitespace-only input through the cross-field rule (960.9584ms)
+  ✔ still answers a valid call after a refused one (1306.7017ms)
+✔ contract failures surface as tool errors (3767.7878ms)
+▶ BASE-07 read-only discovery surface
+  ✔ does not advertise or accept mutations on model_tools (3147.8401ms)
+  ✔ registers a separate management tool only with the explicit grant (1256.7011ms)
+✔ BASE-07 read-only discovery surface (4425.025ms)
+▶ SEC-01 — the credential store persists owner-only and constant-time
+  ✔ round-trips a credential and serves it by identity and by secret (896.2103ms)
+  ✔ SCHEME SEPARATION: an OAuth resource-server secret never matches the static-bearer lookup (841.9925ms)
+  ✔ writes the document owner-only: 0600 on POSIX, an explicit owner-only DACL on Windows (633.634ms)
+  ✔ fails closed: an upsert that cannot persist rolls back and throws (79.1617ms)
+  ✔ FAILS CLOSED on a corrupt document: generation refuses and the bytes are untouched (357.5994ms)
+  ﹣ a planted SYMLINK at the store path is replaced, never followed (60.0972ms) # file symlinks are not permitted on this host (Windows without developer mode)
+  ✔ REFUSES a junctioned credential home: no plaintext is written through an untrusted target (5.9275ms)
+  ✔ a stale snapshot cannot resurrect a just-revoked credential (1236.4162ms)
+  ✔ an unreadable store makes delete FAIL LOUDLY instead of silently keeping the credential (110.1206ms)
+  ✔ concurrent writers from TWO PROCESSES lose no entries (8184.655ms)
+  ✔ real 2-PROCESS proof: a LIVE long-holder is never stolen from; the contender waits and nothing resurrects (3192.8062ms)
+  ✔ fail-closed liveness: an UNKNOWN-liveness stale lock is never stolen, and release never removes a foreign lock (251.1182ms)
+  ✔ redacts a generated-secret-shaped span from free text (SEC-01) (12.5328ms)
+  ✔ redacts base64url secrets that BEGIN with "-" (deterministic crypto shapes) (8.8841ms)
+✔ SEC-01 — the credential store persists owner-only and constant-time (15941.6967ms)
+▶ SEC-01 — the OAuth server generates, persists, rotates and revokes
+  ✔ generates a crypto-random secret, immediately usable, shown exactly once (420.5517ms)
+  ✔ fails closed: a generation the store cannot persist registers nothing usable (25.209ms)
+  ✔ revokes ONE generated client; its tokens fail with the revoked vocabulary, peers survive (753.6742ms)
+  ✔ ROTATION: delete + recreate with a NEW secret and scope invalidates the OLD token and honors the NEW grant (1278.8725ms)
+  ✔ a credential generated AFTER construction issues immediately (no restart) (287.7363ms)
+  ✔ a WRONG-SCHEME store row is rejected — the hydrated map never resurrects it (585.9445ms)
+  ✔ revokes a LATE client through the live store, and the same id can be re-generated with a fresh secret (868.4329ms)
+✔ SEC-01 — the OAuth server generates, persists, rotates and revokes (4222.5301ms)
+▶ SEC-01 — the static-token transport accepts generated credentials under their own identity
+  ✔ a generated credential authenticates and drives the client grant, then revokes to 401 (1260.1436ms)
+  ✔ an OAuth resource-server secret presented as a static bearer is REJECTED (293.5185ms)
+✔ SEC-01 — the static-token transport accepts generated credentials under their own identity (1554.1704ms)
+▶ SEC-01 — the model_tools credentials action is SECRET-FREE, and the human CLI prints once
+  ✔ the model-visible surface REFUSES generate: no secret anywhere in the result (3379.9629ms)
+  ✔ the human CLI generates, prints the secret EXACTLY ONCE to stdout, and never to stderr (368.0749ms)
+  ✔ the human CLI refuses generation over a corrupt document without touching it (90.2518ms)
+  ✔ generated CLI credentials authenticate BOTH schemes and revoke through the management surface (3495.925ms)
+  ✔ fails closed when persistence is impossible or disabled (1681.5571ms)
+  ✔ a duplicate clientId is refused by the generation primitive rather than overwriting (198.2191ms)
+  ✔ the owner-only DACL helper applies on Windows and fails closed when it cannot (376.8469ms)
+✔ SEC-01 — the model_tools credentials action is SECRET-FREE, and the human CLI prints once (9592.4539ms)
+▶ prompt executor
+  ✔ interpolates one model call and passes model settings (52.6437ms)
+  ✔ refuses when no provider is composed (51.1261ms)
+  ✔ names a missing template argument (34.6821ms)
+✔ prompt executor (144.0256ms)
+▶ composite executor
+  ✔ runs steps sequentially, interpolates previous results and returns the last value (56.7146ms)
+  ✔ supports an explicit output path (29.3723ms)
+  ✔ refuses a self-call and a denied approval (98.9915ms)
+  ✔ wraps a failed step without losing the step name (32.3299ms)
+✔ composite executor (220.4636ms)
+▶ custom-tool dispatch
+  ✔ routes prompt and composite records to their executors (81.071ms)
+✔ custom-tool dispatch (81.8604ms)
+▶ custom tools clean-profile E2E
+  ✔ restores, executes, attributes, disables and removes one custom tool (3808.158ms)
+✔ custom tools clean-profile E2E (3830.6663ms)
+▶ private-address classification
+  ✔ rejects loopback, private, link-local, metadata and mapped addresses (35.9109ms)
+✔ private-address classification (45.5943ms)
+▶ HTTP executor
+  ✔ interpolates, resolves a secret, extracts JSON and never returns the secret (106.2439ms)
+  ✔ refuses a non-allowlisted origin and a private target (154.1773ms)
+  ✔ refuses a missing credential without leaking a value (36.8889ms)
+  ✔ caps the response body (59.8751ms)
+  ✔ refuses a public hostname that resolves to a private address (132.7688ms)
+✔ HTTP executor (492.6155ms)
+▶ custom-tool MCP surface
+  ✔ withholds a tool while MCP exposure is off (42.6713ms)
+  ✔ exports an opted-in tool with a declared output schema (95.8627ms)
+  ✔ withholds an opted-in tool that declares no output schema (143.2001ms)
+✔ custom-tool MCP surface (287.4655ms)
+▶ plugin custom-tool restore
+  ✔ registers an enabled stored tool and skips a disabled one (3590.558ms)
+✔ plugin custom-tool restore (3595.7806ms)
+▶ custom-tool compiler
+  ✔ emits the registry fields and routes execute through the executor (69.7921ms)
+✔ custom-tool compiler (74.6575ms)
+▶ custom-tool registrar
+  ✔ registers enabled tools and skips disabled or agent-hidden ones (797.2397ms)
+  ✔ replaces a live version and restores on a second registrar (260.3473ms)
+  ✔ refuses a name collision with another owner and reports it without stopping others (209.1472ms)
+  ✔ disposeAll removes every live definition (178.5521ms)
+✔ custom-tool registrar (1446.9022ms)
+▶ custom-tools service
+  ✔ saves, describes, tests and disables without leaking definitions (556.6426ms)
+  ✔ returns a named test failure when the prompt provider is unavailable (3.8048ms)
+  ✔ wires credential resolution into the HTTP test path (48.8588ms)
+  ✔ deletes the active tool and registration (50.1371ms)
+  ✔ asks the host model for a validated draft and never persists it (29.1219ms)
+  ✔ refuses an invalid agent draft and an absent model (35.5901ms)
+✔ custom-tools service (740.9785ms)
+▶ custom-tool draft validation
+  ✔ accepts a complete HTTP draft and normalizes defaults (18.764ms)
+  ✔ requires the name to match the id and a custom_ prefix (3.5859ms)
+  ✔ requires an https URL and at least one exact origin for HTTP (14.6008ms)
+  ✔ validates prompt and composite shapes (6.3942ms)
+  ✔ throws one named error carrying every issue (52.4147ms)
+✔ custom-tool draft validation (103.1385ms)
+▶ custom-tool durable store
+  ✔ saves version 1, creates version 2 immutably, and toggles enabled (833.9388ms)
+  ✔ fails closed on a corrupt index and refuses path-like ids (181.0289ms)
+  ✔ deletes the active pointer but keeps version files (139.685ms)
+✔ custom-tool durable store (1193.0339ms)
+▶ slice 3 — a declarative package INSTALLS with no code in it
+  ✔ lands in the store and declares itself declarative (1727.8749ms)
+  ✔ the installed package carries the recipes and NOT the code (1015.1991ms)
+  ✔ RESOLVES its declared recipes from the INSTALLED location (670.3974ms)
+  ✔ a TAMPERED archive is refused before any of this runs (142.1297ms)
+✔ slice 3 — a declarative package INSTALLS with no code in it (3563.314ms)
+▶ slice 3 — a shipped recipe REACHES a provider and returns a result
+  ✔ runs text-title.json end to end through the broker (13.5163ms)
+  ✔ sends the RENDERED recipe prompt, not a generic one (3.528ms)
+  ✔ REFUSES to run when the recipe was never authorized (2.2026ms)
+  ✔ refuses an input the recipe did not declare, BEFORE any provider call (2.624ms)
+  ✔ a REFUSED completion is an error, never an empty result (2.9425ms)
+✔ slice 3 — a shipped recipe REACHES a provider and returns a result (35.3737ms)
+▶ RCP-01 — the shipped recipes parse as RECIPES, not as the built-ins
+  ✔ parses text-title.json through the generic format (5.3904ms)
+  ✔ parses describe-image.json through the generic format (2.2092ms)
+  ✔ projects a contract-shaped INPUT SCHEMA from the file alone (2.7398ms)
+  ✔ RENDERS a prompt from the file, so the recipe is behaviour and not metadata (2.7544ms)
+✔ RCP-01 — the shipped recipes parse as RECIPES, not as the built-ins (19.9098ms)
+▶ RCP-02 — the recipe REFUSES inputs it did not declare
+  ✔ rejects an input the recipe never declared (3.5436ms)
+  ✔ rejects a MISSING required input (2.2812ms)
+✔ RCP-02 — the recipe REFUSES inputs it did not declare (6.7831ms)
+▶ RES-05 — one operation per EXACT deployment
+  ✔ uses a key that includes every identity field (4.7277ms)
+  ✔ treats two quantizations of one model as DIFFERENT deployments (1.5032ms)
+  ✔ JOINS concurrent callers onto ONE load (49.2688ms)
+  ✔ does not reload an already-ready deployment (1.487ms)
+  ✔ reports a joiner as having joined (64.2052ms)
+✔ RES-05 — one operation per EXACT deployment (130.5692ms)
+▶ RES-05 — reference counting and unload discipline
+  ✔ tracks active users and refuses to unload a busy deployment (1.7217ms)
+  ✔ release is idempotent, so a double release cannot corrupt the count (0.757ms)
+  ✔ revocation is the one case that may discard a busy deployment (1.2008ms)
+  ✔ unloading an unknown deployment reports rather than throwing (0.8305ms)
+✔ RES-05 — reference counting and unload discipline (5.7816ms)
+▶ RES-03 — a failed preparation cannot become ready
+  ✔ records the failure and does not report ready (4.0108ms)
+  ✔ RETRIES on the next call rather than inheriting the failure (1.846ms)
+  ✔ every joiner of a FAILED load is told it failed (23.3707ms)
+✔ RES-03 — a failed preparation cannot become ready (30.5858ms)
+▶ RES-05 — cancellation is per invocation
+  ✔ a cancelled caller gives up WITHOUT destroying the deployment (61.1463ms)
+  ✔ one cancelled caller does not affect a concurrent one (57.2929ms)
+✔ RES-05 — cancellation is per invocation (120.0809ms)
+▶ RES-02 — preparation is explicit and disclosed before approval
+  ✔ discloses download size, storage and license before the download (4.5926ms)
+  ✔ flags an executable asset as needing EXECUTABLE approval (0.7935ms)
+  ✔ states storage separately from download (0.448ms)
+  ✔ an empty asset set is a valid plan (0.6931ms)
+✔ RES-02 — preparation is explicit and disclosed before approval (7.4029ms)
+▶ RES-03 — purge is separate from uninstall and deletes only unreferenced assets
+  ✔ retains an asset that another owner still holds (3.8973ms)
+  ✔ deletes nothing when every asset has another owner (0.5124ms)
+  ✔ removing an owner with no assets is a no-op (0.4326ms)
+  ✔ keys assets by CONTENT digest, so sharing is safe (0.7835ms)
+✔ RES-03 — purge is separate from uninstall and deletes only unreferenced assets (6.2426ms)
+▶ OBS-04 — everything the requirement names is REPORTED
+  ✔ reports MCP on/off and its endpoint (6.4246ms)
+  ✔ reports an endpointless mount as a distinct state, not as "off" (7.9388ms)
+  ✔ reports authorized clients, exported tools AND what was withheld (3.8779ms)
+  ✔ reports preparation status WITH the reason it is not prepared (1.165ms)
+  ✔ reports selection, extension state, uninstall controls and requirements (1.0524ms)
+  ✔ reports the PLATFORM alongside the facts, so a reason can name it (0.7143ms)
+  ✔ an UNMOUNTED MCP surface carries the reason, not just false (1.937ms)
+✔ OBS-04 — everything the requirement names is REPORTED (31.2748ms)
+▶ OBS-04 — an UNAUTHENTICATED endpoint is reported as a risk, not as "available"
+  ✔ names what an open endpoint means (2.3099ms)
+  ✔ reports UNKNOWN as its own state rather than defaulting to false (0.9401ms)
+✔ OBS-04 — an UNAUTHENTICATED endpoint is reported as a risk, not as "available" (7.4804ms)
+▶ OBS-04 — an unsupported reason names BOTH sides of the mismatch
+  ✔ names the platforms it works on and the host it does not (1.3699ms)
+  ✔ distinguishes "nowhere" from "not here" (0.7781ms)
+✔ OBS-04 — an unsupported reason names BOTH sides of the mismatch (2.7261ms)
+▶ OBS-03 — a no-retention policy REFUSES harness execution
+  ✔ refuses when bodies cannot be retained but DSH needs reconstructable inputs (0.8693ms)
+  ✔ permits when bodies are retained (0.5991ms)
+  ✔ permits when DSH does not require reconstructable inputs (0.4503ms)
+✔ OBS-03 — a no-retention policy REFUSES harness execution (2.6471ms)
+▶ OBS-04 — the surface is REACHABLE through the control tool
+  ✔ model_tools action=diagnostics answers with the report (2543.0266ms)
+  ✔ reports the tools that were WITHHELD, derived from the real registry (1339.1379ms)
+✔ OBS-04 — the surface is REACHABLE through the control tool (3883.3566ms)
+▶ OBS-03 — the capture path is ON the diagnostic surface
+  ✔ reports the profile and the surfaces, INCLUDING the ones this plugin does not control (914.0347ms)
+  ✔ an operator can SELECT the metadata-only profile (833.4388ms)
+✔ OBS-03 — the capture path is ON the diagnostic surface (1748.2829ms)
+▶ EXT-32 — provenance is exposed for every model
+  ✔ names the extension and model that implement a contract-bound model (2619.7965ms)
+  ✔ reports the tool name that was actually published (1194.2997ms)
+  ✔ always returns the full provenance shape, even for an unbound model (939.2078ms)
+  ✔ reports null provenance for a model with no contract or extension (1045.9634ms)
+✔ EXT-32 — provenance is exposed for every model (5809.4898ms)
+▶ EXT-32 — an absent tool is explicable
+  ✔ does not report a model as callable when it cannot run here (1327.2876ms)
+  ✔ a model that is not the selected provider has no published tool but keeps its provenance (1035.9263ms)
+  ✔ exposes readiness for the selected implementation (914.969ms)
+✔ EXT-32 — an absent tool is explicable (3280.0226ms)
+▶ EXT-32 — discovery stays read-only
+  ✔ listing does not change installation state (1392.3526ms)
+  ✔ says nothing about the filesystem layout or secret references (1445.0906ms)
+✔ EXT-32 — discovery stays read-only (2838.7396ms)
+▶ EXT-35 — receipts are emitted for successful calls
+  ✔ records provenance for a call that completed (1495.7168ms)
+  ✔ does NOT record a receipt for a call that was refused (1088.6355ms)
+  ✔ the receipt view exposes no request content (808.5652ms)
+✔ EXT-35 — receipts are emitted for successful calls (3394.1971ms)
+DIAG state=["@try-works/fixture-path-broker:active/active"] installed=["@try-works/fixture-path-broker"] implementations=[{"id":"stt-impl","contractId":"stt.transcribe","contractVersion":"1.0.0","recipeVersion":"1.0.0"}]
+DIAG-after state={"extensionId":"@try-works/fixture-path-broker","installation":"installed","export":"not-exported","ownerPid":23416,"desiredActivation":"active","observedActivation":"active","tools":[],"readiness":{}}
+✔ the handler's resolvePath returns the canonical authorized path for an in-root file (4991.3188ms)
+✔ an out-of-root path is refused by the broker with the named authority error (2288.3552ms)
+▶ enable re-publishes an already-active extension
+  ✔ calls activate even when the state says this pid owns it (2016.585ms)
+  ✔ surfaces an activation failure with the service error code (568.6471ms)
+✔ enable re-publishes an already-active extension (2591.4154ms)
+▶ a failed asset restore explains itself in the row
+  ✔ names the cache problem instead of the generic preparation note (524.0134ms)
+✔ a failed asset restore explains itself in the row (530.3136ms)
+▶ the executable-preparation approval defaults to OFF
+  ✔ defaults the config value to false and preserves an explicit true (37.1572ms)
+  ✔ returns the exact RES-02 refusal and acquires NOTHING when the gate is off (4460.7746ms)
+✔ the executable-preparation approval defaults to OFF (4508.2342ms)
+▶ the operator gate approves executable assets as a standing approval
+  ✔ prepares the executable plan, materializes the verified file and records readiness (3976.1879ms)
+✔ the operator gate approves executable assets as a standing approval (3977.1334ms)
+▶ fixture inventory (task-111)
+  ✔ covers exactly the eight extensions and their 17 tools/contracts (8.2765ms)
+  ✔ has every committed fixture and no fixture over the 2 MB budget in total (7.0687ms)
+  ✔ keeps machine-specific absolute paths out of the committed inputs (279.2549ms)
+  ✔ validates every fixture against the caller-facing input schema (688.1706ms)
+  ✔ loads inputs that are JSON-serializable and materializes absolute asset paths (302.2815ms)
+  ✔ validates the extra language and silence fixtures too (232.3331ms)
+✔ fixture inventory (task-111) (1530.1871ms)
+▶ binary assets are deterministic and correctly shaped
+  ✔ matches the committed PNG byte-for-byte and is a 96x64 RGB image (12.6824ms)
+  ✔ matches the committed WAVs byte-for-byte and measures 16 kHz mono PCM (99.004ms)
+✔ binary assets are deterministic and correctly shaped (112.7682ms)
+▶ validators accept fabricated GOOD outputs
+  ✔ accepts a contract-shaped GOOD output for every matrix entry (673.9833ms)
+  ✔ accepts the language fixture under every covered language (354.8678ms)
+  ✔ accepts the CONTRACT post-mapping shapes the providers must emit (task-115) (204.1662ms)
+  ✔ accepts the honest empty transcript for the silence fixture and refuses invented words (124.916ms)
+✔ validators accept fabricated GOOD outputs (1359.5368ms)
+▶ validators refuse fabricated BAD outputs
+  ✔ refuses lang_detect case 1: the top guess is the wrong language (74.94ms)
+  ✔ refuses lang_detect case 2: the language code is not ISO-639-1 (83.5991ms)
+  ✔ refuses stt_transcribe case 3: coverage claims more audio than the file contains (88.2984ms)
+  ✔ refuses stt_transcribe case 4: a word ends after the audio (110.371ms)
+  ✔ refuses decision_choose case 5: the chosen option was never offered (61.7927ms)
+  ✔ refuses decision_test case 6: a free-form decision instead of yes/no (50.968ms)
+  ✔ refuses decision_score case 7: a level outside the caller's levels (28.3347ms)
+  ✔ refuses tools_plan case 8: the plan contains a rejected proposal (67.2001ms)
+  ✔ refuses tools_plan case 9: a proposal is marked invalid (85.9685ms)
+  ✔ refuses structured_extract case 10: the extraction violates the caller schema but claims valid (54.5206ms)
+  ✔ refuses structured_extract case 11: a null extraction reported as valid (43.4457ms)
+  ✔ refuses text_embed case 12: the unrelated text is closer than the related one (38.7314ms)
+  ✔ refuses text_embed case 13: a vector is not unit norm (26.216ms)
+  ✔ refuses text_rerank case 14: the relevant document is not first (8.4556ms)
+  ✔ refuses multimodal_embed case 15: a vector has the wrong width (65.421ms)
+  ✔ refuses multimodal_embed case 16: truncated is reported true, which v1 forbids (23.7536ms)
+  ✔ refuses semantic_similarity case 17: a cosine outside [-1,1] (70.4567ms)
+  ✔ refuses semantic_rank case 18: the relevant candidate is not first (93.0444ms)
+  ✔ refuses semantic_classify case 19: a label the caller never supplied (40.1788ms)
+  ✔ refuses semantic_deduplicate case 20: an input item is missing from the grouping (29.4703ms)
+  ✔ refuses media_find_moments case 21: a window ends after the media (27.5503ms)
+  ✔ refuses media_find_moments case 22: video frame timestamps on an audio call (62.4078ms)
+  ✔ refuses text_title case 23: an empty title (49.9484ms)
+  ✔ refuses text_title case 24: prose instead of the one JSON object the recipe requires (33.5451ms)
+  ✔ refuses image_describe case 25: the description merely echoes the filename (50.1534ms)
+  ✔ refuses image_describe case 26: a placeholder non-description (16.3986ms)
+  ✔ has at least one negative case for every matrix id (1.6048ms)
+✔ validators refuse fabricated BAD outputs (1401.5781ms)
+▶ result-shape normalisation
+  ✔ accepts a bare payload, an MCP structuredContent result and a JSON text block (130.6428ms)
+  ✔ reports a host refusal as a named refusal rather than throwing (9.9616ms)
+  ✔ refuses a missing result and an unknown matrix id (0.8628ms)
+  ✔ summarizes verdicts for the harness report (98.8973ms)
+✔ result-shape normalisation (241.5113ms)
+▶ the validator copy stays pinned to the packages that declare the contracts
+  ✔ pins every extension output-schema path to its manifest (354.5577ms)
+  ✔ pins the copied contract schemas to @try-works/tool-mode-contracts (5.6593ms)
+  ✔ pins the copied tools_plan caller schema to the host planning module (90.7352ms)
+  ✔ derives the declarative recipe fixtures from the committed recipe files (75.302ms)
+  ✔ keeps every declared input schema compilable by the dependency-free subset (794.6882ms)
+✔ the validator copy stays pinned to the packages that declare the contracts (1321.9766ms)
+▶ argv parsing
+  ✔ parses the documented flags and normalizes the base URL (7.1317ms)
+  ✔ refuses missing credentials, bad URLs and unknown flags (4.5586ms)
+✔ argv parsing (17.1043ms)
+▶ gateway RPC shape
+  ✔ builds the exact client-request envelope and connect URL (1.379ms)
+  ✔ parses both server-response branches and rejects a foreign id (1.582ms)
+  ✔ calls a modelTools method over the API route and surfaces a host refusal (3.485ms)
+  ✔ extracts the dsh-auth cookie from the connect exchange (1.6706ms)
+✔ gateway RPC shape (39.7392ms)
+▶ requirement coherence
+  ✔ accepts a coherent row and reports each incoherence (6.0095ms)
+✔ requirement coherence (6.8403ms)
+▶ blocker classification and aggregation
+  ✔ classifies a platform refusal as a NAMED blocker and a timeout as FAIL (6.432ms)
+  ✔ exits 0 only for PASS or SKIPPED with a named host blocker (3.8882ms)
+  ✔ selects extensions by name, id or tool and refuses an unknown selector (4.8488ms)
+  ✔ renders the matrix with durations and the exact blocker text (2.2821ms)
+✔ blocker classification and aggregation (19.4244ms)
+▶ task-119 invocation fixes
+  ✔ resolves invocation media paths to absolute, existing files (107.7938ms)
+  ✔ maps manifest tools and standard-contract implementations to registered names (1.6123ms)
+  ✔ classifies ONLY the exact no-LLM host blocker as skippable (1.0057ms)
+  ✔ classifies ONLY the empty tools_plan result as the named planning harness skip (1.3874ms)
+  ✔ finds a prepared artifact inside the live cache groups (13.9786ms)
+  ✔ selects the plugin build hermetically and only touches a profile on explicit opt-in (4770.1817ms)
+  ✔ copies the live store private directory (and lock install paths) into the snapshot (211.2496ms)
+✔ task-119 invocation fixes (5109.5518ms)
+▶ task-111 contract compatibility (real fixtures + validators)
+  ✔ covers every matrix tool and maps every entry to a known extension (370.0847ms)
+  ✔ never throws on a malformed result and keeps refusal-less failures as failures (346.3805ms)
+✔ task-111 contract compatibility (real fixtures + validators) (716.9592ms)
+▶ installed plugin module resolution
+  ✔ turns an absolute Windows EXT_MATRIX_PLUGIN path into a file URL (12.5315ms)
+✔ installed plugin module resolution (13.1053ms)
+▶ the host mounts the lifecycle, so an extension tool REACHES the registry
+  ✔ registers a contribution through the registrar and INVOKES it (3423.6894ms)
+  ✔ REFUSES a tool declared by an extension that is NOT activated (1173.8865ms)
+  ✔ keeps the host identity authoritative over what the package claims (1342.54ms)
+  ✔ restores only what the operator approved, and never prepares a model (RUN-05) (424.0074ms)
+✔ the host mounts the lifecycle, so an extension tool REACHES the registry (6372.0333ms)
+▶ the installed-tree resolver is truthful about what exists
+  ✔ resolves a declared dependency to the exact installed version and directory (159.7836ms)
+  ✔ refuses a declared dependency that is not installed, naming the dependency and spec (153.4688ms)
+  ✔ refuses a dependency name that is not a package identity (95.8887ms)
+✔ the installed-tree resolver is truthful about what exists (429.5407ms)
+▶ the registry-bytes arm serves exactly the archive it declares
+  ✔ builds a zip whose SHA-512 is the integrity and which excludes nested node_modules (259.3788ms)
+  ✔ refuses a script-declaring dependency before building any archive (EXT-10) (188.0349ms)
+  ✔ admits an exact trusted prebuilt dependency without running its scripts (134.5893ms)
+  ✔ refuses an unresolved link inside the installed dependency (113.5785ms)
+  ✔ refuses an archive over the configured byte bound (149.9604ms)
+✔ the registry-bytes arm serves exactly the archive it declares (847.5831ms)
+▶ the preinstalled arm is operator-gated and states its provenance
+  ✔ returns the resolved directory for the preinstalled arm only with the gate on (174.9537ms)
+  ✔ refuses the gate without an operator-configured root (112.7521ms)
+  ✔ refuses a preinstalled directory outside the configured root (110.4134ms)
+✔ the preinstalled arm is operator-gated and states its provenance (400.0886ms)
+▶ ExtensionsService.install materializes dependencies inside the extension
+  ✔ installs a fixture extension whose dependency resolves, recording the lock (1564.0419ms)
+  ✔ refuses with a named error when a declared dependency is missing, and installs nothing (716.8872ms)
+  ✔ refuses a script-declaring dependency with the EXT-10 reason and installs nothing (427.1152ms)
+  ✔ does not materialize compile-time-only @types packages (502.1656ms)
+  ✔ installs a trusted prebuilt dependency without executing its postinstall (913.0529ms)
+  ✔ copies a preinstalled dependency with provenance when the operator gate is on (976.4769ms)
+✔ ExtensionsService.install materializes dependencies inside the extension (5128.3297ms)
+▶ the source-directory graph carries the host depth bound (task-116 regression)
+  ✔ installs a 6-link host tree whose deepest dependency sits at depth 5 (1563.2378ms)
+  ✔ still refuses at the operator-configured bound, naming the package one level too deep (902.4887ms)
+  ✔ enforces the operator-configured PACKAGE bound on the directory arm (478.777ms)
+✔ the source-directory graph carries the host depth bound (task-116 regression) (2946.2262ms)
+▶ the real extension-laya dependency tree resolves through the trusted prebuilt allowlist
+  ✔ resolves onnxruntime-node from the host tree (3.1353ms)
+  ✔ installs the real Laya dependency tree with the trusted prebuilt allowlist (90340.5327ms)
+✔ the real extension-laya dependency tree resolves through the trusted prebuilt allowlist (90344.3438ms)
+▶ RC1: the live onnxruntime-node tree is bounded by the configured depth, not 3
+  ✔ materializes all six packages (define-data-property at depth 4) with the default bound 12 (2802.2202ms)
+  ✔ reproduces the live refusal verbatim when the bound is lowered to 3 (message is bound-driven, not hardcoded) (1143.7875ms)
+✔ RC1: the live onnxruntime-node tree is bounded by the configured depth, not 3 (3951.0481ms)
+▶ the dispatch chain resolves against a REAL shipped extension
+  ✔ installs and its manifest declares the tool/implementation chain (3995.1239ms)
+  ✔ resolves ALL THREE tools through contract to implementation (1776.1481ms)
+  ✔ INVOKING a tool reaches the extension and REFUSES honestly, naming what is missing (2405.7262ms)
+  ✔ reports NOT-DECLARED for a name this extension never declared (1918.8979ms)
+  ✔ the built artifact is present, which is what makes dispatch possible at all (1.5012ms)
+  ✔ an installed extension CAN now resolve the runtime SDK — the gap is closed (1721.0231ms)
+✔ the dispatch chain resolves against a REAL shipped extension (11843.327ms)
+▶ EXT-21 — a declared tool resolves through contract to implementation
+  ✔ resolves a tool whose contract an implementation serves (3.7455ms)
+  ✔ refuses an implementation of a different contract version (0.813ms)
+  ✔ selects the exact version even when an incompatible implementation appears first (3.7372ms)
+  ✔ reports NOT-DECLARED for a name the manifest does not carry (8.0597ms)
+  ✔ reports NO-IMPLEMENTATION when the contract is declared but unserved (1.7773ms)
+  ✔ the two failure codes are DISTINCT, not one generic error (1.5045ms)
+✔ EXT-21 — a declared tool resolves through contract to implementation (28.2266ms)
+▶ EXT-19 — activation stays lightweight; the provider is created on first CALL
+  ✔ creates no provider until execute is called (11.8835ms)
+  ✔ creates the provider, loads, and invokes on the first call (2.4054ms)
+  ✔ resolves the provider PER CALL, so a deactivated extension is not served from a stale handle (1.3674ms)
+  ✔ propagates a FAILURE from the extension rather than returning an empty success (2.7927ms)
+  ✔ passes the caller ARGUMENTS through unchanged (1.5462ms)
+✔ EXT-19 — activation stays lightweight; the provider is created on first CALL (21.4791ms)
+▶ EXT-30 — a refusal is readable
+  ✔ describes an unserved contract in a way an author can act on (1.0887ms)
+  ✔ a failed dispatch produces NO execute function at all (0.5662ms)
+✔ EXT-30 — a refusal is readable (2.396ms)
+▶ the source-directory arm materializes declared optional runtimes (task-117 regression)
+  ✔ copies a SCOPED host-tree engine into the installed package and records it (2552.5303ms)
+  ✔ keeps the package install when the optional engine is absent from the host tree (535.195ms)
+✔ the source-directory arm materializes declared optional runtimes (task-117 regression) (3093.4863ms)
+▶ RC3 — extension-page-state derivation
+  ✔ active + blocked readiness: badge "active · blocked", toggle OFF, blocker kept (10.0946ms)
+  ✔ installed + not prepared (host blocked flag absent): the unmet assets requirement still blocks (0.8281ms)
+  ✔ dependency refusal present on a not-installed row: dependencies blocks, assets is only a note (0.7848ms)
+  ✔ an active, unblocked row keeps the plain active/ON rendering (0.6315ms)
+  ✔ an inactive, installed row renders inactive/OFF (0.6331ms)
+  ✔ satisfied requirements never block or note (0.5873ms)
+✔ RC3 — extension-page-state derivation (22.2868ms)
+▶ an unprepared model deployment produces a precise, actionable blocker
+  ✔ describe names the model and the prepare action instead of a generic failure (2811.2997ms)
+  ✔ enable refuses with the same named diagnostic instead of a bare activation failure (1516.0636ms)
+  ✔ prepare records the readiness and the cache holds the verified bytes, without publishing (3452.6731ms)
+  ✔ prepares a freshly installed extension even before any enable attempt (1373.4278ms)
+✔ an unprepared model deployment produces a precise, actionable blocker (9160.2065ms)
+▶ a tampered acquisition refuses and never flips readiness
+  ✔ returns the digest refusal and keeps the extension unprepared (1723.4419ms)
+✔ a tampered acquisition refuses and never flips readiness (1724.231ms)
+▶ prepare preconditions are named
+  ✔ refuses when the host mounted no prepared-assets surface (215.4168ms)
+  ✔ refuses an id that is not installed (5.8727ms)
+✔ prepare preconditions are named (234.2177ms)
+▶ the real extension-embeddinggemma lock resolves to the disclosed plan (no acquisition)
+  ✔ plans 11 pinned assets with the measured audio digest (24.6037ms)
+  ✔ names the real EmbeddingGemma deployment in the live blocker string (2864.0359ms)
+✔ the real extension-embeddinggemma lock resolves to the disclosed plan (no acquisition) (2889.4273ms)
+▶ a successful acquisition that records no readiness is not reported as success
+  ✔ reports prepared:false naming the recorded readiness instead of a green prepare (962.353ms)
+  ✔ refuses before any acquisition when no lifecycle is mounted (readiness has no writer) (291.4914ms)
+✔ a successful acquisition that records no readiness is not reported as success (1254.8123ms)
+▶ EXT-21 — a published contribution reaches the registry
+  ✔ registers a tool when its extension is activated (5.8487ms)
+  ✔ REFUSES a contribution from an extension that is not activated (5.1742ms)
+  ✔ REFUSES a name collision rather than overwriting (1.1261ms)
+  ✔ registers an implementation as NOTHING, because it is not a caller-facing tool (0.716ms)
+✔ EXT-21 — a published contribution reaches the registry (18.0819ms)
+▶ EXT-24 — withdrawal is safe in every direction
+  ✔ withdraws a published contribution and frees its name (1.6766ms)
+  ✔ retains the handle and reserved name when disposal fails, allowing cleanup retry (1.3257ms)
+  ✔ is IDEMPOTENT: withdrawing twice does not throw (0.7736ms)
+  ✔ IGNORES a forged handle rather than treating it as a lookup (0.8726ms)
+  ✔ does NOT let a reconstructed handle withdraw another extension tool (12.942ms)
+  ✔ withdraws only the contribution the handle belongs to (1.081ms)
+✔ EXT-24 — withdrawal is safe in every direction (20.6235ms)
+▶ EXT-30 — a second implementation joins rather than duplicating
+  ✔ refuses two contributions of the same NAME from one extension (1.0774ms)
+  ✔ allows the SAME name from a different extension after a withdrawal (0.6817ms)
+✔ EXT-30 — a second implementation joins rather than duplicating (2.4303ms)
+▶ registry resolution rules (semver subset, documented honestly)
+  ✔ selects the highest satisfying version for carets, tildes, x-ranges, hyphen and || (10.0803ms)
+  ✔ never selects a prerelease unless the range names one (and refuses unsupported prerelease ranges) (1.2361ms)
+  ✔ refuses a special/non-semver spec rather than guessing (0.7417ms)
+✔ registry resolution rules (semver subset, documented honestly) (16.7321ms)
+▶ install from the npm registry
+  ✔ resolves latest, verifies the sha512, records registry provenance and lands inactive (1545.6579ms)
+  ✔ installs with NO source directory configured (no local package is needed) (424.8961ms)
+  ✔ refuses a version with no dist.integrity BEFORE fetching the tarball (94.473ms)
+  ✔ refuses a tarball whose sha512 does not match the registry metadata (104.789ms)
+  ✔ refuses a package the registry does not know (404) with a named error (32.2145ms)
+  ✔ materializes a registry dependency inside the extension, selecting the highest satisfying version (743.294ms)
+✔ install from the npm registry (2951.608ms)
+▶ large tarballs: a separate idle timeout, not the packument budget
+  ✔ pins the defaults: metadata 30 s, tarball idle 10 min (1.0013ms)
+  ✔ SUCCEEDS on a tarball streamed over several idle windows (4995.7625ms)
+  ✔ retries a tarball stream that resets before completion (802.701ms)
+  ✔ resumes a reset tarball with an HTTP Range request (600.4563ms)
+  ✔ aborts a STALLED stream with a message naming the dependency, host and timeout (514.8889ms)
+  ✔ still refuses an over-cap tarball and names the cap and host (not a timeout) (104.7058ms)
+  ✔ keeps the packument timeout SHORT and independent of the tarball budget (266.8955ms)
+✔ large tarballs: a separate idle timeout, not the packument budget (7288.5686ms)
+▶ optional tool runtimes: materialized when resolvable, a named blocker when not
+  ✔ materializes a resolvable optional runtime into the extension and stays integrity-clean (891.0877ms)
+  ✔ does NOT fail the install on an unsatisfiable optional range, and blocks activation (614.2291ms)
+  ✔ does NOT fail the install when the optional runtime package is missing (404) (580.8108ms)
+✔ optional tool runtimes: materialized when resolvable, a named blocker when not (2087.0872ms)
+▶ dependency graphs: depth bound and preinstalled regular dependencies (task-116)
+  ✔ resolves a >=6-level registry tree with the raised default depth (12) (783.6507ms)
+  ✔ still refuses a runaway graph, names the depth bound, and installs nothing (449.1625ms)
+  ✔ resolves a transitive leaf from the PREINSTALLED PACKAGE'S OWN node_modules (npm nesting) (518.1566ms)
+  ✔ materializes a SCRIPT-DECLARING regular dependency from the operator-preinstalled root (405.4485ms)
+✔ dependency graphs: depth bound and preinstalled regular dependencies (task-116) (2157.6341ms)
+▶ source selection: auto fallback, directory mode, and named refusals
+  ✔ auto falls back to the directory ONLY for a transport failure when directory installs are allowed (565.6735ms)
+  ✔ auto does NOT fall back for a 404 even when the directory would exist (90.2277ms)
+  ✔ describes the registry as the source route for a not-yet-installed row (91.9179ms)
+  ✔ auto falls back to the directory when no registry is configured and directory installs are allowed (380.4216ms)
+  ✔ directory mode still installs from the configured source directory and says so (441.9148ms)
+  ✔ registry mode refuses with a named error when the registry is unreachable and directory is not allowed (27.5815ms)
+  ✔ registry mode refuses when no registry is configured (2.8896ms)
+✔ source selection: auto fallback, directory mode, and named refusals (1602.0064ms)
+▶ a declarative extension reports the missing harness model BEFORE Enable
+  ✔ names the provider status as unknown when the host supplied no thunk, and refuses before activation (1333.91ms)
+  ✔ uses the host-supplied remediation verbatim and passes enable when the provider is available (856.2822ms)
+✔ a declarative extension reports the missing harness model BEFORE Enable (2211.7836ms)
+▶ per-kind requirements are truthful and block the right action
+  ✔ reports assets unmet with the prepare action and refuses enable before activation (823.3657ms)
+  ✔ reports an unsupported platform with no page action and refuses enable (895.546ms)
+  ✔ names missing installed dependencies and refuses enable (561.9882ms)
+  ✔ reports a PROSE-source lock as action none and refuses prepare with the named code (task-118) (621.925ms)
+  ✔ reports changed integrity with the install action and keeps the INTEGRITY_MISMATCH refusal code (489.2272ms)
+  ✔ reports the executable gate as unmet when the plan needs approval, and satisfied once the operator approves (1129.8451ms)
+  ✔ reports an unreadable/quarantined activation state as unmet with the diagnostic (333.0359ms)
+  ✔ models installers: an unconfigured store blocks a source-only row with the config action (62.2756ms)
+  ✔ reports every satisfied requirement too, so "nothing to do" is distinguishable from "not checked" (195.1545ms)
+✔ per-kind requirements are truthful and block the right action (5120.325ms)
+▶ the audit matrix over every first-party extension
+  ✔ gives every real package a requirements list covering its prerequisites and explains every blocker (404.4699ms)
+✔ the audit matrix over every first-party extension (405.6911ms)
+▶ describe() is truthful about what it does not know
+  ✔ reports store null, writable false and no rows when nothing is configured (8.456ms)
+  ✔ lists a first-party source package as not installed, with the reason the store is missing (913.971ms)
+  ✔ reports a broken first-party checkout by name instead of hiding it (26.1648ms)
+  ✔ pins the Config default for config.extensionSourceDir (11.5215ms)
+  ✔ is provided on the plugin context with config threaded through apply (1584.2255ms)
+✔ describe() is truthful about what it does not know (2567.6006ms)
+▶ install() refuses with named errors before copying anything
+  ✔ refuses without a configured extension store (1.9531ms)
+  ✔ refuses without a source argument or a configured source directory (2.2177ms)
+  ✔ refuses when the resolved source package directory is missing (19.3203ms)
+  ✔ refuses an explicit source path that does not exist (18.6832ms)
+  ✔ refuses source-directory installs unless the operator allowed them (184.4979ms)
+  ✔ refuses when the source content cannot be digested, before copying (110.9531ms)
+  ✔ refuses a source whose package identity is not the requested id (198.2748ms)
+  ✔ refuses an identity that could escape the source root (62.3625ms)
+  ✔ surfaces the SDK installer refusal with its named code (404.6074ms)
+  ✔ refuses an install whose result carries no content digest (161.0218ms)
+✔ install() refuses with named errors before copying anything (1174.435ms)
+▶ install then enable/disable is a truthful round-trip
+  ✔ installs inactive, then reports installed/active/integrity truthfully, then toggles (2000.1416ms)
+  ✔ describeFast reports rows without digesting installed bytes (504.6419ms)
+  ✔ disables an installed extension that was never activated without inventing a deactivation (189.6222ms)
+  ✔ reports changed integrity and refuses activation of tampered bytes (242.0293ms)
+  ✔ refuses enable/disable with a named error when nothing is installed and no lifecycle is mounted (111.4242ms)
+✔ install then enable/disable is a truthful round-trip (3048.9659ms)
+▶ the disabled override gates the host restore path
+  ✔ does not restore a disabled extension while the same package restores when enabled (2821.0947ms)
+✔ the disabled override gates the host restore path (2821.8791ms)
+▶ the host service is wire- and browser-agnostic
+  ✔ imports only node:* and the published SDK (5.7181ms)
+✔ the host service is wire- and browser-agnostic (10.1597ms)
+▶ verification/FINAL-REPORT.md
+  ✔ headline counts equal the requirement inventory (5.8304ms)
+  ✔ every family row agrees with the inventory (3.775ms)
+  ✔ lists exactly the DONE and BLOCKED requirements (3.4048ms)
+  ✔ names the verification timestamp and commit it describes (1.2273ms)
+  ✔ reads every package identity from its manifest, never a hardcoded version (60.6568ms)
+  ✔ is byte-identical to what the generator renders (104.3282ms)
+  ✔ --check passes on the committed report and fails on a stale copy (1306.6951ms)
+✔ verification/FINAL-REPORT.md (1492.2428ms)
+▶ every first-party extension lock resolves to a preparation plan
+  ✔ covers exactly the first-party extensions that ship a lock (429.1826ms)
+  ✔ plans positive bytes for every lock that declares host-fetched assets (511.7833ms)
+  ✔ resolves the bundled/model-managed sets to an explicit zero-asset plan (359.5216ms)
+  ✔ declares every group tidily: unique ids, unique asset ids, real digests, honest enables (533.5763ms)
+  ✔ keeps the measured EmbeddingGemma plan unchanged (11 assets, three selective groups) (445.0042ms)
+  ✔ plans the Needle native route as one group and marks the engine executable (RES-02) (782.3637ms)
+  ✔ plans the Laya lock with its conversion revision as the deployment revision (353.8645ms)
+✔ every first-party extension lock resolves to a preparation plan (3421.074ms)
+▶ HLM-01/02/03 — the injection seam reads the DSH surface structurally (scripted stub)
+  ✔ builds a provider over the model descriptor, images unsupported for a text model (8.8034ms)
+  ✔ mints the image transport ONLY when the attachment service is reachable (HLM-11) (2.0581ms)
+  ✔ fails closed: an unreachable surface or an unresolvable descriptor yields undefined (2.9447ms)
+✔ HLM-01/02/03 — the injection seam reads the DSH surface structurally (scripted stub) (19.1885ms)
+▶ task-93 — the AUTO default-model discovery is default-safe
+  ✔ reads the agent-default-model settings entry (1.7533ms)
+  ✔ falls back to config.model.default as the provider/model string (0.734ms)
+  ✔ refuses ambiguity: malformed entries and missing surfaces yield undefined, never a guess (1.3302ms)
+✔ task-93 — the AUTO default-model discovery is default-safe (5.347ms)
+▶ HLM-01 — the host pipeline serves declarative recipes through a scripted DSH surface
+  ✔ registers text_title/describe_image and COMPLETES a real broker run (opt-in harnessModel) (3813.1307ms)
+  ✔ DEFAULT OFF: without harnessModel (and no harnessProvider), declarative activation refuses rather than registering nothing (2162.0544ms)
+  ✔ fails closed through the host: harnessModel without a mounted DSH surface refuses the same way (2405.1139ms)
+  ✔ AUTO (task-93): no harnessModel, but the LLM surface + the default-model setting compose the provider end to end (2044.8629ms)
+  ✔ explicit config wins over the AUTO discovery (1886.4097ms)
+  ✔ task-96 regression: a materialized but EMPTY harnessModel falls through to AUTO and serves (2302.0173ms)
+  ✔ task-96 regression: a PARTIAL harnessModel (only provider) also falls through to AUTO (2544.74ms)
+  ✔ task-96 regression: an explicit UNSERVABLE pair still names the real pair, never undefined/undefined (1.4936ms)
+✔ HLM-01 — the host pipeline serves declarative recipes through a scripted DSH surface (17177.3062ms)
+▶ task-98 — the runtime-aware resolution maps the configured provider to a RUNNABLE route
+  ✔ maps a SETTINGS-NAMESPACE provider to its registered route and confirms the model (the live deepseek-official case) (2.5366ms)
+  ✔ keeps the direct pair when the configured provider IS the route (0.7385ms)
+  ✔ an EMPTY route registry is not-ready-yet, never not-configured (1.2503ms)
+  ✔ an unknown provider and an unserved model are not-configured with the exact reasons (1.1749ms)
+  ✔ task-100: routes present but an EMPTY directory is not-ready-yet, never terminal (0.9987ms)
+  ✔ task-100: a genuinely unknown provider WITH a non-empty directory is terminal not-configured (1.2233ms)
+  ✔ AUTO composes through the mapped route and serves a declarative recipe call end to end (3665.8958ms)
+✔ task-98 — the runtime-aware resolution maps the configured provider to a RUNNABLE route (3675.3399ms)
+▶ task-99 — the bounded background retry flips the status without a second read
+  ✔ flips to available within the bounded retry WITHOUT another describe (2938.1978ms)
+  ✔ a registry that stays empty is still not-ready-yet after the cap, with the same reason (4228.9072ms)
+  ✔ dispose stops the retry (no pending timers) (3122.756ms)
+  ✔ task-100 retry e2e: routes first + deferred directory → not-ready-yet, retry continues, then available (3202.6027ms)
+  ✔ task-101: a NON-EMPTY directory missing the provider is transient while retrying, then available when it lands (2835.8286ms)
+  ✔ task-101: after the cap the REAL not-configured reason is published and polling ends (2263.1785ms)
+  ✔ explicit config is never retried or overwritten (2211.2056ms)
+✔ task-99 — the bounded background retry flips the status without a second read (20820.2219ms)
+▶ slice 3 — the HOST serves a declarative package when a provider is supplied
+  ✔ turns resolved recipes into CALLABLE tools (11.2688ms)
+  ✔ INVOKES one and returns the model text (36.812ms)
+  ✔ RECORDS the call, because a broker that records nothing cannot be audited (3.7887ms)
+✔ slice 3 — the HOST serves a declarative package when a provider is supplied (57.1784ms)
+▶ slice 3 — REFUSING is the default, and the refusal names the right thing
+  ✔ refuses with no provider, and does NOT blame the package (3.4931ms)
+  ✔ refuses at PREPARATION, not at the first call (2.9324ms)
+  ✔ a THROWN invocation is not returned as a value (6.4361ms)
+✔ slice 3 — REFUSING is the default, and the refusal names the right thing (15.8267ms)
+▶ slice 3 — CANCELLATION is not a failure, and the two are distinguishable
+  ✔ throws HarnessCancelledError for a cancelled run, NOT a generic failure (5.5229ms)
+✔ slice 3 — CANCELLATION is not a failure, and the two are distinguishable (7.2662ms)
+▶ RCP-02 — a MUTATED recipe is REFUSED, not served
+  ✔ refuses an unexpected top-level key (11.7065ms)
+  ✔ refuses an injected system prompt (9.0643ms)
+  ✔ refuses an environment interpolation in the template (3.1236ms)
+  ✔ refuses an uppercase tool name (4.0079ms)
+  ✔ refuses a PATH-LIKE tool name (2.4642ms)
+  ✔ refuses an absurd output ceiling (2.2988ms)
+  ✔ refuses a missing policy (2.5751ms)
+  ✔ refuses missing inputs (2.2671ms)
+  ✔ and the UNMUTATED recipe still serves, so the guard is not simply refusing everything (4.7296ms)
+✔ RCP-02 — a MUTATED recipe is REFUSED, not served (54.7386ms)
+▶ ARCH-05 — the DISPATCH PROVIDER SHAPE, which the host branch did not have
+  ✔ a provider with load() and invoke({implementationId}) satisfies createDispatch (1.1986ms)
+✔ ARCH-05 — the DISPATCH PROVIDER SHAPE, which the host branch did not have (1.5584ms)
+▶ task-74 (A) — the REAL headless serve entry
+  ✔ starts, prints {ok, listening, url}, and answers tools/list over HTTP (6556.9615ms)
+  ✔ EXECUTES a published contract end to end (lang_detect returns a real language) (8485.0671ms)
+  ✔ shuts down cleanly when the signal source fires (in-process, deterministic on Windows) (2074.2808ms)
+  ✔ an invalid config exits nonzero with the named reason (8011.2215ms)
+  ✔ a missing config file exits nonzero with the named reason (8241.6068ms)
+✔ task-74 (A) — the REAL headless serve entry (33375.6168ms)
+▶ task-74 (B) — CODE-11 configurable repair-budget ceilings
+  ✔ the default ceiling is 1, unchanged (7.3887ms)
+  ✔ a configured ceiling of 0 refuses after the budget with the lineage showing 0/0 (9.5696ms)
+  ✔ a configured ceiling of 1 permits exactly one repair, then the lineage shows 1/0 (0.7584ms)
+  ✔ the v3 nested spelling is the equivalent of the flat alias (0.5347ms)
+  ✔ an invalid ceiling refuses at config parse, never clamps (2.0268ms)
+✔ task-74 (B) — CODE-11 configurable repair-budget ceilings (21.7179ms)
+✔ §12 config v3: the fixed-false flags REFUSE unsupported values (never accepted as ineffective) (133.9032ms)
+✔ §12 config v3: the nested shape parses when the flags stay false (2297.2986ms)
+✔ DECL-07: tool_mode_list reports permitted tools + the catalog revision (750.9534ms)
+✔ DECL-07: tool_mode_describe returns schemas for a requested tool + refuses unknown names (692.8057ms)
+✔ LIC-03: extensions-license-basis records the permission basis durably with the principal (675.3915ms)
+✔ P26-09: catalog transitions still settle after the notification wiring (emission side) (914.5966ms)
+✔ RUN-04: the dsh-tool-mode launcher doctor works with --json and no secrets (1492.4981ms)
+✔ RUN-04: serve refuses a missing config with a named error; prepare without a store refuses (6316.0639ms)
+✔ RUN-04: mcp-stdio fails fast without a credential (never hangs unattended) (1885.7538ms)
+fixture_echo schema: {"name":"fixture_echo","description":"Echo the supplied token back, optionally upper-cased, to prove a call reached this extension. It performs no inference and touches no file or network.","parameters":{"type":"object","properties":{"token":{"type":"string","description":"The token to echo."},"upper":{"type":"boolean","description":"Upper-case the echoed token."}},"required":["token"]}}
+▶ the host restores an approved extension on startup
+  ✔ publishes the restored tool through the real registry without operator action (3521.6625ms)
+  ✔ enforces the manifest-declared maxLength the projected advertisement drops (3085.4811ms)
+  ✔ refuses a tool whose declared schema cannot be compiled instead of publishing it unenforced (P26-13) (2197.3586ms)
+✔ the host restores an approved extension on startup (8820.5009ms)
+▶ the host restores the SELECTED version, not the first recorded one
+  ✔ activates the newest approved version and serves its tool (3648.7185ms)
+✔ the host restores the SELECTED version, not the first recorded one (3649.7508ms)
+▶ an upgrade in the SAME process loads the new module
+  ✔ serves the new build after the active-version pointer moves (4352.3357ms)
+✔ an upgrade in the SAME process loads the new module (4353.1463ms)
+▶ RES-03 — the HTTP acquisition source
+  ✔ requests the exact byte range and returns it (116.6928ms)
+  ✔ REJECTS a short body, which would corrupt resume offsets (3.0231ms)
+  ✔ HANDLES a 200 full body (a server that ignored Range), slicing the requested window (1.8795ms)
+  ✔ REJECTS a 200 full body too short to cover the requested window (1.6238ms)
+  ✔ REJECTS a 200 body beyond the operator-approved asset size (2.0835ms)
+  ✔ REJECTS a 206 body that is not exactly the requested range (1.745ms)
+  ✔ bounds MEMORY while streaming: an oversized 200 body is refused before full buffering (5.0054ms)
+  ✔ follows a redirect with the location resolved against the request URL (4.459ms)
+  ✔ rejects a redirect that carries no location (1.8546ms)
+  ✔ stops after the redirect budget, refusing to loop forever (8.47ms)
+  ✔ surfaces HTTP failures with the status and asset id (0.9001ms)
+✔ RES-03 — the HTTP acquisition source (157.8614ms)
+▶ OBS-01 — phases are MEASURED separately
+  ✔ records queue, load and inference as distinct durations (6.1793ms)
+  ✔ does NOT force the total to equal the sum of the parts (1.138ms)
+  ✔ ACCUMULATES a phase that is re-entered (0.9805ms)
+  ✔ reports zero for a phase that never ran, rather than omitting it (0.7121ms)
+  ✔ end() is idempotent and finish() closes an open phase (0.6566ms)
+✔ OBS-01 — phases are MEASURED separately (16.1636ms)
+▶ OBS-01 — the outcome CLASS follows the caller intent
+  ✔ reports none for a completed call (1.2099ms)
+  ✔ reports POLICY-DENIED ahead of any failure (0.72ms)
+  ✔ reports TIMEOUT ahead of cancelled, because a deadline also aborts (0.6772ms)
+  ✔ reports REFUSED ahead of a generic failure (0.7951ms)
+  ✔ reports CANCELLED when the caller walked away (9.4067ms)
+  ✔ falls back to failed (0.5883ms)
+  ✔ a cancelled call is NEVER reported as a failure (0.5736ms)
+✔ OBS-01 — the outcome CLASS follows the caller intent (16.0452ms)
+▶ OBS-01 — sizes, and NO place for a payload
+  ✔ measures the SERIALIZED size, which is what crossed the boundary (1.6928ms)
+  ✔ reports an absent output as ZERO bytes, not as unknown (0.8155ms)
+  ✔ reports an UNSERIALIZABLE value as -1 rather than understating it as empty (0.6566ms)
+  ✔ HAS NOWHERE to put request or response content (0.5592ms)
+  ✔ carries a REASON without carrying the payload (0.5074ms)
+✔ OBS-01 — sizes, and NO place for a payload (5.2275ms)
+▶ OBS-05 — measured facts are separated from claims
+  ✔ records the runtime the measurement was taken on (0.5042ms)
+  ✔ marks the timings as MEASURED here (0.8201ms)
+  ✔ names the engine version alongside the measurement (0.503ms)
+✔ OBS-05 — measured facts are separated from claims (2.3355ms)
+✔ every real extension activates through the host: all declared schemas compile (38890.6584ms)
+✔ TASK-125/B: every DECLARED schema (needle included) compiles through the same defineTool path the registrar uses (827.7576ms)
+▶ BASE-09/10 — the startup migration migrates a legacy document once, preserving choices
+  ✔ migrates the legacy fixture: ALL disabled preserved, enables STAGED, journaled, SDK record, no implicit consent (254.9705ms)
+  ✔ a RESTART is idempotent and byte-stable: no second run, no second write (147.2399ms)
+  ✔ an SDK-half FAILURE leaves the original document, the journal and the retry path intact (227.9134ms)
+  ✔ RECOVERS a crash between the host write and the marker FROM THE JOURNAL, never the rewritten file (217.9895ms)
+  ✔ recovery merges operator changes AFTER the crash — but journal enables are always staged (conservative) (59.4871ms)
+  ✔ a CORRUPT journal with no marker FAILS CLOSED — an interrupted transaction cannot be guessed (44.2109ms)
+  ✔ FAILS CLOSED on a foreign-version document, leaving the bytes and the marker state untouched (38.8361ms)
+  ✔ FAILS CLOSED on a corrupt legacy document, leaving the bytes untouched (75.4612ms)
+  ✔ VALIDATES the marker: a corrupt or foreign-version marker fails closed instead of counting as migrated (100.7411ms)
+  ✔ a FAULT at the host write (before the marker) retries FROM THE JOURNAL and stages the original enables (220.4106ms)
+  ✔ a FRESH profile (even under a not-yet-existing directory) receives the once-anchor safely (66.1761ms)
+  ✔ the host mounts over the MIGRATED state: the disabled choices remain disabled end to end (1850.2869ms)
+  ✔ a migration committed by ANOTHER process is adopted: the pre-hook snapshot never re-applies legacy enables (5158.7995ms)
+  ✔ never touches the real home: the default path is not used by any fixture (10.9315ms)
+✔ BASE-09/10 — the startup migration migrates a legacy document once, preserving choices (8485.0649ms)
+▶ EXT-20 — the host routes extension invocations through managed workers (opt-in)
+  ✔ a scrubbed worker serves the call: distinct child pid, real result, planted marker absent (8085.5411ms)
+  ✔ an explicit envPassthrough name reaches the worker, and only that name (8239.4463ms)
+  ✔ DEFAULT OFF: no flag means the extension runs IN-PROCESS and no child spawns (6601.2675ms)
+  ✔ a crashing entry fails the CALL with the worker vocabulary while the host stays alive (8141.0792ms)
+  ✔ admission enforcement stays host-side: a deactivated extension refuses before any worker spawns (7771.2708ms)
+✔ EXT-20 — the host routes extension invocations through managed workers (opt-in) (38879.7238ms)
+▶ EXT-20 — the worker registry binds one process per generation and disposes on change
+  ✔ a generation change disposes the old worker and serves a new pid (2341.2487ms)
+[worker @try-works/fixture-worker-echo] killing: the worker reported a fault
+  ✔ a worker refused its input or faulted fails the call with the SDK vocabulary (1393.321ms)
+✔ EXT-20 — the worker registry binds one process per generation and disposes on change (3735.8112ms)
+▶ EXT-20 host fix — managed mode never imports or runs the entry in-host (task-27)
+  ✔ the catalog bridge adapter runs a MALICIOUS top-level entry only in the child (1383.1473ms)
+  ✔ an unauthorized path is refused HOST-side, before any worker spawns (1029.9648ms)
+  ✔ the child maps the dispatch implementationId to the manifest modelId (strict fixture) (1105.2283ms)
+  ✔ registry.dispose kills the child process (the deactivation hook) (1239.2803ms)
+✔ EXT-20 host fix — managed mode never imports or runs the entry in-host (task-27) (4878.5215ms)
+[worker @try-works/extension-desert-ant-tongue] debug: tongue provider disposed 
+[worker @try-works/extension-desert-ant-tongue] debug: tongue extension disposed: shutdown 
+[worker @try-works/extension-desert-ant-voz] debug: voz provider disposed 
+[worker @try-works/extension-desert-ant-voz] debug: voz extension disposed: shutdown 
+[worker @try-works/extension-desert-ant-voz] debug: voz provider disposed 
+[worker @try-works/extension-desert-ant-voz] debug: voz extension disposed: shutdown 
+[worker @try-works/extension-desert-ant-tongue] debug: tongue provider disposed 
+[worker @try-works/extension-desert-ant-tongue] debug: tongue extension disposed: shutdown 
+[worker @try-works/extension-desert-ant-tongue] debug: tongue provider disposed 
+[worker @try-works/extension-desert-ant-tongue] debug: tongue extension disposed: shutdown 
+[worker @try-works/extension-desert-ant-voz] debug: voz provider disposed 
+[worker @try-works/extension-desert-ant-voz] debug: voz extension disposed: shutdown 
+[worker @try-works/extension-desert-ant-tongue] debug: tongue provider disposed 
+[worker @try-works/extension-desert-ant-tongue] debug: tongue extension disposed: shutdown 
+[worker @try-works/extension-desert-ant-voz] debug: voz provider disposed 
+[worker @try-works/extension-desert-ant-voz] debug: voz extension disposed: shutdown 
+▶ P26-14 catalog cache policy
+  ✔ defaults to private/0 when no policy is configured (10.5168ms)
+  ✔ reflects a configured TTL on tools/list AND server/discover (1.4561ms)
+  ✔ refuses a non-private cache scope with a named error (authorization-filtered catalog) (2.7402ms)
+  ✔ refuses a negative or non-finite TTL with a named error (1.2873ms)
+✔ P26-14 catalog cache policy (21.7ms)
+▶ SEC-04 — the grant derivation
+  ✔ defaults to the live surface, under the CLIENT's own identity (7.2867ms)
+  ✔ lets a per-client override narrow the set, while a peer keeps the default (0.9513ms)
+  ✔ honours a default allowlist, recording policy and limits overrides (0.7835ms)
+  ✔ intersects an override with the LIVE surface, so a non-surface name grants nothing (H3) (0.7529ms)
+✔ SEC-04 — the grant derivation (15.0074ms)
+▶ SEC-04 — the surface executes under the CALLER's grant, not the host's
+  ✔ runs a tool the caller is granted, and refuses one it is not — naming the grant (2.8279ms)
+  ✔ keeps the caller-less (native/interactive) path unchanged (0.7901ms)
+  ✔ the SEC-03 authority vocabulary carries the refusal (2.0861ms)
+✔ SEC-04 — the surface executes under the CALLER's grant, not the host's (6.748ms)
+▶ SEC-04 — two authenticated clients, two grants, one surface (end to end)
+  ✔ one client calls lang_detect, the other gets the grant refusal; model_tools stays invisible (3268.4559ms)
+✔ SEC-04 — two authenticated clients, two grants, one surface (end to end) (3269.8303ms)
+(node:12884) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ SEC-04 — composition honors the CLIENT grant (H1)
+  ✔ a tool_mode_run-only client cannot compose host-granted tools through a program (6959.4081ms)
+✔ SEC-04 — composition honors the CLIENT grant (H1) (6960.3302ms)
+unknown format "uri" ignored in schema at path "#/$defs/Icon/properties/src"
+unknown format "uri" ignored in schema at path "#/$defs/Icon/properties/src"
+unknown format "uri" ignored in schema at path "#/properties/websiteUrl"
+unknown format "uri" ignored in schema at path "#/properties/websiteUrl"
+unknown format "uri" ignored in schema at path "#/$defs/Icon/properties/src"
+unknown format "uri" ignored in schema at path "#/$defs/Icon/properties/src"
+unknown format "uri" ignored in schema at path "#/properties/websiteUrl"
+unknown format "uri" ignored in schema at path "#/properties/websiteUrl"
+unknown format "uri" ignored in schema at path "#/$defs/Icon/properties/src"
+unknown format "uri" ignored in schema at path "#/$defs/Icon/properties/src"
+unknown format "uri" ignored in schema at path "#/$defs/Icon/properties/src"
+unknown format "uri" ignored in schema at path "#/$defs/Icon/properties/src"
+unknown format "uri" ignored in schema at path "#/properties/websiteUrl"
+unknown format "uri" ignored in schema at path "#/properties/websiteUrl"
+unknown format "byte" ignored in schema at path "#/properties/data"
+unknown format "byte" ignored in schema at path "#/properties/data"
+unknown format "byte" ignored in schema at path "#/properties/data"
+unknown format "byte" ignored in schema at path "#/properties/data"
+unknown format "uri" ignored in schema at path "#/$defs/Icon/properties/src"
+unknown format "uri" ignored in schema at path "#/$defs/Icon/properties/src"
+unknown format "uri" ignored in schema at path "#/properties/uri"
+unknown format "uri" ignored in schema at path "#/properties/uri"
+unknown format "uri" ignored in schema at path "#/properties/uri"
+unknown format "uri" ignored in schema at path "#/properties/uri"
+unknown format "byte" ignored in schema at path "#/properties/blob"
+unknown format "byte" ignored in schema at path "#/properties/blob"
+unknown format "uri" ignored in schema at path "#/properties/uri"
+unknown format "uri" ignored in schema at path "#/properties/uri"
+unknown format "uri" ignored in schema at path "#/$defs/Icon/properties/src"
+unknown format "uri" ignored in schema at path "#/$defs/Icon/properties/src"
+unknown format "uri" ignored in schema at path "#/$defs/ElicitRequestURLParams/properties/url"
+unknown format "uri" ignored in schema at path "#/$defs/ElicitRequestURLParams/properties/url"
+unknown format "uri" ignored in schema at path "#/$defs/Icon/properties/src"
+unknown format "uri" ignored in schema at path "#/$defs/Icon/properties/src"
+unknown format "uri" ignored in schema at path "#/properties/websiteUrl"
+unknown format "uri" ignored in schema at path "#/properties/websiteUrl"
+unknown format "byte" ignored in schema at path "#/properties/data"
+unknown format "byte" ignored in schema at path "#/properties/data"
+unknown format "byte" ignored in schema at path "#/properties/data"
+unknown format "byte" ignored in schema at path "#/properties/data"
+unknown format "uri" ignored in schema at path "#/$defs/Icon/properties/src"
+unknown format "uri" ignored in schema at path "#/$defs/Icon/properties/src"
+unknown format "uri" ignored in schema at path "#/properties/uri"
+unknown format "uri" ignored in schema at path "#/properties/uri"
+unknown format "uri" ignored in schema at path "#/properties/uri"
+unknown format "uri" ignored in schema at path "#/properties/uri"
+unknown format "byte" ignored in schema at path "#/properties/blob"
+unknown format "byte" ignored in schema at path "#/properties/blob"
+unknown format "uri" ignored in schema at path "#/properties/uri"
+unknown format "uri" ignored in schema at path "#/properties/uri"
+unknown format "uri" ignored in schema at path "#/$defs/Icon/properties/src"
+unknown format "uri" ignored in schema at path "#/$defs/Icon/properties/src"
+unknown format "uri" ignored in schema at path "#/$defs/ElicitRequestURLParams/properties/url"
+unknown format "uri" ignored in schema at path "#/$defs/ElicitRequestURLParams/properties/url"
+unknown format "uri" ignored in schema at path "#/$defs/Icon/properties/src"
+unknown format "uri" ignored in schema at path "#/$defs/Icon/properties/src"
+unknown format "uri" ignored in schema at path "#/properties/websiteUrl"
+unknown format "uri" ignored in schema at path "#/properties/websiteUrl"
+unknown format "uri" ignored in schema at path "#/$defs/Icon/properties/src"
+unknown format "uri" ignored in schema at path "#/$defs/Icon/properties/src"
+unknown format "uri" ignored in schema at path "#/properties/websiteUrl"
+unknown format "uri" ignored in schema at path "#/properties/websiteUrl"
+unknown format "uri" ignored in schema at path "#/$defs/Icon/properties/src"
+unknown format "uri" ignored in schema at path "#/$defs/Icon/properties/src"
+unknown format "uri" ignored in schema at path "#/properties/websiteUrl"
+unknown format "uri" ignored in schema at path "#/properties/websiteUrl"
+unknown format "uri" ignored in schema at path "#/$defs/Icon/properties/src"
+unknown format "uri" ignored in schema at path "#/$defs/Icon/properties/src"
+unknown format "uri" ignored in schema at path "#/$defs/Icon/properties/src"
+unknown format "uri" ignored in schema at path "#/$defs/Icon/properties/src"
+unknown format "uri" ignored in schema at path "#/properties/websiteUrl"
+unknown format "uri" ignored in schema at path "#/properties/websiteUrl"
+▶ MCP-01 — the schema is pinned, not recalled
+  ✔ records the exact source commit (3.4109ms)
+  ✔ pins the JSON Schema and the TypeScript source the revision publishes (38.0221ms)
+  ✔ is a self-contained 2020-12 schema with no remote $ref (12.5194ms)
+  ✔ defines the messages this server sends (1.0394ms)
+✔ MCP-01 — the schema is pinned, not recalled (59.6704ms)
+▶ P26-13 — our actual messages validate against the pinned schema
+  ✔ a server/discover response is a valid DiscoverResultResponse (360.4034ms)
+  ✔ a tools/list response is a valid ListToolsResultResponse (305.8507ms)
+  ✔ a successful tools/call response is a valid CallToolResultResponse (641.968ms)
+  ✔ a tool-error response is ALSO a valid CallToolResultResponse (412.4272ms)
+  ✔ a JSON-RPC error response is a valid JSONRPCErrorResponse (166.6699ms)
+  ✔ an unsupported-version error is a valid JSONRPCErrorResponse (137.0782ms)
+  ✔ a header-mismatch response is a valid HeaderMismatchError (117.0801ms)
+✔ P26-13 — our actual messages validate against the pinned schema (2143.5915ms)
+▶ P26-13 — the pinned schema rejects what we must not send
+  ✔ a DiscoverResult MISSING its required fields is rejected (110.1437ms)
+  ✔ this schema PERMITS additional properties, so extras alone are not a violation (137.0001ms)
+  ✔ a ListToolsResult without cacheScope or ttlMs is rejected (96.3963ms)
+  ✔ a result without resultType is rejected (144.4612ms)
+  ✔ an error without a code is rejected (89.1517ms)
+✔ P26-13 — the pinned schema rejects what we must not send (578.8509ms)
+▶ BASE-06 MCP export allowlist
+  ✔ leaves the surface untouched when no allowlist is configured (7.1998ms)
+  ✔ exports no inference tools when the allowlist is empty (1.485ms)
+  ✔ admits exactly the named tools and withholds the rest with a reason (0.8249ms)
+  ✔ does not widen matches by case, prefix or duplicates (0.6783ms)
+✔ BASE-06 MCP export allowlist (16.5077ms)
+▶ extension-published tools are visible over MCP
+  ✔ lists the extension tool with its declared input schema (6231.4893ms)
+✔ extension-published tools are visible over MCP (6237.7389ms)
+▶ MCP-09 — schemas come from the contract
+  ✔ removes ONLY the reserved meta property from the payload schema (15.8167ms)
+  ✔ preserves the remaining constraints verbatim (1.4982ms)
+  ✔ does not mutate the contract it derived from (0.8882ms)
+  ✔ exports an output schema for every published tool (1.9328ms)
+✔ MCP-09 — schemas come from the contract (42.1705ms)
+▶ MCP-08 — invocation goes through the host path
+  ✔ passes a server-issued call id and the CALLER signal (202.0382ms)
+  ✔ validates a 2020-12 extension output schema instead of refusing the call (216.2469ms)
+  ✔ validates each tool against ITS schema, not the first compiled one (11.2729ms)
+  ✔ issues a distinct call id per invocation (3.5344ms)
+  ✔ reports a host failure as a tool error, not a fabricated success (2.8048ms)
+  ✔ returns the schema-valid MCP payload, with only reserved meta removed (1.9148ms)
+  ✔ rejects a host success whose structured value violates the advertised output schema (3.8068ms)
+  ✔ bounds the model-readable rendering (6.2567ms)
+✔ MCP-08 — invocation goes through the host path (450.4261ms)
+▶ MCP-12 — a tool that cannot be exported faithfully is withheld
+  ✔ omits it entirely and reports the reason (1.5341ms)
+  ✔ refuses to call a withheld tool even if asked by name (0.8823ms)
+✔ MCP-12 — a tool that cannot be exported faithfully is withheld (23.6482ms)
+▶ MCP-08 / MCP-09 — end to end through the plugin
+  ✔ the control tool exposes what MCP would export (2230.723ms)
+  ✖ exports exactly the tools the host registered (1061.8626ms)
+unknown format "uri" ignored in schema at path "#/$defs/Icon/properties/src"
+unknown format "uri" ignored in schema at path "#/$defs/Icon/properties/src"
+  ✔ EXPORTS tool_mode_run when the gate opens (confinement evidence AND operator consent) (876.7289ms)
+  ✔ the tool_mode_run MCP projection conforms to the PINNED schema before it ever ships (P26-13) (355.452ms)
+  ✔ a tools/list over the binding returns contract-derived schemas (915.6866ms)
+✖ MCP-08 / MCP-09 — end to end through the plugin (5441.9592ms)
+▶ mcpV3.enabled serves the host surface
+  ✔ binds an endpoint, answers server/discover, and closes with the host (3549.8696ms)
+  ✔ serves with a token FILE when the launch environment has none (1669.4564ms)
+  ✔ registers tool_mode_run under its own consent, not the management flag (993.6813ms)
+  ✔ does not bind when the flag is off (1033.6564ms)
+  ✔ refuses a non-loopback bind without taking the host down (1331.0811ms)
+✔ mcpV3.enabled serves the host surface (8595.4277ms)
+▶ SEC-02 / MCP-02 — the binding is loopback only
+  ✔ accepts a request from the loopback (320.8953ms)
+  ✔ refuses a request from a remote address (2.3326ms)
+  ✔ refuses a spoofed Host header from a remote address (1.5019ms)
+  ✔ refuses a hostile Host header even on loopback (1.6341ms)
+  ✔ permits the configured loopback Host header (23.6452ms)
+  ✔ recognises the loopback forms a real socket reports (0.5674ms)
+  ✔ defaults to loopback and the illustrative port (1.5617ms)
+✔ SEC-02 / MCP-02 — the binding is loopback only (357.8664ms)
+▶ SEC-02 — Origin is validated and CORS is not authentication
+  ✔ refuses an unapproved browser origin (2.4026ms)
+  ✔ permits an approved origin (42.8921ms)
+  ✔ refuses an origin that is NOT in the approved list even when it looks local (3.1576ms)
+  ✔ an approved origin still needs a valid token (9.9545ms)
+  ✔ a request with no Origin is admitted, which is the non-browser case (45.5736ms)
+✔ SEC-02 — Origin is validated and CORS is not authentication (105.5758ms)
+▶ P26-15 — authentication is required on every request
+  ✔ refuses a request with no credential (1.303ms)
+  ✔ refuses a wrong token (1.2106ms)
+  ✔ refuses a non-Bearer scheme (1.1922ms)
+  ✔ requires authentication even for discovery (1.0326ms)
+  ✔ does not disclose the token in a failure response (1.5447ms)
+  ✔ does not claim OAuth conformance (0.5868ms)
+✔ P26-15 — authentication is required on every request (7.7229ms)
+▶ SEC-02 / P26-05 — method, path, size and headers
+  ✔ refuses a GET, with no legacy SSE-session assumption (3.3612ms)
+  ✔ refuses a path it does not serve (0.8315ms)
+  ✔ refuses an oversized body with 413 rather than 400 (0.8214ms)
+  ✔ the 413 body carries NO id, because the pinned schema rejects null (0.8083ms)
+  ✔ returns HTTP 400 with HeaderMismatch when a header disagrees (1.5294ms)
+  ✔ returns HTTP 400 when the protocol-version header is missing (1.2031ms)
+  ✔ refuses malformed JSON as a parse error (1.1008ms)
+  ✔ refuses a non-object body (1.9584ms)
+  ✔ accepts a Base64-sentinel method header that decodes correctly (20.3651ms)
+✔ SEC-02 / P26-05 — method, path, size and headers (33.1974ms)
+▶ P26-06 / P26-07 — response channels and cancellation
+  ✔ returns a plain JSON response body (15.8645ms)
+  ✔ does not implement resumability (227.703ms)
+  ✔ refuses stdio-only cancellation notifications over modern HTTP (10.7186ms)
+✔ P26-06 / P26-07 — response channels and cancellation (255.1512ms)
+▶ MCP-03 — simultaneous clients
+  ✔ two clients with independent tokens both work (100.1345ms)
+  ✔ one client's token is refused by another client's endpoint (1.5145ms)
+  ✔ interleaved requests do not interfere (40.0732ms)
+✔ MCP-03 — simultaneous clients (142.3264ms)
+▶ MCP-02 — the endpoint really binds
+  ✔ refuses to bind a routable address instead of warning (2.8924ms)
+  ✔ serves a real request over a real socket (238.6862ms)
+  ✔ a real socket request still needs a credential (38.1704ms)
+✔ MCP-02 — the endpoint really binds (281.4875ms)
+▶ P26-09 — a transport that CANNOT deliver a follow-up REFUSES rather than dropping it
+  ✔ refuses, naming the undeliverable count, instead of serving and discarding (8.3907ms)
+  ✔ refuses an open subscription before starting an undeliverable stream (1.3317ms)
+✔ P26-09 — a transport that CANNOT deliver a follow-up REFUSES rather than dropping it (10.264ms)
+▶ slice 1 — LIVE MCP conformance against the running server
+  ✔ answers server/discover over a real socket (2026-07-28 replaced the handshake) (3359.2541ms)
+  ✔ REJECTS the pre-2026 initialize handshake (1088.8588ms)
+TOOLSLIST-BODY: {"result":{"tools":[{"name":"lang_detect","description":"Identify the language of a short piece of text. Returns the best language, a reliability verdict and ranked alternatives, because short text is often genuinely ambiguous between related languages and collapsing that to one answer would overstate the result.","inputSchema":{"type":"object","additionalProperties":false,"required":["text"],"pro
+  ✔ advertises the live registry through tools/list (794.1837ms)
+  ✔ runs a REAL inference through tools/call over HTTP (2132.8204ms)
+  ✔ REJECTS a request with no credential (996.7088ms)
+  ✔ REJECTS a request with the wrong credential (1043.7517ms)
+  ✔ serves two concurrent clients without interleaving their answers (1194.4627ms)
+  ✔ reports an unknown tool as an error rather than silently doing nothing (983.3982ms)
+  ✔ releases the port on shutdown, so a second server can bind it (2017.9084ms)
+  ✔ refuses to bind a routable address (MCP-02) (3.5845ms)
+✔ slice 1 — LIVE MCP conformance against the running server (13622.7162ms)
+▶ P26-05 — the header contract, discovered by driving the LIVE server
+  ✔ REJECTS a request that omits Mcp-Method (1108.4549ms)
+  ✔ REJECTS a request that omits MCP-Protocol-Version (851.671ms)
+  ✔ REJECTS a version header that disagrees with the body (1418.1843ms)
+  ✔ REJECTS a named call that omits Mcp-Name (1244.707ms)
+  ✔ ACCEPTS a call whose Mcp-Name matches the body (1321.1105ms)
+✔ P26-05 — the header contract, discovered by driving the LIVE server (5945.5508ms)
+▶ P26-03 — the pinned schema REQUIRES HTTP 400, and the status is now asserted
+  ✔ answers an UNSUPPORTED REQUIRED CAPABILITY with 400 and the schema field name (1287.9694ms)
+  ✔ answers a HEADER MISMATCH with 400 (975.9743ms)
+  ✔ answers a SUCCESSFUL request with 200, so the rule is not "always 400" (1189.4926ms)
+✔ P26-03 — the pinned schema REQUIRES HTTP 400, and the status is now asserted (3454.4386ms)
+▶ P26-13 — the server's LIVE responses conform to the pinned schema
+  ✔ server/discover (2802.7679ms)
+  ✔ tools/list (976.8208ms)
+  ✔ tools/call — a real invocation (1794.0085ms)
+  ✔ a HEADER MISMATCH conforms to its OWN definition, not just the generic one (1086.2308ms)
+  ✔ an UNSUPPORTED REQUIRED CAPABILITY conforms to ITS OWN definition (1090.1075ms)
+  ✔ an UNSUPPORTED PROTOCOL VERSION conforms to ITS OWN definition (890.0073ms)
+  ✔ an unknown method conforms to MethodNotFoundError (1091.0942ms)
+  ✔ MISSING REQUIRED METADATA conforms to InvalidParamsError (P26-02) (1155.8488ms)
+  ✔ malformed JSON conforms to ParseError (871.8844ms)
+  ✔ an OVERSIZED body conforms to InvalidRequestError, with no id (413) (1037.6883ms)
+  ✔ a TOOL-ERROR result conforms to CallToolResultResponse (887.975ms)
+  ✔ a stdio-only cancellation notification is refused over HTTP with a valid error envelope (1447.4872ms)
+✔ P26-13 — the server's LIVE responses conform to the pinned schema (15154.2984ms)
+▶ P26-15 — the embedded local authorization server
+  ✔ issues a credential that verifies with its client identity and scope (154.3787ms)
+  ✔ refuses a token from an unknown client (5.4203ms)
+  ✔ refuses a token whose signature does not verify (tampered payload) (16.8339ms)
+  ✔ refuses a token issued for a DIFFERENT audience (31.9504ms)
+  ✔ refuses a token from a DIFFERENT issuer (41.9563ms)
+  ✔ refuses an expired token (6.7743ms)
+  ✔ refuses insufficient scope and names the required scope in the challenge (16.1864ms)
+  ✔ revokes ONE client independently: its tokens fail, a peer client keeps working (73.3334ms)
+  ✔ publishes RFC 8414/9728 discovery metadata (1.4489ms)
+  ✔ refuses a self-minted scope beyond the client's registered grant (F1) (16.6389ms)
+  ✔ refuses a scope name that is not an RFC 6749 scope-token (15.3655ms)
+✔ P26-15 — the embedded local authorization server (397.68ms)
+▶ P26-15 — the HTTP endpoint under the OAuth scheme
+  ✔ serves the metadata endpoints unauthenticated (22.6756ms)
+  ✔ answers a valid credential with dispatch, and reports the OAuth profile (318.8622ms)
+  ✔ challenges an invalid credential with the RFC 6750 error code and the §3.1 STATUS (5.4509ms)
+  ✔ challenges an insufficient scope with the required scope named and the §3.1 STATUS (28.5077ms)
+  ✔ refuses a revoked credential at the HTTP layer (12.3881ms)
+✔ P26-15 — the HTTP endpoint under the OAuth scheme (391.7007ms)
+▶ MCP-01 / MCP-04 — the revision is the requested one
+  ✔ speaks exactly 2026-07-28, not a relabelled legacy revision (5.5697ms)
+  ✔ accepts the spec’s own minimal modern request fixture (4.1643ms)
+✔ MCP-01 / MCP-04 — the revision is the requested one (14.2982ms)
+▶ P26-02 — required per-request metadata
+  ✔ rejects a request with no _meta as invalid params (3.0552ms)
+  ✔ rejects a missing protocolVersion rather than defaulting it (1.1304ms)
+  ✔ requires clientCapabilities but ADMITS a request without clientInfo (1.1665ms)
+  ✔ rejects a clientInfo that is present but malformed (1.2989ms)
+  ✔ parses metadata fresh per request and never from a previous one (0.8478ms)
+✔ P26-02 — required per-request metadata (9.5486ms)
+▶ P26-03 — version and capability errors
+  ✔ answers an unsupported version with -32022 carrying supported and requested (15.1976ms)
+  ✔ uses -32021 for an unsupported REQUIRED client capability (1.7444ms)
+  ✔ never allocates a custom error in the reserved range (0.9794ms)
+✔ P26-03 — version and capability errors (20.4542ms)
+▶ P26-04 — result shape and the error distinction
+  ✔ every result envelope carries resultType and serverInfo metadata (1.0325ms)
+  ✔ an application failure is a tool-error RESULT, not a JSON-RPC error (0.7387ms)
+  ✔ a malformed protocol request is a JSON-RPC error, not a result (0.8188ms)
+  ✔ bounds a tool-error message so it stays model-readable (1.0642ms)
+  ✔ carries structured error data when the code defines it (0.716ms)
+✔ P26-04 — result shape and the error distinction (12.528ms)
+▶ P26-05 — headers are checked against the body
+  ✔ accepts a request whose headers agree with its body (1.881ms)
+  ✔ requires the protocol-version header (1.1157ms)
+  ✔ rejects a header that disagrees with the body version (0.6628ms)
+  ✔ rejects a method header that disagrees with the body method (0.5839ms)
+  ✔ requires Mcp-Name for tools/call and checks it against the body (1.0948ms)
+  ✔ does NOT require Mcp-Name for tools/list, which has no name (0.3761ms)
+  ✔ decodes the Base64 sentinel BEFORE comparing (1.0429ms)
+  ✔ leaves an ordinary header value unchanged (0.4785ms)
+✔ P26-05 — headers are checked against the body (8.376ms)
+▶ P26-08 — stdio framing
+  ✔ parses one frame and ignores a blank line (0.9835ms)
+  ✔ reports malformed JSON as a parse error rather than skipping the line (0.7534ms)
+  ✔ rejects a non-JSON-RPC object (0.8093ms)
+  ✔ preserves the request id across a round trip (0.9603ms)
+  ✔ emits exactly one frame per message (0.5249ms)
+✔ P26-08 — stdio framing (4.7352ms)
+▶ P26-12 — the advertised-feature matrix
+  ✔ does not advertise a feature that is not implemented (0.5508ms)
+  ✔ declares each unimplemented feature explicitly rather than omitting it (0.496ms)
+  ✔ keeps the matrix and the advertised capabilities consistent (0.5851ms)
+  ✔ does NOT advertise subscriptions/listen unless a registry is actually composed (0.464ms)
+  ✔ re-decides ONLY the composed feature, so nothing else is dropped (0.4822ms)
+✔ P26-12 — the advertised-feature matrix (3.4517ms)
+▶ AT-12 — the limiter counts fixed windows per client
+  ✔ admits up to the limit, refuses beyond it, and names when the window opens (12.7223ms)
+  ✔ resets at the window boundary, so a client is denied only for the window it exhausted (1.6753ms)
+  ✔ keeps clients independent: one client exhausting its window leaves a peer untouched (1.3323ms)
+  ✔ validates the policy at construction, so a broken config fails at startup (3.5814ms)
+  ✔ stays bounded: a new client at capacity evicts the longest-idle entry (1.8249ms)
+  ✔ ships a default of 60 requests per minute per client (0.8014ms)
+✔ AT-12 — the limiter counts fixed windows per client (29.2654ms)
+▶ AT-12 — the HTTP layer enforces the limit after authentication
+  ✔ refuses the (N+1)th request with 429 and a pinned-schema JSON-RPC error body (436.7071ms)
+  ✔ applies the DEFAULT policy when the configuration names none (955.7072ms)
+  ✔ honours an explicit false, disabling the limit (964.9078ms)
+  ✔ never counts an authentication failure: the budget is untouched by rejected credentials (16.2299ms)
+  ✔ counts every AUTHENTICATED request, malformed bodies included, because the check precedes parsing (11.3949ms)
+✔ AT-12 — the HTTP layer enforces the limit after authentication (2389.1259ms)
+▶ AT-12 — per-client identity under the OAuth scheme
+  ✔ keys the bucket on the verified SUBJECT: one client's 429 leaves a peer unaffected (128.1716ms)
+  ✔ an invalid or insufficient-scope credential is refused without consuming any budget (45.6881ms)
+✔ AT-12 — per-client identity under the OAuth scheme (174.5301ms)
+▶ P26-01 — a valid request works as the FIRST one
+  ✔ answers tools/list with no initialize and no session (6.7275ms)
+  ✔ answers tools/call as the first request too (4.5311ms)
+  ✔ retains nothing between two dispatches (1.0824ms)
+✔ P26-01 — a valid request works as the FIRST one (35.853ms)
+▶ P26-02 / P26-03 — metadata and version errors reach the wire
+  ✔ returns -32602 and HTTP 400 for a request with no _meta (1.6586ms)
+  ✔ returns -32022 with the supported list for a legacy version (1.1435ms)
+  ✔ returns -32021 when the client requires a capability this server lacks (1.1318ms)
+  ✔ does not mistake an OPTIONAL capability for a required one (0.8921ms)
+✔ P26-02 / P26-03 — metadata and version errors reach the wire (6.0721ms)
+▶ P26-05 — header mismatches are refused
+  ✔ returns -32020 and HTTP 400 when a header disagrees (1.8359ms)
+  ✔ does not check headers when the transport has none (stdio) (1.0631ms)
+✔ P26-05 — header mismatches are refused (3.8074ms)
+▶ MCP-05 / MCP-06 — discovery
+  ✔ server/discover carries the fields the pinned schema REQUIRES (2.2408ms)
+  ✔ advertises only capabilities the server implements (1.0303ms)
+  ✔ tools/list carries the cacheable fields the schema requires (0.6994ms)
+  ✔ tools/list is deterministically ordered (61.6724ms)
+  ✔ exports the canonical output schema, not an omitted one (MCP-09) (0.7851ms)
+  ✔ projecting a definition does not invent fields (0.4542ms)
+✔ MCP-05 / MCP-06 — discovery (67.9698ms)
+▶ MCP-10 / P26-04 — the error distinction on the wire
+  ✔ an unknown tool is invalid params, not a tool error (1.2271ms)
+  ✔ an application failure is a SUCCESSFUL response carrying isError (0.8679ms)
+  ✔ a successful call carries structuredContent and a bounded text rendering (0.7863ms)
+  ✔ an infrastructure failure is a JSON-RPC error, never a domain payload (1.1302ms)
+  ✔ rejects malformed arguments as invalid params (0.7628ms)
+  ✔ rejects a tools/call with no name (0.6447ms)
+  ✔ reports an unknown method rather than pretending to serve it (0.5946ms)
+  ✔ preserves the request id on every error path (1.1129ms)
+✔ MCP-10 / P26-04 — the error distinction on the wire (8.2023ms)
+▶ MCP-13 — no re-export and no delegation loop
+  ✔ refuses to invoke a tool imported from MCP (1.3574ms)
+✔ MCP-13 — no re-export and no delegation loop (1.689ms)
+▶ S5 MCP status
+  ✔ reports a disabled endpoint without fabricating a listening state (70.7948ms)
+  ✔ reports the actual bound port and path, never 3765 or 3080 (1.6626ms)
+  ✔ shows one truthful client for a single static token and adds named credential clients (1.6333ms)
+  ✔ derives exposed/withheld from the real export surface and always withholds model_tools (0.9332ms)
+  ✔ names the token FILE path but never carries a token value (0.8571ms)
+✔ S5 MCP status (82.1434ms)
+▶ P26-05 — the bridge generates the modern headers
+  ✔ derives version, method and name from the body (5.1975ms)
+  ✔ omits Mcp-Name for tools/list, which has no name (0.8986ms)
+  ✔ takes the version from the BODY rather than relabelling it (3.9321ms)
+✔ P26-05 — the bridge generates the modern headers (15.7669ms)
+▶ MCP-03 / P26-08 — the two channels stay separate
+  ✔ a success writes exactly one protocol frame and no diagnostic (5.7935ms)
+  ✔ a transport failure produces BOTH a diagnostic and a protocol error (1.7135ms)
+  ✔ a non-JSON-RPC error body is reported on both channels (1.1968ms)
+  ✔ forwards a JSON-RPC error body verbatim (1.5743ms)
+  ✔ a malformed frame is answered on the PROTOCOL channel (1.0513ms)
+  ✔ ignores a blank line without emitting anything (0.8258ms)
+✔ MCP-03 / P26-08 — the two channels stay separate (14.1271ms)
+▶ P26-08 — the body is forwarded verbatim
+  ✔ preserves the request id and the per-request metadata exactly (2.3407ms)
+  ✔ posts to the configured endpoint (1.6272ms)
+  ✔ a notification gets no response frame (0.8083ms)
+✔ P26-08 — the body is forwarded verbatim (5.6542ms)
+▶ P26-06 — cancellation is per request
+  ✔ aborts exactly the referenced request (216.0153ms)
+  ✔ reports a cancellation for a request it does not own (0.8863ms)
+  ✔ removes a settled request from the in-flight set (1.5711ms)
+✔ P26-06 — cancellation is per request (219.2002ms)
+▶ P26-08 — EOF shuts down bridge-owned requests only
+  ✔ aborts everything it owns (2.0251ms)
+  ✔ close is idempotent (0.4063ms)
+  ✔ does not touch the host, which is a separate process (0.3593ms)
+✔ P26-08 — EOF shuts down bridge-owned requests only (3.9361ms)
+▶ MCP-03 — the executable keeps stdout protocol-only
+  ✔ writes to stdout in exactly two places, both protocol frames (2.4239ms)
+  ✔ routes every diagnostic to stderr (1.2332ms)
+  ✔ fails with guidance instead of hanging when no credential is configured (1.2716ms)
+  ✔ aborts bridge-owned requests on EOF without signalling the host (0.8698ms)
+✔ MCP-03 — the executable keeps stdout protocol-only (6.4665ms)
+▶ P26-03 / P26-12 — subscription capability negotiation follows wiring
+  ✔ accepts subscriptions/listen as required only when a registry is composed (8.426ms)
+✔ P26-03 / P26-12 — subscription capability negotiation follows wiring (13.3499ms)
+▶ P26-09 — acknowledge only what is supported
+  ✔ acknowledges a requested supported filter (6.3333ms)
+  ✔ DROPS an unsupported requested filter rather than acknowledging it (0.6193ms)
+  ✔ does not acknowledge a type the client did NOT request (0.4933ms)
+  ✔ treats a false request as not requested (0.4667ms)
+  ✔ declares exactly the filters it serves (0.4887ms)
+✔ P26-09 — acknowledge only what is supported (9.7395ms)
+▶ P26-09 — no event before the acknowledgement
+  ✔ establishes a subscription and returns the acknowledgement with the result (1.5892ms)
+  ✔ the subscription is marked announced before any publish can reach it (0.9235ms)
+  ✔ responds over the wire with the acknowledgement as a follow-up message (0.951ms)
+  ✔ reports the method unsupported when the host offers no subscriptions (1.3524ms)
+✔ P26-09 — no event before the acknowledgement (6.2125ms)
+▶ P26-09 — events carry the subscription id and reach only their subscriber
+  ✔ carries the subscription id in the notification metadata (1.0882ms)
+  ✔ delivers only to a subscriber that requested the type (0.8081ms)
+  ✔ NEVER delivers one client's catalog change to another (1.8648ms)
+  ✔ identifies the subscription BY the listen request that opened it (0.6126ms)
+  ✔ keeps two clients apart by BINDING, not by inventing an id (1.0269ms)
+✔ P26-09 — events carry the subscription id and reach only their subscriber (6.5859ms)
+▶ P26-09 — revocation announces before closing
+  ✔ sends a cancelled notification referencing the SUBSCRIPTION request (1.1353ms)
+  ✔ stops delivering immediately after revocation (1.9433ms)
+  ✔ revokes only the targeted client (0.7099ms)
+  ✔ revoking a client with no subscriptions is a no-op (0.3815ms)
+  ✔ closing a subscription requires ownership (0.778ms)
+  ✔ builds a client cancellation naming the subscription (0.7235ms)
+✔ P26-09 — revocation announces before closing (15.6882ms)
+▶ P26-10 / P26-12 — the catalog stream stays a catalog stream
+  ✔ emits only the tool-list-changed notification type (0.908ms)
+  ✔ advertises subscriptions/listen only because toolsListChanged is served (0.6941ms)
+✔ P26-10 / P26-12 — the catalog stream stays a catalog stream (2.3265ms)
+▶ S4 ledger records
+  ✔ maps accounting to a row that carries identity and has no payload fields (8.6778ms)
+  ✔ appends JSONL and reads newest-first with a client filter and pagination (291.9347ms)
+  ✔ skips a corrupt line instead of failing the whole ledger (44.6857ms)
+  ✔ trims the file at the bound, keeping the newest rows (187.7707ms)
+  ✔ summarizes clients and tools truthfully from the ledger (90.0896ms)
+✔ S4 ledger records (630.5162ms)
+▶ v2 SDK interoperability
+  ✔ the v2 line IMPLEMENTS the 2026-07-28 revision this repository targets (66.7844ms)
+  ✔ reports the version constants that make the nuance precise (1.118ms)
+  ✔ the default-configured v2 client uses the LEGACY handshake, which this server rejects (2897.5039ms)
+  ✔ connects and sees tools ONCE the client is configured for the modern era (1494.2188ms)
+  ✔ the official v2 client runs a REAL inference through tools/call (1792.0631ms)
+  ✔ the official v2 client is REJECTED without a credential (948.0293ms)
+✔ v2 SDK interoperability (7212.3554ms)
+▶ MODEL-05 — the host and SDK field vocabularies cannot drift
+  ✔ the two mirrored field lists are EQUAL (8.4779ms)
+✔ MODEL-05 — the host and SDK field vocabularies cannot drift (13.5576ms)
+▶ MODEL-05 — a working model is not a qualified path
+  ✔ qualifies a complete record (1.5857ms)
+  ✔ reports EVERY missing field, not just the first (0.6546ms)
+  ✔ treats an EMPTY string as missing, not as recorded (1.6632ms)
+  ✔ requires the artifact hash, which is what makes the path reproducible (0.7744ms)
+✔ MODEL-05 — a working model is not a qualified path (5.9429ms)
+▶ MODEL-05 — what is advertised is the INTERSECTION
+  ✔ advertises only what the ADAPTER can also do (1.3062ms)
+  ✔ NAMES the model-only modalities rather than omitting them (1.5698ms)
+  ✔ does not mention model-only modalities when there are none (0.739ms)
+  ✔ reports an empty intersection as such (1.3121ms)
+  ✔ an empty adapter list advertises nothing (0.937ms)
+✔ MODEL-05 — what is advertised is the INTERSECTION (7.4328ms)
+▶ MODEL-06 — unknown is not unsupported
+  ✔ reports three DISTINCT states (0.8837ms)
+  ✔ does not infer an unevaluated capability from a sibling (0.4604ms)
+  ✔ NEVER treats a model name as a capability test (0.4986ms)
+  ✔ records unknown and unsupported separately, not merely differently named (0.471ms)
+✔ MODEL-06 — unknown is not unsupported (3.0419ms)
+▶ MODEL-04 — the execution modes an end user may be asked for
+  ✔ accepts the three permitted modes (0.7536ms)
+  ✔ REFUSES Python on an end user machine, while allowing maintainers to use it (0.4089ms)
+  ✔ refuses WSL, Docker, a GPU and a consumer compile (0.4318ms)
+  ✔ refuses a browser-only API, which does not establish Node support (0.3866ms)
+  ✔ gives every refusal a reason (0.8231ms)
+✔ MODEL-04 — the execution modes an end user may be asked for (3.6542ms)
+▶ MODEL-01 / BASE-12 — embedding spaces are not interchangeable
+  ✔ REFUSES a silent substitution across different widths (0.7514ms)
+  ✔ permits a substitution at the same width (0.4142ms)
+  ✔ names both widths in the refusal, so the migration is actionable (0.5667ms)
+  ✔ records the documented reduced widths (0.5745ms)
+✔ MODEL-01 / BASE-12 — embedding spaces are not interchangeable (2.9319ms)
+▶ models-index --check reports one consistent verdict
+  ✔ stale index: exits 1 and prints NO success line (1456.8748ms)
+  ✔ current index: exits 0 and prints the success line (976.7352ms)
+✔ models-index --check reports one consistent verdict (2438.7377ms)
+﹣ the REAL needle activates with the planning shape seen (env-gated on the pinned artifacts) (4.0049ms) # set NEEDLE_EXTENSION_ENGINE and NEEDLE_EXTENSION_WEIGHTS to the pinned artifacts to run
+✔ an unreadable package is reported honestly, never as the NDL-02 planning-shape refusal (7983.8977ms)
+▶ OBS-02 — an external call is WIRED into the host receipt surface
+  ✔ a real tools/call lands in the external accounting ring, with sizes and class, never a payload (3540.8317ms)
+✔ OBS-02 — an external call is WIRED into the host receipt surface (3547.982ms)
+▶ state — pure merge rules
+  ✔ keeps the two lists mutually exclusive (7.0231ms)
+  ✔ lets a disabled model win over the configured selection (1.0479ms)
+  ✔ adds a user-enabled model to the configured selection (0.6062ms)
+  ✔ rejects a malformed state document (3.0832ms)
+  ✔ derives the default state file from DSH_HOME, falling back to ~/.dsh (1.5758ms)
+✔ state — pure merge rules (20.7053ms)
+▶ state — file store
+  ✔ round-trips through disk, deduplicating and sorting (45.1518ms)
+  ✔ leaves no temporary file behind (4.2788ms)
+  ✔ surfaces a corrupt file instead of silently forgetting the user choices (10.5389ms)
+  ✔ an in-memory store never touches disk (2.454ms)
+✔ state — file store (64.6782ms)
+▶ plugin — persistence across restarts
+  ✖ remembers an enable in a second mount (2378.016ms)
+  ✖ remembers a disable in a second mount (1508.7959ms)
+  ✖ reports the remembered choice per model (1979.2477ms)
+  ✖ reset forgets the choice and re-applies the configuration (1988.1394ms)
+  ✔ does not persist a choice that failed to take effect (1879.7743ms)
+  ✖ keeps choices session-scoped when persistence is off (1535.3126ms)
+  ✔ applies a persisted enable even when it cannot run yet, without registering it (2930.0661ms)
+✖ plugin — persistence across restarts (14205.1843ms)
+✔ the package check script passes (the shape a loader requires) (6949.6642ms)
+✔ the manifest declares the bundle patch and the plugin row mounts by published name (20.4809ms)
+✔ the client half is a generated ModuleLoader bundle with the model list embedded (1281.0721ms)
+✔ the client half ships both extension flows: host Remote and config-only fallback (46.5951ms)
+✔ the generated client helpers map both Remote result shapes to the rows the page draws (52.7099ms)
+✔ the Settings-editable fields are marked volatile so the host exposes them (10722.2491ms)
+✔ schemastery is a pinned dependency, never a peer (the profile cannot supply it) (2.4725ms)
+✔ every bare runtime import of a bundled package is installed by the host (592.0362ms)
+▶ dsh-tool-mode
+  ✔ registers lang_detect for Tongue, which can run on this machine (2448.8999ms)
+  ✔ registers the model_tools control tool (1448.473ms)
+  ✔ detects language through the real tool pipeline (1269.5028ms)
+  ✔ detects a non-latin script correctly (1452.2132ms)
+  ✔ reports every catalogued model and why the unavailable ones cannot run (1175.4444ms)
+  ✔ describe returns one model by id and rejects an unknown one (1019.6229ms)
+  ✔ publishes a skill per registered tool, with routing metadata (978.6663ms)
+  ✔ honours an explicit model allowlist (1598.4248ms)
+  ✔ honours the exclude list (854.4682ms)
+  ✔ can omit the control tool and skills (862.0665ms)
+  ✔ drops its registrations when the plugin fiber is disposed (1194.6299ms)
+✔ dsh-tool-mode (14486.4478ms)
+▶ a prepared extension survives a restart without a re-prepare (task-133)
+  ✔ publishes the same handles from the cache directories, without a transfer (40.5742ms)
+  ✔ refuses when a pinned file is absent or no longer the recorded size (37.4868ms)
+✔ a prepared extension survives a restart without a re-prepare (task-133) (83.9961ms)
+✔ the SHIPPED embeddinggemma lock parses to a plan with the correct digests (no acquisition) (14.9651ms)
+✔ a lock with no digests refuses (no guessed values) (5.0844ms)
+✔ prepare acquires every asset digest-verified, materializes group layouts, and is idempotent (360.2874ms)
+✔ a bogus digest refuses and never lands a poisoned group (113.5854ms)
+✔ a tampered FINAL group path is re-linked from the verified blob, never trusted (724.4082ms)
+✔ an EXECUTABLE asset refuses without the explicit approval (RES-02) (326.6147ms)
+✔ the dispatch executor carries the prepared map into the provider load (both routes share it) (3.5359ms)
+✔ a PROSE-source lock refuses before any transfer and names the artifact (task-118) (4.0601ms)
+✔ a prose-source lock prepares WITHOUT a transfer once the pinned bytes are in the cache (92.0086ms)
+✔ only laya declares prose sources; the URL locks stay preparable (task-118 regression) (189.3787ms)
+✔ the MANAGEMENT channel discloses the plan and prepares with the INJECTED source (no network) (4865.1201ms)
+▶ DECL-02 — the projected output schema is never stricter than the contract
+  ✔ keeps a scalar enum an array, not a mangled object (11.7635ms)
+  ✔ projects a nullable union as type json, looser than the contract (1.5287ms)
+  ✔ registers and accepts a legitimate null-valued union member (3228.5055ms)
+✔ DECL-02 — the projected output schema is never stricter than the contract (3251.5881ms)
+▶ the extension-level inspection route
+  ✔ reaches a REAL installed extension that has no catalog row (2061.1733ms)
+  ✔ reaches a STORE-ONLY install through the installed path, not the package name (94.75ms)
+  ✔ accepts a verified asset map for a provider that inspects without one (93.5229ms)
+  ✔ activates an extension ONCE no matter how many models are inspected (89.497ms)
+✔ the extension-level inspection route (2346.0958ms)
+▶ CODE-03 — the bindable set is the INTERSECTION of grant and visibility
+  ✔ binds a name that is both granted and visible (6.3765ms)
+  ✔ REFUSES a registered tool the caller has no grant for (0.8847ms)
+  ✔ REFUSES a granted tool that is not currently registered (0.7781ms)
+  ✔ reports FORBIDDEN rather than UNKNOWN for an ungranted name (0.7551ms)
+✔ CODE-03 — the bindable set is the INTERSECTION of grant and visibility (12.9258ms)
+▶ CODE-07 — composition and management bindings are never exposed to a program
+  ✔ refuses tool_mode_run even when granted and visible (1.5067ms)
+  ✔ refuses model_tools even when granted and visible (2.8833ms)
+  ✔ refuses tool_mode_list even when granted and visible (0.8006ms)
+  ✔ refuses tool_mode_describe even when granted and visible (0.7147ms)
+  ✔ refuses the whole request when an excluded name is mixed with valid ones (1.3352ms)
+✔ CODE-07 — composition and management bindings are never exposed to a program (9.1204ms)
+▶ CODE-03 — a refusal is ALL OR NOTHING
+  ✔ binds NOTHING when one requested name is refused (1.135ms)
+  ✔ reports EVERY rejection, not just the first (0.6011ms)
+  ✔ names a duplicate rather than binding it twice (0.9425ms)
+  ✔ gives every rejection a remedy (13.4971ms)
+  ✔ describes a refusal in a way an author can act on (0.7789ms)
+✔ CODE-03 — a refusal is ALL OR NOTHING (18.1598ms)
+▶ SEC-03 — a binding name cannot reach the prototype
+  ✔ REJECTS __proto__ as a binding name (0.7037ms)
+  ✔ REJECTS prototype members, reserved words and runtime globals (0.4345ms)
+  ✔ ACCEPTS ordinary identifiers (1.2831ms)
+  ✔ builds the map with a NULL prototype, so nothing is inherited (0.4915ms)
+  ✔ makes each binding NON-WRITABLE, so a program cannot swap an implementation (3.6701ms)
+✔ SEC-03 — a binding name cannot reach the prototype (7.7764ms)
+▶ CODE-03 — a bound call reaches the tool it names
+  ✔ resolves the named implementation and passes the arguments through (1.1053ms)
+  ✔ binds in REQUEST order, so the generated program is stable (0.9498ms)
+  ✔ an empty request produces empty bindings rather than a refusal (1.1004ms)
+✔ CODE-03 — a bound call reaches the tool it names (3.799ms)
+(node:30032) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ slice 2 — REAL PTC composition
+  ✔ mounts through the guard and exposes the service either way (56.34ms)
+  ✔ runs a program that calls TWO tools, branches on a DEPENDENCY, and returns canonical output (2182.5409ms)
+  ✔ takes the OTHER branch when the value is small (1784.0731ms)
+  ✔ ABORTS a running program rather than letting it finish (860.6439ms)
+  ✔ FAILS a program that calls a tool it was not granted, instead of omitting it (9.1995ms)
+  ✔ reports a tool failure through the program rather than swallowing it (1445.0991ms)
+  ✔ serves a REAL program through serveProgram, the tool_mode_run path (CODE-02) (1755.3297ms)
+  ✔ refuses an input-bearing program through serveProgram (CODE-04) (60.6968ms)
+✔ slice 2 — REAL PTC composition (8160.9243ms)
+▶ the confinement evidence artifact is validated, not merely read
+  ✔ accepts a passing artifact recorded for this package and platform (42.1868ms)
+  ✔ names the configuration when no artifact is configured (9.569ms)
+  ✔ refuses a missing or unreadable file (2.4071ms)
+  ✔ refuses malformed JSON, a wrong kind, a failed run and a stale version (163.4327ms)
+  ✔ falls back to the standard local artifact when no path is configured (36.3906ms)
+  ✔ does NOT fall back when the configured path is bad (14.124ms)
+  ✔ refuses an artifact whose arms were SKIPPED (81.8224ms)
+  ✔ refuses another platform, an invalid timestamp, an empty test list and no command (98.3369ms)
+✔ the confinement evidence artifact is validated, not merely read (480.6647ms)
+▶ the exposure gate needs BOTH the operator grant and valid evidence
+  ✔ stays closed without the operator grant even with valid evidence (18.3299ms)
+  ✔ opens only when the grant and a valid artifact are both present (10.7352ms)
+  ✔ stays closed, with the reason, when the artifact is stale (10.5609ms)
+✔ the exposure gate needs BOTH the operator grant and valid evidence (40.8413ms)
+▶ CODE-01 — the mount is GUARDED in both directions
+  ✔ does NOT mount when the host already provides the service (9.3207ms)
+  ✔ MOUNTS when nothing provides the service (1.4529ms)
+  ✔ would THROW without the guard — which is why the guard is not optional (4.0047ms)
+  ✔ reports a missing backend as a REASON rather than throwing (1.0094ms)
+✔ CODE-01 — the mount is GUARDED in both directions (22.0507ms)
+▶ CODE-03 — the ONE pipeline builds the program namespace
+  ✔ builds a namespace the program can call (3.9039ms)
+  ✔ refuses the WHOLE request when one name is unattainable (2.8594ms)
+  ✔ refuses a namespace global that is not a language-portable identifier (10.7871ms)
+  ✔ accepts a portable global (0.8936ms)
+  ✔ produces a null-prototype function map, so nothing is inherited (1.0282ms)
+✔ CODE-03 — the ONE pipeline builds the program namespace (21.5004ms)
+▶ RES-10 — the run budget cannot be widened by asking
+  ✔ uses the default when nothing is requested (1.7192ms)
+  ✔ clamps a request ABOVE the ceiling rather than honouring it (0.4585ms)
+  ✔ CLAMPS a null request, which asks to remove the deadline entirely (0.5001ms)
+  ✔ honours a request inside the ceiling (0.4167ms)
+  ✔ replaces a nonsensical budget with the default (0.938ms)
+✔ RES-10 — the run budget cannot be widened by asking (5.265ms)
+▶ CODE-08 — generated-code execution is WITHHELD from clients
+  ✔ is not exposed without the operator grant, regardless of confinement (0.7377ms)
+  ✔ is STILL not exposed with the operator grant while confinement is undemonstrated (5.1719ms)
+  ✔ names which fact is missing, so a caller is not left guessing (14.033ms)
+  ✔ the test seam is INERT without the operator environment marker (0.9819ms)
+  ✔ the test seam WORKS when the operator marker is present, and the gate responds (0.7689ms)
+✔ CODE-08 — generated-code execution is WITHHELD from clients (22.8453ms)
+(node:7920) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ slice 5 — sandbox confinement
+  ✔ read-only REFUSES a write the program attempts (4108.3391ms)
+  ﹣ workspace-write is AVAILABLE in this environment (0.835ms) # workspace-write cannot start in this Windows environment: windows-acl-run: SetNamedSecurityInfoW failed (Win32 5): grantWrite(E:\tmp\tmx-probe-b0x2Dp)
+
+  ﹣ workspace-write PERMITS a write inside the workspace (0.3532ms) # workspace-write cannot start in this Windows environment: windows-acl-run: SetNamedSecurityInfoW failed (Win32 5): grantWrite(E:\tmp\tmx-probe-b0x2Dp)
+
+  ﹣ workspace-write REFUSES a write OUTSIDE the workspace (0.4516ms) # workspace-write cannot start in this Windows environment: windows-acl-run: SetNamedSecurityInfoW failed (Win32 5): grantWrite(E:\tmp\tmx-probe-b0x2Dp)
+
+  ✔ reports the ENFORCEMENT the sandbox actually applied (5053.6615ms)
+✔ slice 5 — sandbox confinement (9183.9776ms)
+▶ EXT-24 — a tool is published only with an executable binding
+  ✔ publishes a tool whose selected implementation is ready (4.4779ms)
+  ✔ publishes a tool whose selected implementation is prepared but cold (1.1304ms)
+  ✔ withholds a tool whose selected implementation cannot run here (3.1296ms)
+  ✔ withholds a tool whose selected implementation has failed (1.0645ms)
+✔ EXT-24 — a tool is published only with an executable binding (16.191ms)
+▶ EXT-24 — an unprepared model does not advertise working inference
+  ✔ withholds the tool but publishes readiness instead (1.1292ms)
+  ✔ publishes a preparation skill even when nothing is callable (4.5943ms)
+  ✔ publishes the tool once the model becomes ready (1.0231ms)
+✔ EXT-24 — an unprepared model does not advertise working inference (8.0492ms)
+▶ EXT-24 — a usage skill appears only where its tool is visible
+  ✔ withholds a usage skill whose required tool is absent (1.8896ms)
+  ✔ publishes a usage skill when every required tool is visible (16.19ms)
+  ✔ withholds a skill that requires two tools when only one is visible (1.7406ms)
+  ✔ publishes a skill that depends on nothing (1.567ms)
+✔ EXT-24 — a usage skill appears only where its tool is visible (22.9282ms)
+▶ EXT-24 — the surface is built whole, then switched
+  ✔ refuses duplicate tool names rather than silently dropping one (3.005ms)
+  ✔ hands consumers the whole change at once (1.2574ms)
+  ✔ never exposes a tool without its binding, across a swap (0.8281ms)
+  ✔ reports alternatives without making them the route (0.7926ms)
+✔ EXT-24 — the surface is built whole, then switched (6.7392ms)
+▶ EXT-24 — skill provenance
+  ✔ names the orphaned skills when an extension goes away (1.1367ms)
+  ✔ reports nothing orphaned while every owner is live (0.607ms)
+✔ EXT-24 — skill provenance (2.2528ms)
+▶ EXT-24 — withholding is reported, never silent
+  ✔ explains every contribution that did not reach the surface (0.8958ms)
+  ✔ an empty candidate set publishes an empty surface rather than failing (0.4954ms)
+✔ EXT-24 — withholding is reported, never silent (1.8689ms)
+▶ EXT-35 — a receipt records what actually ran
+  ✔ carries the extension, its digests, the model identity and the generation (6.1079ms)
+  ✔ distinguishes two runs of the same version by content digest (0.9933ms)
+  ✔ reports unknown provenance as null rather than inventing it (0.836ms)
+  ✔ refuses a receipt with no identity (2.6451ms)
+  ✔ has no parameter through which a body, token or skill text could arrive (4.5465ms)
+✔ EXT-35 — a receipt records what actually ran (21.4076ms)
+▶ EXT-35 — paths are reduced, never recorded in full
+  ✔ keeps the basename and a digest, not the directory (12.2263ms)
+  ✔ reduces a POSIX path the same way (0.9157ms)
+  ✔ gives the same path the same digest and different paths different ones (0.9473ms)
+  ✔ returns null for an absent path rather than an empty string (0.7993ms)
+✔ EXT-35 — paths are reduced, never recorded in full (16.5765ms)
+▶ EXT-35 — a redactor must not be the leak
+  ✔ removes npm and GitHub tokens (2.7348ms)
+  ✔ removes a bearer header (0.5363ms)
+  ✔ removes a long hex digest-shaped value (0.5269ms)
+  ✔ removes absolute paths of either shape (0.5333ms)
+  ✔ leaves an ordinary diagnostic readable (0.4748ms)
+  ✔ redacts every warning on a receipt (0.534ms)
+  ✔ redacts a lifecycle reason too (4.527ms)
+✔ EXT-35 — a redactor must not be the leak (11.0683ms)
+▶ EXT-35 — lifecycle records are separate from execution metadata
+  ✔ records the operation, outcome and approving principal (4.0016ms)
+  ✔ does not carry execution fields (0.6621ms)
+  ✔ accepts each principal kind (0.6341ms)
+  ✔ refuses an operator approval with no identity (0.6921ms)
+  ✔ records each outcome the requirement names (0.7158ms)
+✔ EXT-35 — lifecycle records are separate from execution metadata (7.5769ms)
+▶ EXT-35 — extension logging is bounded and policy-controlled
+  ✔ drops levels the policy does not admit rather than rewriting them (1.1766ms)
+  ✔ refuses an undeclared network origin rather than logging it (0.4945ms)
+  ✔ defaults to quiet, metadata-only and telemetry off (0.6561ms)
+✔ EXT-35 — extension logging is bounded and policy-controlled (2.9985ms)
+▶ EXT-35 — the receipt is JSON-serializable provenance
+  ✔ survives a round trip unchanged (0.7021ms)
+  ✔ exposes no function or undefined value (0.7359ms)
+  ✔ a redaction failure is a named error, not a silent drop (0.4268ms)
+✔ EXT-35 — the receipt is JSON-serializable provenance (2.404ms)
+▶ modelTools host artifact
+  ✔ passes the shipping Typert loader validation (15.4763ms)
+  ✔ maps the wire installExtension to the host member install (1.8974ms)
+  ✔ exposes prepare as a direct id-only endpoint with the same Host member name (1.9815ms)
+  ✔ declares strict codecs that enforce the wire schema (5.6932ms)
+  ✔ validates the preparation disclosure, readiness record and outcome (3.6455ms)
+  ✔ validates preflight requirements and tolerates older rows without them (11.5392ms)
+  ✔ validates the install source and resolved version, and tolerates an older result (1.8032ms)
+  ✔ declares METHOD_SPECS that match the descriptors one-for-one (0.7295ms)
+✔ modelTools host artifact (48.7675ms)
+▶ modelTools host service binding
+  ✔ binds a plain service object for gateway dispatch and provides it once (17.9063ms)
+  ✔ refuses a service missing a wire member (5.6703ms)
+✔ modelTools host service binding (24.5289ms)
+▶ modelTools client contribution
+  ✔ is accepted by the shipping Typert client registry (33.9753ms)
+  ✔ mounts through the shipping client gateway and dispatches describe()/enable()/prepare() over the carrier (51.619ms)
+  ✔ folds a carrier throw into the RemoteResult error branch (16.6551ms)
+  ✔ mounts installExtension rather than the harness-shadowed name install (13.8197ms)
+✔ modelTools client contribution (116.8753ms)
+▶ browser chunk
+  ✔ is current with remote/spec.mjs (36.1504ms)
+  ✔ registers the contribution under the package row and mounts the same descriptors (69.9597ms)
+✔ browser chunk (106.9602ms)
+✔ CODE-11: the repair lineage records which repair, budget before/after, and the outcome (20.9641ms)
+▶ RES-04 — the eight states, and readiness versus residency
+  ✔ names exactly the states the requirement lists (4.9902ms)
+  ✔ treats a PREPARED but COLD deployment as callable (0.843ms)
+  ✔ treats loading and busy as callable, with queued admission (0.5595ms)
+  ✔ treats unprepared and unavailable as NOT callable (0.8526ms)
+  ✔ separates the two questions rather than collapsing them (0.5386ms)
+  ✔ forbids a tool description varying with residency (0.4912ms)
+✔ RES-04 — the eight states, and readiness versus residency (15.0059ms)
+▶ RES-04 — the repository no longer conflates readiness with residency
+  ✔ admits a call to a prepared-but-cold deployment (1.5637ms)
+  ✔ admits a call while the deployment is loading or busy (0.6885ms)
+  ✔ refuses a call when the deployment is unprepared, unavailable or failed (0.9817ms)
+  ✔ does not report a cold deployment as preparing (1.1613ms)
+  ✔ reports a genuinely unprepared deployment as preparing (0.5089ms)
+  ✔ reports failed and unavailable as faulted (0.4617ms)
+✔ RES-04 — the repository no longer conflates readiness with residency (6.7817ms)
+▶ RES-01 / RES-09 — a budget is a rejection with actual limits
+  ✔ admits an input within budget (3.6387ms)
+  ✔ rejects an over-budget input naming the ACTUAL limit (1.042ms)
+  ✔ NEVER truncates: an over-budget input is refused, not reduced (0.3786ms)
+  ✔ reports EVERY exceeded budget, not just the first (0.5296ms)
+  ✔ treats a null limit as not applicable (0.4895ms)
+  ✔ does not treat an UNMEASURED budget as passing a limit it cannot check (0.8867ms)
+✔ RES-01 / RES-09 — a budget is a rejection with actual limits (7.7934ms)
+▶ RES-09 — the product defaults the requirement states
+  ✔ uses the image defaults verbatim (0.5431ms)
+  ✔ uses the video defaults verbatim (0.3283ms)
+  ✔ enforces each multimodal budget INDEPENDENTLY (0.5813ms)
+  ✔ rejects a decompression bomb on the DECLARED size, before allocation (0.4172ms)
+✔ RES-09 — the product defaults the requirement states (2.8742ms)
+▶ RES-09 — sampling is explicit and coverage is reported
+  ✔ reports complete coverage when every unit was processed (0.7421ms)
+  ✔ reports incomplete coverage WITH the sampling instruction (0.6204ms)
+  ✔ names SILENT sampling as a defect rather than a policy (0.4372ms)
+✔ RES-09 — sampling is explicit and coverage is reported (2.409ms)
+▶ RES-06 — cancellation is a claim about behaviour
+  ✔ reports a stopped backend as stopped (0.5996ms)
+  ✔ NEVER claims cancellation while uncontrolled work continues (0.5231ms)
+✔ RES-06 — cancellation is a claim about behaviour (1.7475ms)
+▶ official SDK v2 result bounds
+  ✔ clamps accepted tool failures through toolErrorResult and keeps the denied path pinned (956.0951ms)
+  ✔ emits structuredContent for a array value, not a tool error (45.6875ms)
+  ✔ emits structuredContent for a string value, not a tool error (188.906ms)
+  ✔ emits structuredContent for a number zero value, not a tool error (97.8424ms)
+  ✔ emits structuredContent for a boolean false value, not a tool error (26.5645ms)
+  ✔ emits structuredContent for a null value, not a tool error (20.4025ms)
+  ✔ emits structuredContent for a object value, not a tool error (47.6498ms)
+  ✔ omits the structuredContent key when the host produced no structured value (45.0257ms)
+✔ official SDK v2 result bounds (1437.1804ms)
+▶ official SDK v2 is the production HTTP server
+  ✔ official modern client -> production socket -> official McpServer -> real lang_detect and accounting (4183.5582ms)
+  ✔ first application request works without initialize, discover, or session (834.1947ms)
+  ✔ authentication, Host, Origin, body-size and rate-limit gates precede SDK construction (746.9958ms)
+  ✔ refuses standalone notifications explicitly instead of silently discarding them (684.3242ms)
+✔ official SDK v2 is the production HTTP server (6461.6018ms)
+▶ production SDK v2 streaming and disconnect cancellation
+  ✔ real socket delivers progress BEFORE deliberately released final completion, without a session (755.9168ms)
+  ✔ client disconnect AFTER dispatch aborts host work before response headers; next request works (113.576ms)
+  ✔ client disconnect AFTER dispatch aborts host work during SSE; next request works (231.3972ms)
+  ✔ real socket refuses invalid credentials, rate and oversize bytes before SDK callback (84.7683ms)
+  ✔ finite facade still materializes SSE, while stream-reader cancel stops host work (89.0019ms)
+  ✔ endpoint close aborts outstanding work and does not wait indefinitely for listener close (60.9989ms)
+  ✔ truncated incoming upload is cleaned up and never enters SDK (105.8138ms)
+✔ production SDK v2 streaming and disconnect cancellation (1455.1077ms)
+Tool name validation warning for "你好":
+  - Tool name contains invalid characters: "你", "好"
+  - Allowed characters are: A-Z, a-z, 0-9, underscore (_), dash (-), and dot (.)
+Tool registration will proceed, but this may cause compatibility issues.
+Consider updating the tool name to conform to the MCP tool naming standard.
+See SEP: Specify Format for Tool Names (https://github.com/modelcontextprotocol/modelcontextprotocol/issues/986) for more details.
+Tool name validation warning for "=?base64?literal?=":
+  - Tool name contains invalid characters: "=", "?"
+  - Allowed characters are: A-Z, a-z, 0-9, underscore (_), dash (-), and dot (.)
+Tool registration will proceed, but this may cause compatibility issues.
+Consider updating the tool name to conform to the MCP tool naming standard.
+See SEP: Specify Format for Tool Names (https://github.com/modelcontextprotocol/modelcontextprotocol/issues/986) for more details.
+▶ official SDK wire adaptations preserve the published boundary
+  ✔ requires the pinned method header before SDK execution; valid calls use SDK registration (552.8894ms)
+  ✔ decodes sentinel method/version before SDK comparison and preserves encoded names (44.6986ms)
+  ✔ preserves finite SSE mid-call notifications before the final SDK response (252.2016ms)
+  ✔ keeps SDK sentinel decoding for non-ASCII and literal-sentinel tool names (41.2265ms)
+  ✔ rejects missing/malformed metadata as HTTP400 InvalidParams before SDK construction (7.6687ms)
+  ✔ keeps clientInfo optional and returns the exact pinned unsupported-version shape and HTTP400 (50.746ms)
+  ✔ enforces the published required-capability extension before SDK with pinned error data (210.5582ms)
+  ✔ does not advertise subscriptions and keeps empty granted tools/list functional (45.882ms)
+  ✔ refuses initialize, unsupported/stdio notifications and response messages without dropping them (36.3482ms)
+  ✔ routes known ungranted calls through shared host denial/accounting without registering or listing them (134.1217ms)
+✔ official SDK wire adaptations preserve the published boundary (1389.1099ms)
+▶ RUN-06 — readiness is not announced before it is true
+  ✔ becomes ready after bind AND initialise both succeed (7.1017ms)
+  ✔ is NOT ready when initialisation fails, and closes the bound listener (1.7534ms)
+  ✔ does not call onReady at all when the bind fails (1.1241ms)
+✔ RUN-06 — readiness is not announced before it is true (14.5096ms)
+▶ RUN-06 — a port conflict is reported, not resolved
+  ✔ returns PORT_IN_USE with a remedy that rules out force and stealth (2.0405ms)
+  ✔ does NOT return a port, so nothing can silently relocate (0.875ms)
+  ✔ a failed start does not throw, so it cannot crash the host (1.4244ms)
+  ✔ refuses a second start rather than binding twice (1.4444ms)
+✔ RUN-06 — a port conflict is reported, not resolved (10.2217ms)
+▶ RUN-07 — shutdown order and ownership
+  ✔ refuses new work once shutdown has begun (3.0373ms)
+  ✔ cancels owned work, closes the transport and releases the port (2.3728ms)
+  ✔ TERMINATES work that outlives the grace period and reports it (43.2261ms)
+  ✔ NEVER touches work owned by another still-authorized owner (1.5648ms)
+  ✔ writing the order down: refuse, cancel, wait, terminate, close, release (1.2424ms)
+  ✔ stopping an already-stopped server is a no-op rather than an error (0.4669ms)
+  ✔ documents a grace period (0.6235ms)
+✔ RUN-07 — shutdown order and ownership (54.8683ms)
+▶ RUN-05 — startup is read-only
+  ✔ permits restoring an approved activation and inspecting local state (0.5391ms)
+  ✔ REFUSES preparation, resolution and downloads at startup (0.3093ms)
+  ✔ encodes the prohibition in the policy type, not only in a comment (0.2875ms)
+✔ RUN-05 — startup is read-only (1.6032ms)
+▶ RUN-01 — the server and the plugin stop independently
+  ✔ disabling the server does not disable unrelated DSH tools (0.3757ms)
+✔ RUN-01 — the server and the plugin stop independently (0.724ms)
+▶ slice 1 — the fixture extension installs INACTIVE, activates, and declares honestly
+  ✔ installs from a real archive and stays inactive until activation (761.9424ms)
+  ✔ discovers the installed package and resolves its licences with no gaps (172.6558ms)
+  ✔ activates, publishes its contribution, and executes NATIVELY through the pipeline (346.361ms)
+  ✔ executes the fixture through TWO MCP clients over real sockets (1419.6247ms)
+  ✔ deactivates and uninstalls leaving NO residue (822.5682ms)
+✔ slice 1 — the fixture extension installs INACTIVE, activates, and declares honestly (3536.5449ms)
+✔ P26-09 delivery: a subscriber receives the catalog change through the consumer (ack-first) (6.4887ms)
+✔ P26-09 delivery: an unauthorized client never sees another client's change (1.1724ms)
+✔ P26-09 delivery: revocation closes the stream and stops delivery entirely (1.7055ms)
+▶ TOOL-06 — a refusal or incomplete generation is NEVER a valid empty title
+  ✔ turns a REFUSAL into an error, not an empty title (4.5404ms)
+  ✔ turns an INCOMPLETE generation into an error, not a short title (0.6262ms)
+  ✔ rejects an EMPTY or WHITESPACE title rather than accepting it (0.6812ms)
+  ✔ rejects a response with no title field at all (2.8319ms)
+  ✔ checks the refusal FIRST, so it cannot fall through to the empty-title path (0.4756ms)
+  ✔ checks incompleteness before validating the partial title (0.4582ms)
+✔ TOOL-06 — a refusal or incomplete generation is NEVER a valid empty title (14.6567ms)
+▶ TOOL-06 — no invented facts
+  ✔ REJECTS a number in the title that the source does not contain (1.2761ms)
+  ✔ ACCEPTS a number the source does contain (1.1821ms)
+  ✔ checks the DESCRIPTION for invented numbers too (0.82ms)
+  ✔ accepts a title with no numbers (0.9142ms)
+✔ TOOL-06 — no invented facts (5.4562ms)
+▶ TOOL-06 — no changed source meaning
+  ✔ REJECTS a title sharing no content word with the source (0.822ms)
+  ✔ accepts a title that does overlap (0.4838ms)
+  ✔ does not apply the overlap rule when the source has no content words (0.5144ms)
+✔ TOOL-06 — no changed source meaning (2.3779ms)
+▶ TOOL-06 — the lengths the contract states
+  ✔ states them in the contract rather than per call (0.4652ms)
+  ✔ rejects a title over the stated maximum rather than truncating it (0.5027ms)
+  ✔ rejects an over-long description (0.3883ms)
+  ✔ a caller cannot widen the limits by supplying its own (0.4025ms)
+✔ TOOL-06 — the lengths the contract states (2.3539ms)
+▶ TOOL-06 — repair attempts are COUNTED
+  ✔ offers no repair after a success (5.306ms)
+  ✔ counts a repair and reports the new total (0.405ms)
+  ✔ reports an EXHAUSTED budget rather than a failure to propose (0.5069ms)
+  ✔ refuses to repair a refusal, which a retry will not fix (0.3757ms)
+  ✔ permits no repair when the recipe disables them (0.4491ms)
+✔ TOOL-06 — repair attempts are COUNTED (7.7878ms)
+▶ TOOL-06 — the tool calls no other tool
+  ✔ never dispatches another tool (0.4203ms)
+✔ TOOL-06 — the tool calls no other tool (0.7153ms)
+▶ TOOL-03 — a text detector is not evidence about audio
+  ✔ REFUSES an audio-language claim from a text result (0.8765ms)
+  ✔ permits a claim about the medium actually examined (0.8945ms)
+  ✔ describes a text result as evidence about text only (0.4717ms)
+  ✔ describes an audio result without the disclaimer (0.5539ms)
+✔ TOOL-03 — a text detector is not evidence about audio (19.3077ms)
+✔ the authoring source exists and exposes the factory (21.9273ms)
+✔ unavailable model switches use a neutral disabled style (1.6966ms)
+✔ the template carries the placeholder and registers the page once (2.1144ms)
+✔ the generated bundle inlines the page with no chunk fetch (5.1199ms)
+✔ gen-client-catalog --check reports the committed bundle current (1182.7166ms)
+✔ the five tabs are ordered and labelled for the page (39.8911ms)
+✔ the page owns its scroll container and aligns numeric headers (31.3754ms)
+✔ deep links resolve to a tab with an insights fallback (65.3695ms)
+✔ page math clamps and reports a showing range (48.3941ms)
+✔ formatting is stable and never invents a value (6.5425ms)
+✔ normalizeProjection keeps only finite, well-shaped facts (7.329ms)
+✔ aggregateProjections sums sessions and reports coverage (9.7615ms)
+✔ deriveInsights prefers the host report and degrades honestly without it (95.8557ms)
+✔ All sends a range-only query, never null bounds (22.5493ms)
+✔ the generated Remote methods are called positionally, not with a query wrapper (57.0336ms)
+✔ All calls groups Code Mode parents with their sub-calls and never orphans them (10.968ms)
+✔ inventory filters, groups, paginates and keeps never-called rows (27.4016ms)
+✔ MCP view derives endpoint, exposure and a paginated call log truthfully (24.4182ms)
+▶ S10 host wiring
+  ✔ registers the projection and serves toolSources/toolInventory/toolUsageReport (2033.5766ms)
+  ✔ serves toolInventory without waiting for stored-history backfill (644.7596ms)
+  ✔ bounds a report when the stored-session list itself hangs (589.8516ms)
+  ✔ bounds a report when a stored read hangs (997.7328ms)
+  ✔ does not materialize uncached live sessions for toolInventory (1437.139ms)
+  ✔ backfills a stored session that has no live projection cell (1295.798ms)
+  ✔ degrades to an empty report when the optional services are absent (1140.8656ms)
+  ✔ reports a disabled MCP surface without a fabricated endpoint (1189.0058ms)
+  ✔ carries the tool name into external accounting and persists one ledger row (111.6275ms)
+✔ S10 host wiring (9452.2253ms)
+✔ apply registers the page, the sidebar entry at order 15 and keeps Settings (28.6877ms)
+✔ an older host without the page slots keeps Settings and does not throw (22.3173ms)
+✔ the page slots register when the declaring plugins apply later (8.5791ms)
+✔ the page registers without a Remote (config-only hosts still mount it) (14.8509ms)
+✔ exports inject and package client inject edges name the real packages (4.6042ms)
+▶ S6 descriptors and codecs
+  ✔ declares the five additive methods with an optional query parameter (5.1574ms)
+  ✔ parses a realistic usage report and strips undeclared fields (9.9925ms)
+  ✔ validates an empty inventory page and an MCP status (4.9004ms)
+✔ S6 descriptors and codecs (25.1683ms)
+▶ S6 compatibility
+  ✔ binds a host service that predates Tool Insights (1.6036ms)
+  ✔ binds a host service that implements the additive methods (1.3661ms)
+✔ S6 compatibility (3.843ms)
+✔ TabBar renders five accessible tabs and marks the active one (30.8574ms)
+✔ InsightsView renders KPI band, charts, performance and All calls (175.125ms)
+✔ an empty projection renders an explicit empty state, never zeroed cards (23.9188ms)
+✔ InventoryView groups by origin, shows withheld tools and paginates (42.2499ms)
+✔ McpView renders the endpoint, clients, exposure and external call log (46.4661ms)
+✔ SettingsView hosts the Model as Tool configuration (59.6779ms)
+✔ ToolInsightsPage renders the four tabs without throwing on stub props (23.8518ms)
+▶ S3 inventory rows
+  ✔ attributes a user-authored tool to its custom record (90.0056ms)
+  ✔ lists a registered tool that was never called (1.6877ms)
+  ✔ joins extension usage and resolves the manifest owner (1.3205ms)
+  ✔ keeps installed extension tools that are not registered, with truthful state (1.2ms)
+  ✔ marks model_tools present but never exposed over MCP (1.1265ms)
+  ✔ labels an unknown owner explicitly instead of guessing (1.1597ms)
+  ✔ never carries a token, argument, result or file path in a row (4.1956ms)
+  ✔ is deterministic: rows are sorted by name and de-duplicated (1.2879ms)
+✔ S3 inventory rows (108.47ms)
+▶ CODE-08 — the exposure gate now HAS a caller
+  ✔ refuses an external caller when the operator has NOT granted hosted code (7.421ms)
+  ✔ refuses even WITH the operator grant, while confinement is undemonstrated (CODE-09) (2.8405ms)
+  ✔ reports the gate state and its reason independently (1.0096ms)
+  ✔ the refusal is the SAME text the gate reports, from one enforcement point (0.6622ms)
+✔ CODE-08 — the exposure gate now HAS a caller (17.4558ms)
+▶ CODE-02 — the mount is guarded and has a caller
+  ✔ mounts the backend when nothing provides the service (4.5412ms)
+  ✔ does NOT mount over a provider the host already has (1.327ms)
+  ✔ reports a missing backend as a REASON rather than throwing (0.8399ms)
+  ✔ prepare() is idempotent (2.1928ms)
+✔ CODE-02 — the mount is guarded and has a caller (10.3487ms)
+▶ CODE-03 — ONE pipeline, and the GRANT is what limits it
+  ✔ runs a program whose requested tools are granted and visible (3.5459ms)
+  ✔ REFUSES a program asking for a tool the host did not grant (1.5724ms)
+  ✔ refuses the WHOLE request rather than binding a subset (0.9211ms)
+  ✔ reports UNAVAILABLE when no runtime is mounted, rather than pretending (0.5418ms)
+✔ CODE-03 — ONE pipeline, and the GRANT is what limits it (7.6225ms)
+▶ CODE-05 — cancellation is NOT reported as a failure
+  ✔ classifies an aborted run as cancelled (0.7653ms)
+  ✔ classifies any other runtime error as failed (0.5866ms)
+✔ CODE-05 — cancellation is NOT reported as a failure (1.6969ms)
+▶ CODE-03 — the budget cannot be widened by asking
+  ✔ CLAMPS a null budget rather than removing the deadline (0.705ms)
+  ✔ clamps an oversized budget to the ceiling (0.6352ms)
+✔ CODE-03 — the budget cannot be widened by asking (1.7403ms)
+▶ the host REGISTERS tool_mode_run, so the gate is reachable through it
+  ✔ is registered and REFUSES naming the missing operator grant (CODE-10 default) (1843.2242ms)
+  ✔ with the operator grant, still REFUSES on the confinement gate (CODE-09) (723.3247ms)
+✔ the host REGISTERS tool_mode_run, so the gate is reachable through it (2567.3312ms)
+▶ CODE-02 — the served path (serveProgram) reports what the interface promises
+  ✔ runs a program through the runner and reports result, logs, elapsed and tool calls (3.9684ms)
+  ✔ serves the literal CODE-02 payload { code, tools } with no description (3.6378ms)
+  ✔ refuses an input-bearing program, naming the missing structured-data path (CODE-04) (4.8047ms)
+  ✔ refuses when the backend is unavailable, naming the deployment fact (1.0404ms)
+  ✔ refuses a program that requests the recursive composition door (CODE-07) (1.3896ms)
+✔ CODE-02 — the served path (serveProgram) reports what the interface promises (15.6596ms)
+▶ CODE-02 — a run reports WHICH tools the program combined
+  ✔ records a trace entry per sub-call, in dispatch order (1.8931ms)
+  ✔ caps the trace at 50 entries while the count keeps counting (2.814ms)
+✔ CODE-02 — a run reports WHICH tools the program combined (5.1389ms)
+✔ no extension store: the catalogue registers lang_detect exactly once (unchanged) (1901.6818ms)
+✔ boot with the owning extension active: exactly one lang_detect, owned by the extension (no EXTENSION_FAULT) (4719.9032ms)
+✔ disable restores the catalogue tool; re-enable swaps back (4676.5053ms)
+✔ the restore probe reads the durable store (deterministic in both orders) (27.5126ms)
+▶ S1 direct call/result pairing
+  ✔ measures elapsed wall time and records a settled success (44.9361ms)
+  ✔ clamps a result that arrives before its call to zero (1.3186ms)
+  ✔ reports a call whose result never landed at turn/end as unsettled, never a success (1.4259ms)
+  ✔ counts a tool error and records only the class-level code (1.5179ms)
+  ✔ never pairs a prototype-named callId (1.2713ms)
+✔ S1 direct call/result pairing (54.8018ms)
+▶ S1 Code Mode sub-calls
+  ✔ pairs a sub-dispatch by subCallId and links it to the parent program (56.1745ms)
+  ✔ counts a failed sub-dispatch as an error without a fake success (1.6173ms)
+✔ S1 Code Mode sub-calls (58.5756ms)
+▶ S1 model attribution
+  ✔ attributes a call to the request-header route (2.023ms)
+  ✔ prefers the emitting assistant message for the call step (1.6296ms)
+  ✔ splits a mid-turn route change by the route in force at each call (1.4408ms)
+  ✔ uses the explicit unattributed bucket when no model is readable (1.4293ms)
+  ✔ lets Code Mode sub-calls inherit the parent program model (1.3152ms)
+✔ S1 model attribution (8.9689ms)
+▶ S1 bounds and JSON purity
+  ✔ caps pending calls at 100 and reports the evicted call as unsettled (11.1219ms)
+  ✔ caps recent calls at 200 keeping the newest (39.3953ms)
+  ✔ caps distinct tools at 100 and records the overflow explicitly (22.0215ms)
+  ✔ caps retained days at 60 (13.2741ms)
+  ✔ keeps a 16-bucket duration histogram with log-scale edges (1.0434ms)
+  ✔ is plain JSON and carries the state version (4.8212ms)
+  ✔ rejects an unknown field in the persisted state and the wire (4.7524ms)
+✔ S1 bounds and JSON purity (97.681ms)
+▶ S2 window and percentiles
+  ✔ computes fixed range windows with an inclusive from and exclusive to (5.9463ms)
+  ✔ derives percentiles from the histogram and keeps max exact (0.9813ms)
+✔ S2 window and percentiles (13.7315ms)
+▶ S2 rollups
+  ✔ aggregates calls, errors, unsettled calls and success over the window (74.6698ms)
+  ✔ sums per-tool day buckets and keeps percentiles out of unsettled calls (12.2001ms)
+  ✔ rolls up by model, workspace, day and error code (2.1801ms)
+  ✔ excludes calls outside the window and never changes totals with the recent limit (2.881ms)
+✔ S2 rollups (94.5202ms)
+▶ planning module: the snapshot is frozen at capture (NDL-02)
+  ✔ is a deep copy that later registry changes cannot reach (48.1795ms)
+  ✔ is deep-frozen, so nobody holding it can mutate it (4.47ms)
+  ✔ freezes the exclusion sets, so the two surfaces cannot desync through mutation (F3) (1.1549ms)
+  ✔ skips excluded names and turns an empty description into a stated placeholder (0.8121ms)
+✔ planning module: the snapshot is frozen at capture (NDL-02) (68.522ms)
+▶ planning module: the requested-name gate rejects rather than omits (NDL-02)
+  ✔ refuses unknown, excluded and duplicate names all-or-nothing, naming every rejection (2.603ms)
+  ✔ refuses a live tool that was registered after the freeze, instead of offering a stale schema (1.5781ms)
+  ✔ offers exactly the snapshot entries for every admitted name, in request order (1.1563ms)
+  ✔ describes refusals readably (0.9208ms)
+✔ planning module: the requested-name gate rejects rather than omits (NDL-02) (7.77ms)
+▶ planning module: proposals are re-checked against the snapshot, the offered set and live authorization (NDL-02/03)
+  ✔ passes a proposal that names a snapshot tool with valid arguments (225.7807ms)
+  ✔ moves a proposal naming a tool outside the frozen snapshot to rejected (1.2099ms)
+  ✔ moves a proposal whose arguments violate the FROZEN schema to rejected with the violations named (5.1912ms)
+  ✔ refuses at execution time a proposal whose tool was withdrawn after capture (NDL-03) (7.1109ms)
+  ✔ refuses a proposal whose tool is registered but no longer ADMITTED, naming the quarantine (F2) (5.3364ms)
+  ✔ refuses a proposal for a tool the host NEVER OFFERED this turn, however snapshotted and live (F6) (4.8851ms)
+  ✔ reports an uncompilable frozen schema as an issue rather than crashing the call (1.9866ms)
+  ✔ surfaces a malformed provider record as a PROVIDER DEFECT instead of coercing it (F7) (1.7545ms)
+  ✔ recognizes the planning contribution by name plus declared input shape (0.7741ms)
+✔ planning module: proposals are re-checked against the snapshot, the offered set and live authorization (NDL-02/03) (256.0624ms)
+▶ the host serves tools_plan through the frozen-snapshot pipeline, end to end
+  ✔ captures the snapshot on first use, offers snapshot entries, and stamps the meta envelope (8257.7018ms)
+  ✔ refuses unknown, excluded and duplicate requested names outright, never reaching the planner (1305.2206ms)
+  ✔ moves proposals outside the snapshot or with invalid arguments to rejected, with warnings (1000.4606ms)
+  ✔ refuses a proposal for a tool the host NEVER OFFERED this turn, over the real pipeline (F6) (785.973ms)
+  ✔ refuses at publication a tools_plan contribution WITHOUT the planning input shape (F5) (1103.6493ms)
+  ✔ refuses a provider-supplied reserved meta envelope on BOTH dispatch paths (F4) (871.9445ms)
+  ✔ serves structured_extract through the generic path with the same host-stamped envelope (1000.0284ms)
+✔ the host serves tools_plan through the frozen-snapshot pipeline, end to end (14326.5157ms)
+▶ transport — argument mapping
+  ✔ maps a text model to a positional input plus --option flags (8.8033ms)
+  ✔ passes every file path positionally, then the remaining options (1.23ms)
+  ✔ rejects a missing primary input (2.4756ms)
+  ✔ rejects a model with no CLI verb (1.1216ms)
+✔ transport — argument mapping (19.9393ms)
+▶ transport — CLI outcomes
+  ✔ parses a successful JSON result (1.5855ms)
+  ✔ wraps an array result so the object output contract still holds (0.8163ms)
+  ✔ surfaces exit 1 and exit 64 as distinct failures carrying stderr (1.3575ms)
+  ✔ rejects empty or non-JSON stdout (1.3129ms)
+  ✔ drives the command with the mapped argv (1.882ms)
+✔ transport — CLI outcomes (8.595ms)
+▶ transport — bridge responses
+  ✔ accepts an ok envelope (1.4419ms)
+  ✔ surfaces the bridge error message (0.8599ms)
+  ✔ rejects a non-JSON body (0.6879ms)
+  ✔ posts the documented envelope to /invoke with the bearer token (2.1498ms)
+✔ transport — bridge responses (6.1833ms)
+▶ capability — transport routes
+  ✔ uses the extension route for provider-bound models without requiring host model packages (2.0803ms)
+  ✔ does not hide an extension-backed ONNX model when its runtime is not a host dependency (0.7271ms)
+  ✔ does not claim an extension-backed model is runnable when the extension is absent (1.1482ms)
+  ✔ offers the CLI route for a model whose npm prebuild is missing here (0.7431ms)
+  ✔ offers the remote route for an Apple-only model (0.6486ms)
+  ✔ prefers an in-process package over the CLI and the bridge for a non-provider catalog entry (0.668ms)
+  ✔ recommends installing onnxruntime-node when only the runtime is missing for a non-provider catalog entry (1.1112ms)
+  ✔ never routes a closed-beta model through the bridge (0.8751ms)
+✔ capability — transport routes (9.294ms)
+▶ plugin — install flow
+  ✖ installs a model on request and removes it again (1774.323ms)
+  ✔ explains why an uninstallable model cannot be enabled (1851.0014ms)
+  ✔ reports unknown model ids for enable and disable (2547.3665ms)
+  ✖ marks installed state in the listing (1829.4807ms)
+  ✔ does not use ProviderBridge for a provider-bound model on a non-extension route (3.3648ms)
+  ✔ adapter routes a CLI-capable model through the injected runner (0.923ms)
+  ✔ produces no adapter for a model with neither an adapter nor a transport (0.3761ms)
+✖ plugin — install flow (8316.7491ms)
+✔ the MANAGEMENT channel serves the round trip: pending → approve → commit → rollback (AT-39) (8510.3357ms)
+✔ the pending listing shows the staged update, its deltas and the approval state (578.3539ms)
+✔ a DENIED approval never commits: the SDK refuses and the hooks never run (268.0786ms)
+✔ an APPROVED commit runs quiesce → pointer → rebind in order, and rollback restores (216.7459ms)
+✔ a rebind failure reverts INSIDE the wrapper and the commit rejects (all-or-nothing) (170.6884ms)
+✔ a quiesce failure aborts the commit with the pointer unchanged and the surface restored (219.5345ms)
+✔ a HANGING rebindRestored is bounded host-side and reported as the hookFailure (499.3775ms)
+▶ TDD-01 — the requirement inventory
+  ✔ exists and covers every normative ID including all acceptance tests (38.2274ms)
+  ✔ includes section 20, which a narrower pattern silently excluded (25.4958ms)
+  ✔ maps each requirement to an owning module, a layer and a platform (35.9573ms)
+  ✔ records the source digest, so the inventory is tied to pinned text (18.203ms)
+  ✔ contains no status key that names a non-existent requirement (62.5664ms)
+✔ TDD-01 — the requirement inventory (187.0356ms)
+▶ TDD-06 — no false passes
+  ✔ uses only the mandated statuses (43.0491ms)
+  ✔ NEVER reports PASS for a requirement that is only PARTIAL (62.0739ms)
+  ✔ reports BLOCKED as BLOCKED, never as PASS or NOT_RUN (24.1866ms)
+  ✔ does not derive PASS from the mere absence of a failure (34.6092ms)
+  ✔ the release gate exits nonzero while any mandatory gate is not PASS (1742.7363ms)
+✔ TDD-06 — no false passes (1908.8922ms)
+▶ TDD-03 / 21.3 — required verification script names exist
+  ✔ provides every stable script name the verification checklist requires (1.4669ms)
+✔ TDD-03 / 21.3 — required verification script names exist (1.8503ms)
+▶ TDD-09 — evidence records carry the required identities
+  ✔ records git, package, runtime and command identities (41.0184ms)
+  ✔ flags a dirty working tree, so the evidence is not mistaken for a commit (26.7855ms)
+  ✔ records a timestamp (24.5162ms)
+✔ TDD-09 — evidence records carry the required identities (93.0429ms)
+▶ TDD-10 — the release report
+  ✔ exists and carries the required sections (6.4726ms)
+  ✔ states what it does NOT claim (15.7073ms)
+  ✔ records the MCP conformance facts rather than a version string (4.8361ms)
+  ✔ says which models have NOT been run against real inference (4.2218ms)
+✔ TDD-10 — the release report (34.1327ms)
+▶ TDD-06 — every recorded status is one of the five vocabulary values
+  ✔ records requirement statuses as plain strings from the vocabulary (30.6409ms)
+  ✔ records acceptance statuses in a shape both generators agree on (18.0633ms)
+  ✔ does not let a malformed status reach the generated inventory (46.8511ms)
+✔ TDD-06 — every recorded status is one of the five vocabulary values (103.9556ms)
+▶ the README states the same counts the evidence does
+  ✔ quotes the inventory counts it claims (46.6744ms)
+  ✔ states the tracked total it claims (34.0269ms)
+  ✔ points a reader at the generated final report (11.8826ms)
+✔ the README states the same counts the evidence does (93.3306ms)
+▶ extractInventoryFromText — summaries
+  ✔ reads the `**ID.** body` convention, which used to yield an empty summary (5.9027ms)
+  ✔ keeps the existing `**ID. text**` convention intact (1.1946ms)
+  ✔ reads acceptance-test table rows and bounds every summary (1.0742ms)
+✔ extractInventoryFromText — summaries (12.6715ms)
+▶ normalizeEvidenceFor — evidence is text or null, never an object
+  ✔ reads requirement evidence as a string (5.0344ms)
+  ✔ reads acceptance evidence from `.evidence`, not the wrapper object (0.5856ms)
+  ✔ returns null for a legacy acceptance string and for a missing record (0.5724ms)
+  ✔ never returns an object even when the record is malformed (0.7532ms)
+✔ normalizeEvidenceFor — evidence is text or null, never an object (8.3523ms)
+▶ inventory/content comparators — drift is visible to --check
+  ✔ reports no drift for identical records (12.1446ms)
+  ✔ reports a changed status and a changed evidence string (1.8104ms)
+  ✔ reports missing and orphaned records (2.8458ms)
+  ✔ reports count drift (1.2588ms)
+  ✔ normalises only the volatile release-report header (0.9128ms)
+✔ inventory/content comparators — drift is visible to --check (21.0615ms)
+▶ the committed artifacts satisfy the generator contract
+  ✔ every inventory summary is a non-empty string (34.9179ms)
+  ✔ every evidence field is a string or null, never an object (40.2698ms)
+  ✔ evidence.json carries string-or-null evidence too (33.2158ms)
+  ✔ --check content sees the committed artifacts as current (1133.744ms)
+  ✔ --release-gate does not rewrite the evidence artifacts (1460.6557ms)
+✔ the committed artifacts satisfy the generator contract (2704.0117ms)
+▶ parseArgs
+  ✔ uses the plan defaults when no flag is supplied, with the token from the env (4.7753ms)
+  ✔ accepts every documented flag and the env fallback is overridden by --token (0.6815ms)
+  ✔ refuses an unknown flag and a missing token with an actionable message (2.634ms)
+✔ parseArgs (12.4705ms)
+▶ secret redaction
+  ✔ redacts a bare token, a bearer header and a launch token in a URL (1.1925ms)
+  ✔ walks nested evidence objects and never mutates the input (1.0305ms)
+✔ secret redaction (3.0839ms)
+▶ served client bundle discovery and labels
+  ✔ decodes the shell's HTML entities and picks the model-as-tool bundle (3.1295ms)
+  ✔ returns null when the shell names no client bundle (1.2189ms)
+  ✔ reads the __DSH_BOOT__ manifest and resolves its relative plugin URL (0.9474ms)
+  ✔ also accepts a relative plugins/ attribute in an older shell (3.0479ms)
+  ✔ accepts a bundle with the three tabs and the pagination labels (6.523ms)
+  ✔ reports every missing label instead of only the first (1.4266ms)
+✔ served client bundle discovery and labels (18.0691ms)
+▶ selectSafeCall
+  ✔ honours an explicit tool and argument override (1.21ms)
+  ✔ falls back from read to lang_detect and reports when neither is exposed (0.7195ms)
+  ✔ builds the object-shaped semantic_similarity call (0.623ms)
+  ✔ refuses a malformed --args-json (0.8738ms)
+✔ selectSafeCall (4.4136ms)
+▶ runVerification against a mock disposable host
+  ✔ collects full passing evidence, authenticates the shell, drives MCP and redacts secrets (417.0643ms)
+  ✔ exercises semantic_similarity with object items and records its score (153.0717ms)
+  ✔ fails the model_tools check when the MCP surface exposes model_tools (96.1569ms)
+  ✔ fails the tab check when a tab label is missing from the served bundle (99.8598ms)
+  ✔ fails the call check when the safe call returns isError (85.7604ms)
+✔ runVerification against a mock disposable host (858.7422ms)
+ℹ tests 1439
+ℹ suites 314
+ℹ pass 1425
+ℹ fail 8
+ℹ cancelled 0
+ℹ skipped 6
+ℹ todo 0
+ℹ duration_ms 133114.1399
+
+✖ failing tests:
+
+test at packages\dsh-tool-mode\tests\mcp-host-binding.test.ts:322:3
+✖ exports exactly the tools the host registered (1061.8626ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      'lang_detect',
+  -   'model_tools_manage',
+      'stt_transcribe'
+    ]
+  
+      at TestContext.<anonymous> (D:\DEV\dsh-tool-mode\packages\dsh-tool-mode\tests\mcp-host-binding.test.ts:352:12)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'lang_detect', 'stt_transcribe' ],
+    expected: [ 'lang_detect', 'model_tools_manage', 'stt_transcribe' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages\dsh-tool-mode\tests\persistence.test.ts:141:3
+✖ remembers an enable in a second mount (2378.016ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (D:\DEV\dsh-tool-mode\packages\dsh-tool-mode\tests\persistence.test.ts:148:12)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1516:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages\dsh-tool-mode\tests\persistence.test.ts:162:3
+✖ remembers a disable in a second mount (1508.7959ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(hasTool(first, 'lang_detect'))
+  
+      at TestContext.<anonymous> (D:\DEV\dsh-tool-mode\packages\dsh-tool-mode\tests\persistence.test.ts:167:12)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages\dsh-tool-mode\tests\persistence.test.ts:177:3
+✖ reports the remembered choice per model (1979.2477ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'none' !== 'enabled'
+  
+      at TestContext.<anonymous> (D:\DEV\dsh-tool-mode\packages\dsh-tool-mode\tests\persistence.test.ts:186:12)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'none',
+    expected: 'enabled',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages\dsh-tool-mode\tests\persistence.test.ts:191:3
+✖ reset forgets the choice and re-applies the configuration (1988.1394ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(hasTool(first, 'lang_detect'))
+  
+      at TestContext.<anonymous> (D:\DEV\dsh-tool-mode\packages\dsh-tool-mode\tests\persistence.test.ts:200:12)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages\dsh-tool-mode\tests\persistence.test.ts:220:3
+✖ keeps choices session-scoped when persistence is off (1535.3126ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (D:\DEV\dsh-tool-mode\packages\dsh-tool-mode\tests\persistence.test.ts:224:12)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages\dsh-tool-mode\tests\transport.test.ts:300:3
+✖ installs a model on request and removes it again (1774.323ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (D:\DEV\dsh-tool-mode\packages\dsh-tool-mode\tests\transport.test.ts:306:12)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1516:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages\dsh-tool-mode\tests\transport.test.ts:335:3
+✖ marks installed state in the listing (1829.4807ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (D:\DEV\dsh-tool-mode\packages\dsh-tool-mode\tests\transport.test.ts:340:12)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

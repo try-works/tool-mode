@@ -1,0 +1,36 @@
+{
+  "generatedAt": "2026-10-24T01:40:45.378Z",
+  "baseUrl": "http://127.0.0.1:3182",
+  "exitCode": 1,
+  "skipInvoke": false,
+  "rows": [
+    {
+      "id": "@try-works/extension-laya",
+      "name": "laya",
+      "status": "FAIL",
+      "durationMs": 37130,
+      "blocker": null,
+      "detail": "gateway/internal: [DEPENDENCY_UNSATISFIED] onnxruntime-node@1.30.0 declares a \"prepare\" lifecycle script; the installer never runs or silently skips install-time scripts (EXT-10)",
+      "tools": [
+        "decision_choose",
+        "decision_test",
+        "decision_score"
+      ]
+    }
+  ],
+  "tools": [],
+  "summary": {
+    "total": 1,
+    "pass": 0,
+    "fail": 1,
+    "skipped": 0,
+    "skippedWithNamedBlocker": 0,
+    "coherenceIssues": [],
+    "invocationRan": false
+  },
+  "hostServices": {},
+  "surface": {
+    "lifecycle": "gateway RPC: GET /connect?token=… then POST /api/modelTools/<installExtension|describe|prepare|enable> with {type:\"client-request\",rpcId,method,payload:{args}}",
+    "invocation": "in-process shipping host (plugin apply + tool runtime + extension dispatch) over a snapshot of the profile store; the live web profile exposes no MCP/tool-execute endpoint"
+  }
+}

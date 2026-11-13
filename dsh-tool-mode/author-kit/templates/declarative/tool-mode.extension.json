@@ -1,0 +1,41 @@
+{
+  "protocolVersion": "1.1.0",
+  "id": "@acme/tool-mode-declarative-template",
+  "version": "0.1.0",
+  "displayName": "Declarative template",
+  "description": "A minimal declarative package: one standard text.title implementation, as data, with no executable code.",
+  "license": "MIT",
+  "activation": {
+    "policy": "operator",
+    "deactivatable": true
+  },
+  "runtimeApi": 1,
+  "compatibility": {
+    "hostApi": "^1.1.0",
+    "requiredFeatures": [
+      "declarative-recipes-v1"
+    ]
+  },
+  "execution": {
+    "kind": "declarative"
+  },
+  "permissions": {
+    "networkOrigins": [],
+    "inputFiles": false,
+    "storage": "none",
+    "secrets": [],
+    "nativeCode": false
+  },
+  "models": [],
+  "tools": [],
+  "implementations": [
+    {
+      "id": "text-title",
+      "contractId": "text.title",
+      "contractVersion": "1.0.0",
+      "recipeVersion": "1.0.0"
+    }
+  ],
+  "skills": [],
+  "licenses": []
+}

@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://try-works.dev/tool-mode/extension-needle/extract-with-repair.output.schema.json",
+  "title": "extract_with_repair output",
+  "description": "Output for extract_with_repair. `extraction` is the LAST attempt's record, null when no attempt produced one. `valid` is true only when that record exists, the validator accepted it AND no issue remains — an unresolved issue can never travel beside `valid: true`. `attempts` records every engine call (one, or two when the first was rejected with findings), so a caller can see that the repair happened rather than trusting `repaired`. An engine failure is raised as an error, never reported as an empty record here.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "extraction",
+    "valid",
+    "issues",
+    "repaired",
+    "attempts",
+    "meta"
+  ],
+  "properties": {
+    "extraction": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "The last attempt's record, verbatim from the engine, or null when none was produced. Never an empty object standing in for a failure. The record's own fields are governed by the caller's schema; the host's schema DSL cannot advertise `additionalProperties` on a union-typed node, so it is deliberately not repeated here (structured_extract's output schema has the same shape for the same reason)."
+    },
+    "valid": {
+      "type": "boolean",
+      "description": "Whether the last attempt is admissible: an extraction exists, the validator accepted it, and it reported no issue."
+    },
+    "issues": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "string",
+        "maxLength": 512
+      },
+      "description": "The LAST attempt's violations, so a caller sees what still fails after the repair. Empty exactly when `valid` is true."
+    },
+    "repaired": {
+      "type": "boolean",
+      "description": "Whether a second engine call actually ran. False means one attempt was enough or, for a 'nothing matched' answer, that no finding existed to repair."
+    },
+    "attempts": {
+      "type": "array",
+      "maxItems": 2,
+      "minItems": 1,
+      "description": "One entry per engine call, oldest first. Never longer than two: this tool makes an initial attempt and at most one repair.",
+      "items": {
+        "$ref": "#/$defs/attempt"
+      }
+    },
+    "meta": {
+      "$ref": "#/$defs/meta"
+    }
+  },
+  "allOf": [
+    {
+      "description": "A positive verdict carries a record and no unresolved issue. A schema cannot correlate fields without this conditional; the package enforces the same rule in code.",
+      "if": {
+        "properties": {
+          "valid": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "issues": {
+            "type": "array",
+            "maxItems": 0
+          },
+          "extraction": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "description": "`repaired` and the attempt list must agree: two attempts mean a repair ran, one means it did not.",
+      "if": {
+        "properties": {
+          "repaired": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attempts": {
+            "type": "array",
+            "minItems": 2
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "attempts": {
+            "type": "array",
+            "maxItems": 1
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "attempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "valid",
+        "issues"
+      ],
+      "properties": {
+        "valid": {
+          "type": "boolean",
+          "description": "Whether this attempt was an admissible extraction."
+        },
+        "issues": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "description": "The violations this attempt reported."
+        }
+      }
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract",
+        "contractVersion",
+        "implementationId",
+        "extension",
+        "extensionVersion",
+        "activationGeneration",
+        "executionLocation",
+        "receiptId",
+        "warnings"
+      ],
+      "description": "The host stamps this envelope. The provider never authors it (EXT-17).",
+      "properties": {
+        "contract": {
+          "type": "string"
+        },
+        "contractVersion": {
+          "type": "string"
+        },
+        "implementationId": {
+          "type": "string"
+        },
+        "extension": {
+          "type": "string"
+        },
+        "extensionVersion": {
+          "type": "string"
+        },
+        "activationGeneration": {
+          "type": "integer"
+        },
+        "executionLocation": {
+          "type": "string",
+          "enum": [
+            "device",
+            "remote"
+          ]
+        },
+        "receiptId": {
+          "type": "string"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

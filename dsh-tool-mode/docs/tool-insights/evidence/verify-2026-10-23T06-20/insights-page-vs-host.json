@@ -1,0 +1,50 @@
+{
+  "capturedAt": "2026-10-23T15:12:00+08:00",
+  "what": "Tool Insights page KPI values vs the host report values on the same live instance (:3180, pid 53264).",
+  "host": {
+    "toolUsageReport.7d": {
+      "calls": 1952,
+      "errors": 30,
+      "sessions": 4,
+      "uniqueTools": 35,
+      "successRate": 0.9846,
+      "codeCalls": 594,
+      "range": "7d"
+    },
+    "toolUsageReport.30d": {
+      "calls": 1952,
+      "sessions": 4,
+      "uniqueTools": 35,
+      "range": "7d (explicit from/to window)"
+    },
+    "toolUsageReport.all": {
+      "calls": 2835,
+      "errors": 59,
+      "sessions": 6,
+      "uniqueTools": 43,
+      "range": "all",
+      "from": 0,
+      "to": 1792739091294
+    }
+  },
+  "page": {
+    "7d": {
+      "banner": "absent",
+      "CALLS": 1952,
+      "SESSIONS": 4,
+      "TOOLS_USED": "35 / 6",
+      "CALLS_PER_SESSION": "488.0",
+      "CODE_MODE": "30.4%"
+    },
+    "all": {
+      "banner": "absent",
+      "CALLS": 1952,
+      "SESSIONS": 4,
+      "TOOLS_USED": "35 / 6",
+      "CODE_MODE": "30.4%",
+      "expected": "2835 / 6 / 43 (host all)"
+    }
+  },
+  "finding": "D5: rangeWindow('all') returns { from: null, to: now }; the gateway rejects it with 'wire field \"query\" failed boundary validation', so the page silently keeps the previous (7d) report while labelling the range 'all time'. 7d/30d KPIs match the host exactly.",
+  "notes": "Code Mode parent expansion was not exercisable: scanning all 20 pages of the retained 200-call table found zero tool_mode_run rows (the retained window starts after the Code Mode calls)."
+}

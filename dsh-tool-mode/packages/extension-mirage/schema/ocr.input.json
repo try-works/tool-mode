@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "mirage_ocr input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "image"
+  ],
+  "properties": {
+    "image": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "description": "Host-authorized local image path. The extension resolves it through the host path broker; a path-only string is never opened directly."
+    },
+    "maxTextLines": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 128
+    },
+    "textConf": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    }
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "capturedAt": "2026-10-23T08:20:15.058Z",
+  "seedSession": "C:/Users/erikb/.dsh/sessions/--C-Users-erikb-OneDrive-Dokument-temp--/1ca4a24f-ea7b-4893-80f8-db7f3da3207b",
+  "seedFormat": "session.v4.jsonl.zstd",
+  "workspace": "C:\\Users\\erikb\\OneDrive\\Dokument\\temp",
+  "hostReport": {
+    "range": "all",
+    "calls": 27,
+    "sessions": 1,
+    "tools": 2,
+    "recent": 27
+  },
+  "codeModeParent": {
+    "time": 1791359493448,
+    "name": "run_code",
+    "owner": "unattributed",
+    "model": "deepseek-flash",
+    "ms": 1174,
+    "ok": true,
+    "errorCode": null,
+    "kind": "direct",
+    "callId": "call_00_62oZ38XL2UmQVgG06Xzu6239",
+    "parentCallId": null,
+    "sessionId": "1ca4a24f-ea7b-4893-80f8-db7f3da3207b",
+    "workspace": "C:\\Users\\erikb\\OneDrive\\Dokument\\temp"
+  },
+  "codeModeChild": {
+    "time": 1791359494557,
+    "name": "send_message",
+    "owner": "@deepseek-ai/dsh-tool-subagent-control",
+    "model": "deepseek-flash",
+    "ms": 7,
+    "ok": true,
+    "errorCode": null,
+    "kind": "code",
+    "callId": "call_00_62oZ38XL2UmQVgG06Xzu6239:ptc:1",
+    "parentCallId": "call_00_62oZ38XL2UmQVgG06Xzu6239",
+    "sessionId": "1ca4a24f-ea7b-4893-80f8-db7f3da3207b",
+    "workspace": "C:\\Users\\erikb\\OneDrive\\Dokument\\temp"
+  },
+  "browser": {
+    "page": "Tool Insights > All calls",
+    "parentRow": "run_code (26 direct calls in retained window; one expandable parent)",
+    "expandControl": "title=\"Show Code Mode sub-calls\", aria-expanded=true after click",
+    "childRow": "send_message sub-call @deepseek-ai/dsh-tool-subagent-control 1ca4a24f... 7ms ok"
+  }
+}

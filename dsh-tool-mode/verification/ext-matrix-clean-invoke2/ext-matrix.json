@@ -1,0 +1,152 @@
+{
+  "generatedAt": "2026-10-25T02:45:10.316Z",
+  "baseUrl": "http://127.0.0.1:3182",
+  "exitCode": 0,
+  "skipInvoke": false,
+  "rows": [
+    {
+      "id": "@try-works/extension-needle",
+      "name": "needle",
+      "status": "PASS",
+      "durationMs": 15606,
+      "blocker": null,
+      "detail": "already active",
+      "tools": [
+        "tools_plan",
+        "structured_extract"
+      ]
+    },
+    {
+      "id": "@try-works/extension-declarative-recipes",
+      "name": "declarative-recipes",
+      "status": "SKIPPED",
+      "durationMs": 1321,
+      "blocker": "the invocation host composes no LLM provider (harness limitation; the live host serves declarative recipes via the agent)",
+      "detail": null,
+      "tools": []
+    }
+  ],
+  "tools": [
+    {
+      "id": "tools_plan",
+      "extension": "needle",
+      "ok": false,
+      "skipped": true,
+      "planningLimitation": true,
+      "detail": "the in-process invocation host composes the host planning adapter but has no Agent turn context, so the frozen planning snapshot is not applied (harness limitation); the live agent host produces a real plan",
+      "failures": [
+        "plan-has-proposals",
+        "plan-proposals-valid"
+      ],
+      "raw": {
+        "isError": false,
+        "content": [
+          {
+            "type": "text",
+            "text": "{\n  \"proposals\": [],\n  \"rejected\": [],\n  \"reasoning\": \"Text is the invoice number. Path is 'invoice_invoice_20240042' from 'Invoice INV-2024-0042 was issued by Northwind Traders for 1,250.00 USD'. Instruction is 'Invoice INV-2024-0042 was issued by Northwind Traders for 1,250.00 USD'.\",\n  \"confidence\": 0.0001,\n  \"meta\": {\n    \"contract\": \"@try-works/extension-needle/tools_plan\",\n    \"contractVersion\": \"1.0.0\",\n    \"implementationId\": \"needle3-native-tools-plan\",\n    \"extension\": \"@try-works/extension-needle\",\n    \"extensionVersion\": \"0.1.2\",\n    \"activationGeneration\": 2,\n    \"executionLocation\": \"device\",\n    \"receiptId\": \"rcpt_000001\",\n    \"warnings\": []\n  }\n}"
+          }
+        ],
+        "value": {
+          "proposals": [],
+          "rejected": [],
+          "reasoning": "Text is the invoice number. Path is 'invoice_invoice_20240042' from 'Invoice INV-2024-0042 was issued by Northwind Traders for 1,250.00 USD'. Instruction is 'Invoice INV-2024-0042 was issued by Northwind Traders for 1,250.00 USD'.",
+          "confidence": 0.0001,
+          "meta": {
+            "contract": "@try-works/extension-needle/tools_plan",
+            "contractVersion": "1.0.0",
+            "implementationId": "needle3-native-tools-plan",
+            "extension": "@try-works/extension-needle",
+            "extensionVersion": "0.1.2",
+            "activationGeneration": 2,
+            "executionLocation": "device",
+            "receiptId": "rcpt_000001",
+            "warnings": []
+          }
+        }
+      }
+    },
+    {
+      "id": "structured_extract",
+      "extension": "needle",
+      "ok": true,
+      "allowedRefusal": false,
+      "refusal": null,
+      "detail": "The extraction must satisfy the CALLER schema in the fixture, and the package's own valid/issues report must agree with an independent re-validation; a blob is never accepted as an extraction.",
+      "failures": [],
+      "verdict": {
+        "id": "structured_extract",
+        "ok": true,
+        "checks": [
+          {
+            "name": "output-schema",
+            "ok": true
+          },
+          {
+            "name": "extraction-shape",
+            "ok": true,
+            "detail": "extraction=null"
+          },
+          {
+            "name": "proposed-flag-consistent",
+            "ok": true
+          },
+          {
+            "name": "issues-shape",
+            "ok": true
+          },
+          {
+            "name": "extraction-matches-caller-schema",
+            "ok": true,
+            "detail": "no extraction to validate"
+          },
+          {
+            "name": "valid-flag-consistent",
+            "ok": true,
+            "detail": "a null extraction cannot be reported valid"
+          }
+        ],
+        "failures": [],
+        "note": "The extraction must satisfy the CALLER schema in the fixture, and the package's own valid/issues report must agree with an independent re-validation; a blob is never accepted as an extraction.",
+        "refusal": null
+      }
+    },
+    {
+      "id": "text_title",
+      "extension": "declarative-recipes",
+      "ok": false,
+      "detail": "the invocation host composes no LLM provider (harness limitation; the live host serves declarative recipes via the agent)",
+      "failures": [],
+      "skipped": true
+    },
+    {
+      "id": "image_describe",
+      "extension": "declarative-recipes",
+      "ok": false,
+      "detail": "the invocation host composes no LLM provider (harness limitation; the live host serves declarative recipes via the agent)",
+      "failures": [],
+      "skipped": true
+    }
+  ],
+  "summary": {
+    "total": 2,
+    "pass": 1,
+    "fail": 0,
+    "skipped": 1,
+    "skippedWithNamedBlocker": 1,
+    "coherenceIssues": [],
+    "invocationRan": true
+  },
+  "hostServices": {
+    "modelTools": true,
+    "agentTurnContext": false,
+    "registeredTools": [
+      "tools_plan",
+      "structured_extract"
+    ],
+    "planningTool": true
+  },
+  "surface": {
+    "lifecycle": "gateway RPC: GET /connect?token=… then POST /api/modelTools/<installExtension|describe|prepare|enable> with {type:\"client-request\",rpcId,method,payload:{args}}",
+    "invocation": "in-process shipping host (plugin apply + tool runtime + extension dispatch) over a snapshot of the profile store; the live web profile exposes no MCP/tool-execute endpoint"
+  }
+}

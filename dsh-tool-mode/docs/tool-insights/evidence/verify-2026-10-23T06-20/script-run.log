@@ -1,0 +1,13 @@
+verify-tool-insights-instance — PASS (11 passed, 0 failed)
+  ok   web.launch: launch exchange HTTP 303
+  ok   web.shell: HTTP 200, 37839 bytes
+  ok   web.bundle_url: bundle: http://127.0.0.1:3180/plugins/??@try-works/dsh-tool-mode/client.js&rev=f280cbd80a3c
+  ok   web.bundle: HTTP 200, 180410 bytes
+  ok   client.tabs: all three tab labels present
+  ok   client.pagination: all pagination labels present
+  ok   mcp.handshake: initialize refused (2026-07-28 replaced the handshake); server/discover HTTP 200, supported 2026-07-28
+  ok   mcp.tools.list: HTTP 200, 1 tool(s)
+  ok   mcp.model_tools.absent: model_tools is not exposed
+  ok   mcp.call: lang_detect returned complete
+  ok   mcp.call.receipt: the tool declares meta but the result carries no receiptId
+  evidence: D:\DEV\dsh-tool-mode\docs\tool-insights\evidence\verify-2026-10-23T06-20\instance-verification.json

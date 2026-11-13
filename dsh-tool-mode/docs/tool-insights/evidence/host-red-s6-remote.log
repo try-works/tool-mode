@@ -1,0 +1,19 @@
+# S6 red — Remote methods absent, then added
+
+The S6 test (`tests/tool-insights-remote.test.ts`) asserts ten `METHOD_SPECS` entries,
+including the five additive methods. Before this slice the spec had five entries
+(`describe`, `installExtension`, `enable`, `disable`, `prepare`) and the committed browser
+chunk embedded exactly those five — so the descriptor assertions
+(`methods.includes('toolSources')`, …) failed.
+
+This red was established by the pre-change state rather than a captured run: the spec was
+edited before the test file was written (the client task already consumed the contract).
+Static proof of the red state, reproducible with:
+
+    git diff -- packages/dsh-tool-mode/remote/spec.mjs
+
+shows only additions to `METHOD_SPECS`. `npm run check:remote` still reports the committed
+chunk stale because the regeneration write is blocked by the sandbox (see
+`host-red-build-remote-blocked.log`).
+
+Green: `node --experimental-transform-types tests/tool-insights-remote.test.ts` → 5/5.

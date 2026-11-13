@@ -1,0 +1,39 @@
+# Build output and dependencies
+node_modules/
+lib/
+*.tsbuildinfo
+
+# scripts/lib holds dependency-free SOURCE libraries used by the harnesses
+# (e.g. the extension matrix), not build output. The generic `lib/` rule above
+# would otherwise hide them from git, so they are un-ignored explicitly.
+!scripts/lib/
+
+# Local spike used to probe upstream SDK behaviour; not part of the deliverable.
+spike/
+spike-mcp/
+
+# Raw upstream captures are an input to the research, not the research itself.
+research/raw/
+research/text/
+
+# recursive-mode runtime state
+/.recursive/config/recursive-router-discovered.json
+
+# Session/tooling logs and scratch captures: never part of the deliverable.
+/.verify-*.log
+/.review-*.log
+/host-*.log
+/.paper/
+/.tmp-real-corpus/
+/launch-video/
+docs/tool-mode/qualification/.voz-wavs-*/
+/.install-plugin.log
+
+/.agent-scratch/
+
+# Machine-specific CODE-09 evidence (regenerate with scripts/record-confinement-evidence.mjs)
+verification/ptc-confinement-evidence.json
+.dsh-confinement-tmp/
+
+.tmp-stageshow/
+

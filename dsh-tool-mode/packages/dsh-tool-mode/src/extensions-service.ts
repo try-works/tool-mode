@@ -1,0 +1,3266 @@
+/**
+ * The HOST half of the extension-management surface (Settings → Model as Tool).
+ *
+ * This module implements {@link ModelToolsRemote} from `extensions-api.ts` and is
+ * deliberately WIRE-AGNOSTIC: it imports `node:*` and the published SDK, never DSH,
+ * never the client page, and never the generated Typert artifact. That boundary is
+ * what lets the same implementation be exercised by unit tests without a Context,
+ * by the plugin at `apply`, and by whatever transports the browser half uses.
+ *
+ * The governing rule is TRUTHFULNESS over convenience, because every field here is
+ * shown to an operator who is about to change what code their host runs:
+ *
+ * - `store` is `null` when no extension store is configured, rather than an empty
+ *   string that a caller could mistake for a mounted store.
+ * - `writable` is derived from a real access check on the store path and from the
+ *   store lock being readable, not assumed from "the config mentions a directory".
+ * - `installed` means a record exists in the store lock; `active` means the
+ *   persisted observation was made by THIS process; `integrity` is `unknown` when
+ *   the installed bytes could not be digested, never `unchanged` by default.
+ * - `reason` names the FIRST condition that prevents install/activation, so a UI
+ *   can show why an extension is not usable instead of guessing.
+ *
+ * INSTALLATION IS NOT ACTIVATION (EXT-07): `install` returns `active: false` and
+ * never calls the lifecycle. `enable`/`disable` are the only activation paths.
+ *
+ * FIRST-PARTY DEPENDENCIES (EXT-09): a source-directory install also supplies the
+ * SDK's dependency graph (`extension-dependencies.ts`), which resolves every
+ * declared runtime dependency from the host's own installed tree and refuses the
+ * install by name when one is missing. With the operator's preinstalled-content
+ * gate on, the resolved directory is copied by the SDK and recorded with
+ * `provenance: 'preinstalled'`; with it off (the default), the dependency is served
+ * as verified archive bytes and EXT-10's lifecycle-script refusal applies.
+ *
+ * PERSISTENCE, STATED HONESTLY:
+ *
+ * - Activation intent is durable through the SDK: `ExtensionLifecycle.activate`
+ *   writes `desiredActivation: 'active'` and `deactivate` writes `'inactive'` into
+ *   the profile state document, so a restart follows the operator's last toggle
+ *   even when nothing else persists.
+ * - The operator's `disabledExtensions` list is a CONFIG value (Settings form). This
+ *   service cannot write plugin config from the host: no config writer is injected.
+ *   It therefore keeps this process's toggles as an in-memory override, seeded from
+ *   `disabledExtensions`, and exposes `persistDisabledExtensions` as the seam a host
+ *   with a config writer supplies. Without that seam, a toggle is truthfully
+ *   reported as affecting this process only, and a `disable` survives restart via
+ *   the SDK's durable `desiredActivation: 'inactive'` while an `enable` of an id
+ *   still listed in config will be filtered by the restore gate on the next load.
+ *
+ * @module @try-works/dsh-tool-mode/extensions-service
+ */
+
+import { accessSync, constants, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join, resolve } from 'node:path'
+import {
+  createTarGzipArchiveSource,
+  digestInstalledContent,
+  discoverExtension,
+  ExtensionStore,
+  installDependencyGraph,
+  ManagementError,
+  stagedInstall,
+  stagedInstallFromDirectory,
+  type ExtensionLifecycle,
+  type ExtensionState as SdkExtensionState,
+  type InstallDependencyGraph,
+  type InstalledRecord,
+  type LifecycleAuditEvent,
+  type LockedDependency,
+} from '@try-works/tool-mode-extension-sdk'
+import type {
+  ExtensionInstallResult,
+  ExtensionModelReadiness,
+  ExtensionPreparationPlan,
+  ExtensionPrepareResult,
+  ExtensionReadinessMap,
+  ExtensionRequirement,
+  ExtensionRequirementAction,
+  ExtensionRequirementKind,
+  ExtensionState,
+  ExtensionToggleResult,
+  ExtensionToolToggleResult,
+  ExtensionUninstallResult,
+  ExtensionsDescribeResult,
+  ModelToolsRemote,
+} from './extensions-api.ts'
+import {
+  type ApprovalDecision,
+  type ApprovalRecord,
+  type ApprovalRequestInput,
+  type ApprovalStore,
+} from './approval.ts'
+import {
+  createFirstPartyDependencyGraph,
+  createRegistryDependencyGraph,
+  createRegistrySession,
+  DEFAULT_REGISTRY_URL,
+  MAX_DEPENDENCY_ARCHIVE_BYTES,
+  RegistryError,
+  resolveFirstPartyDependency,
+  satisfiesRegistryRange,
+  type RegistryErrorCode,
+} from './extension-dependencies.ts'
+import type { AcquisitionSource } from './asset-acquisition.ts'
+import { createHttpSource } from './http-acquisition.ts'
+import {
+  assetSourceUnavailableReason,
+  firstUnavailableAssetSource,
+  type PreparationOutcome,
+  type PrepareAssetsSurface,
+} from './prepared-assets.ts'
+import type { PreparationPlan } from './deployment-coordinator.ts'
+
+/**
+ * The default dependency-graph depth bound for BOTH install arms (task-116).
+ *
+ * The SDK default (3) is too shallow for real trees. Preinstalled packages are
+ * NOT leaves for graph purposes: after copying one, the SDK reads that package's
+ * own declared dependencies and enqueues them one level deeper, so a host-tree
+ * graph is walked exactly like a registry graph. The real onnxruntime-node tree
+ * reaches `define-data-property` at depth 4 and
+ * `onnxruntime-node -> global-agent -> globalthis -> define-properties ->
+ * has-property-descriptors -> es-define-property` at depth 5, so the bound is a
+ * property of the graph, not of the arm that supplied its bytes. The package
+ * count is a separate bound (see {@link DEFAULT_REGISTRY_DEPENDENCY_PACKAGES}).
+ */
+export const DEFAULT_REGISTRY_DEPENDENCY_DEPTH = 12
+
+/**
+ * Operator identity recorded when a mutation requests an approval without one.
+ *
+ * The management service has no authenticated-operator argument on `enable`; naming
+ * the requester honestly as the host is better than inventing a person, and an
+ * explicit caller-supplied operator still wins (the request API takes one).
+ */
+const HOST_APPROVAL_OPERATOR = 'host'
+
+/**
+ * The default dependency-graph PACKAGE bound for BOTH install arms.
+ *
+ * The SDK default (64) is too small for the real engine trees: the
+ * `@huggingface/transformers` route (with sharp, protobufjs and the platform
+ * binaries) and both minilm packages exceeded it, refusing an install that every
+ * other bound would have admitted. Raising the cap does not loosen resolution —
+ * every node still has to come from operator-completed host content or verified
+ * registry bytes — and the depth bound still shapes the graph.
+ */
+export const DEFAULT_REGISTRY_DEPENDENCY_PACKAGES = 256
+
+/**
+ * Exact dependency versions whose published tarballs ship their runtime
+ * artifacts and whose lifecycle scripts are not needed to run.
+ *
+ * These are admitted on the registry arm WITHOUT executing a lifecycle script.
+ * The package bytes are still integrity-verified and the package.json is left
+ * untouched. A version not listed here keeps EXT-10's refusal. This is a
+ * deliberately narrow prebuilt-content allowlist, not a script-execution gate.
+ */
+export const DEFAULT_TRUSTED_PREBUILT_DEPENDENCIES: readonly string[] = Object.freeze([
+  '@desert-ant-labs/tongue@3.6.0',
+  '@bjorn3/browser_wasi_shim@0.3.0',
+  'onnxruntime-node@1.21.0',
+  'onnxruntime-node@1.30.0',
+  'onnxruntime-common@1.30.0',
+  'onnxruntime-common@1.21.0',
+  'onnxruntime-web@1.31.0-dev.20260914-8d85527a0',
+  'tar@7.5.22',
+  '@isaacs/fs-minipass@4.0.1',
+  'chownr@3.0.0',
+  'minipass@7.1.3',
+  'minizlib@3.1.0',
+  'yallist@5.0.0',
+  'sharp@0.34.5',
+])
+
+/**
+ * The readiness values that permit activation (the SDK's callable set).
+ *
+ * `prepared-cold` is callable: the model loads on first use. Every other value is
+ * a concrete blocker this service names in a row reason and in the enable refusal.
+ */
+const CALLABLE_READINESS: ReadonlySet<string> = new Set<string>([
+  'prepared-cold',
+  'loading',
+  'ready',
+  'busy',
+])
+
+/**
+ * The order an unmet requirement is surfaced in (row reason and enable preflight).
+ *
+ * Integrity and platform first (nothing the operator can do in the page will clear
+ * them), then what the operator CAN act on: dependencies, the harness model, the
+ * executable approval, model assets, activation cleanup; store/source last because
+ * an installed row already satisfied them.
+ */
+const REQUIREMENT_PRIORITY: readonly ExtensionRequirementKind[] = [
+  'integrity',
+  'platform',
+  'dependencies',
+  'runtime',
+  'harness-model',
+  'executable',
+  'assets',
+  'activation',
+  'store',
+  'source',
+]
+
+/**
+ * Whether one UNMET requirement actually prevents this row from reaching active.
+ *
+ * A not-yet-installed row is blocked only by facts that would stop the INSTALL or
+ * would make the eventual activation impossible (store/source, dependencies,
+ * platform, harness model). Readiness, executable approval, integrity and
+ * activation state describe installed bytes, so they are not meaningful before an
+ * install and do not by themselves make the Install button impossible.
+ * @param installed - whether the store holds an installed copy.
+ * @param requirement - the requirement to classify.
+ * @returns whether the unmet requirement blocks the row.
+ */
+function blocksRow(installed: boolean, requirement: ExtensionRequirement): boolean {
+  if (requirement.satisfied) return false
+  if (installed) return true
+  return requirement.kind === 'store'
+    || requirement.kind === 'source'
+    || requirement.kind === 'dependencies'
+    || requirement.kind === 'platform'
+    || requirement.kind === 'harness-model'
+    || requirement.kind === 'runtime'
+}
+
+/** Build one requirement value. */
+function requirement(
+  kind: ExtensionRequirementKind,
+  satisfied: boolean,
+  reason: string,
+  action: ExtensionRequirementAction = 'none',
+): ExtensionRequirement {
+  return { kind, satisfied, reason, action }
+}
+
+/** The highest-priority UNMET requirement that blocks this row, or undefined. */
+function firstBlockingRequirement(
+  requirements: readonly ExtensionRequirement[],
+  installed: boolean,
+): ExtensionRequirement | undefined {
+  for (const kind of REQUIREMENT_PRIORITY) {
+    const found = requirements.find(candidate => candidate.kind === kind)
+    if (found !== undefined && blocksRow(installed, found)) return found
+  }
+  return undefined
+}
+
+/**
+ * Record that a restart refused an installed extension because its bytes changed.
+ *
+ * A restore that only LOGS the integrity failure leaves the previous profile row
+ * saying `active`, reserving the extension's tool names while nothing is published.
+ * This writes the truthful state first: failed, no tools.
+ */
+export function recordRestoreIntegrityFailure(store: ExtensionStore, extensionId: string): void {
+  const states = store.readProfileState('default').value
+  store.writeProfileState('default', states.map(state =>
+    state.extensionId === extensionId
+      ? { ...state, observedActivation: 'failed' as const, tools: [] }
+      : state))
+}
+
+/** What the host can report about the shared harness model provider (declarative extensions). */
+export interface HarnessProviderStatus {
+  /** Whether a provider is composed and able to serve declarative extensions. */
+  readonly available: boolean
+  /** Provider identity when available, for the satisfied reason. */
+  readonly provider?: string
+  /** Model identity the provider serves, when known. */
+  readonly model?: string
+  /**
+   * REQUIRED when `available` is false: why not, and the exact remediation.
+   *
+   * Used VERBATIM as the harness-model requirement reason (and the enable preflight
+   * message), so it must be operator-facing and name the configuration that fixes it.
+   */
+  readonly reason?: string
+  /** What clears it; defaults to `config`. */
+  readonly action?: 'config' | 'none'
+}
+
+/** The lifecycle surface this service needs. Narrower than the class, so a test can double it. */
+export type ExtensionActivation = Pick<ExtensionLifecycle, 'stateOf' | 'activate' | 'deactivate' | 'uninstall' | 'setToolEnabled'>
+
+/** The directory installer signature the service delegates to. */
+export type DirectoryInstaller = (options: Parameters<typeof stagedInstallFromDirectory>[0]) => ReturnType<typeof stagedInstallFromDirectory>
+
+/** Every named refusal this service raises. */
+export type ExtensionsServiceErrorCode =
+  /** `install`/`enable`/`disable` need `config.extensionStore`; it is not configured. */
+  | 'extension-store-unconfigured'
+  /** A live-host uninstall of an ACTIVE extension must name `deactivate` explicitly. */
+  | 'extension-in-use'
+  /** `install` had no explicit source and `config.extensionSourceDir` is not configured. */
+  | 'extension-source-unconfigured'
+  /** The resolved source directory does not exist, or is not a directory. */
+  | 'extension-source-missing'
+  /** The requested id is not a usable package identity (a path could escape the source root). */
+  | 'extension-id-invalid'
+  /** The source package's own name is not the id that was requested. */
+  | 'extension-source-mismatch'
+  /** The source directory does not contain a discoverable extension package. */
+  | 'extension-source-invalid'
+  /** Source-directory installs are developer mode and must be allowed by configuration. */
+  | 'extension-source-directories-not-allowed'
+  /** The integrity digest of the source or the installed copy could not be computed. */
+  | 'extension-digest-unavailable'
+  /** The SDK installer refused or failed; its own named error is carried in the message. */
+  | 'extension-install-failed'
+  /** A declared runtime dependency could not be resolved, verified or materialized. */
+  | 'extension-dependency-unsatisfied'
+  /** The extension has no installed record in the store, so it cannot be activated. */
+  | 'extension-not-installed'
+  /** The store lock or the profile state document is unreadable, so activation state cannot be trusted. */
+  | 'extension-store-unreadable'
+  /** The host mounted no lifecycle (no store at load), so activation state cannot change. */
+  | 'extension-activation-unavailable'
+  /** `activate` refused or failed; the SDK's named error is carried in the message. */
+  | 'extension-activation-failed'
+  /** Activation is refused because a declared model's assets were never prepared. */
+  | 'extension-preparation-required'
+  /** The host mounted no prepared-assets surface, so assets cannot be prepared here. */
+  | 'extension-preparation-unavailable'
+  /** The preparation plan could not be resolved or its readiness could not be recorded. */
+  | 'extension-preparation-failed'
+  /** A prerequisite the deployment cannot satisfy blocks activation before any lifecycle call. */
+  | 'extension-requirement-unmet'
+  /** The extension's optional tool runtime is not installed, so its tools cannot load. */
+  | 'extension-runtime-unavailable'
+  /** The asset lock declares no transferable location; preparation is not possible here. */
+  | 'extension-asset-source-unavailable'
+  /** Registry mode was selected but no registry URL is configured. */
+  | 'extension-registry-unconfigured'
+  /** The registry has no such package, version, or dist-tag (HTTP 404 / no matching version). */
+  | 'extension-registry-not-found'
+  /** The registry metadata has no sha512 `dist.integrity`; unverified bytes are never installed. */
+  | 'extension-registry-integrity-missing'
+  /** The registry metadata or tarball URL does not have the shape this host can verify. */
+  | 'extension-registry-invalid-metadata'
+  /** The tarball could not be downloaded, or exceeds the configured byte cap. */
+  | 'extension-registry-fetch-failed'
+  /** Transport failure or 5xx: the registry did not answer usefully. */
+  | 'extension-registry-unavailable'
+  /** The fetched tarball does not hash to the registry-declared sha512. */
+  | 'extension-registry-integrity-mismatch'
+  /** A URL source must carry a pinned `#sha512-...` integrity fragment. */
+  | 'extension-url-integrity-required'
+  /** The URL tarball could not be fetched, redirected safely, or stayed within bounds. */
+  | 'extension-url-fetch-failed'
+  /** The URL tarball does not hash to the pinned fragment. */
+  | 'extension-url-integrity-mismatch'
+  /** `deactivate` refused or failed; the SDK's named error is carried in the message. */
+  | 'extension-deactivation-failed'
+  /** The host's disabled-list writer rejected the new list after the action landed. */
+  | 'extension-override-persist-failed'
+  /** SEC-09: the mutation needs an explicit operator approval (requested, approved and committed). */
+  | 'extension-approval-required'
+
+/**
+ * A named refusal from the extension-management surface.
+ *
+ * The `code` is stable and machine-readable; the message is operator-facing and
+ * names the concrete condition (path, SDK code, or identity) rather than a generic
+ * "failed", because the Settings page shows it verbatim.
+ */
+export class ExtensionsServiceError extends Error {
+  override readonly name = 'ExtensionsServiceError'
+  readonly code: ExtensionsServiceErrorCode
+
+  constructor(code: ExtensionsServiceErrorCode, message: string, options?: ErrorOptions) {
+    super(message, options)
+    this.code = code
+  }
+}
+
+/** The host's disabled-list store. `list` is read live; `set` is called after a toggle. */
+export interface ExtensionsServiceOptions {
+  /** `config.extensionStore`; empty means no extension store is configured. */
+  readonly storeDir?: string
+  /**
+   * `config.extensionSourceDir`: the directory that holds first-party package
+   * checkouts, one directory per package. Empty means no source directory.
+   */
+  readonly sourceDir?: string
+  /**
+   * `config.extensions.allowSourceDirectories`: the explicit developer-mode gate.
+   * Absent/false refuses every directory install with a named error.
+   */
+  readonly allowSourceDirectories?: boolean
+  /** The lifecycle profile; defaults to `default`, the profile the host restores. */
+  readonly profile?: string
+  /** Read `config.disabledExtensions` live. */
+  readonly disabledExtensions?: () => readonly string[]
+  /**
+   * Persist the effective disabled list. The host's implementation must arrange for
+   * `disabledExtensions()` to return the same list afterwards; a rejection is
+   * surfaced as `extension-override-persist-failed`.
+   */
+  readonly persistDisabledExtensions?: (ids: readonly string[]) => void | Promise<void>
+  /**
+   * The mounted lifecycle, read lazily. Absent means the host mounted none, and
+   * `enable`/`disable` refuse with `extension-activation-unavailable` instead of
+   * pretending the durable state changed.
+   */
+  readonly lifecycle?: () => ExtensionActivation | undefined
+  /**
+   * SEC-09: the approval state machine, read lazily.
+   *
+   * When mounted, a management-sensitive mutation (currently extension ACTIVATION)
+   * requires an explicit operator decision: `enable` records a PENDING request and
+   * refuses, and the mutation happens only through `commitApproval`, which consumes
+   * the approval exactly once. Absent means the composition carries an operator
+   * pre-approval path and the direct calls keep their existing behavior — a
+   * documented compatibility path, not a silent bypass: a host that mounts this seam
+   * cannot mutate without a committed approval.
+   */
+  readonly approvals?: () => ApprovalStore | undefined
+  /**
+   * Why the startup asset walk could not rebuild an extension's prepared handles, if
+   * it could not. The host writes this from its restore pass; the row must not show
+   * "needs its model assets prepared" with no explanation when the REAL reason is a
+   * cache file that is absent or a different size. Absent means the walk succeeded or
+   * never ran for that extension.
+   */
+  readonly assetRestoreDiagnostic?: (extensionId: string) => string | undefined
+  /** Declare that this host cannot write the store (read-only mount). */
+  readonly readOnly?: boolean
+  /** Receive install/prepare lifecycle outcomes (EXT-35); activate/deactivate/uninstall come from the SDK. */
+  readonly onAudit?: (event: LifecycleAuditEvent) => void
+  /**
+   * How an install without an explicit source directory is sourced.
+   *
+   * - `registry` (and `auto`, the default) resolve the package from the npm registry.
+   * - `directory` keeps the developer-mode source-directory path.
+   * - `auto` additionally falls back to the directory ONLY for a TRANSPORT-level
+   *   registry failure (unreachable/timeout/5xx) and only when
+   *   `allowSourceDirectories` is on; a package-level refusal (404, missing
+   *   integrity, bad tarball, digest mismatch) is always named and never retried
+   *   against a local directory.
+   */
+  readonly installSource?: 'registry' | 'directory' | 'auto'
+  /** The npm registry base URL; defaults to the public npm registry. */
+  readonly registryUrl?: string
+  /** Hard cap on one registry package tarball; defaults to the SDK archive bound (256 MiB). */
+  readonly registryTarballMaxBytes?: number
+  /** Packument/metadata timeout in ms. Defaults to 30 s; slow registries may raise it. */
+  readonly registryMetadataTimeoutMs?: number
+  /**
+   * IDLE timeout for one registry tarball download, in ms; defaults to 10 minutes.
+   *
+   * Separate from the short metadata timeout: onnxruntime-node is hundreds of MB,
+   * and a moving transfer must not be aborted by the packument budget. Aborts only
+   * when NO bytes arrive for this long; the byte cap remains the real bound.
+   */
+  readonly registryTarballTimeoutMs?: number
+  /**
+   * Dependency-graph depth bound for BOTH install arms; defaults to
+   * {@link DEFAULT_REGISTRY_DEPENDENCY_DEPTH} (12). Configurable because real
+   * dependency trees vary; a refusal names the level and the package. The name is
+   * historical: the source-directory arm needs the bound too, because the SDK
+   * walks a preinstalled package's declared dependencies exactly like registry
+   * bytes.
+   */
+  readonly registryDependencyDepth?: number
+  /**
+   * Dependency-graph PACKAGE bound for BOTH install arms; defaults to
+   * {@link DEFAULT_REGISTRY_DEPENDENCY_PACKAGES} (256). The depth bound decides
+   * how deep the graph may go; this decides how WIDE it may become.
+   */
+  readonly registryDependencyPackages?: number
+  /** INTERNAL TEST SEAM: the directory installer, defaulting to the SDK's staged path. */
+  readonly installDirectory?: DirectoryInstaller
+  /** INTERNAL TEST SEAM: the content digest, defaulting to the SDK's installed-content digest. */
+  readonly digestContent?: (directory: string) => string
+  /**
+   * INTERNAL TEST SEAM: the dependency graph for a first-party source checkout.
+   *
+   * The default resolves each declared dependency from the host's own installed
+   * tree (`extension-dependencies.ts`) and refuses the install, by name, when one
+   * is not installed or is inadmissible. The graph is part of the same
+   * developer-mode source-directory gate; it is never consulted for anything else.
+   */
+  readonly dependencyGraph?: (sourcePackageDir: string) => InstallDependencyGraph
+  /**
+   * Operator gate for PREINSTALLED dependency content (task-84); DEFAULT OFF.
+   *
+   * When on, a dependency resolved from the host's installed tree is copied by the
+   * SDK into the extension's own install directory and recorded with
+   * `provenance: 'preinstalled'` — the content arrived from an operator-completed
+   * install and this installer ran no lifecycle script. When off, the bytes arm
+   * applies and EXT-10's script refusal is unchanged. Requires
+   * {@link ExtensionsServiceOptions.preinstalledDependenciesRoot}.
+   */
+  readonly allowPreinstalledDependencies?: boolean
+  /** The operator-configured root preinstalled dependency directories must live under. */
+  readonly preinstalledDependenciesRoot?: string
+  /**
+   * Exact `name@version` packages whose published tarball ships prebuilt runtime
+   * artifacts. Their lifecycle-script declarations are admitted but NEVER run.
+   * Defaults to {@link DEFAULT_TRUSTED_PREBUILT_DEPENDENCIES}; an empty array
+   * restores the strict EXT-10 refusal for every package.
+   */
+  readonly trustedPrebuiltDependencies?: readonly string[]
+  /**
+   * The mounted prepared-assets surface, read lazily (the plugin constructs it in
+   * `apply` after this service). Absent means the host mounted no asset surface,
+   * and `prepare` refuses with `extension-preparation-unavailable`.
+   */
+  readonly prepareSurface?: () => PrepareAssetsSurface | undefined
+  /**
+   * The acquisition source a preparation uses. Defaults to the real ranged HTTP
+   * source; a test injects a local source and the suite therefore performs no
+   * network.
+   */
+  readonly preparationSource?: () => AcquisitionSource
+  /**
+   * Read the operator's STANDING RES-02 approval for executable assets.
+   *
+   * DEFAULT FALSE. When false, `prepare` passes `allowExecutable: false` and the
+   * prepared-assets registry returns its exact refusal without acquiring anything.
+   * When the operator explicitly configured the approval, that is the standing
+   * consent for the digest-pinned plans this host resolves; the management channel
+   * (`extensions-prepare`) still takes its own PER-CALL flag and is unaffected.
+   */
+  readonly allowExecutablePreparation?: () => boolean
+  /**
+   * Read the host's harness-model provider status (task-93 seam).
+   *
+   * Consulted only for `execution.kind === 'declarative'` extensions, which are
+   * served by the host's harness broker and therefore need a composed LlmProvider.
+   * Absent means the host cannot answer; the harness-model requirement is then
+   * reported unsatisfied with an honest "provider status unknown" reason.
+   */
+  readonly harnessProviderStatus?: () => HarnessProviderStatus | undefined
+  /**
+   * Notified when this service changes an extension's activation intent.
+   *
+   * The host's contribution registrar refuses to publish a tool for an extension
+   * absent from its activated set, so a runtime `enable` must admit the id BEFORE
+   * the lifecycle publishes and revoke it when activation fails or the extension is
+   * disabled. The host implementations may reconcile against the lifecycle state.
+   */
+  readonly onActivationChange?: (extensionId: string, active: boolean) => void
+}
+
+/** One first-party package found under the configured source directory. */
+interface SourcePackage {
+  readonly id: string
+  readonly version: string | null
+  readonly tools: readonly string[]
+  /** Everything the requirement model reads from the checkout. */
+  readonly facts: ExtensionFacts
+  /** Set when the package exists but cannot be used as an extension. */
+  readonly problem: string | null
+}
+
+/** An installed copy's content-verification verdict. */
+interface IntegrityView {
+  readonly integrity: ExtensionState['integrity']
+  /** The diagnostic text when the verdict is not `unchanged`. */
+  readonly reason: string | null
+}
+
+/** Everything the requirement model needs about one row, already read by the caller. */
+interface RequirementInput {  readonly id: string
+  readonly installed: boolean
+  readonly record: InstalledRecord | undefined
+  readonly state: SdkExtensionState | undefined
+  readonly integrity: ExtensionState['integrity']
+  readonly integrityReason: string | null
+  readonly storeDir: string
+  readonly sourceDir: string
+  readonly lockCorrupt: boolean
+  readonly lockDiagnostic: string | null
+  readonly profileStates: ProfileStateView
+  readonly sourcePackage: SourcePackage | undefined
+  readonly facts: ExtensionFacts
+}
+
+/**
+ * The directory a first-party checkout for one package identity occupies.
+ *
+ * A source directory holds PACKAGE DIRECTORIES, not scoped directories: the
+ * workspace layout is `packages/extension-laya`, whose package name is
+ * `@try-works/extension-laya`. The scope is therefore dropped and the final path
+ * segment is used, which is the only mapping that requires no registry lookup.
+ * @param extensionId - the extension identity, which equals its package name.
+ * @returns the directory name under the configured source directory.
+ */
+export function packageDirFor(extensionId: string): string {
+  const slash = extensionId.lastIndexOf('/')
+  return slash === -1 ? extensionId : extensionId.slice(slash + 1)
+}
+
+/** A package identity: one optional scope segment, then one name segment. */
+const PACKAGE_ID = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/i
+
+/**
+ * Refuse an identity that cannot safely become a path component.
+ *
+ * `packageDirFor` is joined onto the source directory, so an id such as `..` or
+ * one carrying a separator would address a directory outside the configured root.
+ * @param extensionId - the requested id.
+ * @throws ExtensionsServiceError `extension-id-invalid`.
+ */
+function assertUsableId(extensionId: string): void {
+  if (!PACKAGE_ID.test(extensionId)) {
+    throw new ExtensionsServiceError(
+      'extension-id-invalid',
+      `${JSON.stringify(extensionId)} is not a package identity; expected a name like @scope/name`,
+    )
+  }
+}
+
+/** A message from an arbitrary thrown value. */
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+/** One platform a manifest's model deployment declares. */
+interface DeclaredPlatform {
+  readonly os: string
+  readonly arch: string
+  readonly accelerator?: string
+}
+
+/** One runtime dependency the extension's package.json declares. */
+interface DeclaredDependency {
+  readonly name: string
+  readonly range: string
+}
+
+/**
+ * Everything the requirement model reads from one package directory.
+ *
+ * Discovery supplies the manifest facts; package.json supplies the runtime
+ * dependencies. A package whose manifest cannot be read still yields its identity
+ * and dependency declarations when package.json is readable, so a broken checkout
+ * can be reported by name with a reason instead of vanishing.
+ */
+interface ExtensionFacts {
+  readonly packageName: string | null
+  readonly packageVersion: string | null
+  readonly packageDir: string | null
+  readonly tools: readonly string[]
+  readonly models: readonly string[]
+  /** `module` or `declarative`; undefined when the manifest could not be read. */
+  readonly executionKind: string | undefined
+  readonly platforms: readonly DeclaredPlatform[]
+  readonly dependencies: readonly DeclaredDependency[]
+  /** OPTIONAL tool-runtime packages the module's tools load at call time. */
+  readonly optionalDependencies: readonly DeclaredDependency[]
+  /** Set when discovery failed; the requirement/reason text reports it. */
+  readonly problem: string | null
+}
+
+/** Facts for a row with no readable package directory. */
+const EMPTY_FACTS: ExtensionFacts = {
+  packageName: null,
+  packageVersion: null,
+  packageDir: null,
+  tools: [],
+  models: [],
+  executionKind: undefined,
+  platforms: [],
+  dependencies: [],
+  optionalDependencies: [],
+  problem: null,
+}
+
+/** Read one package.json dependency field as name→range pairs; empty when unreadable. */
+function readDeclaredDependencies(
+  packageDir: string | null,
+  field: 'dependencies' | 'optionalDependencies' = 'dependencies',
+): readonly DeclaredDependency[] {
+  if (packageDir === null) return []
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(join(packageDir, 'package.json'), 'utf8'))
+    if (typeof parsed !== 'object' || parsed === null) return []
+    // SAFETY: the value came from JSON.parse and the object guard above; only
+    // string-valued dependency specs are kept, so an unexpected shape yields an
+    // empty declaration rather than a trusted one.
+    const dependencies = (parsed as { readonly [key: string]: unknown })[field]
+    if (typeof dependencies !== 'object' || dependencies === null || Array.isArray(dependencies)) return []
+    const declared: DeclaredDependency[] = []
+    // SAFETY: the dependency container was checked to be a non-array object; only
+    // string entries become declared dependencies, and non-strings are ignored.
+    for (const [name, range] of Object.entries(dependencies as Record<string, unknown>)) {
+      if (typeof range === 'string' && range.length > 0) declared.push({ name, range })
+    }
+    return declared
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Read one package directory's declared facts without importing or executing it.
+ * @param packageDir - the installed copy or first-party checkout.
+ * @returns the facts, with `problem` set (and manifest facts empty) when discovery fails.
+ */
+function readExtensionFacts(packageDir: string): ExtensionFacts {
+  const dependencies = readDeclaredDependencies(packageDir)
+  const optionalDependencies = readDeclaredDependencies(packageDir, 'optionalDependencies')
+  try {
+    const discovery = discoverExtension(packageDir)
+    const manifest = discovery.manifest
+    return {
+      packageName: discovery.packageName,
+      packageVersion: discovery.packageVersion,
+      packageDir,
+      tools: manifest.tools.map(tool => tool.name),
+      models: manifest.models.map(model => model.id),
+      executionKind: manifest.execution.kind,
+      platforms: manifest.models.flatMap(model => model.platforms),
+      dependencies,
+      optionalDependencies,
+      problem: null,
+    }
+  } catch (error) {
+    return {
+      ...EMPTY_FACTS,
+      packageName: null,
+      packageVersion: null,
+      packageDir,
+      dependencies,
+      optionalDependencies,
+      problem: `the package at ${packageDir} is not a usable extension: ${messageOf(error)}`,
+    }
+  }
+}
+
+/** A short human label for one declared platform. */
+function platformLabel(platform: DeclaredPlatform): string {  return `${platform.os}-${platform.arch}${platform.accelerator === undefined ? '' : `-${platform.accelerator}`}`
+}
+
+/**
+ * Whether the host's own platform matches any declared deployment platform.
+ * @param platforms - the manifest's declared platforms.
+ * @returns whether this host can run the declared deployment.
+ */
+function hostPlatformMatches(platforms: readonly DeclaredPlatform[]): boolean {
+  return platforms.some(platform => platform.os === process.platform && platform.arch === process.arch)
+}
+
+/** One optional tool-runtime materialization attempt, recorded beside the store. */
+interface RuntimeDependencyRecord {
+  readonly name: string
+  readonly range: string
+  readonly satisfied: boolean
+  readonly version?: string
+  /** Set when materialization failed: the exact registry/SDK refusal. */
+  readonly error?: string
+}
+
+/** The store-local sidecar holding runtime attempts the LOCK cannot carry. */
+interface RuntimeDependencyDocument {
+  readonly updatedAt: string
+  readonly extensions: Readonly<Record<string, {
+    readonly version: string
+    readonly optional: readonly RuntimeDependencyRecord[]
+  }>>
+}
+
+/** The sidecar filename inside the extension store (host-owned, never inside a package). */
+const RUNTIME_DEPENDENCY_FILE = 'runtime-dependencies.json'
+
+/** Read the store's runtime-dependency sidecar; a missing/corrupt document is empty. */
+function readRuntimeDependencyDocument(storeDir: string): RuntimeDependencyDocument {
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(join(storeDir, RUNTIME_DEPENDENCY_FILE), 'utf8'))
+    if (typeof parsed !== 'object' || parsed === null) return { updatedAt: '', extensions: {} }
+    const extensions = (parsed as { readonly extensions?: unknown }).extensions
+    if (typeof extensions !== 'object' || extensions === null || Array.isArray(extensions)) {
+      return { updatedAt: '', extensions: {} }
+    }
+    // SAFETY: the container was checked to be a non-array object; each entry is
+    // read defensively by the requirement model, and a malformed entry is ignored.
+    return { updatedAt: '', extensions: extensions as RuntimeDependencyDocument['extensions'] }
+  } catch {
+    return { updatedAt: '', extensions: {} }
+  }
+}
+
+/** Merge one extension's runtime attempts into the store sidecar (atomic replace). */
+function writeRuntimeDependencyDocument(
+  storeDir: string,
+  extensionId: string,
+  version: string,
+  optional: readonly RuntimeDependencyRecord[],
+): void {
+  try {
+    const current = readRuntimeDependencyDocument(storeDir)
+    const document: RuntimeDependencyDocument = {
+      updatedAt: new Date().toISOString(),
+      extensions: {
+        ...current.extensions,
+        [extensionId]: { version, optional },
+      },
+    }
+    const target = join(storeDir, RUNTIME_DEPENDENCY_FILE)
+    const temporary = `${target}.${process.pid}.${Date.now().toString(36)}.tmp`
+    writeFileSync(temporary, `${JSON.stringify(document, null, 2)}\n`, 'utf8')
+    rmSync(target, { force: true })
+    cpSync(temporary, target)
+    rmSync(temporary, { force: true })
+  } catch {
+    // Diagnostics only: failing to record an optional-runtime attempt must never
+    // turn a successful install into a failure. The requirement probes the tree.
+  }
+}
+
+/** Read one installed dependency's package.json version, or undefined. */
+function readInstalledDependencyVersion(installPath: string, name: string): string | undefined {  try {
+    const parsed: unknown = JSON.parse(readFileSync(join(installPath, 'node_modules', ...name.split('/'), 'package.json'), 'utf8'))
+    if (typeof parsed !== 'object' || parsed === null) return undefined
+    const version = (parsed as { readonly version?: unknown }).version
+    return typeof version === 'string' ? version : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Atomically REPLACE one installed record in the store lock.
+ *
+ * The SDK's `recordInstall` deliberately refuses an already-recorded identity
+ * (upgrade protection), and it exposes no update call. The host legitimately
+ * changes an installed copy AFTER activation-free materialization (optional tool
+ * runtimes): the recorded content digest must match the bytes the operator now
+ * has, and the lock is the host-owned document that carries it. The replacement is
+ * a same-file atomic rename, so a crash leaves either the old or the new record.
+ * @param storeDir - the configured store.
+ * @param updated - the record to store, keyed by identity and version.
+ * @returns whether the record was found and replaced.
+ */
+function replaceInstalledRecord(storeDir: string, updated: InstalledRecord): boolean {
+  try {
+    const store = new ExtensionStore(storeDir)
+    const lock = store.readLock()
+    if (lock.corrupt) return false
+    const index = lock.value.extensions.findIndex(candidate =>
+      candidate.extensionId === updated.extensionId && candidate.version === updated.version)
+    if (index === -1) return false
+    const extensions = [...lock.value.extensions]
+    extensions[index] = updated
+    const target = store.lockPath
+    const temporary = `${target}.${process.pid}.${Date.now().toString(36)}.tmp`
+    writeFileSync(temporary, `${JSON.stringify({ lockVersion: 1, extensions }, null, 2)}\n`, 'utf8')
+    renameSync(temporary, target)
+    return true
+  } catch {
+    return false
+  }
+}
+
+
+/**
+ * Directories to search for OPERATOR-PREINSTALLED packages, deepest-nested first.
+ *
+ * A preinstalled package is a LEAF: its transitive dependencies already sit in its
+ * OWN `node_modules` (npm nests them when versions conflict), so root-level lookup
+ * alone misses e.g. `@huggingface/transformers/node_modules/onnxruntime-web`. This
+ * enumerates the preinstalled root, each top-level package directory, and (bounded)
+ * their nested package directories; the resolver tries each in order.
+ * @param root - the operator-configured preinstalled root (its `node_modules` is searched).
+ * @param depth - how many nested package levels to enumerate (bounded).
+ * @returns candidate package roots, root first.
+ */
+function preinstalledSearchRoots(root: string, depth = 3): readonly string[] {
+  const candidates = [root]
+  const visit = (nodeModules: string, remaining: number): void => {
+    if (remaining <= 0) return
+    let entries: string[]
+    try {
+      entries = readdirSync(nodeModules)
+    } catch {
+      return
+    }
+    for (const entry of entries) {
+      if (entry.startsWith('.')) continue
+      const entryPath = join(nodeModules, entry)
+      if (entry.startsWith('@')) {
+        let scoped: string[]
+        try {
+          scoped = readdirSync(entryPath)
+        } catch {
+          continue
+        }
+        for (const name of scoped) {
+          const packageDir = join(entryPath, name)
+          candidates.push(packageDir)
+          visit(join(packageDir, 'node_modules'), remaining - 1)
+        }
+        continue
+      }
+      candidates.push(entryPath)
+      visit(join(entryPath, 'node_modules'), remaining - 1)
+    }
+  }
+  visit(join(root, 'node_modules'), depth)
+  return candidates
+}
+
+/**
+ * Every declared deployment whose recorded readiness does not permit activation.
+ *
+ * A deployment with NO recorded readiness is reported as `needs-preparation`
+ * because that is the constant the SDK's lifecycle projects for an undeclared
+ * state (`#readinessOf` defaults every declared model to `needs-preparation`);
+ * reporting anything else would invent a fact the host does not hold.
+ * @param readiness - the persisted readiness map (may be empty).
+ * @param declaredModels - the manifest's model deployment ids.
+ * @returns one operator-facing line per blocker, most actionable phrasing first.
+ */
+function preparationBlockers(
+  readiness: Readonly<Record<string, string>>,
+  declaredModels: readonly string[],
+): string[] {
+  const blockers: string[] = []
+  for (const modelId of declaredModels) {
+    const value = readiness[modelId] ?? 'needs-preparation'
+    if (CALLABLE_READINESS.has(value)) continue
+    if (value === 'needs-preparation') {
+      blockers.push(`${modelId} needs its model assets prepared — run prepare for this extension`)
+    } else if (value === 'preparing') {
+      blockers.push(`${modelId} is still preparing its model assets`)
+    } else if (value === 'unavailable') {
+      blockers.push(`${modelId} is unavailable on this host — its runtime or assets are missing`)
+    } else if (value === 'failed') {
+      blockers.push(`${modelId} failed inspection on this host — repair or reinstall its assets, then prepare again`)
+    } else {
+      blockers.push(`${modelId} is ${value}, which does not permit activation`)
+    }
+  }
+  return blockers
+}
+
+/** Project the SDK/coordinator readiness map onto the wire readiness vocabulary. */
+function readinessView(
+  readiness: Readonly<Record<string, string>>,
+  declaredModels: readonly string[],
+): ExtensionReadinessMap {
+  const view: Record<string, ExtensionModelReadiness> = {}
+  for (const modelId of declaredModels) {
+    const value = readiness[modelId]
+    // SAFETY: a readiness value read from the SDK's state is one of the SDK's
+    // ModelReadiness literals, which is the same union as ExtensionModelReadiness;
+    // an absent entry is projected as its documented default.
+    view[modelId] = value === undefined ? 'needs-preparation' : value as ExtensionModelReadiness
+  }
+  return view
+}
+
+/**
+ * Project the coordinator's plan onto the wire disclosure.
+ *
+ * The digest and identity fields the provider needs stay host-side; the page gets
+ * the bytes, sources, executable flags, totals, terms and revision an operator
+ * approves (the same fields the management channel discloses).
+ * @param plan - the resolved preparation plan.
+ * @returns the wire disclosure.
+ */
+function preparationPlanView(plan: PreparationPlan): ExtensionPreparationPlan {
+  return {
+    modelId: plan.identity.modelId,
+    modelRevision: plan.identity.modelRevision,
+    assets: plan.assets.map(asset => ({
+      assetId: asset.assetId,
+      bytes: asset.bytes,
+      source: asset.source,
+      executable: asset.executable,
+    })),
+    totalBytes: plan.totalBytes,
+    storageBytes: plan.storageBytes,
+    requiresExecutableApproval: plan.requiresExecutableApproval,
+    license: { name: plan.license.name, url: plan.license.url },
+  }
+}
+
+/**
+ * Whether this process is likely able to create or write inside a directory.
+ *
+ * `access(W_OK)` is the strongest check available without performing a write, and
+ * it can still report success on a Windows ACL that later denies one. That gap is
+ * the reason every action names its write failure instead of trusting `writable`.
+ * @param directory - the store directory (it may not exist yet).
+ * @returns whether the nearest existing ancestor is a writable directory.
+ */
+function directoryWritable(directory: string): boolean {
+  try {
+    let candidate = resolve(directory)
+    while (!existsSync(candidate)) {
+      const parent = dirname(candidate)
+      if (parent === candidate) return false
+      candidate = parent
+    }
+    if (!statSync(candidate).isDirectory()) return false
+    accessSync(candidate, constants.W_OK)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** The `readProfileState` result fields this module reads. */
+interface ProfileStateView {
+  readonly byId: ReadonlyMap<string, SdkExtensionState>
+  readonly corrupt: boolean
+  readonly diagnostic: string | null
+}
+
+/**
+ * The SDK lifecycle state for one profile, indexed by extension id.
+ * @param store - the extension store.
+ * @param profile - the lifecycle profile.
+ * @returns the states and whether the document could be trusted.
+ */
+function readProfileStates(store: ExtensionStore, profile: string): ProfileStateView {
+  const result = store.readProfileState(profile)
+  const byId = new Map<string, SdkExtensionState>()
+  for (const state of result.value) byId.set(state.extensionId, state)
+  return { byId, corrupt: result.corrupt, diagnostic: result.diagnostic ?? null }
+}
+
+/**
+ * The activation-failure reason the store recorded for one extension, if any.
+ *
+ * Why this is read structurally rather than through `SdkExtensionState`: the field
+ * is ADDITIVE and OPTIONAL, so a profile document written by an older SDK has no
+ * such key (and must still parse), and a host whose SDK TYPE has not been rebuilt
+ * still receives the value at RUNTIME because the store round-trips the whole
+ * object. Reading it here keeps the row honest in both worlds without inventing a
+ * cause: only a non-blank string is trusted, and anything else — absent, empty,
+ * non-string — falls back to the generic failed-activation text.
+ * @param state - the persisted state for one extension, when the profile has it.
+ * @returns the recorded reason, or undefined when none is recorded.
+ */
+function recordedActivationError(state: SdkExtensionState | undefined): string | undefined {
+  if (state === undefined) return undefined
+  // SAFETY: the persisted document is this module's data boundary. `activationError`
+  // is declared optional on the SDK state and is additive across versions, so the
+  // property is read through an intersection with the SDK type (which keeps the cast
+  // comparable) rather than requiring a rebuilt SDK type; the `typeof` guard below
+  // is what makes the value safe to render.
+  const value = (state as SdkExtensionState & { readonly activationError?: unknown }).activationError
+  return typeof value === 'string' && value.trim().length > 0 ? value : undefined
+}
+
+/** Read a candidate package.json name for a directory whose discovery failed. */
+function declaredPackageName(directory: string): string | undefined {
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8'))
+    if (parsed === null) return undefined
+    // SAFETY: the value was parsed from the package's own package.json, and a
+    // non-string `name` is rejected below rather than trusted. The null guard above
+    // is what keeps the property read total for this boundary.
+    const name = (parsed as { readonly name?: unknown }).name
+    return typeof name === 'string' && PACKAGE_ID.test(name) ? name : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Discover every first-party package under a source directory.
+ *
+ * A directory whose package.json is unreadable is not listed at all: without an
+ * identity there is nothing truthful to name. A directory whose package.json names
+ * a package but whose manifest is unusable is listed WITH the reason, so the
+ * operator can see the broken checkout instead of an unexplained absence.
+ * @param sourceDir - the configured source directory.
+ * @returns packages in directory-name order.
+ */
+function listSourcePackages(sourceDir: string): readonly SourcePackage[] {
+  let entries
+  try {
+    entries = readdirSync(sourceDir, { withFileTypes: true })
+  } catch {
+    return []
+  }
+  const packages: SourcePackage[] = []
+  for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
+    if (!entry.isDirectory()) continue
+    const directory = join(sourceDir, entry.name)
+    const facts = readExtensionFacts(directory)
+    if (facts.packageName !== null && facts.problem === null) {
+      packages.push({
+        id: facts.packageName,
+        version: facts.packageVersion,
+        tools: facts.tools,
+        facts,
+        problem: null,
+      })
+      continue
+    }
+    const id = facts.packageName ?? declaredPackageName(directory)
+    if (id === undefined) continue
+    packages.push({
+      id,
+      version: facts.packageVersion,
+      tools: facts.tools,
+      facts: facts.problem === null
+        ? { ...facts, problem: `the package at ${directory} could not be discovered as an extension` }
+        : facts,
+      problem: facts.problem ?? `the package at ${directory} could not be discovered as an extension`,
+    })
+  }
+  return packages
+}
+
+/**
+ * Select the current installed record for one identity.
+ *
+ * The EXT-30 active-version pointer wins when it names an installed version; a
+ * store without pointers (the pre-update world) uses the last recorded version,
+ * which is the order `recordInstall` appends in.
+ * @param records - every installed record.
+ * @param activeVersions - the EXT-30 pointer map.
+ * @param extensionId - the identity to select.
+ * @returns the selected record, or undefined when nothing is installed for the id.
+ */
+export function selectInstalled(
+  records: readonly InstalledRecord[],
+  activeVersions: Readonly<Record<string, string>>,
+  extensionId: string,
+): InstalledRecord | undefined {
+  const versions = records.filter(record => record.extensionId === extensionId)
+  const newest = versions[versions.length - 1]
+  if (newest === undefined) return undefined
+  const pointedVersion = activeVersions[extensionId]
+  return pointedVersion === undefined
+    ? newest
+    : versions.find(candidate => candidate.version === pointedVersion) ?? newest
+}
+
+/**
+ * The extension-management service: describe, install, enable, disable.
+ *
+ * Construct one per host and share it between the wire transport and any local
+ * surface; it owns the in-process override list and must not be duplicated, or two
+ * instances would report different disabled sets.
+ */
+export class ExtensionsService implements ModelToolsRemote {
+  readonly #options: ExtensionsServiceOptions
+  /**
+   * This process's disabled choices, layered over `config.disabledExtensions`.
+   *
+   * An override lives for the life of the process: a Settings save that rewrites
+   * the config list cannot silently undo a toggle the operator just made here, and
+   * the override is dropped on restart, when the persisted config is read again.
+   */
+  readonly #overrides = new Map<string, boolean>()
+
+  constructor(options: ExtensionsServiceOptions = {}) {
+    this.#options = options
+  }
+
+  /** The configured store as an absolute path, or `''` when unconfigured. */
+  #storeDir(): string {
+    const configured = this.#options.storeDir ?? ''
+    return configured.trim().length === 0 ? '' : resolve(configured)
+  }
+
+  /** The configured source directory as an absolute path, or `''` when unconfigured. */
+  #sourceDir(): string {
+    const configured = this.#options.sourceDir ?? ''
+    return configured.trim().length === 0 ? '' : resolve(configured)
+  }
+
+  /** The lifecycle profile this service reads and writes. */
+  #profile(): string {
+    return this.#options.profile ?? 'default'
+  }
+
+  /** The mounted lifecycle, or undefined when the host mounted none. */
+  #lifecycle(): ExtensionActivation | undefined {
+    return this.#options.lifecycle?.()
+  }
+
+  /** The mounted approval state machine, or undefined when the host mounted none. */
+  #approvals(): ApprovalStore | undefined {
+    return this.#options.approvals?.()
+  }
+
+  /**
+   * Require the approval state machine.
+   *
+   * A request or a commit on a host that mounted none would create a record nothing
+   * can consume, or claim an approval that was never recorded; both are refusals.
+   * @returns the mounted store.
+   * @throws ExtensionsServiceError `extension-approval-required`.
+   */
+  #requireApprovals(): ApprovalStore {
+    const approvals = this.#approvals()
+    if (approvals === undefined) {
+      throw new ExtensionsServiceError(
+        'extension-approval-required',
+        'no approval store is mounted, so a management-sensitive mutation cannot be requested or committed here',
+      )
+    }
+    return approvals
+  }
+
+  /**
+   * Require a configured store.
+   * @throws ExtensionsServiceError `extension-store-unconfigured`.
+   * @returns the absolute store directory.
+   */
+  #requireStoreDir(): string {
+    const storeDir = this.#storeDir()
+    if (storeDir === '') {
+      throw new ExtensionsServiceError(
+        'extension-store-unconfigured',
+        'no extension store is configured (config.extensionStore); install and activation state cannot be read or changed',
+      )
+    }
+    return storeDir
+  }
+
+  /** The disabled set this process reports: configured ids, adjusted by local toggles. */
+  #effectiveDisabled(): Set<string> {
+    const ids = new Set(this.#options.disabledExtensions?.() ?? [])
+    for (const [id, disabled] of this.#overrides) {
+      if (disabled) ids.add(id)
+      else ids.delete(id)
+    }
+    return ids
+  }
+
+  /** Record one toggle in this process. */
+  #rememberDisabled(extensionId: string, disabled: boolean): void {
+    this.#overrides.set(extensionId, disabled)
+  }
+
+  /**
+   * Hand the effective disabled list to the host's writer, when one exists.
+   * @throws ExtensionsServiceError `extension-override-persist-failed` when the
+   *   writer rejects; the caller reports the partial outcome.
+   */
+  async #persistDisabled(): Promise<void> {
+    const persist = this.#options.persistDisabledExtensions
+    if (persist === undefined) return
+    const ids = [...this.#effectiveDisabled()].sort()
+    try {
+      await persist(ids)
+    } catch (error) {
+      throw new ExtensionsServiceError(
+        'extension-override-persist-failed',
+        `the disabled list could not be persisted, so the change applies to this process only: ${messageOf(error)}`,
+        { cause: error },
+      )
+    }
+  }
+
+  /** The content digest, through the test seam when one was supplied. */
+  #digest(directory: string): string {
+    const digest = this.#options.digestContent ?? digestInstalledContent
+    return digest(directory)
+  }
+
+  /**
+   * Select the installed version to operate on, refusing to guess over a corrupt store.
+   *
+   * A corrupt lock or profile document yields no records from the SDK's fail-closed
+   * read, and treating that as "not installed" would tell the operator the package
+   * is absent when the truth is that the store cannot be read.
+   * @param storeDir - the configured store.
+   * @param extensionId - the identity to select.
+   * @returns the current installed record.
+   * @throws ExtensionsServiceError `extension-store-unreadable` or `extension-not-installed`.
+   */
+  #requireInstalled(storeDir: string, extensionId: string): InstalledRecord {
+    const store = new ExtensionStore(storeDir)
+    const lock = store.readLock()
+    if (lock.corrupt) {
+      throw new ExtensionsServiceError(
+        'extension-store-unreadable',
+        `the extension store lock at ${store.lockPath} is unreadable, so ${extensionId} cannot be managed: ${lock.diagnostic ?? 'unknown reason'}`,
+      )
+    }
+    const pointers = store.readProfilePointers(this.#profile())
+    if (pointers.corrupt) {
+      throw new ExtensionsServiceError(
+        'extension-store-unreadable',
+        `the profile activation state for ${this.#profile()} is unreadable, so ${extensionId} cannot be managed: ${pointers.diagnostic ?? 'unknown reason'}`,
+      )
+    }
+    const selection = selectInstalled(lock.value.extensions, pointers.value.activeVersions, extensionId)
+    if (selection === undefined) {
+      throw new ExtensionsServiceError(
+        'extension-not-installed',
+        `${extensionId} has no installed record in ${storeDir}; install it before changing its activation state`,
+      )
+    }
+    return selection
+  }
+  /** The directory installer, through the test seam when one was supplied. */
+  #install(options: Parameters<typeof stagedInstallFromDirectory>[0]): ReturnType<typeof stagedInstallFromDirectory> {
+    const install = this.#options.installDirectory ?? stagedInstallFromDirectory
+    return install(options)
+  }
+
+  /**
+   * The dependency graph a first-party source install resolves against.
+   *
+   * The SDK calls it only when the package declares runtime dependencies; the
+   * default graph resolves each one from the host's own installed tree and refuses
+   * by name when it cannot. Constructing it is cheap and performs no I/O.
+   *
+   * DEPTH: the same bound as the registry arm (task-116). The SDK checks
+   * `entry.depth` for EVERY materialized dependency, and a preinstalled copy is not
+   * a leaf: after copying it the SDK reads that package's own declared
+   * dependencies and enqueues them one level deeper. Omitting maxDepth therefore
+   * inherits the SDK's 3-level default and refuses the real onnxruntime-node tree,
+   * whose first over-depth entry is `define-data-property` at depth 4 (the deepest
+   * is `es-define-property` at depth 5). The package bound
+   * ({@link DEFAULT_REGISTRY_DEPENDENCY_PACKAGES}) caps the graph independently.
+   * @param sourcePackageDir - the checkout being installed.
+   * @returns the graph the SDK's directory installer consumes.
+   */
+  #dependencyGraph(sourcePackageDir: string): InstallDependencyGraph {
+    const supplied = this.#options.dependencyGraph
+    if (supplied !== undefined) return supplied(sourcePackageDir)
+    const root = this.#options.preinstalledDependenciesRoot
+    const depth = this.#options.registryDependencyDepth ?? DEFAULT_REGISTRY_DEPENDENCY_DEPTH
+    const packages = this.#options.registryDependencyPackages ?? DEFAULT_REGISTRY_DEPENDENCY_PACKAGES
+    const base = {
+      sourcePackageDir,
+      allowPreinstalled: this.#options.allowPreinstalledDependencies === true,
+      trustedPrebuiltDependencies: this.#options.trustedPrebuiltDependencies ?? DEFAULT_TRUSTED_PREBUILT_DEPENDENCIES,
+      maxDepth: depth,
+      maxPackages: packages,
+    }
+    return (root === undefined
+      ? createFirstPartyDependencyGraph(base)
+      : createFirstPartyDependencyGraph({ ...base, preinstalledRoot: root })).graph
+  }
+
+  /**
+   * Verify an installed copy's content digest.
+   * @param storeDir - the configured store.
+   * @param record - the installed record, when there is one.
+   * @returns the integrity verdict plus the diagnostic text when it is not unchanged.
+   */
+  #integrityOf(
+    storeDir: string,
+    record: InstalledRecord | undefined,
+  ): IntegrityView {
+    if (record === undefined || storeDir === '') return { integrity: 'unknown', reason: null }
+    try {
+      const verdict = new ExtensionStore(storeDir).verifyUnchanged(record)
+      return {
+        integrity: verdict.unchanged ? 'unchanged' : 'changed',
+        reason: verdict.unchanged
+          ? null
+          : `the installed content is not the content that was recorded: ${verdict.diagnostic ?? 'it changed on disk after installation'}`,
+      }
+    } catch (error) {
+      return {
+        integrity: 'unknown',
+        reason: `the installed content could not be digested, so its integrity is unknown: ${messageOf(error)}`,
+      }
+    }
+  }
+
+  /**
+   * Compute EVERY prerequisite this deployment checked, satisfied or not.
+   *
+   * The list is the answer to "why can't I enable this?" BEFORE an enable is
+   * attempted: each unmet requirement names the exact fact and (when one exists)
+   * the action that clears it. Nothing here executes extension code; the only I/O
+   * is the store read the caller already performed, discovery of the package
+   * directory, a host-tree dependency walk, and the preparation PLAN (not an
+   * acquisition) when an executable approval might be pending.
+   * @param input - the row's already-read facts.
+   * @returns the requirements in display order (store, source, dependencies,
+   *   platform, integrity, harness-model, executable, assets, activation).
+   */
+  #computeRequirements(input: RequirementInput): readonly ExtensionRequirement[] {
+    const requirements: ExtensionRequirement[] = []
+
+    // STORE: configured and readable. Writability is a surface property the page
+    // already receives as `writable`; a read-only mount still answers reads.
+    if (input.storeDir === '') {
+      requirements.push(requirement('store', false, 'the extension store is not configured (config.extensionStore)', 'config'))
+    } else if (input.lockCorrupt) {
+      requirements.push(requirement(
+        'store', false,
+        `the extension store lock is unreadable, so no installed extension can be trusted: ${input.lockDiagnostic ?? 'unknown reason'}`,
+        'config',
+      ))
+    } else if (input.profileStates.corrupt) {
+      requirements.push(requirement(
+        'store', false,
+        `the profile activation state is unreadable, so the host restores nothing: ${input.profileStates.diagnostic ?? 'unknown reason'}`,
+        'config',
+      ))
+    } else {
+      requirements.push(requirement('store', true, `the extension store at ${input.storeDir} is configured and readable`))
+    }
+
+    // SOURCE: where an install would get the bytes. The registry route is preferred
+    // by `auto`; the directory route (developer mode) is named when it applies.
+    if (input.installed) {
+      requirements.push(requirement(
+        'source', true,
+        `the installed copy is the source of record (version ${input.record?.version ?? 'unknown'})`,
+      ))
+    } else {
+      const installSource = this.#options.installSource ?? 'auto'
+      const registryUrl = this.#registryBaseUrl()
+      const directoryRoute = input.sourceDir !== ''
+        && input.sourcePackage !== undefined
+        && input.sourcePackage.problem === null
+        && this.#options.allowSourceDirectories === true
+      const registryRoute = installSource !== 'directory' && registryUrl !== ''
+      if (registryRoute) {
+        requirements.push(requirement(
+          'source', true,
+          `the npm registry ${registryUrl} can supply ${input.id}@latest, resolved and sha512-verified at install time`
+            + (installSource === 'auto' && directoryRoute
+              ? '; a directory fallback is available if the registry is unreachable'
+              : ''),
+          'install',
+        ))
+      } else if (installSource === 'registry') {
+        requirements.push(requirement(
+          'source', false,
+          'no npm registry is configured (config.extensionRegistry), and registry-only installs are selected (config.extensionInstallSource)',
+          'config',
+        ))
+      } else if (input.sourcePackage === undefined) {
+        requirements.push(requirement(
+          'source', false,
+          input.sourceDir === ''
+            ? 'not installed, and no first-party source directory is configured (config.extensionSourceDir)'
+            : `no first-party package with this identity exists under ${input.sourceDir}`,
+          input.sourceDir === '' ? 'config' : 'none',
+        ))
+      } else if (input.sourcePackage.problem !== null) {
+        requirements.push(requirement('source', false, input.sourcePackage.problem, 'none'))
+      } else if (this.#options.allowSourceDirectories !== true) {
+        requirements.push(requirement(
+          'source', false,
+          'installing from a source directory is disabled by configuration (extensions.allowSourceDirectories)',
+          'config',
+        ))
+      } else {
+        requirements.push(requirement(
+          'source', true,
+          `the first-party package is available at ${join(input.sourceDir, packageDirFor(input.id))}`,
+          'install',
+        ))
+      }
+    }
+
+    // DEPENDENCIES: declared runtime dependencies must be resolvable/materialized.
+    requirements.push(this.#dependencyRequirement(input))
+
+    // PLATFORM: the manifest's declared deployment platforms must include this host.
+    if (input.facts.problem !== null) {
+      requirements.push(requirement('platform', false, input.facts.problem, 'none'))
+    } else if (input.facts.platforms.length === 0) {
+      requirements.push(requirement('platform', true, 'the extension declares no platform-specific model deployment'))
+    } else if (hostPlatformMatches(input.facts.platforms)) {
+      requirements.push(requirement(
+        'platform', true,
+        `the declared deployment supports this host (${process.platform}/${process.arch}: ${input.facts.platforms.map(platformLabel).join(', ')})`,
+      ))
+    } else {
+      requirements.push(requirement(
+        'platform', false,
+        `the extension supports ${input.facts.platforms.map(platformLabel).join(', ')} but this host is ${process.platform}/${process.arch}`,
+        'none',
+      ))
+    }
+
+    // INTEGRITY: the installed bytes must still be the recorded bytes.
+    if (!input.installed) {
+      requirements.push(requirement('integrity', true, 'the extension is not installed, so there are no installed bytes to verify'))
+    } else if (input.integrity === 'unchanged') {
+      requirements.push(requirement('integrity', true, 'the installed content matches the recorded digest'))
+    } else {
+      requirements.push(requirement(
+        'integrity', false,
+        input.integrityReason ?? `the installed content's integrity is ${input.integrity}`,
+        'install',
+      ))
+    }
+
+    // RUNTIME: optional tool-runtime packages must be materialized, or the
+    // extension's tools load and fail at call time — which is not activation.
+    requirements.push(this.#runtimeRequirement(input))
+
+    // HARNESS MODEL: only declarative packages are served by the host broker.
+    if (input.facts.executionKind === 'declarative') {
+      requirements.push(this.#harnessModelRequirement())
+    }
+
+    // Readiness drives both the executable gate and the assets requirement.
+    const blockers = preparationBlockers(input.state?.readiness ?? {}, input.facts.models)
+
+    // EXECUTABLE: a downloaded engine needs the separate RES-02 approval.
+    if (input.facts.models.length === 0) {
+      requirements.push(requirement('executable', true, 'the extension declares no model deployment, so no executable asset can be planned'))
+    } else if (!input.installed) {
+      requirements.push(requirement(
+        'executable', true,
+        'not installed yet; the executable-asset approval is checked once the preparation plan can be resolved',
+      ))
+    } else if (blockers.length === 0) {
+      requirements.push(requirement(
+        'executable', true,
+        'every declared model deployment is already prepared or callable, so no executable approval is pending',
+      ))
+    } else {
+      requirements.push(this.#executableRequirement(input.id))
+    }
+
+    // ASSETS: each declared deployment must be in a callable readiness state.
+    if (input.facts.models.length === 0) {
+      requirements.push(requirement('assets', true, 'the extension declares no model deployment to prepare'))
+    } else if (!input.installed) {
+      requirements.push(requirement(
+        'assets', false,
+        `not installed; ${input.facts.models.join(', ')} need${input.facts.models.length === 1 ? 's' : ''} model assets prepared after installation`,
+        'install',
+      ))
+    } else if (this.#options.assetRestoreDiagnostic?.(input.id) !== undefined) {
+      /**
+       * The startup restore walk could not rebuild this extension's prepared handles.
+       * Without this branch the row reads the generic "needs its model assets prepared"
+       * and the operator has no way to tell a missing/size-mismatched cache file from a
+       * model that was never prepared — the two need different actions.
+       */
+      requirements.push(requirement(
+        'assets', false,
+        `prepared assets could not be restored from the cache: ${this.#options.assetRestoreDiagnostic?.(input.id)}; run prepare for this extension`,
+        'prepare',
+      ))
+    } else if (blockers.length > 0) {
+      /**
+       * A lock whose assets carry prose sources (no URL) cannot be prepared by this
+       * host. Report action `none` so the page does not offer Prepare as if it could
+       * succeed; the reason names the artifact and the documented export.
+       */
+      const unavailable = this.#unavailableAssetSource(input.id)
+      requirements.push(unavailable === undefined
+        ? requirement('assets', false, `activation blocked: ${blockers.join('; ')}`, 'prepare')
+        : requirement(
+            'assets', false,
+            `[ASSET_SOURCE_UNAVAILABLE] ${assetSourceUnavailableReason(unavailable.assetId, unavailable.source)}`,
+            'none',
+          ))
+    } else {
+      requirements.push(requirement(
+        'assets', true,
+        `every declared model deployment is prepared or callable (${input.facts.models.join(', ')})`,
+      ))
+    }
+
+    // ACTIVATION: a stored fault that a retry cannot clear.
+    if (!input.installed) {
+      requirements.push(requirement('activation', true, 'not installed; no activation state exists'))
+    } else if (input.state?.observedActivation === 'quarantined') {
+      requirements.push(requirement(
+        'activation', false,
+        'the host quarantined it: some contributions could not be withdrawn, so it is not fully stopped',
+        'none',
+      ))
+    } else if (input.state?.observedActivation === 'activating' || input.state?.observedActivation === 'deactivating') {
+      requirements.push(requirement(
+        'activation', false,
+        `a ${input.state.observedActivation} operation was interrupted; the recorded state is not settled`,
+        'none',
+      ))
+    } else if (input.state?.observedActivation === 'failed') {
+      const explained = requirements.some(candidate => !candidate.satisfied)
+      requirements.push(requirement(
+        'activation', true,
+        explained
+          ? 'the last activation attempt failed; the unmet requirement above is the actionable blocker'
+          : 'the last activation attempt failed, but no remaining prerequisite blocks a retry, so enable retries activation',
+      ))
+    } else if (input.state === undefined) {
+      requirements.push(requirement('activation', true, 'installed but never activated in this profile; no stored activation fault'))
+    } else {
+      requirements.push(requirement('activation', true, `the stored activation state is ${input.state.observedActivation}`))
+    }
+
+    return requirements
+  }
+
+  /** The dependencies requirement: materialized in the installed copy, or resolvable in the host tree. */
+  #dependencyRequirement(input: RequirementInput): ExtensionRequirement {
+    if (input.facts.dependencies.length === 0) {
+      return requirement('dependencies', true, 'the package declares no runtime dependencies')
+    }
+    const count = input.facts.dependencies.length
+    const missing: string[] = []
+    if (input.installed && input.record !== undefined) {
+      for (const dependency of input.facts.dependencies) {
+        const installed = join(input.record.installPath, 'node_modules', ...dependency.name.split('/'), 'package.json')
+        if (!existsSync(installed)) missing.push(`${dependency.name} (declared ${dependency.range})`)
+      }
+      return missing.length === 0
+        ? requirement('dependencies', true, `all ${count} declared runtime dependenc${count === 1 ? 'y is' : 'ies are'} materialized inside the extension's own installation`)
+        : requirement(
+            'dependencies', false,
+            `the installed copy is missing ${missing.length} declared runtime dependenc${missing.length === 1 ? 'y' : 'ies'}: ${missing.join(', ')}`,
+            'install',
+          )
+    }
+    if (input.facts.packageDir === null) {
+      return requirement('dependencies', false, 'the declared runtime dependencies cannot be inspected because the package directory is unknown', 'none')
+    }
+    for (const dependency of input.facts.dependencies) {
+      try {
+        resolveFirstPartyDependency({ sourcePackageDir: input.facts.packageDir }, dependency.name, dependency.range)
+      } catch {
+        missing.push(`${dependency.name} (declared ${dependency.range})`)
+      }
+    }
+    return missing.length === 0
+      ? requirement('dependencies', true, `all ${count} declared runtime dependenc${count === 1 ? 'y resolves' : 'ies resolve'} in the host's installed tree`)
+      : requirement(
+          'dependencies', false,
+          `the host's tree is missing ${missing.length} declared runtime dependenc${missing.length === 1 ? 'y' : 'ies'}: ${missing.join(', ')}; install the dependency for the host first`,
+          'none',
+        )
+  }
+
+  /**
+   * The OPTIONAL tool-runtime requirement.
+   *
+   * Module extensions declare the packages their tools `require()` at call time as
+   * optionalDependencies (e.g. tongue's `@desert-ant-labs/tongue`). If one is absent
+   * the extension still activates and its tools fail at call time, so this
+   * requirement BLOCKS activation instead: a tool that cannot load is not served.
+   * The sidecar records why a materialization attempt failed (the lock cannot).
+   */
+  #runtimeRequirement(input: RequirementInput): ExtensionRequirement {
+    const declared = input.facts.optionalDependencies
+    if (declared.length === 0) {
+      return requirement('runtime', true, 'the package declares no optional tool runtime')
+    }
+    if (!input.installed || input.record === undefined) {
+      return requirement('runtime', true, 'not installed yet; optional tool runtimes are materialized and verified at install time')
+    }
+    const recorded = readRuntimeDependencyDocument(input.storeDir).extensions[input.id]
+    const unresolved: string[] = []
+    const resolved: string[] = []
+    for (const dependency of declared) {
+      const installedVersion = readInstalledDependencyVersion(input.record.installPath, dependency.name)
+      if (installedVersion === undefined) {
+        const attempt = recorded?.optional.find(entry => entry.name === dependency.name && !entry.satisfied)
+        unresolved.push(
+          `${dependency.name} ${dependency.range} is not installed inside the extension`
+            + (attempt?.error === undefined ? '' : `: ${attempt.error}`),
+        )
+      } else if (!satisfiesRegistryRange(installedVersion, dependency.range)) {
+        unresolved.push(`${dependency.name} is installed at ${installedVersion}, which does not satisfy ${dependency.range}`)
+      } else {
+        resolved.push(`${dependency.name}@${installedVersion}`)
+      }
+    }
+    if (unresolved.length === 0) {
+      return requirement('runtime', true, `the optional tool runtime${resolved.length === 1 ? ' is' : 's are'} materialized (${resolved.join(', ')})`)
+    }
+    return requirement(
+      'runtime', false,
+      `the extension's tools cannot load: ${unresolved.join('; ')}`,
+      'install',
+    )
+  }
+
+  /** The harness-model requirement for a declarative package. */
+  #harnessModelRequirement(): ExtensionRequirement {
+    const status = this.#options.harnessProviderStatus?.()
+    if (status === undefined) {
+      return requirement(
+        'harness-model', false,
+        'the host could not report whether a harness model provider is available (provider status unknown); '
+          + 'a declarative extension needs a composed provider, for example config.harnessModel',
+        'config',
+      )
+    }
+    if (status.available) {
+      const identity = [status.provider, status.model].filter((part): part is string => part !== undefined && part.length > 0)
+      return requirement(
+        'harness-model', true,
+        identity.length === 0
+          ? 'a harness model provider is available for declarative extensions'
+          : `a harness model provider is available (${identity.join(' / ')})`,
+      )
+    }
+    return requirement(
+      'harness-model', false,
+      status.reason
+        ?? 'no harness model provider is configured, so declarative extensions cannot be served; set config.harnessModel to a runnable model',
+      status.action ?? 'config',
+    )
+  }
+
+  /**
+   * The first planned asset with neither an http(s) source nor cached bytes.
+   *
+   * A prose lock source (laya's "split export of the pinned checkpoint") is not a
+   * download location; preparation must refuse before any transfer. A cache hit is
+   * still a source because acquisition verifies the cached digest.
+   * @param extensionId - the installed extension.
+   * @returns the unavailable asset, or undefined when every source is reachable.
+   */
+  #unavailableAssetSource(extensionId: string): { readonly assetId: string; readonly source: string } | undefined {
+    const surface = this.#options.prepareSurface?.()
+    if (surface === undefined) return undefined
+    try {
+      const plan = surface.plan(extensionId)
+      return firstUnavailableAssetSource(
+        plan.assets.map(asset => ({ assetId: asset.assetId, source: asset.source, digest: asset.digest })),
+        surface.registry.cacheDirectory,
+      )
+    } catch {
+      return undefined
+    }
+  }
+
+  /** The executable requirement for an installed, not-yet-callable model deployment. */
+  #executableRequirement(extensionId: string): ExtensionRequirement {
+    const surface = this.#options.prepareSurface?.()
+    if (surface === undefined) {
+      /**
+       * No plan exists to approve, so this requirement is NOT what blocks the row:
+       * the assets requirement names the missing preparation. Reporting it unmet
+       * here would replace the actionable "run prepare" text with a host gap the
+       * row cannot fix.
+       */
+      return requirement(
+        'executable', true,
+        'the prepared-assets surface is not mounted, so there is no preparation plan whose executable assets could be approved; '
+          + 'the assets requirement reports the missing preparation',
+      )
+    }
+    let plan: PreparationPlan
+    try {
+      plan = surface.plan(extensionId)
+    } catch (error) {
+      return requirement(
+        'executable', true,
+        `the preparation plan could not be inspected, so executable approval is not the blocker: ${messageOf(error)}`,
+      )
+    }
+    if (!plan.requiresExecutableApproval) {
+      return requirement('executable', true, 'the preparation plan declares no executable assets')
+    }
+    return this.#options.allowExecutablePreparation?.() === true
+      ? requirement('executable', true, 'the preparation plan includes an executable asset and the operator approved executable preparation (config.allowExecutablePreparation)')
+      : requirement(
+          'executable', false,
+          'activation blocked: the preparation plan includes an executable asset, and executable preparation is not approved for the client path '
+            + '(config.allowExecutablePreparation is off)',
+          'config',
+        )
+  }
+
+  /**
+   * Read the current state of the extension surface.
+   *
+   * Every row is derived from the store, the profile state and the source
+   * directory; nothing is cached between calls, so a page that re-reads after an
+   * action sees the committed result.
+   * @param signal - cancellation.
+   * @returns the store/source configuration and one row per known extension.
+   */
+  async describe(signal?: AbortSignal): Promise<ExtensionsDescribeResult> {
+    return this.#describe(signal, true)
+  }
+
+  /**
+   * Describe identity, state and tools WITHOUT digesting installed bytes.
+   *
+   * The Tool Insights inventory and owner attribution do not render integrity;
+   * on a deployment with multi-GB extension trees the digest pass otherwise
+   * stalls the Remote gateway for every inventory read.
+   * @param signal - cancellation.
+   * @returns the same row shape, with integrity reported as `unknown`.
+   */
+  async describeFast(signal?: AbortSignal): Promise<ExtensionsDescribeResult> {
+    return this.#describe(signal, false)
+  }
+
+  async #describe(signal: AbortSignal | undefined, verifyIntegrity: boolean): Promise<ExtensionsDescribeResult> {
+    signal?.throwIfAborted()
+    const storeDir = this.#storeDir()
+    const sourceDir = this.#sourceDir()
+    const disabled = this.#effectiveDisabled()
+
+    let lockCorrupt = false
+    let lockDiagnostic: string | null = null
+    let installed: readonly InstalledRecord[] = []
+    let profileStates: ProfileStateView = { byId: new Map(), corrupt: false, diagnostic: null }
+    let activeVersions: Readonly<Record<string, string>> = {}
+    if (storeDir !== '') {
+      const store = new ExtensionStore(storeDir)
+      const lock = store.readLock()
+      lockCorrupt = lock.corrupt
+      lockDiagnostic = lock.diagnostic ?? null
+      installed = lock.value.extensions
+      profileStates = readProfileStates(store, this.#profile())
+      activeVersions = store.readProfilePointers(this.#profile()).value.activeVersions
+    }
+    const sourcePackages = new Map<string, SourcePackage>()
+    if (sourceDir !== '') {
+      for (const candidate of listSourcePackages(sourceDir)) sourcePackages.set(candidate.id, candidate)
+    }
+
+    const ids = new Set<string>()
+    for (const record of installed) ids.add(record.extensionId)
+    for (const id of profileStates.byId.keys()) ids.add(id)
+    for (const id of sourcePackages.keys()) ids.add(id)
+
+    const extensions: ExtensionState[] = [...ids].sort().map(id => this.#describeOne({
+      id,
+      installed,
+      activeVersions,
+      profileStates,
+      sourcePackage: sourcePackages.get(id),
+      disabled: disabled.has(id),
+      storeDir,
+      sourceDir,
+      lockCorrupt,
+      lockDiagnostic,
+      verifyIntegrity,
+    }))
+
+    const writable = storeDir !== ''
+      && !lockCorrupt
+      && this.#options.readOnly !== true
+      && directoryWritable(storeDir)
+
+    return {
+      store: storeDir === '' ? null : storeDir,
+      writable,
+      sourceDir: sourceDir === '' ? null : sourceDir,
+      extensions,
+    }
+  }
+
+  /** Build one row, keeping the reason precedence in one place. */
+  #describeOne(view: {
+    readonly id: string
+    readonly installed: readonly InstalledRecord[]
+    readonly activeVersions: Readonly<Record<string, string>>
+    readonly profileStates: ProfileStateView
+    readonly sourcePackage: SourcePackage | undefined
+    readonly disabled: boolean
+    readonly storeDir: string
+    readonly sourceDir: string
+    readonly lockCorrupt: boolean
+    readonly lockDiagnostic: string | null
+    readonly verifyIntegrity: boolean
+  }): ExtensionState {
+    const selection = selectInstalled(view.installed, view.activeVersions, view.id)
+    const record = selection
+    const state = view.profileStates.byId.get(view.id)
+    const installed = record !== undefined
+
+    const integrity = view.verifyIntegrity
+      ? this.#integrityOf(view.storeDir, record)
+      : { integrity: 'unknown' as const, reason: null }
+    const facts: ExtensionFacts = record !== undefined
+      ? readExtensionFacts(record.installPath)
+      : view.sourcePackage?.facts ?? EMPTY_FACTS
+
+    const active = state !== undefined
+      && state.observedActivation === 'active'
+      && (state.ownerPid === undefined || state.ownerPid === process.pid)
+
+    const stateTools = state?.tools.map(tool => tool.toolName) ?? []
+    const tools = facts.tools.length > 0
+      ? facts.tools
+      : stateTools.length > 0
+        ? stateTools
+        : view.sourcePackage?.tools ?? []
+
+    const requirements = this.#computeRequirements({
+      id: view.id,
+      installed,
+      record,
+      state,
+      integrity: integrity.integrity,
+      integrityReason: integrity.reason,
+      storeDir: view.storeDir,
+      sourceDir: view.sourceDir,
+      lockCorrupt: view.lockCorrupt,
+      lockDiagnostic: view.lockDiagnostic,
+      profileStates: view.profileStates,
+      sourcePackage: view.sourcePackage,
+      facts,
+    })
+    const blocked = requirements.some(candidate => blocksRow(installed, candidate))
+
+    const version = record?.version ?? view.sourcePackage?.version ?? null
+    const reason = this.#reasonFor({
+      ...view,
+      state,
+      integrityReason: integrity.reason,
+      active,
+      installed,
+      requirements,
+    })
+
+    return {
+      id: view.id,
+      package: view.id,
+      version,
+      installed,
+      active,
+      disabled: view.disabled,
+      integrity: integrity.integrity,
+      tools: [...tools],
+      reason,
+      requirements,
+      blocked,
+    }
+  }
+
+  /** The first condition worth telling the operator about, or null when none is known. */
+  #reasonFor(view: {
+    readonly id: string
+    readonly storeDir: string
+    readonly sourceDir: string
+    readonly lockCorrupt: boolean
+    readonly lockDiagnostic: string | null
+    readonly profileStates: ProfileStateView
+    readonly sourcePackage: SourcePackage | undefined
+    readonly disabled: boolean
+    readonly state: SdkExtensionState | undefined
+    readonly integrityReason: string | null
+    readonly active: boolean
+    readonly installed: boolean
+    readonly requirements: readonly ExtensionRequirement[]
+  }): string | null {
+    if (view.lockCorrupt) {
+      return `the extension store lock is unreadable, so no installed extension can be trusted: ${view.lockDiagnostic ?? 'unknown reason'}`
+    }
+    if (view.integrityReason !== null) return view.integrityReason
+    if (view.profileStates.corrupt) {
+      return `the profile activation state is unreadable, so the host restores nothing: ${view.profileStates.diagnostic ?? 'unknown reason'}`
+    }
+    if (view.storeDir === '') {
+      return 'the extension store is not configured (config.extensionStore)'
+    }
+    /**
+     * The highest-priority UNMET requirement that actually blocks this row is the
+     * single summary. The wording is the requirement's own, so the page, the
+     * preflight error and the requirement list never disagree.
+     */
+    const unmet = firstBlockingRequirement(view.requirements, view.installed)
+    if (view.state?.observedActivation === 'failed') {
+      /**
+       * PRECEDENCE: a blocking requirement stays the actionable explanation (the
+       * operator can fix it), and the RECORDED cause is preferred over the generic
+       * text when nothing blocks a retry. The fallback survives only for a state
+       * written before the SDK recorded causes — never as a substitute for a reason
+       * the store actually holds.
+       */
+      return unmet?.reason
+        ?? recordedActivationError(view.state)
+        ?? 'activation failed earlier in this host; the store records no remaining preparation blocker, so retry enable to see whether it succeeds'
+    }
+    if (view.state?.observedActivation === 'quarantined') {
+      return unmet?.reason
+        ?? 'the host quarantined it: some contributions could not be withdrawn, so it is not fully stopped'
+    }
+    if (view.state?.observedActivation === 'activating' || view.state?.observedActivation === 'deactivating') {
+      return unmet?.reason
+        ?? `a ${view.state.observedActivation} operation was interrupted; the recorded state is not settled`
+    }
+    if (view.disabled) {
+      return 'disabled by the operator (config.disabledExtensions); the host does not restore it'
+    }
+    if (!view.installed) {
+      if (view.sourcePackage?.problem !== null && view.sourcePackage?.problem !== undefined) return view.sourcePackage.problem
+      // The route-aware source requirement already explains where an install would
+      // get the bytes (registry, directory, or why neither is available).
+      const sourceRequirement = view.requirements.find(candidate => candidate.kind === 'source')
+      if (sourceRequirement !== undefined) return sourceRequirement.reason
+      return 'not installed'
+    }
+    if (unmet !== undefined) return unmet.reason
+    if (!view.active) {
+      if (view.state === undefined) return 'installed but never activated in this profile'
+      return `installed; this host observes it as ${view.state.observedActivation} (desired ${view.state.desiredActivation})`
+    }
+    return null
+  }
+
+  /**
+   * Install one extension, choosing the route from the operator configuration.
+   *
+   * - An EXPLICIT `source` path is always a developer-mode directory install (the
+   *   existing source-directory gate and refusals apply).
+   * - Otherwise `installSource` decides. `registry` resolves `id@latest` from the
+   *   npm registry. `directory` uses the configured source directory. `auto` (the
+   *   default) prefers the registry and falls back to the directory ONLY for a
+   *   transport-level registry failure (unreachable/timeout/5xx) when directory
+   *   installs are allowed — a package-level refusal (404, missing integrity, bad
+   *   tarball, digest mismatch) is always named and never retried locally.
+   *
+   * INSTALLATION IS NOT ACTIVATION: the result is always `active: false`, and it
+   * names the route that actually supplied the bytes.
+   * @param extensionId - the package identity to install.
+   * @param source - an explicit source directory (developer override), or absent.
+   * @param signal - cancellation.
+   * @returns the installed identity, version and route.
+   * @throws ExtensionsServiceError for every refusal and failure.
+   */
+  async install(extensionId: string, source?: string, signal?: AbortSignal): Promise<ExtensionInstallResult> {
+    try {
+      const installed = await this.#installRequest(extensionId, source, signal)
+      this.#options.onAudit?.({
+        operation: 'install', extensionId, version: installed.version, outcome: 'succeeded',
+      })
+      return installed
+    } catch (error) {
+      this.#options.onAudit?.({
+        operation: 'install',
+        extensionId,
+        version: null,
+        outcome: 'failed',
+        reason: error instanceof Error ? error.message : String(error),
+      })
+      throw error
+    }
+  }
+
+  async #installRequest(extensionId: string, source?: string, signal?: AbortSignal): Promise<ExtensionInstallResult> {
+    signal?.throwIfAborted()
+    assertUsableId(extensionId)
+    const storeDir = this.#requireStoreDir()
+
+    if (source !== undefined && source.trim().length > 0) {
+      const requested = source.trim()
+      if (/^https?:\/\//i.test(requested)) return this.#installFromUrl(extensionId, requested, storeDir, signal)
+      return this.#installFromDirectory(extensionId, resolve(requested), storeDir, signal)
+    }
+    const mode = this.#options.installSource ?? 'auto'
+    if (mode === 'directory') {
+      return this.#installFromDirectory(extensionId, undefined, storeDir, signal)
+    }
+    try {
+      return await this.#installFromRegistry(extensionId, storeDir, signal)
+    } catch (error) {
+      const transportFallback = mode === 'auto'
+        && error instanceof ExtensionsServiceError
+        && (error.code === 'extension-registry-unavailable' || error.code === 'extension-registry-unconfigured')
+        && this.#options.allowSourceDirectories === true
+        && this.#directorySourceAvailable(extensionId)
+      if (!transportFallback) throw error
+      return this.#installFromDirectory(extensionId, undefined, storeDir, signal)
+    }
+  }
+
+  /** The configured registry base URL, trimmed ('' when the operator set it empty). */
+  #registryBaseUrl(): string {
+    return (this.#options.registryUrl ?? DEFAULT_REGISTRY_URL).trim()
+  }
+
+  /** Whether the configured source directory holds a package directory for this id. */
+  #directorySourceAvailable(extensionId: string): boolean {
+    const sourceDir = this.#sourceDir()
+    if (sourceDir === '') return false
+    try {
+      return statSync(join(sourceDir, packageDirFor(extensionId))).isDirectory()
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * Map a registry failure onto this service's named codes.
+   * @param error - an error from the registry session or the SDK install.
+   * @returns the service refusal, preserving the message and cause.
+   */
+  #mapRegistryFailure(error: unknown): ExtensionsServiceError {
+    if (!(error instanceof RegistryError)) {
+      return new ExtensionsServiceError('extension-install-failed', messageOf(error), { cause: error })
+    }
+    const codes = {
+      'registry-not-configured': 'extension-registry-unconfigured',
+      'registry-not-found': 'extension-registry-not-found',
+      'registry-no-matching-version': 'extension-registry-not-found',
+      'registry-integrity-missing': 'extension-registry-integrity-missing',
+      'registry-invalid-metadata': 'extension-registry-invalid-metadata',
+      'registry-tarball-fetch-failed': 'extension-registry-fetch-failed',
+      'registry-tarball-too-large': 'extension-registry-fetch-failed',
+      'registry-unavailable': 'extension-registry-unavailable',
+    } satisfies Record<RegistryErrorCode, ExtensionsServiceErrorCode>
+    return new ExtensionsServiceError(codes[error.code], error.message, { cause: error })
+  }
+
+  /**
+   * Install from an HTTPS/HTTP npm-format tarball URL (EXT-06).
+   *
+   * Noninteractive URL installs REQUIRE a pinned integrity fragment
+   * (`...tgz#sha512-<base64>`): unverified bytes are never installed. Redirects are
+   * followed manually, bounded, and each destination must be http(s) with no embedded
+   * credentials; the fetch carries no authorization header, so a redirect cannot
+   * forward one. The bytes are size/time bounded and then go through the SAME staged
+   * installer as every other source.
+   * @param extensionId - the package identity to install.
+   * @param rawUrl - the tarball URL plus pinned `#sha512-...` fragment.
+   * @param storeDir - the configured store.
+   * @param signal - cancellation.
+   * @returns the installed identity/version and `source: 'url'`.
+   */
+  async #installFromUrl(
+    extensionId: string,
+    rawUrl: string,
+    storeDir: string,
+    signal?: AbortSignal,
+  ): Promise<ExtensionInstallResult> {
+    let url: URL
+    try {
+      url = new URL(rawUrl)
+    } catch (error) {
+      throw new ExtensionsServiceError('extension-url-fetch-failed', `${JSON.stringify(rawUrl)} is not a URL`, { cause: error })
+    }
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+      throw new ExtensionsServiceError('extension-url-fetch-failed', `URL source protocol ${url.protocol} is not http(s)`)
+    }
+    if (url.username !== '' || url.password !== '') {
+      throw new ExtensionsServiceError('extension-url-fetch-failed', 'a URL source must not embed credentials')
+    }
+    let integrity: string
+    try {
+      integrity = decodeURIComponent(url.hash.slice(1))
+    } catch {
+      integrity = url.hash.slice(1)
+    }
+    if (!/^sha512-[A-Za-z0-9+/=]+$/.test(integrity)) {
+      throw new ExtensionsServiceError(
+        'extension-url-integrity-required',
+        `${JSON.stringify(rawUrl)} has no pinned #sha512-... integrity; noninteractive URL installs require it`,
+      )
+    }
+    url.hash = ''
+    const maxBytes = this.#options.registryTarballMaxBytes ?? MAX_DEPENDENCY_ARCHIVE_BYTES
+    const timeoutMs = this.#options.registryTarballTimeoutMs ?? 600_000
+    const bytes = await this.#fetchUrlTarball(url, maxBytes, timeoutMs, signal)
+
+    let installed
+    try {
+      installed = await stagedInstall({
+        source: { kind: 'url', requested: rawUrl },
+        storeDir,
+        expectedSha512: integrity,
+        archive: createTarGzipArchiveSource(async () => bytes),
+      })
+    } catch (error) {
+      if (error instanceof ManagementError && error.code === 'INTEGRITY_MISMATCH') {
+        throw new ExtensionsServiceError(
+          'extension-url-integrity-mismatch',
+          `${rawUrl}: ${error.message}`,
+          { cause: error },
+        )
+      }
+      if (error instanceof ManagementError) {
+        throw new ExtensionsServiceError('extension-install-failed', `[${error.code}] ${error.message}`, { cause: error })
+      }
+      throw new ExtensionsServiceError('extension-install-failed', messageOf(error), { cause: error })
+    }
+    if (installed.extensionId !== extensionId) {
+      throw new ExtensionsServiceError(
+        'extension-source-mismatch',
+        `the URL tarball requested as ${extensionId} contains ${JSON.stringify(installed.extensionId)}`,
+      )
+    }
+    if (installed.archiveDigest.trim().length === 0) {
+      throw new ExtensionsServiceError(
+        'extension-digest-unavailable',
+        `${installed.extensionId}@${installed.version} was installed without a content digest`,
+      )
+    }
+    return {
+      id: installed.extensionId,
+      version: installed.version,
+      active: false,
+      source: 'url',
+      resolvedVersion: installed.version,
+    }
+  }
+
+  /**
+   * Fetch one URL tarball with manual, bounded redirects and a byte/time cap.
+   * @param initial - the validated URL (hash removed).
+   * @param maxBytes - the byte cap.
+   * @param timeoutMs - the idle/wall timeout.
+   * @param signal - cancellation.
+   * @returns the bounded bytes.
+   */
+  async #fetchUrlTarball(
+    initial: URL,
+    maxBytes: number,
+    timeoutMs: number,
+    signal?: AbortSignal,
+  ): Promise<Uint8Array> {
+    const controller = new AbortController()
+    const onAbort = (): void => controller.abort(signal?.reason)
+    if (signal?.aborted === true) {
+      throw new ExtensionsServiceError('extension-url-fetch-failed', 'the URL install was cancelled', { cause: signal.reason })
+    }
+    signal?.addEventListener('abort', onAbort, { once: true })
+    const timer = setTimeout(() => controller.abort(new Error(`URL fetch exceeded ${timeoutMs} ms`)), timeoutMs)
+    try {
+      let current = initial
+      const initialPrivate = ExtensionsService.isPrivateDestination(initial.hostname)
+      for (let hop = 0; hop <= 5; hop += 1) {
+        if (current.protocol !== 'https:' && current.protocol !== 'http:') {
+          throw new ExtensionsServiceError('extension-url-fetch-failed', `redirect to non-http(s) ${current.protocol}`)
+        }
+        if (current.username !== '' || current.password !== '') {
+          throw new ExtensionsServiceError('extension-url-fetch-failed', 'redirect destination embeds credentials')
+        }
+        const response = await fetch(current, { redirect: 'manual', signal: controller.signal })
+        if (response.status >= 300 && response.status < 400) {
+          const location = response.headers.get('location')
+          if (location === null) throw new ExtensionsServiceError('extension-url-fetch-failed', 'a redirect carried no location')
+          current = new URL(location, current)
+          if (!initialPrivate && ExtensionsService.isPrivateDestination(current.hostname)) {
+            throw new ExtensionsServiceError(
+              'extension-url-fetch-failed',
+              `a public URL redirected to the private/metadata destination ${current.hostname}, which is not permitted`,
+            )
+          }
+          continue
+        }
+        if (!response.ok) {
+          throw new ExtensionsServiceError(
+            'extension-url-fetch-failed',
+            `${current.toString()} answered HTTP ${response.status}`,
+          )
+        }
+        const declared = Number(response.headers.get('content-length') ?? '')
+        if (Number.isFinite(declared) && declared > maxBytes) {
+          throw new ExtensionsServiceError('extension-url-fetch-failed', `declared ${declared} bytes exceeds the ${maxBytes}-byte cap`)
+        }
+        const data = new Uint8Array(await response.arrayBuffer())
+        if (data.byteLength > maxBytes) {
+          throw new ExtensionsServiceError('extension-url-fetch-failed', `${data.byteLength} bytes exceeds the ${maxBytes}-byte cap`)
+        }
+        if (data.byteLength === 0) throw new ExtensionsServiceError('extension-url-fetch-failed', 'the URL returned no bytes')
+        return data
+      }
+      throw new ExtensionsServiceError('extension-url-fetch-failed', 'more than 5 redirects')
+    } catch (error) {
+      if (error instanceof ExtensionsServiceError) throw error
+      throw new ExtensionsServiceError('extension-url-fetch-failed', messageOf(error), { cause: error })
+    } finally {
+      clearTimeout(timer)
+      signal?.removeEventListener('abort', onAbort)
+    }
+  }
+
+  /**
+   * Whether a hostname is a local/private/metadata destination (EXT-11).
+   *
+   * A caller-supplied source URL is itself explicit authorization for that destination.
+   * A REDIRECT from a public source into one of these ranges is not: it would turn an
+   * approved public URL into a local-network or cloud-metadata fetch.
+   * @param hostname - the URL hostname.
+   * @returns true for loopback, RFC1918, link-local, ULA and metadata hosts.
+   */
+  static isPrivateDestination(hostname: string): boolean {
+    const host = hostname.replace(/^\[|\]$/g, '').toLowerCase()
+    if (host === 'localhost' || host.endsWith('.localhost') || host === '::1') return true
+    if (host === '169.254.169.254' || host === 'metadata.google.internal') return true
+    if (/^127\./.test(host) || /^10\./.test(host) || /^192\.168\./.test(host)) return true
+    if (/^169\.254\./.test(host)) return true
+    if (/^172\.(1[6-9]|2\d|3[01])\./.test(host)) return true
+    if (/^f[cd][0-9a-f]{2}:/.test(host) || /^fe80:/.test(host)) return true
+    return false
+  }
+
+  /**
+   * Install the extension package from the npm registry (task-104).
+   *
+   * The registry metadata is resolved to one exact version with a sha512 integrity;
+   * the tarball is fetched bounded, verified by `stagedInstall` BEFORE extraction,
+   * and installed through the SDK's tar-gzip ArchiveSource. The extension's runtime
+   * dependencies are resolved from the SAME registry through the SDK dependency
+   * graph (never the host-tree resolver), and EXT-10's install-script refusal is the
+   * SDK's own.
+   * @param extensionId - the package identity to install.
+   * @param storeDir - the configured store.
+   * @param signal - cancellation.
+   * @returns the installed identity/version and `source: 'registry'`.
+   * @throws ExtensionsServiceError for every refusal.
+   */
+  async #installFromRegistry(
+    extensionId: string,
+    storeDir: string,
+    signal?: AbortSignal,
+  ): Promise<ExtensionInstallResult> {
+    const registryUrl = this.#registryBaseUrl()
+    if (registryUrl === '') {
+      throw new ExtensionsServiceError(
+        'extension-registry-unconfigured',
+        'no npm registry is configured (config.extensionRegistry), so registry installs are unavailable',
+      )
+    }
+    const session = createRegistrySession({
+      registryUrl,
+      archiveFactory: createTarGzipArchiveSource,
+      maxTarballBytes: this.#options.registryTarballMaxBytes ?? MAX_DEPENDENCY_ARCHIVE_BYTES,
+      ...this.#options.registryMetadataTimeoutMs === undefined
+        ? {}
+        : { metadataTimeoutMs: this.#options.registryMetadataTimeoutMs },
+      ...this.#options.registryTarballTimeoutMs === undefined
+        ? {}
+        : { tarballTimeoutMs: this.#options.registryTarballTimeoutMs },
+    })
+    let resolved
+    try {
+      // Initial slice: the Settings page does not carry a version yet, so the
+      // configured route installs the registry's `latest` dist-tag. Exact versions
+      // and semver ranges are supported by the resolver itself (dependency ranges
+      // use them); a wire version field is a later slice.
+      resolved = await session.resolve(extensionId, 'latest', signal)
+    } catch (error) {
+      throw this.#mapRegistryFailure(error)
+    }
+
+    let installed
+    try {
+      installed = await stagedInstall({
+        source: { kind: 'registry', requested: `${extensionId}@${resolved.version}` },
+        storeDir,
+        expectedSha512: resolved.integrity,
+        archive: session.archive,
+        // Registry metadata recorded AS DATA, never as trust: the bytes are
+        // verified against the same sha512 before anything is extracted.
+        provenance: { registryIntegrity: resolved.integrity },
+        dependencies: this.#installGraph(session),
+      })
+    } catch (error) {
+      if (error instanceof RegistryError) throw this.#mapRegistryFailure(error)
+      if (error instanceof ManagementError) {
+        if (error.code === 'INTEGRITY_MISMATCH') {
+          throw new ExtensionsServiceError(
+            'extension-registry-integrity-mismatch',
+            `${extensionId}@${resolved.version}: ${error.message}`,
+            { cause: error },
+          )
+        }
+        if (error.code === 'DEPENDENCY_UNSATISFIED') {
+          throw new ExtensionsServiceError(
+            'extension-dependency-unsatisfied',
+            `[DEPENDENCY_UNSATISFIED] ${error.message}`,
+            { cause: error },
+          )
+        }
+        throw new ExtensionsServiceError('extension-install-failed', `[${error.code}] ${error.message}`, { cause: error })
+      }
+      throw new ExtensionsServiceError('extension-install-failed', messageOf(error), { cause: error })
+    }
+    if (installed.extensionId !== extensionId) {
+      throw new ExtensionsServiceError(
+        'extension-source-mismatch',
+        `the registry tarball requested as ${extensionId}@${resolved.version} contains ${JSON.stringify(installed.extensionId)}`,
+      )
+    }
+    if (installed.archiveDigest.trim().length === 0) {
+      throw new ExtensionsServiceError(
+        'extension-digest-unavailable',
+        `${installed.extensionId}@${installed.version} was installed without a content digest, so it cannot be verified before activation`,
+      )
+    }
+    // Optional tool runtimes are materialized AFTER the package install and are
+    // NOT allowed to fail it: tongue/voz tools `require()` an optional package at
+    // call time, and the requirement model blocks activation if it is absent.
+    await this.#materializeOptionalRuntimes(storeDir, installed, this.#installGraph(session), signal)
+    return {
+      id: installed.extensionId,
+      version: installed.version,
+      active: false,
+      source: 'registry',
+      resolvedVersion: resolved.version,
+    }
+  }
+
+  /**
+   * The dependency graph used on the REGISTRY install path (regular AND optional).
+   *
+   * PRECEDENCE: when the operator's preinstalled gate is ON and the host's own
+   * tree holds a package satisfying the range, that operator-completed content is
+   * preferred. The SDK copies it with provenance `preinstalled` and records that
+   * no lifecycle script was run. Anything NOT preinstalled falls to the registry
+   * arm, where EXT-10 still refuses script-declaring packages.
+   *
+   * DEPTH: a preinstalled package is NOT a leaf. The SDK copies its bytes and then
+   * reads that copy's own declared dependencies, enqueueing them one level deeper
+   * (the same walk the registry arm does), because npm hoists most transitive
+   * packages to the root `node_modules` rather than nesting them under the package.
+   * Real trees (onnxruntime-node reaches `define-data-property` at depth 4 and
+   * `es-define-property` at depth 5) therefore exceed the SDK's default 3-level
+   * bound, so the host raises the default to
+   * {@link DEFAULT_REGISTRY_DEPENDENCY_DEPTH} and makes it configurable.
+   * @param session - the registry session.
+   * @returns the graph.
+   */
+  #installGraph(session: ReturnType<typeof createRegistrySession>): InstallDependencyGraph {
+    const depth = this.#options.registryDependencyDepth ?? DEFAULT_REGISTRY_DEPENDENCY_DEPTH
+    const packages = this.#options.registryDependencyPackages ?? DEFAULT_REGISTRY_DEPENDENCY_PACKAGES
+    const registryGraph = {
+      ...createRegistryDependencyGraph(session),
+      maxDepth: depth,
+      maxPackages: packages,
+      trustedPrebuiltDependencies: this.#options.trustedPrebuiltDependencies ?? DEFAULT_TRUSTED_PREBUILT_DEPENDENCIES,
+    }
+    const preinstalledRoot = this.#options.preinstalledDependenciesRoot ?? ''
+    const allowPreinstalled = this.#options.allowPreinstalledDependencies === true && preinstalledRoot !== ''
+    if (!allowPreinstalled) return registryGraph
+    const preinstalledRoots = preinstalledSearchRoots(preinstalledRoot)
+    return {
+      resolver: {
+        async resolve(name, range) {
+          // Prefer operator-completed content, root first and then nested package
+          // trees: a preinstalled package's transitive deps live in ITS OWN
+          // node_modules, so root-level lookup alone would fall through to the
+          // registry and refuse a script-declaring leaf under EXT-10.
+          for (const candidateRoot of preinstalledRoots) {
+            try {
+              const found = resolveFirstPartyDependency({ sourcePackageDir: candidateRoot }, name, range)
+              return { name: found.name, version: found.version, dir: found.directory, provenance: 'preinstalled' as const }
+            } catch {
+              continue
+            }
+          }
+          return registryGraph.resolver.resolve(name, range)
+        },
+      },
+      archive: registryGraph.archive,
+      allowPreinstalled: true,
+      preinstalledRoot,
+      maxDepth: depth,
+      maxPackages: packages,
+      trustedPrebuiltDependencies: registryGraph.trustedPrebuiltDependencies,
+    }
+  }
+
+  /**
+   * Materialize the extension's optionalDependencies without failing the install.
+   *
+   * Each declaration is resolved and materialized through the SAME SDK dependency
+   * graph discipline as regular dependencies (bounded fetch, sha512 verification,
+   * EXT-10 script refusal) into a scratch package, then merged into the
+   * extension's own node_modules. A failure is RECORDED (store sidecar) and the
+   * requirement model blocks activation instead; the package install stands.
+   *
+   * The store record's content digest is recomputed after a successful merge,
+   * because the installed bytes legitimately changed; the archive digest (the
+   * tarball identity) is untouched.
+   * @param storeDir - the configured store.
+   * @param installed - the just-installed package.
+   * @param graph - the dependency graph for the install arm that ran: the registry
+   *   graph for a registry install, the host-tree graph for a source-directory
+   *   install. Passing the arm's own graph is what keeps the promise of each arm
+   *   (a directory install still downloads nothing).
+   * @param signal - cancellation.
+   */
+  async #materializeOptionalRuntimes(
+    storeDir: string,
+    installed: { readonly extensionId: string; readonly version: string; readonly installPath: string },
+    graph: InstallDependencyGraph,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const optional = readDeclaredDependencies(installed.installPath, 'optionalDependencies')
+    if (optional.length === 0) return
+    const attempts: RuntimeDependencyRecord[] = []
+    const locked: LockedDependency[] = []
+    for (const dependency of optional) {
+      signal?.throwIfAborted()
+      const scratch = mkdtempSync(join(tmpdir(), 'dsh-optional-runtime-'))
+      try {
+        writeFileSync(
+          join(scratch, 'package.json'),
+          `${JSON.stringify({ name: 'dsh-optional-runtime-host', version: '0.0.0', dependencies: { [dependency.name]: dependency.range } }, null, 2)}\n`,
+          'utf8',
+        )
+        const materialized = await installDependencyGraph(scratch, graph)
+        const sourceNodeModules = join(scratch, 'node_modules')
+        const targetNodeModules = join(installed.installPath, 'node_modules')
+        if (existsSync(sourceNodeModules)) {
+          /**
+           * Enumerate PACKAGES, never top-level entries. A scoped dependency lives at
+           * `node_modules/@scope/name`, and `node_modules/@scope` already exists as
+           * soon as ANY package shares that scope — the runtime link always creates
+           * `node_modules/@try-works`. Keying the merge on the scope directory
+           * therefore skipped every later package in that scope while the record
+           * below still marked it satisfied: a silently missing engine.
+           */
+          const packageNames: string[] = []
+          for (const entry of readdirSync(sourceNodeModules)) {
+            if (!entry.startsWith('@')) {
+              packageNames.push(entry)
+              continue
+            }
+            for (const scoped of readdirSync(join(sourceNodeModules, entry))) {
+              packageNames.push(`${entry}/${scoped}`)
+            }
+          }
+          for (const name of packageNames) {
+            const segments = name.split('/')
+            const from = join(sourceNodeModules, ...segments)
+            const to = join(targetNodeModules, ...segments)
+            if (existsSync(to)) {
+              const kept = readInstalledDependencyVersion(installed.installPath, name)
+              const wanted = materialized.find(entry => entry.name === name)
+              if (kept !== undefined && wanted !== undefined && kept !== wanted.version) {
+                // A transitive runtime dependency may already be hoisted by an
+                // earlier optional install (transformers brings global-agent 3,
+                // onnxruntime asks for 4). Keep the existing tree: the engine
+                // entrypoints are already present, and failing the whole optional
+                // install here leaves the extension unactivatable. The mismatch is
+                // a dependency-graph limitation, not a reason to discard a working
+                // engine; a future nested-version layout can remove this tolerance.
+                continue
+              }
+              continue
+            }
+            mkdirSync(join(to, '..'), { recursive: true })
+            cpSync(from, to, { recursive: true })
+          }
+          locked.push(...materialized)
+        }
+        const own = materialized.find(entry => entry.name === dependency.name)
+        attempts.push({
+          name: dependency.name,
+          range: dependency.range,
+          satisfied: true,
+          ...own === undefined ? {} : { version: own.version },
+        })
+      } catch (error) {
+        if (signal?.aborted === true) throw error
+        attempts.push({ name: dependency.name, range: dependency.range, satisfied: false, error: messageOf(error) })
+      } finally {
+        rmSync(scratch, { recursive: true, force: true })
+      }
+    }
+    writeRuntimeDependencyDocument(storeDir, installed.extensionId, installed.version, attempts)
+    if (locked.length === 0) return
+    const store = new ExtensionStore(storeDir)
+    const record = store.listInstalled().value.find(candidate => candidate.extensionId === installed.extensionId && candidate.version === installed.version)
+    if (record === undefined) return
+    const existing = new Set((record.dependencies ?? []).map(entry => entry.name))
+    const additions = locked.filter(entry => !existing.has(entry.name))
+    if (additions.length === 0) return
+    replaceInstalledRecord(storeDir, {
+      ...record,
+      contentDigest: digestInstalledContent(installed.installPath),
+      dependencies: [...(record.dependencies ?? []), ...additions],
+    })
+  }
+
+  /**
+   * Install one extension from a local source directory (EXT-06 developer mode).
+   *
+   * Refusals are named and happen BEFORE the copy: an unconfigured store, an
+   * unconfigured/missing source, a source whose package identity differs from the
+   * requested id, a disallowed source-directory install, or content that cannot be
+   * digested. The SDK then copies, validates, verifies and records the install; a
+   * failure there is re-thrown as `extension-install-failed` with the SDK's own
+   * named code in the message.
+   * @param extensionId - the package identity to install.
+   * @param explicitSource - an explicit source directory, or undefined for the configured one.
+   * @param storeDir - the configured store.
+   * @param signal - cancellation.
+   * @returns the installed identity/version and `source: 'directory'`.
+   * @throws ExtensionsServiceError for every refusal and failure.
+   */
+  async #installFromDirectory(
+    extensionId: string,
+    explicitSource: string | undefined,
+    storeDir: string,
+    signal?: AbortSignal,
+  ): Promise<ExtensionInstallResult> {
+    signal?.throwIfAborted()
+    const sourceDir = explicitSource
+      ?? (() => {
+        const configured = this.#sourceDir()
+        if (configured === '') {
+          throw new ExtensionsServiceError(
+            'extension-source-unconfigured',
+            `no source was given for ${extensionId} and no first-party source directory is configured (config.extensionSourceDir)`,
+          )
+        }
+        return join(configured, packageDirFor(extensionId))
+      })()
+    let sourceIsDirectory = false
+    try {
+      sourceIsDirectory = statSync(sourceDir).isDirectory()
+    } catch {
+      sourceIsDirectory = false
+    }
+    if (!sourceIsDirectory) {
+      throw new ExtensionsServiceError(
+        'extension-source-missing',
+        `the source directory ${sourceDir} does not exist or is not a directory`,
+      )
+    }
+
+    let discovered
+    try {
+      discovered = discoverExtension(sourceDir)
+    } catch (error) {
+      throw new ExtensionsServiceError(
+        'extension-source-invalid',
+        `the source directory ${sourceDir} is not a usable extension package: ${messageOf(error)}`,
+        { cause: error },
+      )
+    }
+    if (discovered.packageName !== extensionId) {
+      throw new ExtensionsServiceError(
+        'extension-source-mismatch',
+        `the source directory ${sourceDir} contains ${JSON.stringify(discovered.packageName)}, not ${JSON.stringify(extensionId)}`,
+      )
+    }
+
+    if (this.#options.allowSourceDirectories !== true) {
+      throw new ExtensionsServiceError(
+        'extension-source-directories-not-allowed',
+        'source-directory installs are developer mode and are not allowed by the operator configuration (extensions.allowSourceDirectories)',
+      )
+    }
+
+    // Refuse BEFORE copying when the source cannot be digested: an installation the
+    // store cannot verify later would be bytes nobody can attest to (EXT-12/EXT-33).
+    try {
+      this.#digest(sourceDir)
+    } catch (error) {
+      throw new ExtensionsServiceError(
+        'extension-digest-unavailable',
+        `the content digest of ${sourceDir} could not be computed, so the install was refused before copying: ${messageOf(error)}`,
+        { cause: error },
+      )
+    }
+
+    let installed
+    try {
+      installed = await this.#install({
+        sourceDir,
+        storeDir,
+        allowSourceDirectories: true,
+        /**
+         * The host-tree dependency graph is supplied only on this developer-mode
+         * path. Registry installs resolve dependencies from the registry instead
+         * (never from the host's tree).
+         */
+        dependencies: this.#dependencyGraph(sourceDir),
+      })
+    } catch (error) {
+      if (error instanceof ManagementError && error.code === 'DEPENDENCY_UNSATISFIED') {
+        throw new ExtensionsServiceError(
+          'extension-dependency-unsatisfied',
+          `[DEPENDENCY_UNSATISFIED] ${error.message}`,
+          { cause: error },
+        )
+      }
+      const named = error instanceof ManagementError ? `[${error.code}] ` : ''
+      throw new ExtensionsServiceError(
+        'extension-install-failed',
+        `${named}${messageOf(error)}`,
+        { cause: error },
+      )
+    }
+    if (installed.archiveDigest.trim().length === 0) {
+      throw new ExtensionsServiceError(
+        'extension-digest-unavailable',
+        `${installed.extensionId}@${installed.version} was installed without a content digest, so it cannot be verified before activation`,
+      )
+    }
+    /**
+     * OPTIONAL RUNTIMES. The packages an extension declares in
+     * `optionalDependencies` are the engine its tools `import()` at call time.
+     * The REGISTRY arm already materialized them; this arm did not, so a
+     * first-party install (EmbeddingGemma's onnxruntime-node and
+     * @huggingface/transformers, Tongue's runtime) activated with the engine
+     * absent and every tool reported needs-preparation naming a package that was
+     * never installed. Resolution uses the HOST-TREE graph, so developer mode
+     * still downloads nothing; a failure is recorded and blocks activation
+     * instead of failing the package install.
+     */
+    await this.#materializeOptionalRuntimes(storeDir, installed, this.#dependencyGraph(sourceDir), signal)
+    return {
+      id: installed.extensionId,
+      version: installed.version,
+      active: false,
+      source: 'directory',
+      resolvedVersion: installed.version,
+    }
+  }
+
+  /**
+   * Activate an installed extension and clear its disabled override.
+   *
+   * Activation runs through the mounted lifecycle, which verifies the installed
+   * bytes, publishes the contributions and persists `desiredActivation: 'active'`.
+   * The disabled list is updated only after activation succeeds, so a refused
+   * activation does not leave the operator's override claiming a state change that
+   * did not happen.
+   *
+   * With an approval store mounted (`approvals`), this method does NOT activate: it
+   * records a pending `extension-activate` request and refuses, and only
+   * `commitApproval` applies the mutation. Without one, the direct path is the
+   * documented pre-approved compatibility composition.
+   * @param extensionId - the installed extension.
+   * @param signal - cancellation.
+   * @returns the id with the observed active/disabled state.
+   * @throws ExtensionsServiceError for every refusal.
+   */
+  async enable(extensionId: string, signal?: AbortSignal): Promise<ExtensionToggleResult> {
+    signal?.throwIfAborted()
+    assertUsableId(extensionId)
+    const storeDir = this.#requireStoreDir()
+    this.#requireInstalled(storeDir, extensionId)
+    /**
+     * SEC-09: WITH an approval store mounted, activation is a management-sensitive
+     * mutation and must pass an explicit operator decision. The request is RECORDED
+     * here — so the operator has something to approve — and the call refuses
+     * synchronously: nothing waits for a UI, and nothing mutates before a commit.
+     * `commitApproval` applies the approved mutation.
+     */
+    const approvals = this.#approvals()
+    if (approvals !== undefined) {
+      const pending = approvals.request({
+        kind: 'extension-activate',
+        scope: { kind: 'extension', id: extensionId },
+        operator: HOST_APPROVAL_OPERATOR,
+        reason: `activate ${extensionId} through the management surface`,
+      })
+      throw new ExtensionsServiceError(
+        'extension-approval-required',
+        `approval/pending: ${pending.id} was recorded for extension ${extensionId}; approve it and commit before it can be activated`,
+      )
+    }
+    return await this.#enableApproved(extensionId, signal)
+  }
+
+  /**
+   * The activation itself, shared by the direct path and an approved commit.
+   *
+   * Private because every public entry point must first answer the approval question:
+   * `enable` is the no-approval-store compatibility composition, and `commitApproval`
+   * is the approved path. Neither the lifecycle nor the disabled override is touched
+   * until that decision is made.
+   * @param extensionId - the installed extension.
+   * @param signal - cancellation.
+   * @returns the id with the observed active/disabled state.
+   */
+  async #enableApproved(extensionId: string, signal?: AbortSignal): Promise<ExtensionToggleResult> {
+    signal?.throwIfAborted()
+    const storeDir = this.#requireStoreDir()
+    const record = this.#requireInstalled(storeDir, extensionId)
+    const lifecycle = this.#lifecycle()
+    if (lifecycle === undefined) {
+      throw new ExtensionsServiceError(
+        'extension-activation-unavailable',
+        `the extension lifecycle is not mounted, so ${extensionId} cannot be activated by this host`,
+      )
+    }
+
+    const current = lifecycle.stateOf(extensionId)
+    /**
+     * THE PREFLIGHT. Every prerequisite the deployment can check is evaluated
+     * BEFORE the lifecycle is touched: a deployment gap must never surface as the
+     * SDK's generic EXTENSION_FAULT after an activation attempt. The refusal's code
+     * maps the unmet requirement and its message is the requirement's own reason,
+     * so the page, `describe()` and the error cannot disagree.
+     */
+    const preflightIntegrity = this.#integrityOf(storeDir, record)
+    const preflightFacts = readExtensionFacts(record.installPath)
+    const requirements = this.#computeRequirements({
+      id: extensionId,
+      installed: true,
+      record,
+      state: current,
+      integrity: preflightIntegrity.integrity,
+      integrityReason: preflightIntegrity.reason,
+      storeDir,
+      sourceDir: this.#sourceDir(),
+      lockCorrupt: false,
+      lockDiagnostic: null,
+      profileStates: readProfileStates(new ExtensionStore(storeDir), this.#profile()),
+      sourcePackage: undefined,
+      facts: preflightFacts,
+    })
+    const unmet = firstBlockingRequirement(requirements, true)
+    if (unmet !== undefined) {
+      if (unmet.kind === 'assets') {
+        // The established preparation refusal keeps its own code and wording.
+        throw new ExtensionsServiceError('extension-preparation-required', unmet.reason)
+      }
+      if (unmet.kind === 'integrity') {
+        // The activation path named the SDK's integrity code; the preflight keeps
+        // that classification while refusing before the lifecycle call.
+        throw new ExtensionsServiceError('extension-activation-failed', `[INTEGRITY_MISMATCH] ${unmet.reason}`)
+      }
+      if (unmet.kind === 'runtime') {
+        // Activation that cannot serve the extension's tools is not activation.
+        throw new ExtensionsServiceError('extension-runtime-unavailable', unmet.reason)
+      }
+      throw new ExtensionsServiceError('extension-requirement-unmet', unmet.reason)
+    }
+    const ownedHere = current?.observedActivation === 'active'
+      && (current.ownerPid === undefined || current.ownerPid === process.pid)
+    /**
+     * RE-ACTIVATE EVEN WHEN THIS PROCESS ALREADY OWNS THE EXTENSION.
+     *
+     * `activate` reconciles the published surface, and the SDK documents
+     * re-activation as the way a caller PICKS UP newly recorded readiness. Skipping
+     * it here made `enable` a no-op after `prepare` or after an upgrade: the row
+     * turned active while the registry still held the superseded (or empty) set of
+     * tools, and only a disable→enable cycle made the new tool names appear.
+     * Admission is still only needed on the first activation: the registrar refuses
+     * a contribution from an extension outside its activated set, and a re-activation
+     * of an already-admitted id must not be re-admitted.
+     */
+    if (!ownedHere) this.#options.onActivationChange?.(extensionId, true)
+    try {
+      await lifecycle.activate(extensionId, record.version)
+    } catch (error) {
+      if (!ownedHere) this.#options.onActivationChange?.(extensionId, false)
+      const named = error instanceof ManagementError ? `[${error.code}] ` : ''
+      throw new ExtensionsServiceError(
+        'extension-activation-failed',
+        `${named}${messageOf(error)}`,
+        { cause: error },
+      )
+    }
+
+    this.#rememberDisabled(extensionId, false)
+    await this.#persistDisabled()
+    const observed = lifecycle.stateOf(extensionId)
+    return {
+      id: extensionId,
+      active: observed?.observedActivation === 'active'
+        && (observed.ownerPid === undefined || observed.ownerPid === process.pid),
+      disabled: this.#effectiveDisabled().has(extensionId),
+    }
+  }
+
+  /**
+   * Record a pending approval for one management-sensitive mutation (SEC-09).
+   *
+   * The seam is REQUIRED here: creating a record on a host that mounted no store
+   * would hand the operator an approval nothing can commit — the dead end this
+   * wiring exists to remove.
+   * @param input - the request facts (kind, exact scope, operator, reason, optional TTL).
+   * @returns the pending record (a plain-JSON copy).
+   * @throws ExtensionsServiceError when no approval store is mounted; ApprovalError for a bad request.
+   */
+  requestApproval(input: ApprovalRequestInput): ApprovalRecord {
+    return this.#requireApprovals().request(input)
+  }
+
+  /**
+   * Apply an explicit operator decision to a request (SEC-09).
+   *
+   * Decisions are the operator's alone; this method only forwards one, and the store
+   * enforces that repeating the SAME decision is idempotent while the opposite
+   * decision after a decision is refused.
+   * @param id - the approval id.
+   * @param decision - approve or deny, who decided, and an optional note.
+   * @returns the decided record.
+   * @throws ApprovalError for an unknown/expired/committed request or a conflicting decision.
+   */
+  decideApproval(id: string, decision: ApprovalDecision): ApprovalRecord {
+    return this.#requireApprovals().decide(id, decision)
+  }
+
+  /**
+   * Consume an approved activation and apply it EXACTLY once.
+   *
+   * Order is deliberate: the approval is consumed — and its scope checked against
+   * `extensionId` by the store — BEFORE any mutation, so a wrong-scope or replayed
+   * commit cannot touch the operator's extension. The store's one-shot commit is the
+   * exactly-once guarantee; a second call is `approval/already-committed` and never
+   * reaches the lifecycle. A mutation that fails AFTER the commit leaves the approval
+   * spent: the operator re-requests rather than replaying an approval whose
+   * conditions may have changed.
+   * @param id - the approval id.
+   * @param extensionId - the exact extension the caller is about to activate.
+   * @param signal - cancellation.
+   * @returns the activation result.
+   * @throws ApprovalError for a pending/denied/expired/committed/mismatched approval.
+   * @throws ExtensionsServiceError for the activation's own refusals.
+   */
+  async commitApproval(
+    id: string,
+    extensionId: string,
+    signal?: AbortSignal,
+  ): Promise<ExtensionToggleResult> {
+    signal?.throwIfAborted()
+    assertUsableId(extensionId)
+    const approvals = this.#requireApprovals()
+    const record = approvals.describe(id)
+    if (record.kind !== 'extension-activate') {
+      throw new ExtensionsServiceError(
+        'extension-approval-required',
+        `approval ${id} covers ${record.kind}, which this management surface cannot commit`,
+      )
+    }
+    /**
+     * Consumption happens BEFORE the mutation, so a scope mismatch, a denial, an
+     * expiry or a replay refuses with the store's own named error and the extension
+     * is never touched.
+     */
+    approvals.commit(id, { kind: 'extension', id: extensionId })
+    return await this.#enableApproved(extensionId, signal)
+  }
+
+  /** Live per-tool toggle through the running host (EXT-31 settings action). */
+  async setToolEnabled(
+    extensionId: string,
+    toolName: string,
+    enabled: boolean,
+    signal?: AbortSignal,
+  ): Promise<ExtensionToolToggleResult> {
+    signal?.throwIfAborted()
+    assertUsableId(extensionId)
+    const lifecycle = this.#lifecycle()
+    if (lifecycle === undefined) {
+      throw new ExtensionsServiceError(
+        'extension-activation-unavailable',
+        `the extension lifecycle is not mounted, so ${extensionId}'s tools cannot be toggled by this host`,
+      )
+    }
+    const state = await lifecycle.setToolEnabled(extensionId, toolName, enabled)
+    return {
+      id: extensionId,
+      toolName,
+      enabled: state.tools.find(tool => tool.toolName === toolName)?.enabled ?? enabled,
+      active: state.observedActivation === 'active',
+    }
+  }
+
+  /** Live uninstall; an active extension requires explicit deactivation (EXT-31 settings action). */
+  async uninstall(
+    extensionId: string,
+    deactivate = false,
+    signal?: AbortSignal,
+  ): Promise<ExtensionUninstallResult> {
+    signal?.throwIfAborted()
+    assertUsableId(extensionId)
+    this.#requireStoreDir()
+    this.#requireInstalled(this.#requireStoreDir(), extensionId)
+    const lifecycle = this.#lifecycle()
+    if (lifecycle === undefined) {
+      throw new ExtensionsServiceError(
+        'extension-activation-unavailable',
+        `the extension lifecycle is not mounted, so ${extensionId} cannot be uninstalled by this host`,
+      )
+    }
+    try {
+      await lifecycle.uninstall(extensionId, { deactivate })
+    } catch (error) {
+      if (error instanceof ManagementError && error.code === 'EXTENSION_IN_USE') {
+        throw new ExtensionsServiceError('extension-in-use', messageOf(error), { cause: error })
+      }
+      throw error
+    }
+    return { id: extensionId, removed: true, active: false }
+  }
+
+  /**
+   * Record the failed activation attempt a fresh extension needs before its
+   * readiness can be written.
+   *
+   * The SDK's `recordReadiness` refuses an extension the profile has never seen,
+   * and a freshly installed extension has no profile state until an activation is
+   * attempted. The probe therefore performs the SAME attempt the operator's failed
+   * Enable performs: every declared deployment defaults to `needs-preparation`, so
+   * the SDK refuses at the readiness assessment, records the state, and publishes
+   * nothing. Any other refusal is a real problem and is reported.
+   * @param lifecycle - the mounted lifecycle.
+   * @param extensionId - the installed extension.
+   * @param version - its installed version.
+   * @throws ExtensionsServiceError when the probe fails for a reason other than the
+   *   expected preparation refusal.
+   */
+  async #recordPreparationBlocker(
+    lifecycle: ExtensionActivation,
+    extensionId: string,
+    version: string,
+  ): Promise<void> {
+    try {
+      await lifecycle.activate(extensionId, version, { recordFailure: false })
+    } catch (error) {
+      if (error instanceof ManagementError && error.code === 'EXTENSION_FAULT') return
+      throw new ExtensionsServiceError(
+        'extension-preparation-failed',
+        `the extension's activation record could not be written before preparation: ${messageOf(error)}`,
+        { cause: error },
+      )
+    }
+  }
+
+  /**
+   * Acquire and verify an installed extension's model assets, then record the
+   * resulting readiness.
+   *
+   * This is the management-channel `extensions-prepare-plan` + `extensions-prepare`
+   * pair behind one call, over the SAME host surface: the plan is resolved from the
+   * installed manifest's asset lock, the acquisition runs through the injectable
+   * source (the real ranged HTTP source unless the host injects one), and a
+   * successful acquisition records `prepared-cold` through the lifecycle — which is
+   * what lets a following `enable` activate the extension.
+   *
+   * Success is reported ONLY when that readiness was actually recorded for the
+   * planned deployment. The acquisition and the readiness are two different facts,
+   * and they can disagree (a surface whose readiness write did not land, a host
+   * that never mounted the lifecycle, an installed build the assets cannot make
+   * callable); reporting `prepared: true` there is what makes Prepare look like a
+   * no-op, because the page celebrates while the row keeps its blocker.
+   *
+   * The RES-02 executable gate is deliberately CLOSED here: the Remote call carries
+   * no executable-approval argument, so a plan containing an executable asset is
+   * returned as `prepared: false` with the registry's own reason rather than
+   * acquired. The pinned EmbeddingGemma assets are not executable.
+   * @param extensionId - the installed extension to prepare.
+   * @param signal - cancellation.
+   * @returns the disclosure that was executed and the resulting readiness.
+   * @throws ExtensionsServiceError for every precondition and plan failure.
+   */
+  async prepare(extensionId: string, signal?: AbortSignal): Promise<ExtensionPrepareResult> {
+    try {
+      const result = await this.#prepareRequest(extensionId, signal)
+      this.#options.onAudit?.({
+        operation: 'prepare', extensionId, version: null, outcome: 'succeeded',
+      })
+      return result
+    } catch (error) {
+      this.#options.onAudit?.({
+        operation: 'prepare',
+        extensionId,
+        version: null,
+        outcome: 'failed',
+        reason: error instanceof Error ? error.message : String(error),
+      })
+      throw error
+    }
+  }
+
+  async #prepareRequest(extensionId: string, signal?: AbortSignal): Promise<ExtensionPrepareResult> {
+    signal?.throwIfAborted()
+    assertUsableId(extensionId)
+    const storeDir = this.#requireStoreDir()
+    const record = this.#requireInstalled(storeDir, extensionId)
+    const surface = this.#options.prepareSurface?.()
+    if (surface === undefined) {
+      throw new ExtensionsServiceError(
+        'extension-preparation-unavailable',
+        `the prepared-assets surface is not mounted, so ${extensionId}'s model assets cannot be prepared by this host`,
+      )
+    }
+    const declaredModels = readExtensionFacts(record.installPath).models
+    if (declaredModels.length === 0) {
+      throw new ExtensionsServiceError(
+        'extension-preparation-failed',
+        `${extensionId} declares no model deployment to prepare`,
+      )
+    }
+    let plan: PreparationPlan
+    try {
+      plan = surface.plan(extensionId)
+    } catch (error) {
+      throw new ExtensionsServiceError(
+        'extension-preparation-failed',
+        `the preparation plan for ${extensionId} could not be resolved: ${messageOf(error)}`,
+        { cause: error },
+      )
+    }
+    const lifecycle = this.#lifecycle()
+    /**
+     * A prose source (no URL, no cached bytes) is refused BEFORE the lifecycle
+     * probe or any transfer: a URL-parse failure after waiting is the wrong answer.
+     */
+    const unavailable = firstUnavailableAssetSource(
+      plan.assets.map(asset => ({ assetId: asset.assetId, source: asset.source, digest: asset.digest })),
+      surface.registry.cacheDirectory,
+    )
+    if (unavailable !== undefined) {
+      throw new ExtensionsServiceError(
+        'extension-asset-source-unavailable',
+        `[ASSET_SOURCE_UNAVAILABLE] ${assetSourceUnavailableReason(unavailable.assetId, unavailable.source)}`,
+      )
+    }
+    /**
+     * REFUSE BEFORE THE TRANSFER when readiness has no writer. The acquisition is
+     * the expensive half of preparation and the readiness write is the ONLY fact
+     * that unblocks activation; without a mounted lifecycle the write cannot
+     * happen, so a transfer would download the declared asset set and change
+     * nothing. Naming the host gap costs nothing and acquires nothing.
+     */
+    if (lifecycle === undefined) {
+      throw new ExtensionsServiceError(
+        'extension-preparation-failed',
+        `the extension lifecycle is not mounted, so ${extensionId}'s readiness cannot be recorded; `
+        + 'no assets were acquired',
+      )
+    }
+    if (lifecycle.stateOf(extensionId) === undefined) {
+      await this.#recordPreparationBlocker(lifecycle, extensionId, record.version)
+    }
+    /**
+     * RES-02: the Remote path has no per-call executable argument, so the approval
+     * is the operator's STANDING configuration value. With it off the registry
+     * returns its exact refusal and NOTHING is acquired; with it on the same
+     * digest-pinned plan is approved as a whole.
+     */
+    const allowExecutable = this.#options.allowExecutablePreparation?.() === true
+    let outcome: PreparationOutcome
+    try {
+      outcome = await surface.prepare(extensionId, {
+        source: (this.#options.preparationSource ?? createHttpSource)(),
+        allowExecutable,
+        signal: signal ?? new AbortController().signal,
+      })
+    } catch (error) {
+      throw new ExtensionsServiceError(
+        'extension-preparation-failed',
+        `the preparation of ${extensionId} could not be recorded: ${messageOf(error)}`,
+        { cause: error },
+      )
+    }
+    const state = lifecycle?.stateOf(extensionId)
+    const readiness = readinessView(state?.readiness ?? {}, declaredModels)
+    if (!outcome.ok) {
+      return {
+        id: extensionId,
+        prepared: false,
+        reason: outcome.reason,
+        plan: preparationPlanView(plan),
+        readiness,
+        groups: [],
+        activationReady: false,
+      }
+    }
+    const integrity = new ExtensionStore(storeDir).verifyUnchanged(record).unchanged
+    const blockers = preparationBlockers(state?.readiness ?? {}, declaredModels)
+    /**
+     * THE ACQUISITION IS NOT THE OUTCOME. `outcome.ok` says the surface acquired the
+     * planned bytes; it says nothing about whether the READINESS that unblocks
+     * activation was written. Only the planned deployment decides that (the surface
+     * plans exactly one), so its recorded value is checked rather than assumed. A
+     * `prepared: true` beside a "needs its model assets prepared" row is the
+     * self-contradiction this check removes: the operator gets the recorded value
+     * and the host gap, not a green result that changes nothing.
+     */
+    const plannedModelId = plan.identity.modelId
+    const plannedReadiness: string | undefined = readiness[plannedModelId]
+    if (plannedReadiness === undefined || !CALLABLE_READINESS.has(plannedReadiness)) {
+      return {
+        id: extensionId,
+        prepared: false,
+        reason: `${plannedModelId}'s assets were acquired, but its recorded readiness is `
+          + `${plannedReadiness ?? 'needs-preparation'}, which does not permit activation; `
+          + 'preparation cannot make this deployment callable until the host records a callable readiness '
+          + '(check that the installed build runs this model and that the host mounted the extension lifecycle)',
+        plan: preparationPlanView(plan),
+        readiness,
+        groups: outcome.groups.map(group => group.groupId),
+        activationReady: false,
+      }
+    }
+    return {
+      id: extensionId,
+      prepared: true,
+      reason: null,
+      plan: preparationPlanView(plan),
+      readiness,
+      groups: outcome.groups.map(group => group.groupId),
+      activationReady: integrity && blockers.length === 0,
+    }
+  }
+
+  /**
+   * Deactivate an installed extension and record it as disabled.
+   *
+   * The SDK's deactivation persists `desiredActivation: 'inactive'` BEFORE it
+   * withdraws anything, so the durable answer survives a crash mid-withdrawal. The
+   * disabled override is recorded only after the lifecycle call settles; a
+   * deactivation that throws leaves the operator's list unchanged.
+   * @param extensionId - the installed extension.
+   * @param signal - cancellation.
+   * @returns the id with the observed active/disabled state.
+   * @throws ExtensionsServiceError for every refusal.
+   */
+  async disable(extensionId: string, signal?: AbortSignal): Promise<ExtensionToggleResult> {
+    signal?.throwIfAborted()
+    assertUsableId(extensionId)
+    const storeDir = this.#requireStoreDir()
+    // Not installed (or the store is unreadable) is still a refusal for disable:
+    // there is no activation record this host could be switching off.
+    this.#requireInstalled(storeDir, extensionId)
+    const lifecycle = this.#lifecycle()
+    if (lifecycle === undefined) {
+      throw new ExtensionsServiceError(
+        'extension-activation-unavailable',
+        `the extension lifecycle is not mounted, so ${extensionId} cannot be deactivated by this host`,
+      )
+    }
+
+    /**
+     * An installed extension that was never activated has no profile state, and
+     * `deactivate` refuses such an id. That is not an error for the operator: the
+     * extension is already inactive, and recording the disabled choice is enough.
+     */
+    if (lifecycle.stateOf(extensionId) !== undefined) {
+      try {
+        await lifecycle.deactivate(extensionId)
+      } catch (error) {
+        if (!(error instanceof ManagementError && error.code === 'EXTENSION_INACTIVE')) {
+          const named = error instanceof ManagementError ? `[${error.code}] ` : ''
+          throw new ExtensionsServiceError(
+            'extension-deactivation-failed',
+            `${named}${messageOf(error)}`,
+            { cause: error },
+          )
+        }
+      }
+    }
+
+    this.#rememberDisabled(extensionId, true)
+    await this.#persistDisabled()
+    // The registrar's activated set follows the lifecycle: a deactivated extension
+    // must not stay admitted to publish.
+    this.#options.onActivationChange?.(extensionId, false)
+    const observed = lifecycle.stateOf(extensionId)
+    return {
+      id: extensionId,
+      active: observed?.observedActivation === 'active'
+        && (observed.ownerPid === undefined || observed.ownerPid === process.pid),
+      disabled: this.#effectiveDisabled().has(extensionId),
+    }
+  }
+}
+
+/**
+ * Construct the extension-management service.
+ * @param options - store/source configuration and the host's seams.
+ * @returns a service satisfying {@link ModelToolsRemote}.
+ */
+export function createExtensionsService(options: ExtensionsServiceOptions = {}): ExtensionsService {
+  return new ExtensionsService(options)
+}

@@ -1,0 +1,85 @@
+{
+  "generatedAt": "2026-10-25T05:50:00.960Z",
+  "baseUrl": "http://127.0.0.1:3184",
+  "exitCode": 1,
+  "skipInvoke": false,
+  "rows": [
+    {
+      "id": "@try-works/extension-desert-ant-voz",
+      "name": "voz",
+      "status": "SKIPPED",
+      "durationMs": 267935,
+      "blocker": "the extension's tools cannot load: @desert-ant-labs/voz ^3.6.0 is not installed inside the extension: the dependency graph needs both @types/dom-webcodecs@0.1.13 and @types/dom-webcodecs@0.1.19; conflicting versions inside one extension are refused rather than silently duplicated",
+      "detail": "prepare: prepared",
+      "tools": [
+        "stt_transcribe"
+      ]
+    },
+    {
+      "id": "@try-works/extension-embeddinggemma",
+      "name": "embeddinggemma",
+      "status": "FAIL",
+      "durationMs": 307482,
+      "blocker": null,
+      "detail": "fetch failed",
+      "tools": [
+        "multimodal_embed",
+        "semantic_similarity",
+        "semantic_rank",
+        "semantic_classify",
+        "semantic_deduplicate",
+        "media_find_moments"
+      ]
+    },
+    {
+      "id": "@try-works/extension-laya",
+      "name": "laya",
+      "status": "FAIL",
+      "durationMs": 134938,
+      "blocker": null,
+      "detail": "fetch failed",
+      "tools": [
+        "decision_choose",
+        "decision_test",
+        "decision_score"
+      ]
+    },
+    {
+      "id": "@try-works/extension-minilm-embed",
+      "name": "minilm-embed",
+      "status": "FAIL",
+      "durationMs": 6,
+      "blocker": null,
+      "detail": "fetch failed",
+      "tools": [
+        "text_embed"
+      ]
+    },
+    {
+      "id": "@try-works/extension-minilm-rerank",
+      "name": "minilm-rerank",
+      "status": "FAIL",
+      "durationMs": 4,
+      "blocker": null,
+      "detail": "fetch failed",
+      "tools": [
+        "text_rerank"
+      ]
+    }
+  ],
+  "tools": [],
+  "summary": {
+    "total": 5,
+    "pass": 0,
+    "fail": 4,
+    "skipped": 1,
+    "skippedWithNamedBlocker": 1,
+    "coherenceIssues": [],
+    "invocationRan": false
+  },
+  "hostServices": {},
+  "surface": {
+    "lifecycle": "gateway RPC: GET /connect?token=… then POST /api/modelTools/<installExtension|describe|prepare|enable> with {type:\"client-request\",rpcId,method,payload:{args}}",
+    "invocation": "in-process shipping host (plugin apply + tool runtime + extension dispatch) over a snapshot of the profile store; the live web profile exposes no MCP/tool-execute endpoint"
+  }
+}

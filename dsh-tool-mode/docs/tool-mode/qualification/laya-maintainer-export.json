@@ -1,0 +1,90 @@
+{
+  "acceptance": "AT-54",
+  "recordedAt": "2026-11-05T22:29:58.539Z",
+  "sourceCheckpoint": {
+    "repo": "convaiinnovations/laya",
+    "revision": "7b928d828b7b0e022f929d9bd2e44165aa270148",
+    "subfolder": "multilingual",
+    "license": "Apache-2.0",
+    "files": [
+      {
+        "path": "multilingual/model.safetensors",
+        "bytes": 643835514,
+        "sha256": "9d628fd971b700382ac6f65920a86f149777b2e748e0c955fb3b19695aa8f204",
+        "source": "https://huggingface.co/convaiinnovations/laya/tree/7b928d828b7b0e022f929d9bd2e44165aa270148/multilingual"
+      },
+      {
+        "path": "multilingual/encoder/config.json",
+        "bytes": 1938,
+        "sha256": "83f6916d13ef0f556ac461f28308dc2bffa7ebeadee8ec9e2db5812020ea5bb4",
+        "source": "https://huggingface.co/convaiinnovations/laya/resolve/7b928d828b7b0e022f929d9bd2e44165aa270148/multilingual/encoder/config.json"
+      },
+      {
+        "path": "multilingual/tokenizer.json",
+        "bytes": 34363188,
+        "sha256": "609D8F4C067CD3950F88594C5A802616CEA245823836EF5848EE4FC40AAB5B6F",
+        "source": "the pinned checkpoint; byte-identical to the export"
+      },
+      {
+        "path": "multilingual/rl_agent_config.json",
+        "bytes": 472,
+        "sha256": "25061739243B617AD88D1219BA6F8A9C86C5881CA28DF024FA2D9B3B2FCC30C6",
+        "source": "the pinned checkpoint; byte-identical to the export"
+      }
+    ]
+  },
+  "exportedArtifacts": [
+    {
+      "path": "encoder.onnx",
+      "bytes": 2451566,
+      "sha256": "A774C5C634B99D1A4CED21ACBF11B9617A5CD55C7C7957BD52480B17D95A97F4"
+    },
+    {
+      "path": "encoder.onnx.data",
+      "bytes": 1227816960,
+      "sha256": "F1E49A027352064D72831863456BE6160748854296BFF8332DF14130DBF79834"
+    },
+    {
+      "path": "head.onnx",
+      "bytes": 245312,
+      "sha256": "7F6B9AC15D5FDF9EEBB352E66BDD3CE799D32885F1446014D268D8C53207858B"
+    },
+    {
+      "path": "head.onnx.data",
+      "bytes": 59899904,
+      "sha256": "0292A4EB478C2C3EC0B6555B4A4093BC802E965654D7AEB4AC22907A17F261D3"
+    },
+    {
+      "path": "rl_agent_config.json",
+      "bytes": 472,
+      "sha256": "25061739243B617AD88D1219BA6F8A9C86C5881CA28DF024FA2D9B3B2FCC30C6"
+    },
+    {
+      "path": "tokenizer.json",
+      "bytes": 34363188,
+      "sha256": "609D8F4C067CD3950F88594C5A802616CEA245823836EF5848EE4FC40AAB5B6F"
+    }
+  ],
+  "numericalParity": {
+    "passed": 3,
+    "failed": 0,
+    "tolerance": "1e-4",
+    "worstLogitsDiff": 0.000001,
+    "actProbsDiff": 0,
+    "independentNodeComparisonErrors": 0,
+    "upstreamOnnxChecks": 194,
+    "ciGate": "tests/test_onnx.py 2/2",
+    "evidence": "docs/tool-mode/LAYA-INTEGRATION-FINDINGS.md lines 332-357"
+  },
+  "consumer": {
+    "package": "@try-works/extension-laya",
+    "pythonRequired": false,
+    "exportStepRequired": false,
+    "note": "The packed consumer ships the six ONNX/tokenizer/config files and loads them with the vendored laya-ts runtime; no Python or export step runs in the consumer. Real decision_choose calls passed through the host."
+  },
+  "evidence": [
+    "docs/tool-mode/LAYA-INTEGRATION-FINDINGS.md",
+    "packages/extension-laya/models.lock.json",
+    "packages/extension-laya/tool-mode.extension.json"
+  ]
+}

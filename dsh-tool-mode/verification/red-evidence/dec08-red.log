@@ -1,0 +1,9 @@
+# DEC-08 TDD red — quality evaluation harness
+
+Date: 2026-11-01
+Command: `npx tsx --test packages/extension-laya/tests/evaluation.test.ts`
+
+Before implementation: 0 pass, 1 file failure.
+- `../src/evaluation.ts` does not exist: no held-out fixtures, no accuracy/coverage/
+  Brier/calibration reporting, no reviewed-threshold configuration and no separation
+  between schema/API conformance and model quality.

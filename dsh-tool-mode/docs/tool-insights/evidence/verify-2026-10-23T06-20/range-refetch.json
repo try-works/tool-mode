@@ -1,0 +1,19 @@
+{
+  "capturedAt": "2026-10-23T15:35:00+08:00",
+  "what": "Range switching on the Tool Insights page does not refresh report-derived values (D6), on build rev 5941f89424ac where reportQuery('all') = { range: 'all' } is present.",
+  "hostRanges": {
+    "24h": { "calls": 668, "sessions": 1, "tools": 23 },
+    "7d": { "calls": 1565, "sessions": 3, "tools": 35 },
+    "30d": { "calls": 1565, "sessions": 3, "tools": 35 },
+    "all": { "calls": 2448, "sessions": 5, "tools": 43 }
+  },
+  "page": {
+    "initial7d": { "CALLS": "1,565", "TOOLS_USED": "35 / 6", "SESSIONS": 3 },
+    "afterClick24h": { "CALLS": "1,565", "label": "in 24h", "TOOLS_USED": "35 / 6", "toolTable": "Showing 1-7 of 35 tools" },
+    "afterClick30d": { "CALLS": "1,565", "label": "in 30d" },
+    "afterClickAll": { "CALLS": "1,565", "label": "all time" }
+  },
+  "network": "Clicking 24h caused 0 observable network requests (Network.requestWillBeSent) and no new WebSocket frames; the label changes only.",
+  "finding": "The page fetches the report once for the initial range and never applies a new report for 24h/30d/All even though the range label and the KPI suffix update. reportQuery is correct in this build (all -> { range: 'all' }); the defect is the range->fetch/apply wiring (effect not rerunning, or its result not reaching deriveInsights).",
+  "codeMode": "The provided 64c910b6 session's 14 tool_mode_run calls are still outside the newest-200 retained window: with only that session plus e9ccb118/496d3f53 and the four anti-slop sessions, the host report recentCalls (200) contains zero tool_mode_run/run_code rows (all report: 2,448 calls / 5 sessions / 43 tools)."
+}

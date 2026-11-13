@@ -1,0 +1,147 @@
+{
+  "generatedAt": "2026-10-24T01:49:25.060Z",
+  "baseUrl": "http://127.0.0.1:3182",
+  "exitCode": 0,
+  "skipInvoke": false,
+  "rows": [
+    {
+      "id": "@try-works/extension-needle",
+      "name": "needle",
+      "status": "PASS",
+      "durationMs": 7591,
+      "blocker": null,
+      "detail": "already active",
+      "tools": [
+        "tools_plan",
+        "structured_extract"
+      ]
+    },
+    {
+      "id": "@try-works/extension-declarative-recipes",
+      "name": "declarative-recipes",
+      "status": "SKIPPED",
+      "durationMs": 1222,
+      "blocker": "the invocation host composes no LLM provider (harness limitation; the live host serves declarative recipes via the agent)",
+      "detail": null,
+      "tools": []
+    }
+  ],
+  "tools": [
+    {
+      "id": "tools_plan",
+      "extension": "needle",
+      "ok": false,
+      "allowedRefusal": true,
+      "refusal": "the pinned Needle engine and weights are not prepared on this machine, so no inference was run.\n  - needle-engine-win-x64: D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle.exe could not be read: ENOENT: no such file or directory, stat 'D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle.exe'\n  - needle3-weights: D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle3.cact could not be read: ENOENT: no such file or directory, stat 'D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle3.cact'\nPrepare the artifacts (see models.lock.json and PINNING.md) or set NEEDLE_EXTENSION_ENGINE and NEEDLE_EXTENSION_WEIGHTS to",
+      "detail": "the host returned a refusal: the pinned Needle engine and weights are not prepared on this machine, so no inference was run.\n  - needle-engine-win-x64: D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle.exe could not be read: ENOENT: no such file or directory, stat 'D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle.exe'\n  - needle3-weights: D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle3.cact could not be read: ENOENT: no such file or directory, stat 'D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle3.cact'\nPrepare the artifacts (see models.lock.json and PINNING.md) or set NEEDLE_EXTENSION_ENGINE and NEEDLE_EXTENSION_WEIGHTS to",
+      "failures": [
+        "output-is-success"
+      ],
+      "raw": {
+        "isError": true,
+        "error": {
+          "message": "the pinned Needle engine and weights are not prepared on this machine, so no inference was run.\n  - needle-engine-win-x64: D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle.exe could not be read: ENOENT: no such file or directory, stat 'D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle.exe'\n  - needle3-weights: D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle3.cact could not be read: ENOENT: no such file or directory, stat 'D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle3.cact'\nPrepare the artifacts (see models.lock.json and PINNING.md) or set NEEDLE_EXTENSION_ENGINE and NEEDLE_EXTENSION_WEIGHTS to local copies whose size and SHA-256 match the pin. This extension does not download them and will not run a substitute."
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Error: the pinned Needle engine and weights are not prepared on this machine, so no inference was run.\n  - needle-engine-win-x64: D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle.exe could not be read: ENOENT: no such file or directory, stat 'D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle.exe'\n  - needle3-weights: D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle3.cact could not be read: ENOENT: no such file or directory, stat 'D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle3.cact'\nPrepare the artifacts (see models.lock.json and PINNING.md) or set NEEDLE_EXTENSION_ENGINE and NEEDLE_EXTENSION_WEIGHTS to local copies whose size and SHA-256 match the pin. This extension does not download them and will not run a substitute."
+          }
+        ]
+      },
+      "verdict": {
+        "id": "tools_plan",
+        "ok": false,
+        "checks": [
+          {
+            "name": "output-is-success",
+            "ok": false,
+            "detail": "the pinned Needle engine and weights are not prepared on this machine, so no inference was run.\n  - needle-engine-win-x64: D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle.exe could not be read: ENOENT: no such file or directory, stat 'D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle.exe'\n  - needle3-weights: D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle3.cact could not be read: ENOENT: no such file or directory, stat 'D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle3.cact'\nPrepare the artifacts (see models.lock.json and PINNING.md) or set NEEDLE_EXTENSION_ENGINE and NEEDLE_EXTENSION_WEIGHTS to"
+          }
+        ],
+        "failures": [
+          "output-is-success"
+        ],
+        "note": "the host returned a refusal: the pinned Needle engine and weights are not prepared on this machine, so no inference was run.\n  - needle-engine-win-x64: D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle.exe could not be read: ENOENT: no such file or directory, stat 'D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle.exe'\n  - needle3-weights: D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle3.cact could not be read: ENOENT: no such file or directory, stat 'D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle3.cact'\nPrepare the artifacts (see models.lock.json and PINNING.md) or set NEEDLE_EXTENSION_ENGINE and NEEDLE_EXTENSION_WEIGHTS to",
+        "refusal": "the pinned Needle engine and weights are not prepared on this machine, so no inference was run.\n  - needle-engine-win-x64: D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle.exe could not be read: ENOENT: no such file or directory, stat 'D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle.exe'\n  - needle3-weights: D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle3.cact could not be read: ENOENT: no such file or directory, stat 'D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle3.cact'\nPrepare the artifacts (see models.lock.json and PINNING.md) or set NEEDLE_EXTENSION_ENGINE and NEEDLE_EXTENSION_WEIGHTS to"
+      }
+    },
+    {
+      "id": "structured_extract",
+      "extension": "needle",
+      "ok": false,
+      "allowedRefusal": true,
+      "refusal": "the pinned Needle engine and weights are not prepared on this machine, so no inference was run.\n  - needle-engine-win-x64: D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle.exe could not be read: ENOENT: no such file or directory, stat 'D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle.exe'\n  - needle3-weights: D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle3.cact could not be read: ENOENT: no such file or directory, stat 'D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle3.cact'\nPrepare the artifacts (see models.lock.json and PINNING.md) or set NEEDLE_EXTENSION_ENGINE and NEEDLE_EXTENSION_WEIGHTS to",
+      "detail": "the host returned a refusal: the pinned Needle engine and weights are not prepared on this machine, so no inference was run.\n  - needle-engine-win-x64: D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle.exe could not be read: ENOENT: no such file or directory, stat 'D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle.exe'\n  - needle3-weights: D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle3.cact could not be read: ENOENT: no such file or directory, stat 'D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle3.cact'\nPrepare the artifacts (see models.lock.json and PINNING.md) or set NEEDLE_EXTENSION_ENGINE and NEEDLE_EXTENSION_WEIGHTS to",
+      "failures": [
+        "output-is-success"
+      ],
+      "raw": {
+        "isError": true,
+        "error": {
+          "message": "the pinned Needle engine and weights are not prepared on this machine, so no inference was run.\n  - needle-engine-win-x64: D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle.exe could not be read: ENOENT: no such file or directory, stat 'D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle.exe'\n  - needle3-weights: D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle3.cact could not be read: ENOENT: no such file or directory, stat 'D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle3.cact'\nPrepare the artifacts (see models.lock.json and PINNING.md) or set NEEDLE_EXTENSION_ENGINE and NEEDLE_EXTENSION_WEIGHTS to local copies whose size and SHA-256 match the pin. This extension does not download them and will not run a substitute."
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Error: the pinned Needle engine and weights are not prepared on this machine, so no inference was run.\n  - needle-engine-win-x64: D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle.exe could not be read: ENOENT: no such file or directory, stat 'D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle.exe'\n  - needle3-weights: D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle3.cact could not be read: ENOENT: no such file or directory, stat 'D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle3.cact'\nPrepare the artifacts (see models.lock.json and PINNING.md) or set NEEDLE_EXTENSION_ENGINE and NEEDLE_EXTENSION_WEIGHTS to local copies whose size and SHA-256 match the pin. This extension does not download them and will not run a substitute."
+          }
+        ]
+      },
+      "verdict": {
+        "id": "structured_extract",
+        "ok": false,
+        "checks": [
+          {
+            "name": "output-is-success",
+            "ok": false,
+            "detail": "the pinned Needle engine and weights are not prepared on this machine, so no inference was run.\n  - needle-engine-win-x64: D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle.exe could not be read: ENOENT: no such file or directory, stat 'D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle.exe'\n  - needle3-weights: D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle3.cact could not be read: ENOENT: no such file or directory, stat 'D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle3.cact'\nPrepare the artifacts (see models.lock.json and PINNING.md) or set NEEDLE_EXTENSION_ENGINE and NEEDLE_EXTENSION_WEIGHTS to"
+          }
+        ],
+        "failures": [
+          "output-is-success"
+        ],
+        "note": "the host returned a refusal: the pinned Needle engine and weights are not prepared on this machine, so no inference was run.\n  - needle-engine-win-x64: D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle.exe could not be read: ENOENT: no such file or directory, stat 'D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle.exe'\n  - needle3-weights: D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle3.cact could not be read: ENOENT: no such file or directory, stat 'D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle3.cact'\nPrepare the artifacts (see models.lock.json and PINNING.md) or set NEEDLE_EXTENSION_ENGINE and NEEDLE_EXTENSION_WEIGHTS to",
+        "refusal": "the pinned Needle engine and weights are not prepared on this machine, so no inference was run.\n  - needle-engine-win-x64: D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle.exe could not be read: ENOENT: no such file or directory, stat 'D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle.exe'\n  - needle3-weights: D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle3.cact could not be read: ENOENT: no such file or directory, stat 'D:\\DEV\\dsh-temp\\ext-matrix-host-store-QIQPam\\extension-private\\@try-works\\extension-needle\\needle3.cact'\nPrepare the artifacts (see models.lock.json and PINNING.md) or set NEEDLE_EXTENSION_ENGINE and NEEDLE_EXTENSION_WEIGHTS to"
+      }
+    },
+    {
+      "id": "text_title",
+      "extension": "declarative-recipes",
+      "ok": false,
+      "detail": "the invocation host composes no LLM provider (harness limitation; the live host serves declarative recipes via the agent)",
+      "failures": [],
+      "skipped": true
+    },
+    {
+      "id": "image_describe",
+      "extension": "declarative-recipes",
+      "ok": false,
+      "detail": "the invocation host composes no LLM provider (harness limitation; the live host serves declarative recipes via the agent)",
+      "failures": [],
+      "skipped": true
+    }
+  ],
+  "summary": {
+    "total": 2,
+    "pass": 1,
+    "fail": 0,
+    "skipped": 1,
+    "skippedWithNamedBlocker": 1,
+    "coherenceIssues": [],
+    "invocationRan": true
+  },
+  "hostServices": {
+    "modelTools": true,
+    "agentTurnContext": false,
+    "registeredTools": [
+      "tools_plan",
+      "structured_extract"
+    ],
+    "planningTool": true
+  },
+  "surface": {
+    "lifecycle": "gateway RPC: GET /connect?token=… then POST /api/modelTools/<installExtension|describe|prepare|enable> with {type:\"client-request\",rpcId,method,payload:{args}}",
+    "invocation": "in-process shipping host (plugin apply + tool runtime + extension dispatch) over a snapshot of the profile store; the live web profile exposes no MCP/tool-execute endpoint"
+  }
+}

@@ -1,0 +1,13 @@
+# P26-14 TDD red — explicit catalog availability/generation facts
+
+Date: 2026-11-01
+Command: `npx tsx --test --test-name-pattern "catalog availability" packages/dsh-tool-mode/tests/mcp-server.test.ts`
+
+Before implementation: 1 test, 0 pass, 1 fail.
+- tools/list `_meta` had no `io.try-works/catalog`; actual undefined, expected
+  `{profile:'default', generation:7, models:[{id:'tongue',available:true,installed:true}]}`.
+- The second method in the loop (server/discover) was never reached.
+
+The host stub supplied `catalogFacts`, but `McpHost` did not declare it and dispatch
+never copied it into the result metadata. The fix threads a `catalogFacts` provider
+through `McpHost` into both cacheable discovery results.

@@ -1,0 +1,9 @@
+# DECL-07 TDD red — complete describe payload
+
+Date: 2026-11-01
+Command: `npx tsx --test --test-name-pattern "tool_mode_describe returns" packages/dsh-tool-mode/tests/mcp-host-binding.test.ts`
+
+Before implementation: 1 test, 0 pass, 1 fail.
+- `tool_mode_describe({tools:['lang_detect','tool_mode_list']})` returned no
+  `outputSchema`, `typescript`, `examples` or `skill`; the test failed on the first
+  missing field. Existing payload only has name/description/input parameters/model.

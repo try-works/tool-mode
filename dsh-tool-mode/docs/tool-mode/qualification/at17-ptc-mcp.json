@@ -1,0 +1,23 @@
+{
+  "acceptance": "AT-17",
+  "recordedAt": "2026-11-05T23:53:27.334Z",
+  "host": {
+    "profile": "at03",
+    "port": 3198,
+    "mcpPort": 3206,
+    "agentPresets": [
+      "standard",
+      "ptc",
+      "minimal",
+      "creator"
+    ]
+  },
+  "sequence": [
+    "Opened the live DSH web UI and selected PTC mode for the interactive session (button label became \"PTC mode\").",
+    "With the PTC-mode agent active, called describe_image through the external MCP server; it returned: \"The image is a solid, uniform red square. No text, shapes, gradients, or other visible features are apparent.\"",
+    "Created a NEW session in the same host; it opened in Standard mode, not PTC mode, so the selection is per-agent and did not become a deployment/global presentation toggle.",
+    "Called describe_image through MCP again from the native session; it returned: \"The image is filled entirely with a solid, uniform red colour. No shapes, text, or other details are visible.\""
+  ],
+  "dshEvidence": "apps/cli/tests/web-agent-presets.e2e.ts — \"presents `ptc` as PTC mode without disturbing a native session beside it\" proves two agents carry independent assemblies (PTC exposes run_code; native exposes bash) and the deployment default remains native.",
+  "conclusion": "Changing the interactive agent to PTC did not break MCP direct calls; the PTC presentation was confined to its agent and a parallel native session kept the standard presentation."
+}

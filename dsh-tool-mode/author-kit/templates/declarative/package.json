@@ -1,0 +1,12 @@
+{
+  "name": "@acme/tool-mode-declarative-template",
+  "version": "0.1.0",
+  "type": "module",
+  "files": [
+    "tool-mode.extension.json",
+    "recipes"
+  ],
+  "toolMode": {
+    "manifest": "./tool-mode.extension.json"
+  }
+}

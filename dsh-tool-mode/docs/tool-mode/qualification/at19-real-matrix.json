@@ -1,0 +1,73 @@
+{
+  "acceptance": "AT-19",
+  "recordedAt": "2026-11-05T17:58:31.300Z",
+  "environment": {
+    "os": "win32",
+    "arch": "x64",
+    "node": "v24.11.0",
+    "execution": "local CPU unless marked remote"
+  },
+  "rows": [
+    {
+      "capability": "STT (Voz)",
+      "tool": "stt_transcribe",
+      "inference": "local",
+      "evidence": "at09 host, prepared-cold through the real UI; input english-16k.wav -> \"The quick brown fox jumps over the lazy dog.\", coverage complete",
+      "status": "real"
+    },
+    {
+      "capability": "Decisions (Laya)",
+      "tool": "decision_choose",
+      "inference": "local",
+      "evidence": "at09 host; prompt=the Voz transcript, options English/French/Spanish -> chosen Spanish, confidence 0.3595, calibrated:false",
+      "status": "real"
+    },
+    {
+      "capability": "EmbeddingGemma 2 text",
+      "tool": "semantic_rank/text_embed",
+      "inference": "local",
+      "evidence": "packages/extension-embeddinggemma/tests/embedding-real.test.ts: 768-d unit-norm, golden match, reduced widths, real ranking",
+      "status": "real"
+    },
+    {
+      "capability": "EmbeddingGemma 2 image/audio/video",
+      "tool": "semantic_rank/text_embed",
+      "inference": "local",
+      "evidence": "same suite: generated image + WAV -> 768-d unit-norm; selective text+vision / text+audio / text+vision (video) loading",
+      "status": "real"
+    },
+    {
+      "capability": "Needle planning/extraction",
+      "tool": "tools_plan/structured_extract",
+      "inference": "local",
+      "evidence": "packages/extension-needle/tests/provider.test.ts real 27/27; native worker, zero TCP during two concurrent calls",
+      "status": "real"
+    },
+    {
+      "capability": "MiniLM embed/rerank preserved",
+      "tool": "text_embed/text_rerank",
+      "inference": "local",
+      "evidence": "packages/extension-minilm-embed/tests/minilm-embed.test.ts and extension-minilm-rerank tests remain green; tools not removed by the EmbeddingGemma work",
+      "status": "preserved"
+    },
+    {
+      "capability": "title harness recipe",
+      "tool": "text_title",
+      "inference": "remote harness model",
+      "evidence": "at74 host: direct MCP returned \"Deploy job failure due to expired registry token\"; Code Mode returned a valid title for the same text; each call is an authorized auxiliary request",
+      "status": "real-remote"
+    },
+    {
+      "capability": "image harness recipe",
+      "tool": "describe_image",
+      "inference": "remote harness model",
+      "evidence": "live typed-image call: 24x16 PNG bytes -> \"plain, very small white or near-white rectangle\", no invented content; declarative extension publication remains AT-63-blocked",
+      "status": "real-remote"
+    }
+  ],
+  "notes": [
+    "The title and image harness rows are REMOTE by design; the local rows used local CPU inference only.",
+    "The image row validates the harness/provider typed-media path, not AT-63 declarative publication.",
+    "No latency or accuracy number is copied from a vendor; each row names the run or test that produced it."
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "mirage_detect input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "image"
+  ],
+  "properties": {
+    "image": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "description": "Host-authorized local image path. The extension resolves it through the host path broker; a path-only string is never opened directly."
+    },
+    "maxObjects": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 64
+    },
+    "conf": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "maskFormat": {
+      "type": "string",
+      "enum": [
+        "none",
+        "bitmap",
+        "polygons"
+      ],
+      "default": "none",
+      "description": "Mask representation: none, bitmap RLE, or polygon point lists."
+    }
+  }
+}

@@ -1,0 +1,2711 @@
+{
+  "generatedAt": "2026-11-13T07:21:57.330Z",
+  "count": 309,
+  "records": [
+    {
+      "id": "BASE-01",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/verification-generator.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "BASE-02",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/contracts-registration.test.ts",
+        "packages/dsh-tool-mode/tests/verification-generator.test.ts",
+        "packages/tool-mode-contracts/tests/contracts.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "BASE-03",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/contracts-registration.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "BASE-04",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/transport.test.ts",
+        "packages/tool-mode-contracts/tests/contracts.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "BASE-05",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/authority.test.ts",
+        "packages/dsh-tool-mode/tests/contracts-registration.test.ts",
+        "packages/dsh-tool-mode/tests/credentials.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-client-grant.test.ts",
+        "packages/dsh-tool-mode/tests/verification-evidence.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "BASE-06",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/mcp-export-policy.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "BASE-07",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/control-surface.test.ts",
+        "packages/dsh-tool-mode/tests/model-management-fixture.test.ts",
+        "packages/dsh-tool-mode/tests/persistence.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "BASE-08",
+      "testLayer": "unit",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "BASE-09",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/architecture.test.ts",
+        "packages/dsh-tool-mode/tests/legacy-migration.test.ts",
+        "packages/extension-desert-ant-tongue/tests/extension.test.ts",
+        "packages/extension-desert-ant-voz/tests/extension.test.ts",
+        "packages/tool-mode-extension-sdk/tests/migration.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "BASE-10",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/legacy-migration.test.ts",
+        "packages/dsh-tool-mode/tests/persistence.test.ts",
+        "packages/tool-mode-extension-sdk/tests/migration.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "BASE-11",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/tool-mode-extension-sdk/tests/migration.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "BASE-12",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/model-qualification.test.ts",
+        "packages/extension-embeddinggemma/tests/extension.test.ts",
+        "packages/extension-embeddinggemma/tests/vectors.test.ts",
+        "packages/extension-minilm-embed/tests/minilm-embed.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "BASE-13",
+      "testLayer": "unit",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "BASE-14",
+      "testLayer": "unit",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "ARCH-01",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/architecture.test.ts",
+        "packages/dsh-tool-mode/tests/ptc-authority.test.ts",
+        "packages/dsh-tool-mode/tests/ptc-runtime.test.ts",
+        "packages/dsh-tool-mode/tests/tool-mode-run.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "ARCH-02",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/architecture.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "ARCH-03",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/harness-serving.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "ARCH-04",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/speech-bridge-host.test.ts",
+        "packages/dsh-tool-mode/tests/speech-bridge.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "ARCH-05",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/architecture.test.ts",
+        "packages/dsh-tool-mode/tests/extension-bridge.test.ts",
+        "packages/dsh-tool-mode/tests/extension-dispatch-real.test.ts",
+        "packages/dsh-tool-mode/tests/extension-dispatch.test.ts",
+        "packages/dsh-tool-mode/tests/harness-serving.test.ts",
+        "packages/dsh-tool-mode/tests/ptc-authority.test.ts",
+        "packages/dsh-tool-mode/tests/ptc-composition.test.ts",
+        "packages/dsh-tool-mode/tests/tool-mode-run.test.ts",
+        "packages/dsh-tool-mode/tests/tools-plan-hosting.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "ARCH-06",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/architecture.test.ts",
+        "packages/dsh-tool-mode/tests/extension-bridge.test.ts",
+        "packages/dsh-tool-mode/tests/extension-registrar.test.ts",
+        "packages/dsh-tool-mode/tests/slice1-lifecycle.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "RUN-01",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/server-lifecycle.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "RUN-02",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/server-lifecycle.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "RUN-03",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/headless-serve.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "RUN-04",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/host-cluster.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "RUN-05",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/extension-bridge.test.ts",
+        "packages/dsh-tool-mode/tests/host-restore.test.ts",
+        "packages/dsh-tool-mode/tests/provider-bridge-inspect-extension.test.ts",
+        "packages/dsh-tool-mode/tests/server-lifecycle.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "RUN-06",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/extension-bridge.test.ts",
+        "packages/dsh-tool-mode/tests/server-lifecycle.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "RUN-07",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/server-lifecycle.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "RUN-08",
+      "testLayer": "unit",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MCP-01",
+      "testLayer": "integration",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/mcp-conformance.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-live-conformance.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-live-schema.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-protocol.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-v2-interop.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MCP-02",
+      "testLayer": "integration",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/mcp-host-endpoint.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-http.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-live-conformance.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-v2-interop.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MCP-03",
+      "testLayer": "integration",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/mcp-http.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-stdio.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MCP-04",
+      "testLayer": "integration",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/mcp-conformance.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-protocol.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MCP-05",
+      "testLayer": "integration",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/mcp-protocol.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-server.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MCP-06",
+      "testLayer": "integration",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/mcp-server.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MCP-07",
+      "testLayer": "integration",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/mcp-host-binding.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MCP-08",
+      "testLayer": "integration",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/mcp-extension-surface.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-host-binding.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-host-endpoint.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-server.test.ts",
+        "packages/dsh-tool-mode/tests/slice1-lifecycle.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MCP-09",
+      "testLayer": "integration",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/mcp-host-binding.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-server.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-v2-interop.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MCP-10",
+      "testLayer": "integration",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/mcp-protocol.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-server.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MCP-11",
+      "testLayer": "integration",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/confidentiality.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-host-binding.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MCP-12",
+      "testLayer": "integration",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/diagnostics.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-client-grant.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-host-binding.test.ts",
+        "packages/dsh-tool-mode/tests/slice1-lifecycle.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MCP-13",
+      "testLayer": "integration",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/mcp-host-binding.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-live-conformance.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-server.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "SEC-01",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/credentials.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-client-grant.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-host-endpoint.test.ts",
+        "packages/dsh-tool-mode/tests/ptc-sandbox.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "SEC-02",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/mcp-http.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-live-conformance.test.ts",
+        "packages/dsh-tool-mode/tests/ptc-sandbox.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "SEC-03",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/authority.test.ts",
+        "packages/dsh-tool-mode/tests/managed-workers.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-client-grant.test.ts",
+        "packages/dsh-tool-mode/tests/ptc-authority.test.ts",
+        "packages/dsh-tool-mode/tests/ptc-runtime.test.ts",
+        "packages/dsh-tool-mode/tests/tool-mode-run.test.ts",
+        "packages/tool-mode-extension-sdk/tests/declarative-recipes.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "SEC-04",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/mcp-client-grant.test.ts",
+        "packages/dsh-tool-mode/tests/obs02-external-receipts.test.ts",
+        "packages/dsh-tool-mode/tests/tool-mode-run.test.ts",
+        "packages/dsh-tool-mode/tests/tools-plan-hosting.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "SEC-05",
+      "testLayer": "unit",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "SEC-06",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/authority.test.ts",
+        "packages/dsh-tool-mode/tests/contracts-registration.test.ts",
+        "packages/dsh-tool-mode/tests/managed-workers.test.ts",
+        "packages/extension-desert-ant-voz/tests/extension.test.ts",
+        "packages/extension-needle/tests/process-bridge.test.ts",
+        "packages/extension-needle/tests/provider.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "SEC-07",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/ptc-sandbox.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "SEC-08",
+      "testLayer": "unit",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "SEC-09",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/approval-integration.test.ts",
+        "packages/dsh-tool-mode/tests/approval.test.ts",
+        "packages/dsh-tool-mode/tests/control-surface.test.ts",
+        "packages/dsh-tool-mode/tests/model-management-fixture.test.ts",
+        "packages/dsh-tool-mode/tests/persistence.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "SEC-10",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/authority.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "DECL-01",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/declarative-install.test.ts",
+        "packages/dsh-tool-mode/tests/declarative-recipe-runs.test.ts",
+        "packages/dsh-tool-mode/tests/declarative-recipes-executable.test.ts",
+        "packages/extension-declarative-recipes/tests/manifest.test.ts",
+        "packages/extension-embeddinggemma/tests/extension.test.ts",
+        "packages/extension-needle/tests/contracts.test.ts",
+        "packages/extension-needle/tests/provider.test.ts",
+        "packages/tool-mode-contracts/tests/compile-2020.test.ts",
+        "packages/tool-mode-contracts/tests/contracts.test.ts",
+        "packages/tool-mode-contracts/tests/standard-contracts.test.ts",
+        "packages/tool-mode-recipes/tests/recipes.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "DECL-02",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/probe-output-schema.test.ts",
+        "packages/extension-embeddinggemma/tests/dedupe-and-rank.test.ts",
+        "packages/extension-embeddinggemma/tests/extension.test.ts",
+        "packages/extension-needle/tests/contracts.test.ts",
+        "packages/extension-needle/tests/engine.test.ts",
+        "packages/extension-needle/tests/extraction-repair.test.ts",
+        "packages/extension-needle/tests/validate-record.test.ts",
+        "packages/extension-needle/tests/validation.test.ts",
+        "packages/tool-mode-contracts/tests/contracts.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "DECL-03",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/contracts-registration.test.ts",
+        "packages/extension-embeddinggemma/tests/dedupe-and-rank.test.ts",
+        "packages/extension-embeddinggemma/tests/extension.test.ts",
+        "packages/extension-needle/tests/contracts.test.ts",
+        "packages/extension-needle/tests/engine.test.ts",
+        "packages/extension-needle/tests/extraction-repair.test.ts",
+        "packages/extension-needle/tests/provider.test.ts",
+        "packages/extension-needle/tests/validate-record.test.ts",
+        "packages/extension-needle/tests/validation.test.ts",
+        "packages/tool-mode-contracts/tests/contracts.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "DECL-04",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/tool-mode-contracts/tests/contracts.test.ts",
+        "packages/tool-mode-contracts/tests/meta-confidence.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "DECL-05",
+      "testLayer": "unit",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "DECL-06",
+      "testLayer": "unit",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "DECL-07",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/host-cluster.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-host-binding.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "DECL-08",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/declarative-install.test.ts",
+        "packages/dsh-tool-mode/tests/harness-serving.test.ts",
+        "packages/dsh-tool-mode/tests/implementation-swap.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MODEL-01",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/model-qualification.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MODEL-02",
+      "testLayer": "unit",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MODEL-03",
+      "testLayer": "unit",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MODEL-04",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/model-qualification.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MODEL-05",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/extension-dispatch-real.test.ts",
+        "packages/dsh-tool-mode/tests/model-qualification.test.ts",
+        "packages/dsh-tool-mode/tests/provider-bridge-inspect-extension.test.ts",
+        "packages/extension-desert-ant-tongue/tests/qualification.test.ts",
+        "packages/extension-embeddinggemma/tests/embedding-real.test.ts",
+        "packages/tool-mode-extension-sdk/tests/sdk.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MODEL-06",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/model-qualification.test.ts",
+        "packages/tool-mode-recipes/tests/broker.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "TOOL-01",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/extension-desert-ant-voz/tests/stt-input.test.ts",
+        "packages/tool-mode-contracts/tests/contracts.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "TOOL-03",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/title-proposal.test.ts",
+        "packages/tool-mode-contracts/tests/contracts.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "TOOL-04",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/extension-minilm-embed/tests/minilm-embed.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "TOOL-05",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/extension-embeddinggemma/tests/dedupe-and-rank.test.ts",
+        "packages/extension-minilm-rerank/tests/minilm-rerank.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "TOOL-06",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/title-proposal.test.ts",
+        "packages/tool-mode-recipes/tests/builtins.test.ts",
+        "packages/tool-mode-recipes/tests/canonical-vocabulary.test.ts",
+        "packages/tool-mode-recipes/tests/recipes.test.ts",
+        "packages/tool-mode-recipes/tests/schema-parity.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "LIC-01",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/extension-embeddinggemma/tests/extension.test.ts",
+        "packages/extension-needle/tests/contracts.test.ts",
+        "packages/tool-mode-extension-sdk/tests/install.test.ts",
+        "packages/tool-mode-extension-sdk/tests/licensing.test.ts",
+        "packages/tool-mode-extension-sdk/tests/shipped-licenses.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "LIC-02",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/tool-mode-extension-sdk/tests/licensing.test.ts",
+        "packages/tool-mode-extension-sdk/tests/shipped-licenses.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "LIC-04",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/extension-embeddinggemma/tests/extension.test.ts",
+        "packages/extension-needle/tests/contracts.test.ts",
+        "packages/tool-mode-extension-sdk/tests/licensing.test.ts",
+        "packages/tool-mode-extension-sdk/tests/lifecycle.test.ts",
+        "packages/tool-mode-extension-sdk/tests/shipped-licenses.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "CODE-01",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/ptc-composition.test.ts",
+        "packages/dsh-tool-mode/tests/ptc-runtime.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "CODE-02",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/ptc-composition.test.ts",
+        "packages/dsh-tool-mode/tests/ptc-runtime.test.ts",
+        "packages/dsh-tool-mode/tests/tool-mode-run.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "CODE-03",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/ptc-authority.test.ts",
+        "packages/dsh-tool-mode/tests/ptc-composition.test.ts",
+        "packages/dsh-tool-mode/tests/ptc-runtime.test.ts",
+        "packages/dsh-tool-mode/tests/tool-mode-run.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "CODE-04",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/ptc-composition.test.ts",
+        "packages/dsh-tool-mode/tests/tool-mode-run.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "CODE-05",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/ptc-composition.test.ts",
+        "packages/dsh-tool-mode/tests/tool-mode-run.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "CODE-06",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/ptc-composition.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "CODE-07",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/ptc-authority.test.ts",
+        "packages/dsh-tool-mode/tests/ptc-composition.test.ts",
+        "packages/dsh-tool-mode/tests/tool-mode-run.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "CODE-08",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/diagnostics.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-host-binding.test.ts",
+        "packages/dsh-tool-mode/tests/ptc-composition.test.ts",
+        "packages/dsh-tool-mode/tests/ptc-runtime.test.ts",
+        "packages/dsh-tool-mode/tests/ptc-sandbox.test.ts",
+        "packages/dsh-tool-mode/tests/tool-mode-run.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "CODE-09",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/code09-probes.test.ts",
+        "packages/dsh-tool-mode/tests/ptc-confinement.test.ts",
+        "packages/dsh-tool-mode/tests/ptc-runtime.test.ts",
+        "packages/dsh-tool-mode/tests/tool-mode-run.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "CODE-10",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/ptc-composition.test.ts",
+        "packages/dsh-tool-mode/tests/ptc-confinement.test.ts",
+        "packages/dsh-tool-mode/tests/ptc-runtime.test.ts",
+        "packages/dsh-tool-mode/tests/tool-mode-run.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "CODE-11",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/headless-serve.test.ts",
+        "packages/dsh-tool-mode/tests/repair-lineage.test.ts",
+        "packages/dsh-tool-mode/tests/tool-mode-run.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "CODE-12",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/ptc-composition.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "RES-01",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/resource-governance.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "RES-02",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/deployment-coordinator.test.ts",
+        "packages/dsh-tool-mode/tests/executable-preparation.test.ts",
+        "packages/dsh-tool-mode/tests/first-party-locks.test.ts",
+        "packages/dsh-tool-mode/tests/plugin-package.test.ts",
+        "packages/dsh-tool-mode/tests/prepared-assets.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "RES-03",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/asset-acquisition.test.ts",
+        "packages/dsh-tool-mode/tests/deployment-coordinator.test.ts",
+        "packages/dsh-tool-mode/tests/http-acquisition.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "RES-04",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/resource-governance.test.ts",
+        "packages/tool-mode-extension-sdk/tests/sdk.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "RES-05",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/deployment-coordinator.test.ts",
+        "packages/extension-embeddinggemma/tests/embedding-real.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "RES-06",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/resource-governance.test.ts",
+        "packages/extension-embeddinggemma/tests/media.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "RES-07",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/asset-acquisition.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "RES-08",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/asset-acquisition.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "RES-09",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/resource-governance.test.ts",
+        "packages/extension-embeddinggemma/tests/media.test.ts",
+        "packages/extension-embeddinggemma/tests/video-sampler.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "RES-10",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/asset-acquisition.test.ts",
+        "packages/dsh-tool-mode/tests/ptc-runtime.test.ts",
+        "packages/tool-mode-recipes/tests/broker.test.ts",
+        "packages/tool-mode-recipes/tests/cli.test.ts",
+        "packages/tool-mode-recipes/tests/dsh-adapter.test.ts",
+        "packages/tool-mode-recipes/tests/recipes.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "OBS-01",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/capture-path.test.ts",
+        "packages/dsh-tool-mode/tests/invocation-accounting.test.ts",
+        "packages/dsh-tool-mode/tests/obs02-external-receipts.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "OBS-02",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/mcp-client-grant.test.ts",
+        "packages/dsh-tool-mode/tests/obs02-external-receipts.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "OBS-03",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/capture-path.test.ts",
+        "packages/dsh-tool-mode/tests/diagnostics.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "OBS-04",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/capture-path.test.ts",
+        "packages/dsh-tool-mode/tests/diagnostics.test.ts",
+        "packages/dsh-tool-mode/tests/host-cluster.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "OBS-05",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/invocation-accounting.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-01",
+      "testLayer": "unit",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-02",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/architecture.test.ts",
+        "packages/extension-desert-ant-tongue/tests/extension.test.ts",
+        "packages/extension-desert-ant-voz/tests/extension.test.ts",
+        "packages/tool-mode-extension-sdk/tests/runtime-link.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-03",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/builtins.test.ts",
+        "packages/tool-mode-extension-sdk/tests/lifecycle.test.ts",
+        "packages/tool-mode-extension-sdk/tests/spec-conformance.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-04",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/prepared-assets.test.ts",
+        "packages/tool-mode-extension-sdk/tests/cli.test.ts",
+        "packages/tool-mode-extension-sdk/tests/lifecycle.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-05",
+      "testLayer": "unit",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-06",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/extension-registry-install.test.ts",
+        "packages/tool-mode-extension-sdk/tests/source-directory.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-07",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/extension-bridge.test.ts",
+        "packages/dsh-tool-mode/tests/host-restore.test.ts",
+        "packages/dsh-tool-mode/tests/slice1-lifecycle.test.ts",
+        "packages/tool-mode-extension-sdk/tests/cli.test.ts",
+        "packages/tool-mode-extension-sdk/tests/install.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-08",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/slice1-lifecycle.test.ts",
+        "packages/tool-mode-extension-sdk/tests/install.test.ts",
+        "packages/tool-mode-extension-sdk/tests/medium-cluster.test.ts",
+        "packages/tool-mode-extension-sdk/tests/store.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-09",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/extension-dispatch-real.test.ts",
+        "packages/tool-mode-extension-sdk/tests/dependency-graph.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-10",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/extension-dependencies.test.ts",
+        "packages/dsh-tool-mode/tests/extension-registry-install.test.ts",
+        "packages/tool-mode-extension-sdk/tests/dependencies-preinstalled.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-11",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/extension-registry-install.test.ts",
+        "packages/dsh-tool-mode/tests/slice1-lifecycle.test.ts",
+        "packages/tool-mode-extension-sdk/tests/install.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-12",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/tool-mode-extension-sdk/tests/cli.test.ts",
+        "packages/tool-mode-extension-sdk/tests/dependency-graph.test.ts",
+        "packages/tool-mode-extension-sdk/tests/install.test.ts",
+        "packages/tool-mode-extension-sdk/tests/medium-cluster.test.ts",
+        "packages/tool-mode-recipes/tests/cli.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-13",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/declarative-install.test.ts",
+        "packages/extension-declarative-recipes/tests/manifest.test.ts",
+        "packages/extension-embeddinggemma/tests/extension.test.ts",
+        "packages/extension-needle/tests/contracts.test.ts",
+        "packages/tool-mode-extension-sdk/tests/declarative-recipes.test.ts",
+        "packages/tool-mode-extension-sdk/tests/sdk.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-14",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/extension-desert-ant-voz/tests/extension.test.ts",
+        "packages/extension-embeddinggemma/tests/extension.test.ts",
+        "packages/extension-needle/tests/contracts.test.ts",
+        "packages/tool-mode-extension-sdk/tests/sdk.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-15",
+      "testLayer": "unit",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-16",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/tool-mode-extension-sdk/tests/sdk.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-17",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/tools-plan-hosting.test.ts",
+        "packages/extension-desert-ant-tongue/tests/extension.test.ts",
+        "packages/extension-desert-ant-voz/tests/extension.test.ts",
+        "packages/extension-embeddinggemma/tests/dedupe-and-rank.test.ts",
+        "packages/extension-embeddinggemma/tests/extension.test.ts",
+        "packages/extension-needle/tests/provider.test.ts",
+        "packages/tool-mode-extension-sdk/tests/sdk.test.ts",
+        "packages/tool-mode-extension-sdk/tests/test-host.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-18",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/provider-bridge-inspect-extension.test.ts",
+        "packages/extension-desert-ant-tongue/tests/extension.test.ts",
+        "packages/extension-desert-ant-tongue/tests/weight-inspection.test.ts",
+        "packages/extension-desert-ant-voz/tests/extension.test.ts",
+        "packages/extension-embeddinggemma/tests/embedding-real.test.ts",
+        "packages/extension-embeddinggemma/tests/extension.test.ts",
+        "packages/extension-needle/tests/contracts.test.ts",
+        "packages/extension-needle/tests/engine.test.ts",
+        "packages/extension-needle/tests/extraction-repair.test.ts",
+        "packages/extension-needle/tests/process-bridge.test.ts",
+        "packages/extension-needle/tests/provider.test.ts",
+        "packages/extension-needle/tests/validate-record.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-19",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/extension-dispatch-real.test.ts",
+        "packages/dsh-tool-mode/tests/extension-dispatch.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-client-grant.test.ts",
+        "packages/extension-desert-ant-tongue/tests/extension.test.ts",
+        "packages/extension-desert-ant-voz/tests/extension.test.ts",
+        "packages/extension-embeddinggemma/tests/embedding-real.test.ts",
+        "packages/extension-embeddinggemma/tests/extension.test.ts",
+        "packages/extension-needle/tests/contracts.test.ts",
+        "packages/extension-needle/tests/process-bridge.test.ts",
+        "packages/extension-needle/tests/provider.test.ts",
+        "packages/tool-mode-extension-sdk/tests/runtime-link.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-20",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/managed-workers.test.ts",
+        "packages/dsh-tool-mode/tests/slice1-lifecycle.test.ts",
+        "packages/tool-mode-extension-sdk/tests/worker.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-21",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/extension-bridge.test.ts",
+        "packages/dsh-tool-mode/tests/extension-dispatch-real.test.ts",
+        "packages/dsh-tool-mode/tests/extension-dispatch.test.ts",
+        "packages/dsh-tool-mode/tests/extension-registrar.test.ts",
+        "packages/dsh-tool-mode/tests/slice1-lifecycle.test.ts",
+        "packages/dsh-tool-mode/tests/tools-plan-hosting.test.ts",
+        "packages/extension-desert-ant-tongue/tests/extension.test.ts",
+        "packages/extension-desert-ant-voz/tests/extension.test.ts",
+        "packages/extension-embeddinggemma/tests/dedupe-and-rank.test.ts",
+        "packages/extension-embeddinggemma/tests/extension.test.ts",
+        "packages/extension-minilm-embed/tests/minilm-embed.test.ts",
+        "packages/extension-needle/tests/contracts.test.ts",
+        "packages/tool-mode-contracts/tests/standard-contracts.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-22",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/extension-bridge.test.ts",
+        "packages/dsh-tool-mode/tests/extension-dispatch-real.test.ts",
+        "packages/dsh-tool-mode/tests/extension-dispatch.test.ts",
+        "packages/dsh-tool-mode/tests/extension-registrar.test.ts",
+        "packages/dsh-tool-mode/tests/publication.test.ts",
+        "packages/extension-embeddinggemma/tests/dedupe-and-rank.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-23",
+      "testLayer": "unit",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-24",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/discovery-provenance.test.ts",
+        "packages/dsh-tool-mode/tests/extension-bridge.test.ts",
+        "packages/dsh-tool-mode/tests/extension-registrar.test.ts",
+        "packages/dsh-tool-mode/tests/laya-activation.test.ts",
+        "packages/dsh-tool-mode/tests/publication.test.ts",
+        "packages/dsh-tool-mode/tests/tools-plan-hosting.test.ts",
+        "packages/tool-mode-extension-sdk/tests/runtime-link.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-25",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/tool-mode-extension-sdk/tests/sdk.test.ts",
+        "packages/tool-mode-extension-sdk/tests/store.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-26",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/host-restore.test.ts",
+        "packages/extension-embeddinggemma/tests/extension.test.ts",
+        "packages/tool-mode-extension-sdk/tests/lifecycle.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-27",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/tool-mode-extension-sdk/tests/cli.test.ts",
+        "packages/tool-mode-extension-sdk/tests/lifecycle.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-28",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/tool-mode-extension-sdk/tests/cli.test.ts",
+        "packages/tool-mode-extension-sdk/tests/lifecycle.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-29",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/tool-mode-extension-sdk/tests/lifecycle.test.ts",
+        "packages/tool-mode-extension-sdk/tests/medium-cluster.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-30",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/extension-dispatch-real.test.ts",
+        "packages/dsh-tool-mode/tests/extension-dispatch.test.ts",
+        "packages/dsh-tool-mode/tests/extension-registrar.test.ts",
+        "packages/dsh-tool-mode/tests/host-restore.test.ts",
+        "packages/dsh-tool-mode/tests/implementation-swap.test.ts",
+        "packages/dsh-tool-mode/tests/slice1-lifecycle.test.ts",
+        "packages/dsh-tool-mode/tests/update-surface.test.ts",
+        "packages/tool-mode-extension-sdk/tests/install.test.ts",
+        "packages/tool-mode-extension-sdk/tests/migration.test.ts",
+        "packages/tool-mode-extension-sdk/tests/update-flow.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-31",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/extensions-service.test.ts",
+        "packages/tool-mode-extension-sdk/tests/cli.test.ts",
+        "packages/tool-mode-extension-sdk/tests/lifecycle.test.ts",
+        "packages/tool-mode-extension-sdk/tests/medium-cluster.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-32",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/discovery-provenance.test.ts",
+        "packages/dsh-tool-mode/tests/ext32-discovery.test.ts",
+        "packages/dsh-tool-mode/tests/publication.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-33",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/tool-mode-extension-sdk/tests/store.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-34",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/tool-mode-extension-sdk/tests/sdk.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-35",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/discovery-provenance.test.ts",
+        "packages/dsh-tool-mode/tests/receipt.test.ts",
+        "packages/dsh-tool-mode/tests/tools-plan-hosting.test.ts",
+        "packages/tool-mode-extension-sdk/tests/lifecycle.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "EXT-36",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/author-kit.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MOD-01",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/extension-embeddinggemma/tests/embedding-real.test.ts",
+        "packages/extension-embeddinggemma/tests/extension.test.ts",
+        "packages/extension-embeddinggemma/tests/vectors.test.ts",
+        "packages/extension-needle/tests/contracts.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MOD-02",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/ext-matrix-harness.test.ts",
+        "packages/extension-embeddinggemma/tests/embedding-real.test.ts",
+        "packages/extension-embeddinggemma/tests/extension.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MOD-03",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/extension-embeddinggemma/tests/embedding-real.test.ts",
+        "packages/extension-embeddinggemma/tests/vectors.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MOD-04",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/extension-embeddinggemma/tests/dedupe-and-rank.test.ts",
+        "packages/extension-embeddinggemma/tests/embedding-real.test.ts",
+        "packages/extension-embeddinggemma/tests/vectors.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MOD-05",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/extension-embeddinggemma/tests/dedupe-and-rank.test.ts",
+        "packages/extension-embeddinggemma/tests/extension.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MOD-06",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/extension-embeddinggemma/tests/embedding-real.test.ts",
+        "packages/extension-embeddinggemma/tests/task-prefixes.test.ts",
+        "packages/tool-mode-recipes/tests/broker.test.ts",
+        "packages/tool-mode-recipes/tests/recipes.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MOD-07",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/extension-embeddinggemma/tests/media.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MOD-08",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/extension-embeddinggemma/tests/embedding-real.test.ts",
+        "packages/extension-embeddinggemma/tests/extension.test.ts",
+        "packages/extension-embeddinggemma/tests/media.test.ts",
+        "packages/extension-embeddinggemma/tests/video-windows.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MOD-09",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/extension-embeddinggemma/tests/embedding-real.test.ts",
+        "packages/extension-embeddinggemma/tests/extension.test.ts",
+        "packages/extension-embeddinggemma/tests/vectors.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MOD-10",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/extension-embeddinggemma/tests/dedupe-and-rank.test.ts",
+        "packages/extension-embeddinggemma/tests/embedding-real.test.ts",
+        "packages/extension-embeddinggemma/tests/extension.test.ts",
+        "packages/extension-embeddinggemma/tests/vectors.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MOD-11",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/extension-embeddinggemma/tests/derived-tools.test.ts",
+        "packages/extension-embeddinggemma/tests/extension.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MOD-12",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/extension-embeddinggemma/tests/dedupe-and-rank.test.ts",
+        "packages/extension-embeddinggemma/tests/extension.test.ts",
+        "packages/extension-embeddinggemma/tests/vectors.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MOD-13",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/extension-embeddinggemma/tests/derived-tools.test.ts",
+        "packages/extension-embeddinggemma/tests/extension.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MOD-14",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/extension-embeddinggemma/tests/vectors.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MOD-15",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/extension-embeddinggemma/tests/derived-tools.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MOD-18",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/extension-embeddinggemma/tests/embedding-real.test.ts",
+        "packages/extension-embeddinggemma/tests/media.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MOD-19",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/extension-embeddinggemma/tests/vectors.test.ts",
+        "packages/extension-needle/tests/contracts.test.ts",
+        "packages/extension-needle/tests/engine.test.ts",
+        "packages/extension-needle/tests/extraction-repair.test.ts",
+        "packages/extension-needle/tests/process-bridge.test.ts",
+        "packages/extension-needle/tests/provider.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "MOD-20",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/extension-embeddinggemma/tests/extension.test.ts",
+        "packages/extension-needle/tests/extraction-repair.test.ts",
+        "packages/extension-needle/tests/provider.test.ts",
+        "packages/extension-needle/tests/validate-record.test.ts",
+        "packages/extension-needle/tests/validation.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "DEC-01",
+      "testLayer": "unit",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "DEC-02",
+      "testLayer": "unit",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "DEC-03",
+      "testLayer": "unit",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "DEC-04",
+      "testLayer": "unit",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "DEC-05",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/extension-laya/tests/laya-decision.test.ts",
+        "packages/extension-laya/tests/typed-decision.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "DEC-06",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/extension-laya/tests/typed-decision.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "DEC-08",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/extension-laya/tests/evaluation.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "NDL-01",
+      "testLayer": "unit",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "NDL-02",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/needle-activation.test.ts",
+        "packages/dsh-tool-mode/tests/tools-plan-hosting.test.ts",
+        "packages/tool-mode-contracts/tests/compile-2020.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "NDL-03",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/tools-plan-hosting.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "NDL-04",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/extension-needle/tests/provider.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "NDL-05",
+      "testLayer": "unit",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "NDL-06",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/extension-needle/tests/ndl06-telemetry.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "NDL-07",
+      "testLayer": "unit",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "NDL-08",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/author-kit.test.ts",
+        "packages/dsh-tool-mode/tests/real-package-lifecycle.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "HLM-01",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/declarative-recipe-runs.test.ts",
+        "packages/dsh-tool-mode/tests/declarative-recipes-executable.test.ts",
+        "packages/dsh-tool-mode/tests/harness-llm.test.ts",
+        "packages/dsh-tool-mode/tests/harness-serving.test.ts",
+        "packages/tool-mode-recipes/tests/broker.test.ts",
+        "packages/tool-mode-recipes/tests/dsh-adapter.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "HLM-02",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/declarative-recipe-runs.test.ts",
+        "packages/dsh-tool-mode/tests/harness-llm.test.ts",
+        "packages/dsh-tool-mode/tests/harness-serving.test.ts",
+        "packages/tool-mode-recipes/tests/broker.test.ts",
+        "packages/tool-mode-recipes/tests/dsh-adapter.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "HLM-03",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/declarative-url-e2e.test.ts",
+        "packages/dsh-tool-mode/tests/harness-llm.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "HLM-04",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/tool-mode-recipes/tests/broker.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "HLM-05",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/tool-mode-recipes/tests/broker.test.ts",
+        "packages/tool-mode-recipes/tests/dsh-adapter.test.ts",
+        "packages/tool-mode-recipes/tests/recipes.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "HLM-06",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/declarative-recipe-runs.test.ts",
+        "packages/dsh-tool-mode/tests/harness-serving.test.ts",
+        "packages/tool-mode-recipes/tests/broker.test.ts",
+        "packages/tool-mode-recipes/tests/dsh-adapter.test.ts",
+        "packages/tool-mode-recipes/tests/recipes.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "HLM-07",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/tool-mode-recipes/tests/broker.test.ts",
+        "packages/tool-mode-recipes/tests/builtins.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "HLM-08",
+      "testLayer": "unit",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "HLM-09",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/harness-serving.test.ts",
+        "packages/tool-mode-recipes/tests/broker.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "HLM-10",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/tool-mode-recipes/tests/broker.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "HLM-11",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/harness-llm.test.ts",
+        "packages/tool-mode-recipes/tests/broker.test.ts",
+        "packages/tool-mode-recipes/tests/builtins.test.ts",
+        "packages/tool-mode-recipes/tests/dsh-adapter.test.ts",
+        "packages/tool-mode-recipes/tests/recipes.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "HLM-12",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/tool-mode-recipes/tests/builtins.test.ts",
+        "packages/tool-mode-recipes/tests/recipes.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "HLM-13",
+      "testLayer": "unit",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "HLM-14",
+      "testLayer": "unit",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "RCP-01",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/declarative-install.test.ts",
+        "packages/dsh-tool-mode/tests/declarative-recipe-runs.test.ts",
+        "packages/dsh-tool-mode/tests/declarative-recipes-executable.test.ts",
+        "packages/dsh-tool-mode/tests/harness-llm.test.ts",
+        "packages/dsh-tool-mode/tests/harness-serving.test.ts",
+        "packages/extension-declarative-recipes/tests/manifest.test.ts",
+        "packages/tool-mode-extension-sdk/tests/declarative-recipes.test.ts",
+        "packages/tool-mode-recipes/tests/recipes.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "RCP-02",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/declarative-install.test.ts",
+        "packages/dsh-tool-mode/tests/declarative-recipe-runs.test.ts",
+        "packages/dsh-tool-mode/tests/declarative-recipes-executable.test.ts",
+        "packages/dsh-tool-mode/tests/harness-serving.test.ts",
+        "packages/extension-declarative-recipes/tests/manifest.test.ts",
+        "packages/tool-mode-extension-sdk/tests/declarative-recipes.test.ts",
+        "packages/tool-mode-recipes/tests/canonical-vocabulary.test.ts",
+        "packages/tool-mode-recipes/tests/cli.test.ts",
+        "packages/tool-mode-recipes/tests/recipes.test.ts",
+        "packages/tool-mode-recipes/tests/schema-parity.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "RCP-03",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/tool-mode-recipes/tests/canonical-vocabulary.test.ts",
+        "packages/tool-mode-recipes/tests/recipes.test.ts",
+        "packages/tool-mode-recipes/tests/schema-parity.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "RCP-04",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/implementation-swap.test.ts",
+        "packages/tool-mode-recipes/tests/builtins.test.ts",
+        "packages/tool-mode-recipes/tests/response-mode.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "RCP-05",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/harness-serving.test.ts",
+        "packages/tool-mode-recipes/tests/broker.test.ts",
+        "packages/tool-mode-recipes/tests/recipes.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "RCP-06",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/tool-mode-extension-sdk/tests/declarative-recipes.test.ts",
+        "packages/tool-mode-recipes/tests/recipes.test.ts",
+        "packages/tool-mode-recipes/tests/schema-parity.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "RCP-07",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/declarative-url-e2e.test.ts",
+        "packages/tool-mode-recipes/tests/cli.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "RCP-08",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/tool-mode-extension-sdk/tests/cli.test.ts",
+        "packages/tool-mode-recipes/tests/cli-live.test.ts",
+        "packages/tool-mode-recipes/tests/cli.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "RCP-09",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/tool-mode-recipes/tests/cli-live.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "RCP-10",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/tool-mode-recipes/tests/recipes.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "RCP-11",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/tool-mode-recipes/tests/broker.test.ts",
+        "packages/tool-mode-recipes/tests/builtins.test.ts",
+        "packages/tool-mode-recipes/tests/dsh-adapter.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "RCP-12",
+      "testLayer": "unit",
+      "testIds": [
+        "packages/tool-mode-extension-sdk/tests/spec-conformance.test.ts",
+        "packages/tool-mode-recipes/tests/broker.test.ts",
+        "packages/tool-mode-recipes/tests/builtins.test.ts",
+        "packages/tool-mode-recipes/tests/recipes.test.ts",
+        "packages/tool-mode-recipes/tests/schema-parity.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "P26-01",
+      "testLayer": "integration",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "P26-02",
+      "testLayer": "integration",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "P26-03",
+      "testLayer": "integration",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "P26-04",
+      "testLayer": "integration",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "P26-05",
+      "testLayer": "integration",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "P26-06",
+      "testLayer": "integration",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "P26-07",
+      "testLayer": "integration",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "P26-08",
+      "testLayer": "integration",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "P26-09",
+      "testLayer": "integration",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "P26-10",
+      "testLayer": "integration",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "P26-11",
+      "testLayer": "integration",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "P26-12",
+      "testLayer": "integration",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "P26-13",
+      "testLayer": "integration",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "P26-14",
+      "testLayer": "integration",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "P26-15",
+      "testLayer": "integration",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "P26-16",
+      "testLayer": "integration",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "P26-17",
+      "testLayer": "integration",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "TDD-01",
+      "testLayer": "meta",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/verification-evidence.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "TDD-03",
+      "testLayer": "meta",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/verification-evidence.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "TDD-04",
+      "testLayer": "meta",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/verification-evidence.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "TDD-05",
+      "testLayer": "meta",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "TDD-06",
+      "testLayer": "meta",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/tdd06-not-applicable.test.ts",
+        "packages/dsh-tool-mode/tests/verification-evidence.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "TDD-07",
+      "testLayer": "meta",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/tdd07-isolation.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "TDD-08",
+      "testLayer": "meta",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "TDD-09",
+      "testLayer": "meta",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/verification-evidence.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-01",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/mcp-live-conformance.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-v2-interop.test.ts",
+        "packages/dsh-tool-mode/tests/verification-evidence.test.ts",
+        "packages/dsh-tool-mode/tests/verification-generator.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-02",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/acceptance-at02.test.ts",
+        "packages/dsh-tool-mode/tests/verification-generator.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-03",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/verification-generator.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-04",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-05",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-06",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/bin-mcp-stdio.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-07",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/acceptance-at07.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-08",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-09",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-10",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/tool-mode-run.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-11",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/acceptance-at11.test.ts",
+        "packages/tool-mode-contracts/tests/contracts.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-12",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/contracts-registration.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-http.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-live-conformance.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-live-schema.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-oauth.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-protocol.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-rate-limit.test.ts",
+        "packages/dsh-tool-mode/tests/mcp-v2-interop.test.ts",
+        "packages/dsh-tool-mode/tests/obs02-external-receipts.test.ts",
+        "packages/dsh-tool-mode/tests/slice1-lifecycle.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-13",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/authority.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-14",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-15",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/ptc-composition.test.ts",
+        "packages/dsh-tool-mode/tests/tool-mode-run.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-16",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-17",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-18",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/tool-mode-extension-sdk/tests/migration.test.ts",
+        "packages/tool-mode-extension-sdk/tests/store.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-19",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-20",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/asset-acquisition.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-21",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/extension-desert-ant-voz/tests/language.test.ts",
+        "packages/extension-desert-ant-voz/tests/stt-boundaries.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-22",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-23",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/license-basis.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-24",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-25",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/architecture.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-26",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/tool-mode-extension-sdk/tests/sdk.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-27",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-28",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/tool-mode-extension-sdk/tests/dependency-graph.test.ts",
+        "packages/tool-mode-extension-sdk/tests/install.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-29",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/http-acquisition.test.ts",
+        "packages/tool-mode-contracts/tests/compile-2020.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-30",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-31",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/managed-workers.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-32",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/tool-mode-extension-sdk/tests/update-flow.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-33",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/tool-mode-extension-sdk/tests/dependency-graph.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-34",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/tool-mode-extension-sdk/tests/dependency-graph.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-35",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/update-surface.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-36",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/tool-mode-extension-sdk/tests/migration.test.ts",
+        "packages/tool-mode-extension-sdk/tests/update-flow.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-37",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-38",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/managed-workers.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-39",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/update-surface.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-40",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-41",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-42",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-43",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/extension-embeddinggemma/tests/embedding-real.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-44",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-45",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-46",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/extension-embeddinggemma/tests/embedding-real.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-47",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-48",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-49",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-50",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-51",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-52",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/embedding-index.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-53",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/extension-laya/tests/standard-real.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-54",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-55",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-56",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/extension-laya/tests/laya-decision.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-57",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-58",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-59",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/tools-plan-hosting.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-60",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-61",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-62",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-63",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/tool-mode-extension-sdk/tests/declarative-recipes.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-64",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/tool-mode-recipes/tests/builtins.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-65",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/tool-mode-recipes/tests/builtins.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-66",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-67",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/declarative-url-e2e.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-68",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/tool-mode-recipes/tests/broker.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-69",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/harness-llm.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-70",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-71",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/receipt.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-72",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-73",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-74",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-75",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/restore-integrity.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-76",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/restore-integrity.test.ts",
+        "packages/dsh-tool-mode/tests/tool-mode-run.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-77",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-78",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/mcp-http.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-79",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/mcp-http.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-80",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-81",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-82",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/mcp-http.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-83",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-84",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-85",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/mcp-http.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-86",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-87",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-88",
+      "testLayer": "acceptance",
+      "testIds": [
+        "packages/dsh-tool-mode/tests/release-drift.test.ts"
+      ],
+      "requirementStatus": "DONE"
+    },
+    {
+      "id": "AT-89",
+      "testLayer": "acceptance",
+      "testIds": [],
+      "requirementStatus": "DONE"
+    }
+  ]
+}

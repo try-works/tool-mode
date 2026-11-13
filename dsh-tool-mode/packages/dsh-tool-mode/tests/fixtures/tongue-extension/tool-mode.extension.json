@@ -1,0 +1,125 @@
+{
+  "protocolVersion": "1.1.0",
+  "id": "@try-works/extension-desert-ant-tongue",
+  "version": "1.0.0",
+  "displayName": "Tongue language detection (test fixture)",
+  "description": "Deterministic stand-in for the Tongue extension: the same manifest identity and tool contract, with a provider that reports prepared-cold and returns a fixed language payload. Used only by tests, so the legacy model-management suites do not require the real weights or an operator extension store.",
+  "license": "MIT",
+  "activation": {
+    "policy": "operator",
+    "deactivatable": true
+  },
+  "runtimeApi": 1,
+  "compatibility": {
+    "hostApi": "^1.1.0",
+    "requiredFeatures": []
+  },
+  "execution": {
+    "kind": "module",
+    "entry": "./lib/index.js",
+    "isolation": "host-inline"
+  },
+  "permissions": {
+    "networkOrigins": [],
+    "inputFiles": false,
+    "storage": "extension-private",
+    "secrets": [],
+    "nativeCode": false
+  },
+  "models": [
+    {
+      "id": "tongue",
+      "assetSet": "tongue-bundled",
+      "assetLock": "./models.lock.json",
+      "platforms": [
+        {
+          "os": "win32",
+          "arch": "x64",
+          "accelerator": "cpu"
+        },
+        {
+          "os": "darwin",
+          "arch": "arm64",
+          "accelerator": "cpu"
+        },
+        {
+          "os": "linux",
+          "arch": "x64",
+          "accelerator": "cpu"
+        }
+      ]
+    }
+  ],
+  "tools": [
+    {
+      "id": "tongue-lang-detect",
+      "name": "lang_detect",
+      "contractId": "tool-mode/lang_detect",
+      "contractVersion": "1.0.0",
+      "description": "Identify the language of a short piece of text with a reliability verdict and ranked alternatives.",
+      "inputSchema": "./schemas/lang-detect.input.json",
+      "outputSchema": "./schemas/lang-detect.output.json"
+    }
+  ],
+  "implementations": [
+    {
+      "id": "tongue-default",
+      "contractId": "tool-mode/lang_detect",
+      "contractVersion": "1.0.0",
+      "modelId": "tongue",
+      "recipeVersion": "1.0.0"
+    }
+  ],
+  "skills": [],
+  "licenses": [
+    {
+      "layer": "code",
+      "name": "MIT",
+      "url": "https://opensource.org/license/mit",
+      "openSource": true,
+      "redistribution": "permitted",
+      "attributionRequired": false,
+      "obligations": []
+    },
+    {
+      "layer": "weights",
+      "name": "none: the fixture ships no weights",
+      "url": "https://example.invalid/fixture",
+      "openSource": true,
+      "redistribution": "permitted",
+      "attributionRequired": false,
+      "obligations": []
+    },
+    {
+      "layer": "engine",
+      "name": "none: the fixture runs no engine",
+      "url": "https://example.invalid/fixture",
+      "openSource": true,
+      "redistribution": "permitted",
+      "attributionRequired": false,
+      "obligations": []
+    },
+    {
+      "layer": "sdk",
+      "name": "MIT",
+      "url": "https://opensource.org/license/mit",
+      "openSource": true,
+      "redistribution": "permitted",
+      "attributionRequired": false,
+      "obligations": []
+    },
+    {
+      "layer": "conversion-artifacts",
+      "name": "none: no conversion step is performed",
+      "url": "https://example.invalid/fixture",
+      "openSource": true,
+      "redistribution": "permitted",
+      "attributionRequired": false,
+      "obligations": []
+    }
+  ],
+  "network": {
+    "requiredTelemetry": false,
+    "otherNetworkUse": false
+  }
+}

@@ -1,0 +1,63 @@
+DSH Local Build
+0.2.1-rc.2-687f282-dirty
+New Session
+Ctrl
++
+Alt
++
+N
+Plugins
+Automation tasks
+Tool Insights
+Workspaces
+dsh-anti-slop
+Untitled
+2mo
+Untitled
+2mo
+Are There Any Recursive Runs
+2mo
+Untitled
+2mo
+Ungrouped
+More
+Tool Insights
+Tool Inventory
+MCP
+MCP
+
+The external MCP surface: the configured endpoint, the clients that actually hold a grant, which tools are exposed, and the persisted external call log. Tokens, arguments and results are never shown.
+
+Back to workbench
+Endpoint
+Endpoint
+http://127.0.0.1:3865/mcp
+Transport
+http
+Auth
+static-token
+Token file
+configured outside this page
+Uptime
+2m 2s
+Exposure
+model_tools is host-local and withheld by design
+Exposed
+Exposed 1 of 2 tools
+Withheld
+model_tools
+Tools
+lang_detect
+Clients
+identities come from grants, never invented
+CLIENT	CALLS	SUCCESS	LAST SEEN
+host	2	100%	31m ago
+External call log
+persisted ledger; no payloads
+TIME	TOOL	CLIENT	MS	STATUS	RECEIPT
+31m ago	lang_detect	host	56ms	none	mcp_mvklhfc4_1
+44m ago	lang_detect	host	59ms	none	mcp_mvkl0ufe_1
+Showing 1-2 of 2 calls
+Page 1 of 1
+Previous
+Next

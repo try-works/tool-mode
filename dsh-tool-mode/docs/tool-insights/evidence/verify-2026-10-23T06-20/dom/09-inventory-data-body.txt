@@ -1,0 +1,68 @@
+DSH Local Build
+0.2.1-rc.2-687f282-dirty
+New Session
+Ctrl
++
+Alt
++
+N
+Plugins
+Automation tasks
+Tool Insights
+Workspaces
+dsh-anti-slop
+New Session
+Untitled
+2mo
+Untitled
+2mo
+Untitled
+2mo
+Untitled
+2mo
+More
+Tool Insights
+Tool Inventory
+MCP
+Tool Inventory
+
+Every registered tool, grouped by origin. State and provenance come from the host; usage columns join the same report as the workbench. A tool with no calls is kept and labelled.
+
+Back to workbench
+SEARCH
+ORIGIN
+All origins
+DSH core
+Tool Mode
+Other plugins
+STATE
+All states
+active
+prepared-cold
+failed
+PER PAGE
+7
+15
+30
+DSH CORE · 1
+TOOL	OWNER	KIND	STATE	CALLS	SUCCESS	LAST USED	MCP
+working_directory	@deepseek-ai/dsh-tool-working-directory	built-in	active	0	0%	—	withheld from MCP
+TOOL MODE · 3
+TOOL	OWNER	KIND	STATE	CALLS	SUCCESS	LAST USED	MCP
+lang_detect	@try-works/extension-desert-ant-tongue	extension	active	0	0%	—	exposed
+model_tools	@try-works/dsh-tool-mode	tool-mode	active	0	0%	—	withheld from MCP
+tool_mode_run	@try-works/dsh-tool-mode	tool-mode	active	0	0%	—	withheld from MCP
+OTHER PLUGINS · 2
+TOOL	OWNER	KIND	STATE	CALLS	SUCCESS	LAST USED	MCP
+tool_mode_describe	unattributed	unknown	active	0	0%	—	withheld from MCP
+tool_mode_list	unattributed	unknown	active	0	0%	—	withheld from MCP
+Showing 1-6 of 6 tools
+Page 1 of 1
+Previous
+Next
+Get started
+
+Sign in to your DeepSeek account or add an API Key to get started. Your projects and files are stored locally.
+
+Add API Key
+Sign in

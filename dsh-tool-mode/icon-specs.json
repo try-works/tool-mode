@@ -1,0 +1,35 @@
+{
+  "spec": {
+    "lines": "<path d=\"M6 14h24M6 24h24M6 34h24\"/><circle cx=\"36\" cy=\"24\" r=\"4\" fill=\"I\" stroke=\"none\"/>",
+    "bars": "<path d=\"M4 34h40\"/><path d=\"M8 34a16 16 0 0 1 32 0\"/><path d=\"M24 34 33 22\"/><circle cx=\"33\" cy=\"22\" r=\"3.5\" fill=\"I\" stroke=\"none\"/>",
+    "check": "<circle cx=\"24\" cy=\"24\" r=\"16\"/><circle cx=\"24\" cy=\"24\" r=\"8\"/><circle cx=\"24\" cy=\"24\" r=\"2.5\" fill=\"I\" stroke=\"none\"/>",
+    "boxes": "<rect x=\"5\" y=\"18\" width=\"10\" height=\"12\" rx=\"2\"/><rect x=\"19\" y=\"18\" width=\"10\" height=\"12\" rx=\"2\"/><rect x=\"33\" y=\"18\" width=\"10\" height=\"12\" rx=\"2\"/><path d=\"M15 24h4M29 24h4\"/><circle cx=\"10\" cy=\"24\" r=\"2\" fill=\"I\" stroke=\"none\"/>",
+    "brace": "<rect x=\"5\" y=\"7\" width=\"21\" height=\"34\" rx=\"3\"/><path d=\"M10 14h12M10 20h8M10 26h12M10 32h7\"/><path d=\"M26 22h4\"/><rect x=\"30\" y=\"18\" width=\"14\" height=\"8\" rx=\"2\" fill=\"I\" stroke=\"none\"/>",
+    "shield": "<path d=\"M8 6h18l7 7v29H8Z\"/><path d=\"M26 6v8h7\"/><path d=\"M14 18h10M14 24h7\"/><circle cx=\"35\" cy=\"34\" r=\"7\"/><path d=\"m32 34 2 2 4-4\"/>",
+    "loop": "<path d=\"M6 7h17l7 7v26H6Z\"/><path d=\"M23 7v8h7\"/><path d=\"M12 20h10M12 26h7\"/><path d=\"M38 18a8 8 0 1 0 8 8\"/><path d=\"M34 14l4 4-4 4\"/>",
+    "dots": "<circle cx=\"9\" cy=\"9\" r=\"3.5\"/><rect x=\"5\" y=\"22\" width=\"8\" height=\"8\" rx=\"2\"/><path d=\"M5 35l8-6v12Z\"/><path d=\"M12 10l14 10M12 26h12M12 38l12-11\"/><circle cx=\"31\" cy=\"24\" r=\"4\" fill=\"I\" stroke=\"none\"/>",
+    "chart": "<path d=\"M8 40V30M19 40V22M30 40V14\"/><path d=\"M8 30 19 22 30 14 42 8\"/><path d=\"M36 8h6v6\"/>",
+    "rings": "<circle cx=\"18\" cy=\"24\" r=\"13\"/><circle cx=\"30\" cy=\"24\" r=\"13\"/><circle cx=\"24\" cy=\"24\" r=\"3\" fill=\"I\" stroke=\"none\"/>",
+    "rows": "<circle cx=\"10\" cy=\"9\" r=\"2.5\" fill=\"I\" stroke=\"none\"/><circle cx=\"18\" cy=\"9\" r=\"2.5\" fill=\"I\" stroke=\"none\"/><circle cx=\"26\" cy=\"9\" r=\"2.5\" fill=\"I\" stroke=\"none\"/><path d=\"M6 14h34L29 31v11H19V31Z\"/><rect x=\"19\" y=\"36\" width=\"10\" height=\"4\" fill=\"I\" stroke=\"none\"/>",
+    "layers": "<rect x=\"6\" y=\"10\" width=\"21\" height=\"26\" rx=\"3\"/><rect x=\"16\" y=\"16\" width=\"21\" height=\"26\" rx=\"3\"/><path d=\"M23 25h7\"/>",
+    "dedupe": "<rect x=\"5\" y=\"10\" width=\"10\" height=\"10\" rx=\"2\" fill=\"I\" stroke=\"none\"/><rect x=\"11\" y=\"16\" width=\"10\" height=\"10\" rx=\"2\" fill=\"I\" stroke=\"none\"/><path d=\"M23 24h5m-2-2 2 2-2 2\"/><path d=\"M32 18h8M32 24h11M32 30h15\"/>",
+    "play": "<path d=\"M5 34h38M24 8v26\"/><path d=\"M20 12l4-4 4 4-4 4Z\" fill=\"I\" stroke=\"none\"/><path d=\"M10 34l4-4 4 4-4 4Z\" fill=\"I\" stroke=\"none\"/><path d=\"M34 34l4-4 4 4-4 4Z\" fill=\"I\" stroke=\"none\"/>",
+    "letter": "<path d=\"M6 7h36v26H21l-7 7v-7H6Z\"/><path d=\"M16 27 23 10l7 17M19 21h8\"/>",
+    "wave": "<path d=\"M6 18v12M11 12v24M16 16v16M21 20v8\"/><path d=\"M27 17h15M27 24h11M27 31h13\"/>",
+    "choice": "<path d=\"M4 24h10M14 24 32 10M14 24h18M14 24 32 38\"/><circle cx=\"36\" cy=\"10\" r=\"2.5\" fill=\"I\" stroke=\"none\"/><circle cx=\"36\" cy=\"24\" r=\"4.5\" fill=\"I\" stroke=\"none\"/><circle cx=\"36\" cy=\"38\" r=\"2.5\" fill=\"I\" stroke=\"none\"/>",
+    "judgments": "<path d=\"M24 8v30M12 40h24M8 14h32\"/><path d=\"M8 14 4 24h8ZM40 14l-4 10h8ZM8 24v4M40 24v4\"/>",
+    "describe": "<rect x=\"5\" y=\"6\" width=\"38\" height=\"24\" rx=\"3\"/><circle cx=\"14\" cy=\"14\" r=\"3\" fill=\"I\" stroke=\"none\"/><path d=\"M7 27l9-9 6 6 7-6 10 9\"/><path d=\"M7 36h20M7 42h13\"/>",
+    "detect": "<path d=\"M5 13V5h8M35 5h8v8M43 35v8h-8M13 43H5v-8\"/><rect x=\"18\" y=\"18\" width=\"12\" height=\"12\" rx=\"2\"/><circle cx=\"24\" cy=\"24\" r=\"2.5\" fill=\"I\" stroke=\"none\"/>",
+    "ocr": "<rect x=\"12\" y=\"5\" width=\"24\" height=\"38\" rx=\"3\"/><path d=\"M17 13h14M17 19h9M17 34h14\"/><path d=\"M7 27h34\"/>",
+    "extract": "<rect x=\"7\" y=\"5\" width=\"22\" height=\"38\" rx=\"3\"/><path d=\"M12 13h12M12 19h8M12 25h12M12 31h7\"/><path d=\"M29 24h13m-4-4 4 4-4 4\"/>",
+    "embed": "<path d=\"M5 13h16M5 24h14M5 35h18\"/><path d=\"M21 13l12 8M19 24h13M23 35l10-8\"/><circle cx=\"38\" cy=\"24\" r=\"4\" fill=\"I\" stroke=\"none\"/>",
+    "rerank": "<path d=\"M5 12h19M5 24h25M5 36h14\"/><path d=\"M37 17V8m-3 3 3-3 3 3M37 31v9m-3-3 3 3 3-3\"/>"
+  },
+  "dark": [
+    "choice",
+    "judgments",
+    "describe",
+    "detect",
+    "embed"
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "decision_test_typed input (DEC-06)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["state", "proposition"],
+  "properties": {
+    "state": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 32768,
+      "description": "The situation/evidence the decision is made over. Bounded; requests that exceed the prepared head's token budget are rejected (INPUT_TRUNCATED, DEC-05)."
+    },
+    "proposition": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "description": "The yes/no proposition to evaluate against the state."
+    }
+  }
+}

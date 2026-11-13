@@ -1,0 +1,117 @@
+{
+  "generatedAt": "2026-10-25T03:38:38.881Z",
+  "baseUrl": "http://127.0.0.1:3183",
+  "exitCode": 1,
+  "skipInvoke": false,
+  "rows": [
+    {
+      "id": "@try-works/extension-desert-ant-tongue",
+      "name": "tongue",
+      "status": "PASS",
+      "durationMs": 13566,
+      "blocker": null,
+      "detail": "prepare: prepared",
+      "tools": [
+        "lang_detect"
+      ]
+    },
+    {
+      "id": "@try-works/extension-desert-ant-voz",
+      "name": "voz",
+      "status": "SKIPPED",
+      "durationMs": 125801,
+      "blocker": "the extension's tools cannot load: @desert-ant-labs/voz ^3.6.0 is not installed inside the extension: the dependency @types/dom-mediacapture-transform@0.1.12 ships an unparseable package.json: ENOENT: no such file or directory, open 'D:\\DEV\\dsh-temp\\dsh-optional-runtime-wbnxNW\\node_modules\\.dep-50404-mvn9jqg0\\package.json'; onnxruntime-node ^1.20.0 is not installed inside the extension: the tarball for onnxruntime-node@1.30.0 from registry.npmjs.org could not be read (timeout or transport, not the size cap): terminated",
+      "detail": "prepare: prepared",
+      "tools": [
+        "stt_transcribe"
+      ]
+    },
+    {
+      "id": "@try-works/extension-embeddinggemma",
+      "name": "embeddinggemma",
+      "status": "SKIPPED",
+      "durationMs": 355836,
+      "blocker": "the extension's tools cannot load: @huggingface/transformers ^3.0.0 is not installed inside the extension: the tarball for onnxruntime-node@1.21.0 from registry.npmjs.org could not be read (timeout or transport, not the size cap): terminated; onnxruntime-node ^1.20.0 is not installed inside the extension: the tarball for onnxruntime-node@1.30.0 from registry.npmjs.org could not be read (timeout or transport, not the size cap): terminated",
+      "detail": "prepare: prepared",
+      "tools": [
+        "multimodal_embed",
+        "semantic_similarity",
+        "semantic_rank",
+        "semantic_classify",
+        "semantic_deduplicate",
+        "media_find_moments"
+      ]
+    },
+    {
+      "id": "@try-works/extension-laya",
+      "name": "laya",
+      "status": "FAIL",
+      "durationMs": 166354,
+      "blocker": null,
+      "detail": "gateway/internal: the tarball for onnxruntime-node@1.30.0 from registry.npmjs.org could not be read (timeout or transport, not the size cap): terminated",
+      "tools": [
+        "decision_choose",
+        "decision_test",
+        "decision_score"
+      ]
+    },
+    {
+      "id": "@try-works/extension-minilm-embed",
+      "name": "minilm-embed",
+      "status": "FAIL",
+      "durationMs": 119564,
+      "blocker": null,
+      "detail": "gateway/internal: the tarball for onnxruntime-node@1.30.0 from registry.npmjs.org could not be read (timeout or transport, not the size cap): terminated",
+      "tools": [
+        "text_embed"
+      ]
+    },
+    {
+      "id": "@try-works/extension-minilm-rerank",
+      "name": "minilm-rerank",
+      "status": "FAIL",
+      "durationMs": 119832,
+      "blocker": null,
+      "detail": "gateway/internal: the tarball for onnxruntime-node@1.30.0 from registry.npmjs.org could not be read (timeout or transport, not the size cap): terminated",
+      "tools": [
+        "text_rerank"
+      ]
+    },
+    {
+      "id": "@try-works/extension-needle",
+      "name": "needle",
+      "status": "PASS",
+      "durationMs": 27835,
+      "blocker": null,
+      "detail": "prepare: prepared",
+      "tools": [
+        "tools_plan",
+        "structured_extract"
+      ]
+    },
+    {
+      "id": "@try-works/extension-declarative-recipes",
+      "name": "declarative-recipes",
+      "status": "PASS",
+      "durationMs": 5649,
+      "blocker": null,
+      "detail": "installed 0.1.0 via registry (resolved 0.1.0)",
+      "tools": []
+    }
+  ],
+  "tools": [],
+  "summary": {
+    "total": 8,
+    "pass": 3,
+    "fail": 3,
+    "skipped": 2,
+    "skippedWithNamedBlocker": 2,
+    "coherenceIssues": [],
+    "invocationRan": false
+  },
+  "hostServices": {},
+  "surface": {
+    "lifecycle": "gateway RPC: GET /connect?token=… then POST /api/modelTools/<installExtension|describe|prepare|enable> with {type:\"client-request\",rpcId,method,payload:{args}}",
+    "invocation": "in-process shipping host (plugin apply + tool runtime + extension dispatch) over a snapshot of the profile store; the live web profile exposes no MCP/tool-execute endpoint"
+  }
+}

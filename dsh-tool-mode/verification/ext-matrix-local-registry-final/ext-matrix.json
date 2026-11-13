@@ -1,0 +1,115 @@
+{
+  "generatedAt": "2026-10-25T10:44:50.035Z",
+  "baseUrl": "http://127.0.0.1:3198",
+  "exitCode": 1,
+  "skipInvoke": false,
+  "rows": [
+    {
+      "id": "@try-works/extension-desert-ant-tongue",
+      "name": "tongue",
+      "status": "PASS",
+      "durationMs": 6326,
+      "blocker": null,
+      "detail": "prepare: prepared",
+      "tools": [
+        "lang_detect"
+      ]
+    },
+    {
+      "id": "@try-works/extension-desert-ant-voz",
+      "name": "voz",
+      "status": "SKIPPED",
+      "durationMs": 31563,
+      "blocker": "the extension's tools cannot load: onnxruntime-node ^1.20.0 is not installed inside the extension: the npm registry http://127.0.0.1:4873 could not be reached for adm-zip within 120000 ms (metadata timeout): fetch failed",
+      "detail": "prepare: prepared",
+      "tools": [
+        "stt_transcribe"
+      ]
+    },
+    {
+      "id": "@try-works/extension-embeddinggemma",
+      "name": "embeddinggemma",
+      "status": "PASS",
+      "durationMs": 200065,
+      "blocker": null,
+      "detail": "prepare: prepared",
+      "tools": [
+        "multimodal_embed",
+        "semantic_similarity",
+        "semantic_rank",
+        "semantic_classify",
+        "semantic_deduplicate",
+        "media_find_moments"
+      ]
+    },
+    {
+      "id": "@try-works/extension-laya",
+      "name": "laya",
+      "status": "FAIL",
+      "durationMs": 8899,
+      "blocker": null,
+      "detail": "gateway/internal: the npm registry http://127.0.0.1:4873 could not be reached for adm-zip within 120000 ms (metadata timeout): fetch failed",
+      "tools": [
+        "decision_choose",
+        "decision_test",
+        "decision_score"
+      ]
+    },
+    {
+      "id": "@try-works/extension-minilm-embed",
+      "name": "minilm-embed",
+      "status": "FAIL",
+      "durationMs": 15368,
+      "blocker": null,
+      "detail": "gateway/internal: the npm registry http://127.0.0.1:4873 could not be reached for @huggingface/jinja within 120000 ms (metadata timeout): fetch failed",
+      "tools": [
+        "text_embed"
+      ]
+    },
+    {
+      "id": "@try-works/extension-minilm-rerank",
+      "name": "minilm-rerank",
+      "status": "PASS",
+      "durationMs": 109213,
+      "blocker": null,
+      "detail": "prepare: prepared",
+      "tools": []
+    },
+    {
+      "id": "@try-works/extension-needle",
+      "name": "needle",
+      "status": "PASS",
+      "durationMs": 54728,
+      "blocker": null,
+      "detail": "prepare: prepared",
+      "tools": [
+        "tools_plan",
+        "structured_extract"
+      ]
+    },
+    {
+      "id": "@try-works/extension-declarative-recipes",
+      "name": "declarative-recipes",
+      "status": "PASS",
+      "durationMs": 28376,
+      "blocker": null,
+      "detail": "installed 0.1.0 via registry (resolved 0.1.0)",
+      "tools": []
+    }
+  ],
+  "tools": [],
+  "summary": {
+    "total": 8,
+    "pass": 5,
+    "fail": 2,
+    "skipped": 1,
+    "skippedWithNamedBlocker": 1,
+    "coherenceIssues": [],
+    "invocationRan": false
+  },
+  "hostServices": {},
+  "surface": {
+    "lifecycle": "gateway RPC: GET /connect?token=… then POST /api/modelTools/<installExtension|describe|prepare|enable> with {type:\"client-request\",rpcId,method,payload:{args}}",
+    "invocation": "in-process shipping host (plugin apply + tool runtime + extension dispatch) over a snapshot of the profile store; the live web profile exposes no MCP/tool-execute endpoint"
+  }
+}

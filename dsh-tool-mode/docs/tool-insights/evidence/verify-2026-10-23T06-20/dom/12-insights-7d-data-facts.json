@@ -1,0 +1,52 @@
+{
+  "url": "http://127.0.0.1:3180/",
+  "panelButtons": [
+    "New session",
+    "Collapse sidebar",
+    "New session",
+    "Plugins",
+    "Automation tasks",
+    "Tool Insights",
+    "Search sessions",
+    "View options",
+    "Add workspace",
+    "Workspace actions for dsh-anti-slop",
+    "New session in dsh-anti-slop",
+    "Session actions for Untitled",
+    "Archive session",
+    "Pin session",
+    "Session actions for Untitled",
+    "Archive session",
+    "Pin session",
+    "Session actions for Are There Any Recursive Runs",
+    "Archive session",
+    "Pin session",
+    "Session actions for Untitled",
+    "Archive session",
+    "Pin session",
+    "New session in Ungrouped",
+    "Account menu",
+    "Previous page",
+    "Next page",
+    "Previous page",
+    "Next page",
+    "New tab",
+    "Split",
+    "Fullscreen",
+    "Collapse right sidebar"
+  ],
+  "hasToolInsightsText": true,
+  "hasModelAsToolText": false,
+  "bootModelToolsEntry": {
+    "id": "@try-works/dsh-tool-mode",
+    "url": "plugins/??@try-works/dsh-tool-mode/client.js&rev=5006a0da0d54",
+    "rev": "5006a0da0d54",
+    "inject": [
+      "@deepseek-ai/dsh-client-ui-settings",
+      "@deepseek-ai/dsh-client-ui-slots",
+      "@deepseek-ai/dsh-client-ui-conversation",
+      "@deepseek-ai/dsh-client-ui-sidebar-right"
+    ]
+  },
+  "sidebarText": "Plugins\nAutomation tasks\nTool Insights"
+}

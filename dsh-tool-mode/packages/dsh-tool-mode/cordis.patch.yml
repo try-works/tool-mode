@@ -1,0 +1,39 @@
+# The dsh-tool-mode bundle patch: one insert row over the empty profile root.
+#
+# A user's profile `cordis.patch.yml` (or the file this row is installed into)
+# addresses this row by id, so a deployment can change the config without
+# forking the package. Later patch layers win per row.
+#
+# `models: []` means "no explicit allowlist": every model whose runtime resolves
+# in this process is registered. Naming ids narrows the surface; naming a model
+# that cannot run here is harmless, because the allowlist is intersected with
+# what the capability resolver proves runnable.
+
+- insert:
+    - id: model-tools
+      name: '@try-works/dsh-tool-mode'
+      config:
+        # Every model that can actually run in this process.
+        models: []
+        exclude: []
+        # Do not register a tool for a model whose runtime is missing: a tool
+        # that cannot work costs a model turn to discover.
+        exposeUnavailable: false
+        # Publish one skill per registered tool, teaching when to use it.
+        registerSkills: true
+        # Register the `model_tools` inspection and install tool.
+        registerControlTool: true
+        # Allow in-process npm packages. Set false to force every call through
+        # the CLI or the bridge below.
+        allowNpm: true
+        # The Desert Ant CLI, auto-detected on PATH (macOS and Linux). It can run
+        # every shipping model, so it is the route that needs no extra service.
+        cli:
+          enabled: true
+          command: desertant
+        # A bridge on a machine that can run what this one cannot — most
+        # importantly the Apple-only models. Leave the endpoint empty to disable.
+        # See scripts/desert-ant-bridge.mjs; the plugin never hosts this itself.
+        remote:
+          endpoint: ''
+          token: ''

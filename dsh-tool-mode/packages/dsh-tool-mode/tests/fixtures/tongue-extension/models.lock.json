@@ -1,0 +1,32 @@
+{
+  "lockVersion": 1,
+  "assetSets": {
+    "tongue-bundled": {
+      "model": {
+        "provider": "desert-ant-labs",
+        "identity": "@desert-ant-labs/tongue",
+        "revision": "3.6.0"
+      },
+      "engine": { "kind": "pure-javascript", "version": "3.6.0" },
+      "tokenizer": { "kind": "bundled", "identity": "tongue-vocabulary" },
+      "platforms": [
+        { "os": "win32", "arch": "x64", "accelerator": "cpu" },
+        { "os": "darwin", "arch": "arm64", "accelerator": "cpu" },
+        { "os": "linux", "arch": "x64", "accelerator": "cpu" }
+      ],
+      "license": {
+        "name": "none: the fixture ships no weights",
+        "url": "https://example.invalid/fixture",
+        "attributionRequired": false,
+        "redistribution": "permitted"
+      },
+      "assets": [],
+      "groups": [],
+      "pinning": {
+        "state": "bundled",
+        "revision": "3.6.0",
+        "reason": "Test fixture: like Tongue, it bundles no downloadable asset, so an empty asset set is correct and preparation downloads nothing."
+      }
+    }
+  }
+}

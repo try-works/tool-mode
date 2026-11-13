@@ -1,0 +1,72 @@
+# TDD red — verification/FINAL-REPORT.md staleness test
+
+Command (intended, from the repository root):
+
+    npx tsx --test packages/dsh-tool-mode/tests/final-report.test.ts
+
+## Execution status: NOT EXECUTED
+
+The shell is unusable in this session. Every `pwsh` invocation — including a bare
+`node -e "console.log('probe ok')"` — fails before starting a process with:
+
+    Error: sandbox-local windows-acl temp grant materialization failed
+    and its cleanup also failed
+
+No test, generator or command was run. This red is therefore established **statically**
+against the committed files, not captured from an execution; do not treat it as a run.
+Re-run the command above when a shell is available.
+
+## Static red basis (why the test fails on the pre-change tree)
+
+1. **Headline counts.** The test parses
+   `Of **N tracked items** — ... **D are done**, P are partial, B are blocked ... **U were never started**.`
+   and compares with `verification/requirements.json`:
+   - inventory: 317 items, 227 normative, 90 acceptance, **18 DONE / 252 PARTIAL / 3 BLOCKED / 44 NOT_RUN**;
+   - committed `verification/FINAL-REPORT.md:8`: **12 done / 250 partial / 4 blocked / 51 never started**.
+   `assert.equal(Number(match[4]), totals.DONE)` fails (12 !== 18), and match[6]/match[7] fail too.
+2. **Family rows.** The inventory has 21 families; e.g. `TOOL` is 2/3/1/0 in the inventory but
+   the committed report shows `TOOL | 0 | 4 | 1 | 1` (FINAL-REPORT.md:95), and `DEC` is
+   2/3/0/3 there but 0/1/1/6 in the committed table.
+3. **DONE list.** The committed report omits DEC-01, DEC-02, RUN-04, TOOL-04, TOOL-05 and
+   MOD-13 from "The requirements that are done" (FINAL-REPORT.md:29-40), while the inventory
+   marks all six DONE.
+4. **Timestamp/commit.** The committed report has no `**Generated** <ISO> from commit \`<sha>\``
+   line at all, so the timestamp assertion fails.
+5. **Package identities.** The committed report hardcodes "Five packages are published and
+   installable" with `0.1.3` (FINAL-REPORT.md:18); the test requires every
+   `packages/*/package.json` name+version (14 packages, host `0.5.42`, laya `1.0.3`, …) to
+   appear in a generated table.
+6. **Byte equality / `--check`.** The test asserts the file equals `renderFinalReport()` and
+   that `node scripts/gen-final-report.mjs --check` exits 0. Before this change the
+   generator has no `--check` mode (it always writes), so that case could not pass.
+
+Green requires: implementation of the generator changes, a regenerated
+`verification/FINAL-REPORT.md`, and the two commands run in a working shell.
+
+## Post-implementation static validation (still execution pending)
+
+The shell stayed blocked for the whole task, so these are the strongest non-execution
+checks available and are NOT a substitute for the run:
+
+1. **Generator parses.** The generator source was loaded into the shared Chrome page
+   (`file:///.../scripts/gen-final-report.mjs`), its `import` lines stripped,
+   `import.meta.url` substituted, and the remaining program body passed to `new Function`
+   for a syntax-only parse: `PARSE_OK length=17607`. This catches syntax errors, not
+   runtime errors.
+2. **Report structure agrees with the data.** The rendered
+   `verification/FINAL-REPORT.md` was read in the same browser and checked against
+   `requirements.json`/`evidence.json`/the package manifests: headline counts
+   (317/227/90/18/252/3/44), all 21 family rows, the 18 DONE bullets, the 3 BLOCKED
+   bullets, the 14 package name/version pairs, the generated timestamp and commit, and
+   the absence of the old "Five packages…" hardcoded claim — zero mismatches.
+3. **Byte equality is NOT proven.** The file was rendered by hand from
+   `renderFinalReport()`'s exact strings (every template literal was compared against the
+   written file), but that is a manual comparison. Run
+   `node scripts/gen-final-report.mjs --check` to prove it; if it reports a difference,
+   `node scripts/gen-final-report.mjs` rewrites the file and the check then passes.
+
+Execution still pending:
+
+    npx tsx --test packages/dsh-tool-mode/tests/final-report.test.ts
+    npm run final-report:check
+

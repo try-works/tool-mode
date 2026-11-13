@@ -1,0 +1,61 @@
+{
+  "generatedAt": "2026-10-25T07:07:59.210Z",
+  "baseUrl": "http://127.0.0.1:3187",
+  "exitCode": 1,
+  "skipInvoke": false,
+  "rows": [
+    {
+      "id": "@try-works/extension-embeddinggemma",
+      "name": "embeddinggemma",
+      "status": "FAIL",
+      "durationMs": 307019,
+      "blocker": null,
+      "detail": "fetch failed",
+      "tools": [
+        "multimodal_embed",
+        "semantic_similarity",
+        "semantic_rank",
+        "semantic_classify",
+        "semantic_deduplicate",
+        "media_find_moments"
+      ]
+    },
+    {
+      "id": "@try-works/extension-minilm-embed",
+      "name": "minilm-embed",
+      "status": "FAIL",
+      "durationMs": 307692,
+      "blocker": null,
+      "detail": "fetch failed",
+      "tools": [
+        "text_embed"
+      ]
+    },
+    {
+      "id": "@try-works/extension-minilm-rerank",
+      "name": "minilm-rerank",
+      "status": "FAIL",
+      "durationMs": 307157,
+      "blocker": null,
+      "detail": "fetch failed",
+      "tools": [
+        "text_rerank"
+      ]
+    }
+  ],
+  "tools": [],
+  "summary": {
+    "total": 3,
+    "pass": 0,
+    "fail": 3,
+    "skipped": 0,
+    "skippedWithNamedBlocker": 0,
+    "coherenceIssues": [],
+    "invocationRan": false
+  },
+  "hostServices": {},
+  "surface": {
+    "lifecycle": "gateway RPC: GET /connect?token=… then POST /api/modelTools/<installExtension|describe|prepare|enable> with {type:\"client-request\",rpcId,method,payload:{args}}",
+    "invocation": "in-process shipping host (plugin apply + tool runtime + extension dispatch) over a snapshot of the profile store; the live web profile exposes no MCP/tool-execute endpoint"
+  }
+}

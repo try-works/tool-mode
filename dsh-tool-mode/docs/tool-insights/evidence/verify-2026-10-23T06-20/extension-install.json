@@ -1,0 +1,1057 @@
+{
+  "capturedAt": "2026-10-23T06:20:58.894Z",
+  "results": {
+    "install": {
+      "status": 200,
+      "ok": true,
+      "error": null,
+      "value": {
+        "id": "@try-works/extension-desert-ant-tongue",
+        "version": "0.1.3",
+        "active": false,
+        "source": "directory",
+        "resolvedVersion": "0.1.3"
+      }
+    },
+    "prepare": {
+      "status": 200,
+      "ok": true,
+      "value": {
+        "id": "@try-works/extension-desert-ant-tongue",
+        "prepared": true,
+        "reason": null,
+        "plan": {
+          "modelId": "tongue",
+          "modelRevision": "3.6.0",
+          "assets": [],
+          "totalBytes": 0,
+          "storageBytes": 0,
+          "requiresExecutableApproval": false,
+          "license": {
+            "name": "Desert Ant Labs Source-Available License 1.0",
+            "url": "https://desertant.com/license"
+          }
+        },
+        "readiness": {
+          "tongue": "prepared-cold"
+        },
+        "groups": [],
+        "activationReady": true
+      }
+    },
+    "enable": {
+      "status": 200,
+      "ok": true,
+      "value": {
+        "id": "@try-works/extension-desert-ant-tongue",
+        "active": true,
+        "disabled": false
+      }
+    },
+    "describeAfterEnable": {
+      "store": "D:\\DEV\\dsh-ti-verify\\profiles\\tool-insights\\extensions",
+      "writable": true,
+      "sourceDir": "D:\\DEV\\dsh-tool-mode\\packages",
+      "extensions": [
+        {
+          "id": "@try-works/dsh-tool-mode",
+          "package": "@try-works/dsh-tool-mode",
+          "version": null,
+          "installed": false,
+          "active": false,
+          "disabled": false,
+          "integrity": "unknown",
+          "tools": [],
+          "reason": "the package at D:\\DEV\\dsh-tool-mode\\packages\\dsh-tool-mode is not a usable extension: package.json must declare \"toolMode\": { \"manifest\": \"./…\" }",
+          "requirements": [
+            {
+              "kind": "store",
+              "satisfied": true,
+              "reason": "the extension store at D:\\DEV\\dsh-ti-verify\\profiles\\tool-insights\\extensions is configured and readable",
+              "action": "none"
+            },
+            {
+              "kind": "source",
+              "satisfied": true,
+              "reason": "the npm registry https://registry.npmjs.org/ can supply @try-works/dsh-tool-mode@latest, resolved and sha512-verified at install time",
+              "action": "install"
+            },
+            {
+              "kind": "dependencies",
+              "satisfied": true,
+              "reason": "all 8 declared runtime dependencies resolve in the host's installed tree",
+              "action": "none"
+            },
+            {
+              "kind": "platform",
+              "satisfied": false,
+              "reason": "the package at D:\\DEV\\dsh-tool-mode\\packages\\dsh-tool-mode is not a usable extension: package.json must declare \"toolMode\": { \"manifest\": \"./…\" }",
+              "action": "none"
+            },
+            {
+              "kind": "integrity",
+              "satisfied": true,
+              "reason": "the extension is not installed, so there are no installed bytes to verify",
+              "action": "none"
+            },
+            {
+              "kind": "runtime",
+              "satisfied": true,
+              "reason": "the package declares no optional tool runtime",
+              "action": "none"
+            },
+            {
+              "kind": "executable",
+              "satisfied": true,
+              "reason": "the extension declares no model deployment, so no executable asset can be planned",
+              "action": "none"
+            },
+            {
+              "kind": "assets",
+              "satisfied": true,
+              "reason": "the extension declares no model deployment to prepare",
+              "action": "none"
+            },
+            {
+              "kind": "activation",
+              "satisfied": true,
+              "reason": "not installed; no activation state exists",
+              "action": "none"
+            }
+          ],
+          "blocked": true
+        },
+        {
+          "id": "@try-works/extension-declarative-recipes",
+          "package": "@try-works/extension-declarative-recipes",
+          "version": "0.1.0",
+          "installed": false,
+          "active": false,
+          "disabled": false,
+          "integrity": "unknown",
+          "tools": [],
+          "reason": "the npm registry https://registry.npmjs.org/ can supply @try-works/extension-declarative-recipes@latest, resolved and sha512-verified at install time; a directory fallback is available if the registry is unreachable",
+          "requirements": [
+            {
+              "kind": "store",
+              "satisfied": true,
+              "reason": "the extension store at D:\\DEV\\dsh-ti-verify\\profiles\\tool-insights\\extensions is configured and readable",
+              "action": "none"
+            },
+            {
+              "kind": "source",
+              "satisfied": true,
+              "reason": "the npm registry https://registry.npmjs.org/ can supply @try-works/extension-declarative-recipes@latest, resolved and sha512-verified at install time; a directory fallback is available if the registry is unreachable",
+              "action": "install"
+            },
+            {
+              "kind": "dependencies",
+              "satisfied": true,
+              "reason": "the package declares no runtime dependencies",
+              "action": "none"
+            },
+            {
+              "kind": "platform",
+              "satisfied": true,
+              "reason": "the extension declares no platform-specific model deployment",
+              "action": "none"
+            },
+            {
+              "kind": "integrity",
+              "satisfied": true,
+              "reason": "the extension is not installed, so there are no installed bytes to verify",
+              "action": "none"
+            },
+            {
+              "kind": "runtime",
+              "satisfied": true,
+              "reason": "the package declares no optional tool runtime",
+              "action": "none"
+            },
+            {
+              "kind": "harness-model",
+              "satisfied": true,
+              "reason": "a harness model provider is available (deepseek-official / deepseek-flash)",
+              "action": "none"
+            },
+            {
+              "kind": "executable",
+              "satisfied": true,
+              "reason": "the extension declares no model deployment, so no executable asset can be planned",
+              "action": "none"
+            },
+            {
+              "kind": "assets",
+              "satisfied": true,
+              "reason": "the extension declares no model deployment to prepare",
+              "action": "none"
+            },
+            {
+              "kind": "activation",
+              "satisfied": true,
+              "reason": "not installed; no activation state exists",
+              "action": "none"
+            }
+          ],
+          "blocked": false
+        },
+        {
+          "id": "@try-works/extension-desert-ant-tongue",
+          "package": "@try-works/extension-desert-ant-tongue",
+          "version": "0.1.3",
+          "installed": true,
+          "active": true,
+          "disabled": false,
+          "integrity": "unchanged",
+          "tools": [
+            "lang_detect"
+          ],
+          "reason": null,
+          "requirements": [
+            {
+              "kind": "store",
+              "satisfied": true,
+              "reason": "the extension store at D:\\DEV\\dsh-ti-verify\\profiles\\tool-insights\\extensions is configured and readable",
+              "action": "none"
+            },
+            {
+              "kind": "source",
+              "satisfied": true,
+              "reason": "the installed copy is the source of record (version 0.1.3)",
+              "action": "none"
+            },
+            {
+              "kind": "dependencies",
+              "satisfied": true,
+              "reason": "the package declares no runtime dependencies",
+              "action": "none"
+            },
+            {
+              "kind": "platform",
+              "satisfied": true,
+              "reason": "the declared deployment supports this host (win32/x64: win32-x64-cpu, darwin-arm64-cpu, linux-x64-cpu)",
+              "action": "none"
+            },
+            {
+              "kind": "integrity",
+              "satisfied": true,
+              "reason": "the installed content matches the recorded digest",
+              "action": "none"
+            },
+            {
+              "kind": "runtime",
+              "satisfied": true,
+              "reason": "the optional tool runtime is materialized (@desert-ant-labs/tongue@3.6.0)",
+              "action": "none"
+            },
+            {
+              "kind": "executable",
+              "satisfied": true,
+              "reason": "every declared model deployment is already prepared or callable, so no executable approval is pending",
+              "action": "none"
+            },
+            {
+              "kind": "assets",
+              "satisfied": true,
+              "reason": "every declared model deployment is prepared or callable (tongue)",
+              "action": "none"
+            },
+            {
+              "kind": "activation",
+              "satisfied": true,
+              "reason": "the stored activation state is active",
+              "action": "none"
+            }
+          ],
+          "blocked": false
+        },
+        {
+          "id": "@try-works/extension-desert-ant-voz",
+          "package": "@try-works/extension-desert-ant-voz",
+          "version": "0.1.5",
+          "installed": false,
+          "active": false,
+          "disabled": false,
+          "integrity": "unknown",
+          "tools": [
+            "stt_transcribe"
+          ],
+          "reason": "the npm registry https://registry.npmjs.org/ can supply @try-works/extension-desert-ant-voz@latest, resolved and sha512-verified at install time; a directory fallback is available if the registry is unreachable",
+          "requirements": [
+            {
+              "kind": "store",
+              "satisfied": true,
+              "reason": "the extension store at D:\\DEV\\dsh-ti-verify\\profiles\\tool-insights\\extensions is configured and readable",
+              "action": "none"
+            },
+            {
+              "kind": "source",
+              "satisfied": true,
+              "reason": "the npm registry https://registry.npmjs.org/ can supply @try-works/extension-desert-ant-voz@latest, resolved and sha512-verified at install time; a directory fallback is available if the registry is unreachable",
+              "action": "install"
+            },
+            {
+              "kind": "dependencies",
+              "satisfied": true,
+              "reason": "the package declares no runtime dependencies",
+              "action": "none"
+            },
+            {
+              "kind": "platform",
+              "satisfied": true,
+              "reason": "the declared deployment supports this host (win32/x64: win32-x64-cpu, darwin-arm64-gpu, linux-x64-cpu)",
+              "action": "none"
+            },
+            {
+              "kind": "integrity",
+              "satisfied": true,
+              "reason": "the extension is not installed, so there are no installed bytes to verify",
+              "action": "none"
+            },
+            {
+              "kind": "runtime",
+              "satisfied": true,
+              "reason": "not installed yet; optional tool runtimes are materialized and verified at install time",
+              "action": "none"
+            },
+            {
+              "kind": "executable",
+              "satisfied": true,
+              "reason": "not installed yet; the executable-asset approval is checked once the preparation plan can be resolved",
+              "action": "none"
+            },
+            {
+              "kind": "assets",
+              "satisfied": false,
+              "reason": "not installed; voz needs model assets prepared after installation",
+              "action": "install"
+            },
+            {
+              "kind": "activation",
+              "satisfied": true,
+              "reason": "not installed; no activation state exists",
+              "action": "none"
+            }
+          ],
+          "blocked": false
+        },
+        {
+          "id": "@try-works/extension-embeddinggemma",
+          "package": "@try-works/extension-embeddinggemma",
+          "version": "0.1.2",
+          "installed": false,
+          "active": false,
+          "disabled": false,
+          "integrity": "unknown",
+          "tools": [
+            "multimodal_embed",
+            "semantic_similarity",
+            "semantic_rank",
+            "semantic_classify",
+            "semantic_deduplicate",
+            "dedupe_and_rank",
+            "media_find_moments"
+          ],
+          "reason": "the npm registry https://registry.npmjs.org/ can supply @try-works/extension-embeddinggemma@latest, resolved and sha512-verified at install time; a directory fallback is available if the registry is unreachable",
+          "requirements": [
+            {
+              "kind": "store",
+              "satisfied": true,
+              "reason": "the extension store at D:\\DEV\\dsh-ti-verify\\profiles\\tool-insights\\extensions is configured and readable",
+              "action": "none"
+            },
+            {
+              "kind": "source",
+              "satisfied": true,
+              "reason": "the npm registry https://registry.npmjs.org/ can supply @try-works/extension-embeddinggemma@latest, resolved and sha512-verified at install time; a directory fallback is available if the registry is unreachable",
+              "action": "install"
+            },
+            {
+              "kind": "dependencies",
+              "satisfied": true,
+              "reason": "the package declares no runtime dependencies",
+              "action": "none"
+            },
+            {
+              "kind": "platform",
+              "satisfied": true,
+              "reason": "the declared deployment supports this host (win32/x64: win32-x64-cpu)",
+              "action": "none"
+            },
+            {
+              "kind": "integrity",
+              "satisfied": true,
+              "reason": "the extension is not installed, so there are no installed bytes to verify",
+              "action": "none"
+            },
+            {
+              "kind": "runtime",
+              "satisfied": true,
+              "reason": "not installed yet; optional tool runtimes are materialized and verified at install time",
+              "action": "none"
+            },
+            {
+              "kind": "executable",
+              "satisfied": true,
+              "reason": "not installed yet; the executable-asset approval is checked once the preparation plan can be resolved",
+              "action": "none"
+            },
+            {
+              "kind": "assets",
+              "satisfied": false,
+              "reason": "not installed; embeddinggemma-2 needs model assets prepared after installation",
+              "action": "install"
+            },
+            {
+              "kind": "activation",
+              "satisfied": true,
+              "reason": "not installed; no activation state exists",
+              "action": "none"
+            }
+          ],
+          "blocked": false
+        },
+        {
+          "id": "@try-works/extension-laya",
+          "package": "@try-works/extension-laya",
+          "version": "1.0.3",
+          "installed": false,
+          "active": false,
+          "disabled": false,
+          "integrity": "unknown",
+          "tools": [
+            "decision_choose",
+            "decision_test",
+            "decision_score"
+          ],
+          "reason": "the npm registry https://registry.npmjs.org/ can supply @try-works/extension-laya@latest, resolved and sha512-verified at install time; a directory fallback is available if the registry is unreachable",
+          "requirements": [
+            {
+              "kind": "store",
+              "satisfied": true,
+              "reason": "the extension store at D:\\DEV\\dsh-ti-verify\\profiles\\tool-insights\\extensions is configured and readable",
+              "action": "none"
+            },
+            {
+              "kind": "source",
+              "satisfied": true,
+              "reason": "the npm registry https://registry.npmjs.org/ can supply @try-works/extension-laya@latest, resolved and sha512-verified at install time; a directory fallback is available if the registry is unreachable",
+              "action": "install"
+            },
+            {
+              "kind": "dependencies",
+              "satisfied": true,
+              "reason": "all 1 declared runtime dependency resolves in the host's installed tree",
+              "action": "none"
+            },
+            {
+              "kind": "platform",
+              "satisfied": true,
+              "reason": "the declared deployment supports this host (win32/x64: win32-x64-cpu)",
+              "action": "none"
+            },
+            {
+              "kind": "integrity",
+              "satisfied": true,
+              "reason": "the extension is not installed, so there are no installed bytes to verify",
+              "action": "none"
+            },
+            {
+              "kind": "runtime",
+              "satisfied": true,
+              "reason": "the package declares no optional tool runtime",
+              "action": "none"
+            },
+            {
+              "kind": "executable",
+              "satisfied": true,
+              "reason": "not installed yet; the executable-asset approval is checked once the preparation plan can be resolved",
+              "action": "none"
+            },
+            {
+              "kind": "assets",
+              "satisfied": false,
+              "reason": "not installed; laya needs model assets prepared after installation",
+              "action": "install"
+            },
+            {
+              "kind": "activation",
+              "satisfied": true,
+              "reason": "not installed; no activation state exists",
+              "action": "none"
+            }
+          ],
+          "blocked": false
+        },
+        {
+          "id": "@try-works/extension-minilm-embed",
+          "package": "@try-works/extension-minilm-embed",
+          "version": "1.0.0",
+          "installed": false,
+          "active": false,
+          "disabled": false,
+          "integrity": "unknown",
+          "tools": [],
+          "reason": "the npm registry https://registry.npmjs.org/ can supply @try-works/extension-minilm-embed@latest, resolved and sha512-verified at install time; a directory fallback is available if the registry is unreachable",
+          "requirements": [
+            {
+              "kind": "store",
+              "satisfied": true,
+              "reason": "the extension store at D:\\DEV\\dsh-ti-verify\\profiles\\tool-insights\\extensions is configured and readable",
+              "action": "none"
+            },
+            {
+              "kind": "source",
+              "satisfied": true,
+              "reason": "the npm registry https://registry.npmjs.org/ can supply @try-works/extension-minilm-embed@latest, resolved and sha512-verified at install time; a directory fallback is available if the registry is unreachable",
+              "action": "install"
+            },
+            {
+              "kind": "dependencies",
+              "satisfied": true,
+              "reason": "all 2 declared runtime dependencies resolve in the host's installed tree",
+              "action": "none"
+            },
+            {
+              "kind": "platform",
+              "satisfied": true,
+              "reason": "the declared deployment supports this host (win32/x64: win32-x64-cpu)",
+              "action": "none"
+            },
+            {
+              "kind": "integrity",
+              "satisfied": true,
+              "reason": "the extension is not installed, so there are no installed bytes to verify",
+              "action": "none"
+            },
+            {
+              "kind": "runtime",
+              "satisfied": true,
+              "reason": "the package declares no optional tool runtime",
+              "action": "none"
+            },
+            {
+              "kind": "executable",
+              "satisfied": true,
+              "reason": "not installed yet; the executable-asset approval is checked once the preparation plan can be resolved",
+              "action": "none"
+            },
+            {
+              "kind": "assets",
+              "satisfied": false,
+              "reason": "not installed; minilm-l6 needs model assets prepared after installation",
+              "action": "install"
+            },
+            {
+              "kind": "activation",
+              "satisfied": true,
+              "reason": "not installed; no activation state exists",
+              "action": "none"
+            }
+          ],
+          "blocked": false
+        },
+        {
+          "id": "@try-works/extension-minilm-rerank",
+          "package": "@try-works/extension-minilm-rerank",
+          "version": "1.0.0",
+          "installed": false,
+          "active": false,
+          "disabled": false,
+          "integrity": "unknown",
+          "tools": [],
+          "reason": "the npm registry https://registry.npmjs.org/ can supply @try-works/extension-minilm-rerank@latest, resolved and sha512-verified at install time; a directory fallback is available if the registry is unreachable",
+          "requirements": [
+            {
+              "kind": "store",
+              "satisfied": true,
+              "reason": "the extension store at D:\\DEV\\dsh-ti-verify\\profiles\\tool-insights\\extensions is configured and readable",
+              "action": "none"
+            },
+            {
+              "kind": "source",
+              "satisfied": true,
+              "reason": "the npm registry https://registry.npmjs.org/ can supply @try-works/extension-minilm-rerank@latest, resolved and sha512-verified at install time; a directory fallback is available if the registry is unreachable",
+              "action": "install"
+            },
+            {
+              "kind": "dependencies",
+              "satisfied": true,
+              "reason": "all 2 declared runtime dependencies resolve in the host's installed tree",
+              "action": "none"
+            },
+            {
+              "kind": "platform",
+              "satisfied": true,
+              "reason": "the declared deployment supports this host (win32/x64: win32-x64-cpu)",
+              "action": "none"
+            },
+            {
+              "kind": "integrity",
+              "satisfied": true,
+              "reason": "the extension is not installed, so there are no installed bytes to verify",
+              "action": "none"
+            },
+            {
+              "kind": "runtime",
+              "satisfied": true,
+              "reason": "the package declares no optional tool runtime",
+              "action": "none"
+            },
+            {
+              "kind": "executable",
+              "satisfied": true,
+              "reason": "not installed yet; the executable-asset approval is checked once the preparation plan can be resolved",
+              "action": "none"
+            },
+            {
+              "kind": "assets",
+              "satisfied": false,
+              "reason": "not installed; minilm-rerank needs model assets prepared after installation",
+              "action": "install"
+            },
+            {
+              "kind": "activation",
+              "satisfied": true,
+              "reason": "not installed; no activation state exists",
+              "action": "none"
+            }
+          ],
+          "blocked": false
+        },
+        {
+          "id": "@try-works/extension-needle",
+          "package": "@try-works/extension-needle",
+          "version": "0.1.3",
+          "installed": false,
+          "active": false,
+          "disabled": false,
+          "integrity": "unknown",
+          "tools": [
+            "tools_plan",
+            "structured_extract",
+            "validate_record",
+            "extract_with_repair"
+          ],
+          "reason": "the npm registry https://registry.npmjs.org/ can supply @try-works/extension-needle@latest, resolved and sha512-verified at install time; a directory fallback is available if the registry is unreachable",
+          "requirements": [
+            {
+              "kind": "store",
+              "satisfied": true,
+              "reason": "the extension store at D:\\DEV\\dsh-ti-verify\\profiles\\tool-insights\\extensions is configured and readable",
+              "action": "none"
+            },
+            {
+              "kind": "source",
+              "satisfied": true,
+              "reason": "the npm registry https://registry.npmjs.org/ can supply @try-works/extension-needle@latest, resolved and sha512-verified at install time; a directory fallback is available if the registry is unreachable",
+              "action": "install"
+            },
+            {
+              "kind": "dependencies",
+              "satisfied": true,
+              "reason": "all 1 declared runtime dependency resolves in the host's installed tree",
+              "action": "none"
+            },
+            {
+              "kind": "platform",
+              "satisfied": true,
+              "reason": "the declared deployment supports this host (win32/x64: win32-x64-cpu)",
+              "action": "none"
+            },
+            {
+              "kind": "integrity",
+              "satisfied": true,
+              "reason": "the extension is not installed, so there are no installed bytes to verify",
+              "action": "none"
+            },
+            {
+              "kind": "runtime",
+              "satisfied": true,
+              "reason": "the package declares no optional tool runtime",
+              "action": "none"
+            },
+            {
+              "kind": "executable",
+              "satisfied": true,
+              "reason": "not installed yet; the executable-asset approval is checked once the preparation plan can be resolved",
+              "action": "none"
+            },
+            {
+              "kind": "assets",
+              "satisfied": false,
+              "reason": "not installed; needle3 needs model assets prepared after installation",
+              "action": "install"
+            },
+            {
+              "kind": "activation",
+              "satisfied": true,
+              "reason": "not installed; no activation state exists",
+              "action": "none"
+            }
+          ],
+          "blocked": false
+        },
+        {
+          "id": "@try-works/harness-vision",
+          "package": "@try-works/harness-vision",
+          "version": "0.1.0",
+          "installed": false,
+          "active": false,
+          "disabled": false,
+          "integrity": "unknown",
+          "tools": [
+            "describe_image"
+          ],
+          "reason": "the npm registry https://registry.npmjs.org/ can supply @try-works/harness-vision@latest, resolved and sha512-verified at install time; a directory fallback is available if the registry is unreachable",
+          "requirements": [
+            {
+              "kind": "store",
+              "satisfied": true,
+              "reason": "the extension store at D:\\DEV\\dsh-ti-verify\\profiles\\tool-insights\\extensions is configured and readable",
+              "action": "none"
+            },
+            {
+              "kind": "source",
+              "satisfied": true,
+              "reason": "the npm registry https://registry.npmjs.org/ can supply @try-works/harness-vision@latest, resolved and sha512-verified at install time; a directory fallback is available if the registry is unreachable",
+              "action": "install"
+            },
+            {
+              "kind": "dependencies",
+              "satisfied": true,
+              "reason": "the package declares no runtime dependencies",
+              "action": "none"
+            },
+            {
+              "kind": "platform",
+              "satisfied": true,
+              "reason": "the extension declares no platform-specific model deployment",
+              "action": "none"
+            },
+            {
+              "kind": "integrity",
+              "satisfied": true,
+              "reason": "the extension is not installed, so there are no installed bytes to verify",
+              "action": "none"
+            },
+            {
+              "kind": "runtime",
+              "satisfied": true,
+              "reason": "the package declares no optional tool runtime",
+              "action": "none"
+            },
+            {
+              "kind": "harness-model",
+              "satisfied": true,
+              "reason": "a harness model provider is available (deepseek-official / deepseek-flash)",
+              "action": "none"
+            },
+            {
+              "kind": "executable",
+              "satisfied": true,
+              "reason": "the extension declares no model deployment, so no executable asset can be planned",
+              "action": "none"
+            },
+            {
+              "kind": "assets",
+              "satisfied": true,
+              "reason": "the extension declares no model deployment to prepare",
+              "action": "none"
+            },
+            {
+              "kind": "activation",
+              "satisfied": true,
+              "reason": "not installed; no activation state exists",
+              "action": "none"
+            }
+          ],
+          "blocked": false
+        },
+        {
+          "id": "@try-works/tool-mode-contracts",
+          "package": "@try-works/tool-mode-contracts",
+          "version": null,
+          "installed": false,
+          "active": false,
+          "disabled": false,
+          "integrity": "unknown",
+          "tools": [],
+          "reason": "the package at D:\\DEV\\dsh-tool-mode\\packages\\tool-mode-contracts is not a usable extension: package.json must declare \"toolMode\": { \"manifest\": \"./…\" }",
+          "requirements": [
+            {
+              "kind": "store",
+              "satisfied": true,
+              "reason": "the extension store at D:\\DEV\\dsh-ti-verify\\profiles\\tool-insights\\extensions is configured and readable",
+              "action": "none"
+            },
+            {
+              "kind": "source",
+              "satisfied": true,
+              "reason": "the npm registry https://registry.npmjs.org/ can supply @try-works/tool-mode-contracts@latest, resolved and sha512-verified at install time",
+              "action": "install"
+            },
+            {
+              "kind": "dependencies",
+              "satisfied": true,
+              "reason": "all 1 declared runtime dependency resolves in the host's installed tree",
+              "action": "none"
+            },
+            {
+              "kind": "platform",
+              "satisfied": false,
+              "reason": "the package at D:\\DEV\\dsh-tool-mode\\packages\\tool-mode-contracts is not a usable extension: package.json must declare \"toolMode\": { \"manifest\": \"./…\" }",
+              "action": "none"
+            },
+            {
+              "kind": "integrity",
+              "satisfied": true,
+              "reason": "the extension is not installed, so there are no installed bytes to verify",
+              "action": "none"
+            },
+            {
+              "kind": "runtime",
+              "satisfied": true,
+              "reason": "the package declares no optional tool runtime",
+              "action": "none"
+            },
+            {
+              "kind": "executable",
+              "satisfied": true,
+              "reason": "the extension declares no model deployment, so no executable asset can be planned",
+              "action": "none"
+            },
+            {
+              "kind": "assets",
+              "satisfied": true,
+              "reason": "the extension declares no model deployment to prepare",
+              "action": "none"
+            },
+            {
+              "kind": "activation",
+              "satisfied": true,
+              "reason": "not installed; no activation state exists",
+              "action": "none"
+            }
+          ],
+          "blocked": true
+        },
+        {
+          "id": "@try-works/tool-mode-extension-sdk",
+          "package": "@try-works/tool-mode-extension-sdk",
+          "version": null,
+          "installed": false,
+          "active": false,
+          "disabled": false,
+          "integrity": "unknown",
+          "tools": [],
+          "reason": "the package at D:\\DEV\\dsh-tool-mode\\packages\\tool-mode-extension-sdk is not a usable extension: package.json must declare \"toolMode\": { \"manifest\": \"./…\" }",
+          "requirements": [
+            {
+              "kind": "store",
+              "satisfied": true,
+              "reason": "the extension store at D:\\DEV\\dsh-ti-verify\\profiles\\tool-insights\\extensions is configured and readable",
+              "action": "none"
+            },
+            {
+              "kind": "source",
+              "satisfied": true,
+              "reason": "the npm registry https://registry.npmjs.org/ can supply @try-works/tool-mode-extension-sdk@latest, resolved and sha512-verified at install time",
+              "action": "install"
+            },
+            {
+              "kind": "dependencies",
+              "satisfied": true,
+              "reason": "all 2 declared runtime dependencies resolve in the host's installed tree",
+              "action": "none"
+            },
+            {
+              "kind": "platform",
+              "satisfied": false,
+              "reason": "the package at D:\\DEV\\dsh-tool-mode\\packages\\tool-mode-extension-sdk is not a usable extension: package.json must declare \"toolMode\": { \"manifest\": \"./…\" }",
+              "action": "none"
+            },
+            {
+              "kind": "integrity",
+              "satisfied": true,
+              "reason": "the extension is not installed, so there are no installed bytes to verify",
+              "action": "none"
+            },
+            {
+              "kind": "runtime",
+              "satisfied": true,
+              "reason": "the package declares no optional tool runtime",
+              "action": "none"
+            },
+            {
+              "kind": "executable",
+              "satisfied": true,
+              "reason": "the extension declares no model deployment, so no executable asset can be planned",
+              "action": "none"
+            },
+            {
+              "kind": "assets",
+              "satisfied": true,
+              "reason": "the extension declares no model deployment to prepare",
+              "action": "none"
+            },
+            {
+              "kind": "activation",
+              "satisfied": true,
+              "reason": "not installed; no activation state exists",
+              "action": "none"
+            }
+          ],
+          "blocked": true
+        },
+        {
+          "id": "@try-works/tool-mode-harness-text",
+          "package": "@try-works/tool-mode-harness-text",
+          "version": "0.1.0",
+          "installed": false,
+          "active": false,
+          "disabled": false,
+          "integrity": "unknown",
+          "tools": [
+            "text_title"
+          ],
+          "reason": "the npm registry https://registry.npmjs.org/ can supply @try-works/tool-mode-harness-text@latest, resolved and sha512-verified at install time; a directory fallback is available if the registry is unreachable",
+          "requirements": [
+            {
+              "kind": "store",
+              "satisfied": true,
+              "reason": "the extension store at D:\\DEV\\dsh-ti-verify\\profiles\\tool-insights\\extensions is configured and readable",
+              "action": "none"
+            },
+            {
+              "kind": "source",
+              "satisfied": true,
+              "reason": "the npm registry https://registry.npmjs.org/ can supply @try-works/tool-mode-harness-text@latest, resolved and sha512-verified at install time; a directory fallback is available if the registry is unreachable",
+              "action": "install"
+            },
+            {
+              "kind": "dependencies",
+              "satisfied": true,
+              "reason": "the package declares no runtime dependencies",
+              "action": "none"
+            },
+            {
+              "kind": "platform",
+              "satisfied": true,
+              "reason": "the extension declares no platform-specific model deployment",
+              "action": "none"
+            },
+            {
+              "kind": "integrity",
+              "satisfied": true,
+              "reason": "the extension is not installed, so there are no installed bytes to verify",
+              "action": "none"
+            },
+            {
+              "kind": "runtime",
+              "satisfied": true,
+              "reason": "the package declares no optional tool runtime",
+              "action": "none"
+            },
+            {
+              "kind": "harness-model",
+              "satisfied": true,
+              "reason": "a harness model provider is available (deepseek-official / deepseek-flash)",
+              "action": "none"
+            },
+            {
+              "kind": "executable",
+              "satisfied": true,
+              "reason": "the extension declares no model deployment, so no executable asset can be planned",
+              "action": "none"
+            },
+            {
+              "kind": "assets",
+              "satisfied": true,
+              "reason": "the extension declares no model deployment to prepare",
+              "action": "none"
+            },
+            {
+              "kind": "activation",
+              "satisfied": true,
+              "reason": "not installed; no activation state exists",
+              "action": "none"
+            }
+          ],
+          "blocked": false
+        },
+        {
+          "id": "@try-works/tool-mode-recipes",
+          "package": "@try-works/tool-mode-recipes",
+          "version": null,
+          "installed": false,
+          "active": false,
+          "disabled": false,
+          "integrity": "unknown",
+          "tools": [],
+          "reason": "the package at D:\\DEV\\dsh-tool-mode\\packages\\tool-mode-recipes is not a usable extension: package.json must declare \"toolMode\": { \"manifest\": \"./…\" }",
+          "requirements": [
+            {
+              "kind": "store",
+              "satisfied": true,
+              "reason": "the extension store at D:\\DEV\\dsh-ti-verify\\profiles\\tool-insights\\extensions is configured and readable",
+              "action": "none"
+            },
+            {
+              "kind": "source",
+              "satisfied": true,
+              "reason": "the npm registry https://registry.npmjs.org/ can supply @try-works/tool-mode-recipes@latest, resolved and sha512-verified at install time",
+              "action": "install"
+            },
+            {
+              "kind": "dependencies",
+              "satisfied": true,
+              "reason": "all 1 declared runtime dependency resolves in the host's installed tree",
+              "action": "none"
+            },
+            {
+              "kind": "platform",
+              "satisfied": false,
+              "reason": "the package at D:\\DEV\\dsh-tool-mode\\packages\\tool-mode-recipes is not a usable extension: package.json must declare \"toolMode\": { \"manifest\": \"./…\" }",
+              "action": "none"
+            },
+            {
+              "kind": "integrity",
+              "satisfied": true,
+              "reason": "the extension is not installed, so there are no installed bytes to verify",
+              "action": "none"
+            },
+            {
+              "kind": "runtime",
+              "satisfied": true,
+              "reason": "the package declares no optional tool runtime",
+              "action": "none"
+            },
+            {
+              "kind": "executable",
+              "satisfied": true,
+              "reason": "the extension declares no model deployment, so no executable asset can be planned",
+              "action": "none"
+            },
+            {
+              "kind": "assets",
+              "satisfied": true,
+              "reason": "the extension declares no model deployment to prepare",
+              "action": "none"
+            },
+            {
+              "kind": "activation",
+              "satisfied": true,
+              "reason": "not installed; no activation state exists",
+              "action": "none"
+            }
+          ],
+          "blocked": true
+        }
+      ]
+    },
+    "mcpToolsAfterEnable": [
+      "lang_detect"
+    ]
+  }
+}

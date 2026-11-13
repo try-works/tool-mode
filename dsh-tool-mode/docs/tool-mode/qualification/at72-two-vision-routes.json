@@ -1,0 +1,44 @@
+{
+  "recordedAt": "2026-11-05T23:49:09.550Z",
+  "image": {
+    "path": "D:/DEV/dsh-temp/eg-image.png",
+    "bytes": 97,
+    "knownFacts": [
+      "solid red fill",
+      "no text",
+      "no shapes"
+    ],
+    "knownSource": "generated 32x32 solid red fixture, copied from the known red-min.png and independently described as red by both routes"
+  },
+  "recipe": {
+    "id": "describe-image",
+    "version": "1.0.0",
+    "unchanged": true,
+    "prompt": "Describe what is visible... focus: What colour fills the image?"
+  },
+  "routes": [
+    {
+      "route": "dsh:deepseek-official/deepseek-flash",
+      "adapter": "@deepseek-ai/dsh-llm-pi-ai (openai-completions)",
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "output": "The image is a solid red square with no visible text, shapes, or other details."
+    },
+    {
+      "route": "dsh:kimi-vision/k3.1-pro",
+      "adapter": "@deepseek-ai/dsh-llm-pi-ai (openai-completions)",
+      "provider": "kimi-vision",
+      "baseURL": "https://api.kimi.com/coding/v1",
+      "model": "k3.1-pro",
+      "output": "The image is filled entirely with solid bright red."
+    }
+  ],
+  "malformedInput": {
+    "bytes": 76,
+    "sha256": "not recorded",
+    "finding": "declares image/png but is truncated: valid PNG signature then a length field that runs past EOF and no IHDR; the host refuses it as RECIPE_BINDING_ERROR before any provider call",
+    "providerCalls": 0,
+    "test": "packages/tool-mode-recipes/tests/broker.test.ts HLM-11 truncated PNG"
+  },
+  "conclusion": "The same unchanged recipe and the same valid known image were executed through two independently configured live image-capable DSH provider routes; both identified the known red fill and neither invented text/shapes. The earlier contradictory white/orange output was produced from a MALFORMED 76-byte PNG; malformed bytes are now refused before inference (and were already refused by the broker binding validator)."
+}

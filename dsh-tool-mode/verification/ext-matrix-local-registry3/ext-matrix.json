@@ -1,0 +1,117 @@
+{
+  "generatedAt": "2026-10-25T07:55:38.797Z",
+  "baseUrl": "http://127.0.0.1:3190",
+  "exitCode": 1,
+  "skipInvoke": false,
+  "rows": [
+    {
+      "id": "@try-works/extension-desert-ant-tongue",
+      "name": "tongue",
+      "status": "FAIL",
+      "durationMs": 34563,
+      "blocker": null,
+      "detail": "gateway/internal: the tarball for @try-works/extension-desert-ant-tongue@0.1.3 from 127.0.0.1:4873 answered HTTP 500 after 8 attempts (not the size cap)",
+      "tools": [
+        "lang_detect"
+      ]
+    },
+    {
+      "id": "@try-works/extension-desert-ant-voz",
+      "name": "voz",
+      "status": "FAIL",
+      "durationMs": 34248,
+      "blocker": null,
+      "detail": "gateway/internal: the tarball for @try-works/extension-desert-ant-voz@0.1.5 from 127.0.0.1:4873 answered HTTP 500 after 8 attempts (not the size cap)",
+      "tools": [
+        "stt_transcribe"
+      ]
+    },
+    {
+      "id": "@try-works/extension-embeddinggemma",
+      "name": "embeddinggemma",
+      "status": "SKIPPED",
+      "durationMs": 163994,
+      "blocker": "the extension's tools cannot load: @huggingface/transformers ^3.0.0 is not installed inside the extension: onnxruntime-common@1.21.0 declares a \"prepare\" lifecycle script; the installer never runs or silently skips install-time scripts (EXT-10)",
+      "detail": "prepare: prepared",
+      "tools": [
+        "multimodal_embed",
+        "semantic_similarity",
+        "semantic_rank",
+        "semantic_classify",
+        "semantic_deduplicate",
+        "media_find_moments"
+      ]
+    },
+    {
+      "id": "@try-works/extension-laya",
+      "name": "laya",
+      "status": "PASS",
+      "durationMs": 91937,
+      "blocker": null,
+      "detail": "prepare: prepared",
+      "tools": [
+        "decision_choose",
+        "decision_test",
+        "decision_score"
+      ]
+    },
+    {
+      "id": "@try-works/extension-minilm-embed",
+      "name": "minilm-embed",
+      "status": "FAIL",
+      "durationMs": 42199,
+      "blocker": null,
+      "detail": "gateway/internal: the npm registry http://127.0.0.1:4873 could not be reached for @huggingface/jinja within 30000 ms (metadata timeout): fetch failed",
+      "tools": [
+        "text_embed"
+      ]
+    },
+    {
+      "id": "@try-works/extension-minilm-rerank",
+      "name": "minilm-rerank",
+      "status": "FAIL",
+      "durationMs": 51020,
+      "blocker": null,
+      "detail": "gateway/internal: the tarball for @huggingface/transformers@4.3.1 from 127.0.0.1:4873 answered HTTP 500 after 8 attempts (not the size cap)",
+      "tools": [
+        "text_rerank"
+      ]
+    },
+    {
+      "id": "@try-works/extension-needle",
+      "name": "needle",
+      "status": "FAIL",
+      "durationMs": 35907,
+      "blocker": null,
+      "detail": "gateway/internal: the tarball for @try-works/extension-needle@0.1.2 from 127.0.0.1:4873 answered HTTP 500 after 8 attempts (not the size cap)",
+      "tools": [
+        "tools_plan",
+        "structured_extract"
+      ]
+    },
+    {
+      "id": "@try-works/extension-declarative-recipes",
+      "name": "declarative-recipes",
+      "status": "PASS",
+      "durationMs": 18479,
+      "blocker": null,
+      "detail": "installed 0.1.0 via registry (resolved 0.1.0)",
+      "tools": []
+    }
+  ],
+  "tools": [],
+  "summary": {
+    "total": 8,
+    "pass": 2,
+    "fail": 5,
+    "skipped": 1,
+    "skippedWithNamedBlocker": 1,
+    "coherenceIssues": [],
+    "invocationRan": false
+  },
+  "hostServices": {},
+  "surface": {
+    "lifecycle": "gateway RPC: GET /connect?token=… then POST /api/modelTools/<installExtension|describe|prepare|enable> with {type:\"client-request\",rpcId,method,payload:{args}}",
+    "invocation": "in-process shipping host (plugin apply + tool runtime + extension dispatch) over a snapshot of the profile store; the live web profile exposes no MCP/tool-execute endpoint"
+  }
+}

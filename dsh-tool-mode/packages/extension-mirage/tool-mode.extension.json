@@ -1,0 +1,154 @@
+{
+  "protocolVersion": "1.1.0",
+  "id": "@try-works/extension-mirage",
+  "version": "0.1.2",
+  "displayName": "Cactus Mirage vision (describe, detect, OCR, forms)",
+  "description": "Mirage is a 51.3M-parameter, 2-bit Cactus vision model (about 21.6 MB) that describes scenes, finds objects, reads text, produces masks and fills constrained forms in one pass. This extension runs the PINNED Cactus 4.1.0 WASM engine and mirage.cact in-process, accepts a host-authorized image path, decodes it to RGB, and exposes four bounded tools. It is not a general chat model and it does not call a remote vision service.",
+  "license": "Apache-2.0",
+  "activation": {
+    "policy": "operator",
+    "deactivatable": true
+  },
+  "runtimeApi": 1,
+  "compatibility": {
+    "hostApi": "^1.1.0",
+    "requiredFeatures": [
+      "verified-assets-v1"
+    ]
+  },
+  "execution": {
+    "kind": "module",
+    "entry": "./lib/index.js",
+    "isolation": "host-inline"
+  },
+  "permissions": {
+    "networkOrigins": [],
+    "inputFiles": true,
+    "storage": "extension-private",
+    "secrets": [],
+    "nativeCode": true
+  },
+  "models": [
+    {
+      "id": "mirage",
+      "assetSet": "mirage-wasm",
+      "assetLock": "./models.lock.json",
+      "platforms": [
+        {
+          "os": "win32",
+          "arch": "x64",
+          "accelerator": "cpu"
+        }
+      ]
+    }
+  ],
+  "tools": [
+    {
+      "id": "mirage-describe",
+      "name": "mirage_describe",
+      "contractId": "@try-works/extension-mirage/mirage_describe",
+      "contractVersion": "1.0.0",
+      "description": "Describe one image with Mirage: scene, objects, text, relations and a short generated reasoning trace. Sections can be selected. Boxes use the model's 0..1000 coordinate scale; text and object detections carry model scores. The model is small and can be wrong; a box, mask or relation is a prediction, not a verified fact.",
+      "inputSchema": "./schema/describe.input.json",
+      "outputSchema": "./schema/describe.output.json"
+    },
+    {
+      "id": "mirage-detect",
+      "name": "mirage_detect",
+      "contractId": "@try-works/extension-mirage/mirage_detect",
+      "contractVersion": "1.0.0",
+      "description": "Detect the objects Mirage names in one image, with boxes, scores and an optional mask (bitmap RLE or polygons). Object names come from the model's language output, not a fixed detector class list; masks are optional because they dominate the response size.",
+      "inputSchema": "./schema/detect.input.json",
+      "outputSchema": "./schema/detect.output.json"
+    },
+    {
+      "id": "mirage-ocr",
+      "name": "mirage_ocr",
+      "contractId": "@try-works/extension-mirage/mirage_ocr",
+      "contractVersion": "1.0.0",
+      "description": "Read the text Mirage finds in one image: each line's string, box and detection score. This is OCR, not a guarantee of exact transcription; the model's own card shows it can misread accents.",
+      "inputSchema": "./schema/ocr.input.json",
+      "outputSchema": "./schema/ocr.output.json"
+    },
+    {
+      "id": "mirage-extract",
+      "name": "mirage_extract",
+      "contractId": "@try-works/extension-mirage/mirage_extract",
+      "contractVersion": "1.0.0",
+      "description": "Fill an ordered, bounded form from one image: enum choices, bounded integers, or short strings, using Mirage's native form decoding. The engine returns values with its own probabilities; an enum '-' key or a null value is an abstention and is preserved, never converted into a fabricated choice.",
+      "inputSchema": "./schema/extract.input.json",
+      "outputSchema": "./schema/extract.output.json"
+    }
+  ],
+  "implementations": [
+    {
+      "id": "mirage-wasm-describe",
+      "contractId": "@try-works/extension-mirage/mirage_describe",
+      "contractVersion": "1.0.0",
+      "modelId": "mirage",
+      "recipeVersion": "1.0.0"
+    },
+    {
+      "id": "mirage-wasm-detect",
+      "contractId": "@try-works/extension-mirage/mirage_detect",
+      "contractVersion": "1.0.0",
+      "modelId": "mirage",
+      "recipeVersion": "1.0.0"
+    },
+    {
+      "id": "mirage-wasm-ocr",
+      "contractId": "@try-works/extension-mirage/mirage_ocr",
+      "contractVersion": "1.0.0",
+      "modelId": "mirage",
+      "recipeVersion": "1.0.0"
+    },
+    {
+      "id": "mirage-wasm-extract",
+      "contractId": "@try-works/extension-mirage/mirage_extract",
+      "contractVersion": "1.0.0",
+      "modelId": "mirage",
+      "recipeVersion": "1.0.0"
+    }
+  ],
+  "skills": [],
+  "licenses": [
+    {
+      "layer": "code",
+      "name": "Apache License 2.0",
+      "url": "https://github.com/cactus-compute/cactus/blob/main/LICENSE",
+      "openSource": true,
+      "redistribution": "permitted",
+      "attributionRequired": true,
+      "attributionText": "Cactus engine and runtime, Copyright Cactus Compute, licensed under the Apache License 2.0"
+    },
+    {
+      "layer": "weights",
+      "name": "Apache License 2.0",
+      "url": "https://huggingface.co/Cactus-Compute/mirage",
+      "openSource": true,
+      "redistribution": "permitted",
+      "attributionRequired": true,
+      "attributionText": "Mirage weights by Cactus Compute, licensed under the Apache License 2.0"
+    },
+    {
+      "layer": "engine",
+      "name": "Apache License 2.0",
+      "url": "https://huggingface.co/Cactus-Compute/cactus",
+      "openSource": true,
+      "redistribution": "permitted",
+      "attributionRequired": true,
+      "attributionText": "Cactus 4.1.0 WASM engine, Copyright Cactus Compute, licensed under the Apache License 2.0",
+      "obligations": [
+        "the pinned engine is a downloaded WASM module; preparation of executable assets requires the separate executable-preparation approval",
+        "no conversion, re-quantisation or re-packaging of the engine or weights is performed"
+      ]
+    }
+  ],
+  "network": {
+    "requiredTelemetry": false,
+    "telemetryContent": [
+      "the WASM engine performs no network access; this extension declares no network origins"
+    ],
+    "otherNetworkUse": false
+  }
+}

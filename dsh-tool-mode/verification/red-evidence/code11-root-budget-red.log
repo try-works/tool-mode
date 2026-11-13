@@ -1,0 +1,32 @@
+▶ CODE-11 — nested calls share ONE root budget
+  ✖ refuses the second nested call once the root tool-call budget is spent (12.3617ms)
+✖ CODE-11 — nested calls share ONE root budget (16.8551ms)
+ℹ tests 1
+ℹ suites 1
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5156.8639
+
+✖ failing tests:
+
+test at packages\dsh-tool-mode\tests\tool-mode-run.test.ts:278:3
+✖ refuses the second nested call once the root tool-call budget is spent (12.3617ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (D:\DEV\dsh-tool-mode\packages\dsh-tool-mode\tests\tool-mode-run.test.ts:291:12)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1516:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

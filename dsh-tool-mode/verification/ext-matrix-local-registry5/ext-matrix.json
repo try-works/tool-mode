@@ -1,0 +1,118 @@
+{
+  "generatedAt": "2026-10-25T08:46:41.940Z",
+  "baseUrl": "http://127.0.0.1:3192",
+  "exitCode": 1,
+  "skipInvoke": false,
+  "rows": [
+    {
+      "id": "@try-works/extension-desert-ant-tongue",
+      "name": "tongue",
+      "status": "PASS",
+      "durationMs": 8459,
+      "blocker": null,
+      "detail": "prepare: prepared",
+      "tools": [
+        "lang_detect"
+      ]
+    },
+    {
+      "id": "@try-works/extension-desert-ant-voz",
+      "name": "voz",
+      "status": "PASS",
+      "durationMs": 79063,
+      "blocker": null,
+      "detail": "prepare: prepared",
+      "tools": [
+        "stt_transcribe"
+      ]
+    },
+    {
+      "id": "@try-works/extension-embeddinggemma",
+      "name": "embeddinggemma",
+      "status": "SKIPPED",
+      "durationMs": 120803,
+      "blocker": "the extension's tools cannot load: @huggingface/transformers ^3.0.0 is not installed inside the extension: tar@7.5.22 declares a \"prepare\" lifecycle script; the installer never runs or silently skips install-time scripts (EXT-10)",
+      "detail": "prepare: prepared",
+      "tools": [
+        "multimodal_embed",
+        "semantic_similarity",
+        "semantic_rank",
+        "semantic_classify",
+        "semantic_deduplicate",
+        "media_find_moments"
+      ]
+    },
+    {
+      "id": "@try-works/extension-laya",
+      "name": "laya",
+      "status": "PASS",
+      "durationMs": 85746,
+      "blocker": null,
+      "detail": "prepare: prepared",
+      "tools": [
+        "decision_choose",
+        "decision_test",
+        "decision_score"
+      ]
+    },
+    {
+      "id": "@try-works/extension-minilm-embed",
+      "name": "minilm-embed",
+      "status": "PASS",
+      "durationMs": 138897,
+      "blocker": null,
+      "detail": "prepare: prepared",
+      "tools": []
+    },
+    {
+      "id": "@try-works/extension-minilm-rerank",
+      "name": "minilm-rerank",
+      "status": "FAIL",
+      "durationMs": 66886,
+      "blocker": null,
+      "detail": "fetch failed",
+      "tools": [
+        "text_rerank"
+      ]
+    },
+    {
+      "id": "@try-works/extension-needle",
+      "name": "needle",
+      "status": "FAIL",
+      "durationMs": 7,
+      "blocker": null,
+      "detail": "fetch failed",
+      "tools": [
+        "tools_plan",
+        "structured_extract"
+      ]
+    },
+    {
+      "id": "@try-works/extension-declarative-recipes",
+      "name": "declarative-recipes",
+      "status": "FAIL",
+      "durationMs": 5,
+      "blocker": null,
+      "detail": "fetch failed",
+      "tools": [
+        "text_title",
+        "describe_image"
+      ]
+    }
+  ],
+  "tools": [],
+  "summary": {
+    "total": 8,
+    "pass": 4,
+    "fail": 3,
+    "skipped": 1,
+    "skippedWithNamedBlocker": 1,
+    "coherenceIssues": [],
+    "invocationRan": false
+  },
+  "hostServices": {},
+  "surface": {
+    "lifecycle": "gateway RPC: GET /connect?token=… then POST /api/modelTools/<installExtension|describe|prepare|enable> with {type:\"client-request\",rpcId,method,payload:{args}}",
+    "invocation": "in-process shipping host (plugin apply + tool runtime + extension dispatch) over a snapshot of the profile store; the live web profile exposes no MCP/tool-execute endpoint"
+  }
+}

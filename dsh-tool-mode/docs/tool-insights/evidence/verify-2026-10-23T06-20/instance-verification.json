@@ -1,0 +1,148 @@
+{
+  "tool": "verify-tool-insights-instance",
+  "version": 1,
+  "startedAt": "2026-10-23T07:36:00.089Z",
+  "finishedAt": "2026-10-23T07:36:00.440Z",
+  "config": {
+    "webUrl": "http://127.0.0.1:3180/?token=[redacted]",
+    "mcpUrl": "http://127.0.0.1:3865/mcp",
+    "out": "D:\\DEV\\dsh-tool-mode\\docs\\tool-insights\\evidence\\verify-2026-10-23T06-20\\instance-verification.json",
+    "callTool": null
+  },
+  "checks": [
+    {
+      "id": "web.launch",
+      "ok": true,
+      "detail": "launch exchange HTTP 303"
+    },
+    {
+      "id": "web.shell",
+      "ok": true,
+      "detail": "HTTP 200, 37839 bytes"
+    },
+    {
+      "id": "web.bundle_url",
+      "ok": true,
+      "detail": "bundle: http://127.0.0.1:3180/plugins/??@try-works/dsh-tool-mode/client.js&rev=f280cbd80a3c"
+    },
+    {
+      "id": "web.bundle",
+      "ok": true,
+      "detail": "HTTP 200, 180410 bytes"
+    },
+    {
+      "id": "client.tabs",
+      "ok": true,
+      "detail": "all three tab labels present"
+    },
+    {
+      "id": "client.pagination",
+      "ok": true,
+      "detail": "all pagination labels present"
+    },
+    {
+      "id": "mcp.handshake",
+      "ok": true,
+      "detail": "initialize refused (2026-07-28 replaced the handshake); server/discover HTTP 200, supported 2026-07-28"
+    },
+    {
+      "id": "mcp.tools.list",
+      "ok": true,
+      "detail": "HTTP 200, 1 tool(s)"
+    },
+    {
+      "id": "mcp.model_tools.absent",
+      "ok": true,
+      "detail": "model_tools is not exposed"
+    },
+    {
+      "id": "mcp.call",
+      "ok": true,
+      "detail": "lang_detect returned complete"
+    },
+    {
+      "id": "mcp.call.receipt",
+      "ok": true,
+      "detail": "the tool declares meta but the result carries no receiptId"
+    }
+  ],
+  "summary": {
+    "ok": true,
+    "passed": 11,
+    "failed": 0
+  },
+  "tabs": [
+    {
+      "label": "Tool Insights",
+      "present": true
+    },
+    {
+      "label": "Tool Inventory",
+      "present": true
+    },
+    {
+      "label": "MCP",
+      "present": true
+    }
+  ],
+  "pagination": [
+    {
+      "label": "Previous",
+      "present": true
+    },
+    {
+      "label": "Next",
+      "present": true
+    },
+    {
+      "label": "Page",
+      "present": true
+    }
+  ],
+  "mcp": {
+    "initialize": {
+      "status": 404,
+      "accepted": false,
+      "errorCode": -32601,
+      "errorMessage": "Method not found"
+    },
+    "discover": {
+      "status": 200,
+      "ok": true,
+      "supportedVersions": [
+        "2026-07-28"
+      ],
+      "serverInfo": {
+        "name": "@try-works/dsh-tool-mode",
+        "version": "0.5.19"
+      }
+    },
+    "toolsCount": 1,
+    "tools": [
+      "lang_detect"
+    ],
+    "modelToolsPresent": false
+  },
+  "call": {
+    "attempted": true,
+    "tool": "lang_detect",
+    "httpStatus": 200,
+    "isError": false,
+    "resultType": "complete",
+    "receiptId": null,
+    "durationMs": 128,
+    "reason": "fallback lang_detect (read is not exposed)",
+    "argumentsPreview": [
+      "text"
+    ]
+  },
+  "artifacts": {
+    "bundleUrl": "http://127.0.0.1:3180/plugins/??@try-works/dsh-tool-mode/client.js&rev=f280cbd80a3c",
+    "bundleBytes": 180410,
+    "shellBytes": 37839
+  },
+  "redaction": {
+    "applied": true,
+    "secrets": 2
+  }
+}

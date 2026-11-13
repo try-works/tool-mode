@@ -1,0 +1,13 @@
+{
+  "name": "@try-works/extension-desert-ant-tongue",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Test-only stand-in for the Tongue extension. It implements the same text.language_detect provider contract deterministically, so model-management tests do not depend on model weights, a network, or the operator's real extension store. Installed INACTIVE by the fixture helper, so the catalogue enable/disable path is still exercised.",
+  "type": "module",
+  "exports": {
+    "./tool-mode": "./lib/index.js"
+  },
+  "toolMode": {
+    "manifest": "./tool-mode.extension.json"
+  }
+}

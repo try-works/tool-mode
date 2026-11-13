@@ -1,0 +1,29 @@
+=== task-25 TDD red: mcp-cache-policy.test.ts (before fix) ===
+run: npx --no-install tsx --test packages/dsh-tool-mode/tests/mcp-cache-policy.test.ts
+date: 2026-11-01T11:25:08.8533676+08:00
+D:\DEV\dsh-tool-mode\packages\dsh-tool-mode\tests\mcp-cache-policy.test.ts:16
+import { cacheableResultFields, normalizeCachePolicy, PROTOCOL_VERSION } from '../src/mcp/protocol.ts'
+                                ^
+SyntaxError: The requested module '../src/mcp/protocol.ts' does not provide an export named 'normalizeCachePolicy'
+    at #_instantiate (node:internal/modules/esm/module_job:254:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:369:5)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:691:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.11.0
+✖ packages\dsh-tool-mode\tests\mcp-cache-policy.test.ts (1059.5415ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1105.6093
+
+✖ failing tests:
+
+test at packages\dsh-tool-mode\tests\mcp-cache-policy.test.ts:1:1
+✖ packages\dsh-tool-mode\tests\mcp-cache-policy.test.ts (1059.5415ms)
+  'test failed'
+=== exit code: 1 ===

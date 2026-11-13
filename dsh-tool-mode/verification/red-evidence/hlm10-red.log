@@ -1,0 +1,13 @@
+# HLM-10 TDD red — aggregate usage under the root invocation
+
+Date: 2026-11-01
+Command: `npx tsx --test --test-name-pattern "aggregate|bound images" packages/tool-mode-recipes/tests/broker.test.ts`
+
+Before implementation: 2 tests, 0 pass, 2 fail.
+- "aggregates one attempt, zero images and elapsed time on a text completion":
+  `outcome.aggregate` was undefined (`Cannot read properties of undefined (reading 'attempts')`).
+- "counts bound images in the aggregate": same undefined aggregate.
+
+The broker already carries terminal token usage (`outcome.usage`) and honest unknown,
+but not attempts, image count, or elapsed time. The fix adds `BrokerUsageAggregate`
+to the completed outcome.

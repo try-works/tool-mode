@@ -1,0 +1,93 @@
+DSH Local Build
+0.2.1-rc.2-687f282-dirty
+New Session
+Ctrl
++
+Alt
++
+N
+Plugins
+Automation tasks
+Tool Insights
+Workspaces
+temp
+New Session
+More
+Tool Insights
+Tool Inventory
+MCP
+Tool Insights
+
+What the agent actually did with tools: volume, health, latency, Code Mode nesting and model attribution. Figures are host-reported; nothing on this page is estimated.
+
+Range
+24h
+7d
+30d
+All
+CALLS
+27
+all time
+TOOLS USED
+2 / 5
+distinct tools with activity
+SUCCESS
+92.6%
+2 failed calls
+TOOL TIME
+16m 49s
+sum of settled calls
+SESSIONS
+1
+sessions carrying usage
+CALLS / SESSION
+27.0
+mean across sessions
+P50 LATENCY
+1m
+p95 2m 13s
+CODE MODE
+3.7%
+share of sub-calls
+Calls per day
+success versus errors, host-local days
+10-07
+Model leaderboard
+who used tools most
+MODEL	CALLS	TOOLS	SUCCESS	P50
+deepseek-flash	27	2	92.6%	1m
+Tool performance
+settled calls; percentiles from the host histogram
+TOOL	OWNER	CALLS	SUCCESS	P50	P95	MAX	TOTAL	CODE	LAST USED
+run_code	unattributed	26	92.3%	1m	2m 13s	2m 13s	16m 48s	0	16d ago
+send_message	@deepseek-ai/dsh-tool-subagent-control	1	100%	10ms	10ms	7ms	7ms	1	16d ago
+Showing 1-2 of 2 tools
+Page 1 of 1
+Previous
+Next
+All calls
+newest first; Code Mode parents expand into their sub-calls
+Inventory →
+	TIME	TOOL	OWNER	SESSION	MS	STATUS
+▾	16d ago	run_code	unattributed	1ca4a24f-ea7b-4893-80f8-db7f3da3207b	1.2s	ok
+	16d ago	send_message sub-call	@deepseek-ai/dsh-tool-subagent-control	1ca4a24f-ea7b-4893-80f8-db7f3da3207b	7ms	ok
+	16d ago	run_code	unattributed	1ca4a24f-ea7b-4893-80f8-db7f3da3207b	27.5s	ok
+	16d ago	run_code	unattributed	1ca4a24f-ea7b-4893-80f8-db7f3da3207b	49.0s	ok
+	16d ago	run_code	unattributed	1ca4a24f-ea7b-4893-80f8-db7f3da3207b	2m 13s	CODE_RUN_FAILED
+	16d ago	run_code	unattributed	1ca4a24f-ea7b-4893-80f8-db7f3da3207b	58.1s	ok
+	16d ago	run_code	unattributed	1ca4a24f-ea7b-4893-80f8-db7f3da3207b	44.8s	ok
+	16d ago	run_code	unattributed	1ca4a24f-ea7b-4893-80f8-db7f3da3207b	1m 22s	ok
+	16d ago	run_code	unattributed	1ca4a24f-ea7b-4893-80f8-db7f3da3207b	35.9s	ok
+	16d ago	run_code	unattributed	1ca4a24f-ea7b-4893-80f8-db7f3da3207b	52.4s	ok
+	16d ago	run_code	unattributed	1ca4a24f-ea7b-4893-80f8-db7f3da3207b	34.8s	ok
+Showing 1-10 of 26 calls
+Page 1 of 3
+Previous
+Next
+Preview Notice
+
+DeepSeek Harness 0.2 is still in preview, and many areas need continued improvement and refinement. We welcome feedback and suggestions from all developers and users. The new desktop app now targets a broad range of users, while developer-related advanced features can be enabled in the settings. DeepSeek Harness’s product features and plugin APIs are expected to continue rapid iteration and evolution, and will gradually stabilize over time.
+
+We look forward to exploring the limits of intelligence together with users and developers around the world, building on open-source, reusable, and composable infrastructure. We welcome everyone to bring their ideas to life with DeepSeek Harness and participate in the community to enrich the plugin ecosystem.
+
+Continue

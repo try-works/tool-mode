@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["chosen", "confidence", "reason"],
+  "properties": {
+    "chosen": { "type": "integer", "minimum": 0, "description": "The zero-based index of the chosen option." },
+    "confidence": { "type": "string", "enum": ["confident", "likely", "tentative"], "description": "A bucket over the uncalibrated probability mass (DEC-08)." },
+    "reason": { "type": "string", "minLength": 1, "description": "The chosen option and its uncalibrated probability." }
+  }
+}

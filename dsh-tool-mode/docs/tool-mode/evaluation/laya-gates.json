@@ -1,0 +1,7 @@
+{
+  "schema": "laya-quality-gates-v1",
+  "version": "1.0.0",
+  "minimumCoverage": 0.9,
+  "note": "Coverage is a reviewed gate. Accuracy and expected calibration error are REPORTED with confidence intervals, not thresholded here: the fixture is intentionally small and no threshold may be tuned on the held-out answers.",
+  "sampleLimit": "8 held-out items; report confidence intervals rather than claiming a population metric."
+}

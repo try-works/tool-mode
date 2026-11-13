@@ -1,0 +1,77 @@
+DSH Local Build
+0.2.1-rc.2-687f282-dirty
+New Session
+Ctrl
++
+Alt
++
+N
+Plugins
+Automation tasks
+Tool Insights
+Workspaces
+dsh-anti-slop
+New Session
+Untitled
+2mo
+Untitled
+2mo
+Untitled
+2mo
+Untitled
+2mo
+More
+Tool Insights
+Tool Inventory
+MCP
+Tool Insights
+
+What the agent actually did with tools: volume, health, latency, Code Mode nesting and model attribution. Figures are host-reported; nothing on this page is estimated.
+
+Range
+24h
+7d
+30d
+All
+CALLS
+0
+in 7d
+TOOLS USED
+0
+distinct tools with activity
+SUCCESS
+—
+0 failed calls
+TOOL TIME
+0ms
+sum of settled calls
+SESSIONS
+1
+sessions carrying usage
+CALLS / SESSION
+0.0
+mean across sessions
+P50 LATENCY
+—
+CODE MODE
+—
+share of sub-calls
+Calls per day
+success versus errors, host-local days
+No calls recorded in this range.
+Model leaderboard
+who used tools most
+No model attribution recorded in this range.
+Tool performance
+settled calls; percentiles from the host histogram
+No tool performance recorded in this range.
+All calls
+newest first; Code Mode parents expand into their sub-calls
+Inventory →
+No tool calls in this range.
+Get started
+
+Sign in to your DeepSeek account or add an API Key to get started. Your projects and files are stored locally.
+
+Add API Key
+Sign in

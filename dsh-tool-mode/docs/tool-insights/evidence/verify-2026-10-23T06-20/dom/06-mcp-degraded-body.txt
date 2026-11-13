@@ -1,0 +1,59 @@
+DSH Local Build
+0.2.1-rc.2-687f282-dirty
+New Session
+Ctrl
++
+Alt
++
+N
+Plugins
+Automation tasks
+Tool Insights
+Workspaces
+dsh-anti-slop
+New Session
+Untitled
+2mo
+Untitled
+2mo
+Untitled
+2mo
+Untitled
+2mo
+More
+Tool Insights
+Tool Inventory
+MCP
+MCP
+
+The external MCP surface: the configured endpoint, the clients that actually hold a grant, which tools are exposed, and the persisted external call log. Tokens, arguments and results are never shown.
+
+Back to workbench
+The MCP status is not available on this host build (the mcpStatus remote method is absent).
+Endpoint
+disabled
+MCP endpoint is disabled on this host.
+Exposure
+model_tools is host-local and withheld by design
+Exposed
+Exposed 0 of 0 tools
+Withheld
+None reported
+Tools
+—
+Clients
+identities come from grants, never invented
+No MCP client has called this host yet.
+External call log
+persisted ledger; no payloads
+No external MCP calls recorded yet.
+Showing 0-0 of 0 calls
+Page 1 of 1
+Previous
+Next
+Get started
+
+Sign in to your DeepSeek account or add an API Key to get started. Your projects and files are stored locally.
+
+Add API Key
+Sign in

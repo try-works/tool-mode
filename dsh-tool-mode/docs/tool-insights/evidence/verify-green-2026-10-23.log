@@ -1,0 +1,36 @@
+▶ parseArgs
+  ✔ uses the plan defaults when no flag is supplied, with the token from the env (1.4098ms)
+  ✔ accepts every documented flag and the env fallback is overridden by --token (0.2513ms)
+  ✔ refuses an unknown flag and a missing token with an actionable message (0.9096ms)
+✔ parseArgs (4.1484ms)
+▶ secret redaction
+  ✔ redacts a bare token, a bearer header and a launch token in a URL (0.4018ms)
+  ✔ walks nested evidence objects and never mutates the input (0.4002ms)
+✔ secret redaction (1.0795ms)
+▶ served client bundle discovery and labels
+  ✔ decodes the shell's HTML entities and picks the model-as-tool bundle (0.8636ms)
+  ✔ returns null when the shell names no client bundle (0.3166ms)
+  ✔ reads the __DSH_BOOT__ manifest and resolves its relative plugin URL (0.3521ms)
+  ✔ also accepts a relative plugins/ attribute in an older shell (0.2596ms)
+  ✔ accepts a bundle with the three tabs and the pagination labels (1.4373ms)
+  ✔ reports every missing label instead of only the first (0.4764ms)
+✔ served client bundle discovery and labels (4.2532ms)
+▶ selectSafeCall
+  ✔ honours an explicit tool and argument override (0.3801ms)
+  ✔ falls back from read to lang_detect and reports when neither is exposed (0.1486ms)
+  ✔ refuses a malformed --args-json (0.2867ms)
+✔ selectSafeCall (0.9941ms)
+▶ runVerification against a mock disposable host
+  ✔ collects full passing evidence, authenticates the shell, drives MCP and redacts secrets (108.9173ms)
+  ✔ fails the model_tools check when the MCP surface exposes model_tools (31.9363ms)
+  ✔ fails the tab check when a tab label is missing from the served bundle (22.7732ms)
+  ✔ fails the call check when the safe call returns isError (21.9724ms)
+✔ runVerification against a mock disposable host (187.9895ms)
+ℹ tests 18
+ℹ suites 5
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 611.0857

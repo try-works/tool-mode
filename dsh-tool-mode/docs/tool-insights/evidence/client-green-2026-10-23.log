@@ -1,0 +1,49 @@
+Captured GREEN run for task-14 (Tool Insights client), 2026-10-23T13:37:24+08:00.
+
+Runner note: `tsx --test` cannot run in this sandbox (esbuild starts a PIPE child and the
+DSH Windows file sandbox refuses it with EPERM). The canonical suite command remains
+`npm test`; this log ran the identical files through Node 24's native TypeScript strip:
+
+  node packages/dsh-tool-mode/tests/tool-insights-client.test.ts
+  node packages/dsh-tool-mode/tests/tool-insights-render.test.ts
+  node packages/dsh-tool-mode/tests/tool-insights-registration.test.ts
+  node packages/dsh-tool-mode/tests/tool-insights-bundle.test.ts
+
+=== packages/dsh-tool-mode/tests/tool-insights-client.test.ts ===
+✔ the three tabs are ordered and labelled for the page (7.346ms)
+✔ deep links resolve to a tab with an insights fallback (4.0394ms)
+✔ page math clamps and reports a showing range (1.8332ms)
+✔ formatting is stable and never invents a value (1.4515ms)
+✔ normalizeProjection keeps only finite, well-shaped facts (2.0437ms)
+✔ aggregateProjections sums sessions and reports coverage (2.016ms)
+✔ deriveInsights prefers the host report and degrades honestly without it (21.3739ms)
+✔ All calls groups Code Mode parents with their sub-calls and never orphans them (1.6897ms)
+✔ inventory filters, groups, paginates and keeps never-called rows (4.1329ms)
+✔ MCP view derives endpoint, exposure and a paginated call log truthfully (2.0616ms)
+ℹ tests 10 · pass 10 · fail 0
+
+=== packages/dsh-tool-mode/tests/tool-insights-render.test.ts ===
+✔ TabBar renders three accessible tabs and marks the active one (5.4224ms)
+✔ InsightsView renders KPI band, charts, performance and All calls (30.2662ms)
+✔ an empty projection renders an explicit empty state, never zeroed cards (1.364ms)
+✔ InventoryView groups by origin, shows withheld tools and paginates (2.8193ms)
+✔ McpView renders the endpoint, clients, exposure and external call log (2.3565ms)
+✔ ToolInsightsPage renders the three tabs without throwing on stub props (3.0238ms)
+ℹ tests 6 · pass 6 · fail 0
+
+=== packages/dsh-tool-mode/tests/tool-insights-registration.test.ts ===
+✔ apply registers the page, the sidebar entry at order 15 and keeps Settings (9.5377ms)
+✔ an older host without the page slots keeps Settings and does not throw (7.8288ms)
+✔ the page registers without a Remote (config-only hosts still mount it) (5.5889ms)
+✔ exports inject and package client inject edges name the real packages (2.5628ms)
+ℹ tests 4 · pass 4 · fail 0
+
+=== packages/dsh-tool-mode/tests/tool-insights-bundle.test.ts ===
+✔ the authoring source exists and exposes the factory (2.1924ms)
+✔ the template carries the placeholder and registers the page once (1.1361ms)
+✔ the generated bundle inlines the page with no chunk fetch (1.3546ms)
+✔ gen-client-catalog --check reports the committed bundle current (241.7218ms)
+ℹ tests 4 · pass 4 · fail 0
+
+TOTAL: 24 tests, 24 pass, 0 fail. `node scripts/gen-client-catalog.mjs --check` exits 0:
+"client/index.js current: 18 models, 2 runnable here".

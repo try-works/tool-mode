@@ -1,0 +1,120 @@
+{
+  "generatedAt": "2026-10-25T07:46:37.454Z",
+  "baseUrl": "http://127.0.0.1:3189",
+  "exitCode": 1,
+  "skipInvoke": false,
+  "rows": [
+    {
+      "id": "@try-works/extension-desert-ant-tongue",
+      "name": "tongue",
+      "status": "FAIL",
+      "durationMs": 37270,
+      "blocker": null,
+      "detail": "gateway/internal: the tarball for @try-works/extension-desert-ant-tongue@0.1.3 from 127.0.0.1:4873 answered HTTP 500 after 8 attempts (not the size cap)",
+      "tools": [
+        "lang_detect"
+      ]
+    },
+    {
+      "id": "@try-works/extension-desert-ant-voz",
+      "name": "voz",
+      "status": "FAIL",
+      "durationMs": 307741,
+      "blocker": null,
+      "detail": "fetch failed",
+      "tools": [
+        "stt_transcribe"
+      ]
+    },
+    {
+      "id": "@try-works/extension-embeddinggemma",
+      "name": "embeddinggemma",
+      "status": "FAIL",
+      "durationMs": 30047,
+      "blocker": null,
+      "detail": "gateway/internal: the npm registry http://127.0.0.1:4873 could not be reached for @try-works/extension-embeddinggemma within 30000 ms (metadata timeout): The operation was aborted due to timeout",
+      "tools": [
+        "multimodal_embed",
+        "semantic_similarity",
+        "semantic_rank",
+        "semantic_classify",
+        "semantic_deduplicate",
+        "media_find_moments"
+      ]
+    },
+    {
+      "id": "@try-works/extension-laya",
+      "name": "laya",
+      "status": "FAIL",
+      "durationMs": 30024,
+      "blocker": null,
+      "detail": "gateway/internal: the npm registry http://127.0.0.1:4873 could not be reached for @try-works/extension-laya within 30000 ms (metadata timeout): The operation was aborted due to timeout",
+      "tools": [
+        "decision_choose",
+        "decision_test",
+        "decision_score"
+      ]
+    },
+    {
+      "id": "@try-works/extension-minilm-embed",
+      "name": "minilm-embed",
+      "status": "FAIL",
+      "durationMs": 30024,
+      "blocker": null,
+      "detail": "gateway/internal: the npm registry http://127.0.0.1:4873 could not be reached for @try-works/extension-minilm-embed within 30000 ms (metadata timeout): The operation was aborted due to timeout",
+      "tools": [
+        "text_embed"
+      ]
+    },
+    {
+      "id": "@try-works/extension-minilm-rerank",
+      "name": "minilm-rerank",
+      "status": "FAIL",
+      "durationMs": 30018,
+      "blocker": null,
+      "detail": "gateway/internal: the npm registry http://127.0.0.1:4873 could not be reached for @try-works/extension-minilm-rerank within 30000 ms (metadata timeout): The operation was aborted due to timeout",
+      "tools": [
+        "text_rerank"
+      ]
+    },
+    {
+      "id": "@try-works/extension-needle",
+      "name": "needle",
+      "status": "PASS",
+      "durationMs": 106521,
+      "blocker": null,
+      "detail": "prepare: prepared",
+      "tools": [
+        "tools_plan",
+        "structured_extract"
+      ]
+    },
+    {
+      "id": "@try-works/extension-declarative-recipes",
+      "name": "declarative-recipes",
+      "status": "FAIL",
+      "durationMs": 23689,
+      "blocker": null,
+      "detail": "fetch failed",
+      "tools": [
+        "text_title",
+        "describe_image"
+      ]
+    }
+  ],
+  "tools": [],
+  "summary": {
+    "total": 8,
+    "pass": 1,
+    "fail": 7,
+    "skipped": 0,
+    "skippedWithNamedBlocker": 0,
+    "coherenceIssues": [],
+    "invocationRan": false
+  },
+  "hostServices": {},
+  "surface": {
+    "lifecycle": "gateway RPC: GET /connect?token=… then POST /api/modelTools/<installExtension|describe|prepare|enable> with {type:\"client-request\",rpcId,method,payload:{args}}",
+    "invocation": "in-process shipping host (plugin apply + tool runtime + extension dispatch) over a snapshot of the profile store; the live web profile exposes no MCP/tool-execute endpoint"
+  }
+}

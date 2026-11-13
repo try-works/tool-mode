@@ -1,0 +1,6056 @@
+/**
+ * dsh-tool-mode — install on-device models as DSH tools and skills.
+ *
+ * The plugin composes five layers: a JSON catalog describing every model, a
+ * capability resolver that decides which of them can run in this process, an
+ * adapter per runnable model, a registrar that turns each one into a DSH tool,
+ * and a skill per tool that teaches the agent when to reach for it.
+ *
+ * Nothing is imported from a model package at plugin load, so a deployment that
+ * installs none of them still starts cleanly and reports exactly what is
+ * missing. A model only becomes a tool when its adapter can really invoke it.
+ *
+ * @module @try-works/dsh-tool-mode
+ */
+
+import type { Context } from '@deepseek-ai/cordis'
+import z from '@deepseek-ai/schemastery'
+import { defineTool, type ParameterSchemaSpec, type ValueSchemaSpec } from '@deepseek-ai/dsh-tools'
+// Type-only: resolves the required ctx.skills service declaration. The skill
+// service is read opportunistically via ctx.get(), so it stays optional.
+import type {} from '@deepseek-ai/dsh-skill'
+import { loadCatalog } from './catalog.ts'
+import { resolveCapability, type ResolvedModel } from './capability.ts'
+import { createAdapter } from './adapters/index.ts'
+import { registerModelTool } from './registrar.ts'
+import { registerContractTool, registerContractImplementationTool, type ContractBinding, type HostIdentity } from './bindings.ts'
+import { appendFileSync, readFileSync, statSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
+import { createContributionRegistrar, type RegistrableTool } from './extension-registrar.ts'
+import { createInvocationAuthority } from './authority.ts'
+import { createExternalGrantContext, createProgramRunner, externalRefusal, serveProgram, TOOL_MODE_RUN_CONTRACT, PTC_SERVICE } from './tool-mode-run.ts'
+import { buildDiagnostics } from './diagnostics.ts'
+import { PACKAGE_VERSION } from './version.ts'
+import { CAPTURE_PATH } from './capture-path.ts'
+import { prepareDeclarative } from './harness-serving.ts'
+import type { InvocationAccounting } from './invocation-accounting.ts'
+import { createFileCredentialStore, defaultCredentialStoreFile } from './mcp/credential-store.ts'
+import { selectHttpAuth } from './mcp/auth-selection.ts'
+import {
+  CustomToolRegistrar,
+  CustomToolStore,
+  CustomToolsService,
+  customToolExecutor,
+  customToolPublishedTools,
+  type CustomToolDispatchDeps,
+} from './custom-tools/index.ts'
+import { startHttpServer } from './mcp/http.ts'
+import { buildHarnessLlmProvider, discoverDefaultHarnessModel, resolveRunnableHarnessModel, type HarnessLlmRuntimeSurface, type HarnessModelConfig } from './harness-llm.ts'
+import { chooseWithJev, JEV_CHOOSE_CONTRACT, JEV_JUDGMENTS_CONTRACT, JevError, judgeWithJev, type JevConfig } from './jev.ts'
+import { combineDecision, DECISION_COMBINE_CONTRACT } from './decision-combine.ts'
+import { DECISION_EVALUATE_CONTRACT, DECISION_ROUTE_CONTRACT, evaluateDecisions, routeConfidence } from './decision-evaluate.ts'
+import { interpretRecipeResponse, parseRecipe, narrowBrokerPolicy, INITIAL_HOST_POLICY, type BrokerRecord, type LlmProvider, type RecipeManifest } from '@try-works/tool-mode-recipes'
+import { createManagedWorkerRegistry } from './managed-workers.ts'
+import { PROTECTED_BUILTIN_IDS } from './builtins.ts'
+import { createDispatch, createDispatchForContract, describeDispatchFailure, resolveImplementation, type DispatchEnvironment, type DispatchManifest } from './extension-dispatch.ts'
+import {
+  captureToolSchemaSnapshot,
+  describePlanningRejections,
+  filterPlanningLiveTools,
+  hasPlanningInputShape,
+  offerToolsFromSnapshot,
+  PLANNING_EXCLUDED_TOOLS,
+  PLANNING_TOOL_INPUT_SCHEMA,
+  PLANNING_TOOL_NAME,
+  recheckProposals,
+  type RegistryToolSchema,
+  type ToolSchemaSnapshot,
+} from './planning.ts'
+import {
+  discoverExtension,
+  loadExtensionModule,
+  resolveDeclarativeImplementations,
+  resolveExtensionEntry,
+  type ExtensionContextV1,
+  type InstalledRecord } from '@try-works/tool-mode-extension-sdk'
+import type { JsonValue } from './adapters/types.ts'
+import { ExtensionStore, ExtensionLifecycle, type LifecycleAuditEvent, type ModelReadiness } from '@try-works/tool-mode-extension-sdk'
+import { authorizeTool, createGrant } from './authority.ts'
+import { ProviderBridge } from './provider-bridge.ts'
+import { createUpdateHostSurface, type UpdateHostSurface } from './update-surface.ts'
+import { SubscriptionRegistry, deliverCatalogChange, MemoryDeliverySink } from './mcp/subscriptions.ts'
+import { TOOL_MODE_DESCRIBE_CONTRACT, TOOL_MODE_LIST_CONTRACT } from './discovery-contracts.ts'
+import { describeSkill, exampleFromSchema, typescriptBindings } from './discovery-describe.ts'
+import {
+  createPreparedAssetRegistry,
+  identityFor,
+  lockGroups,
+  parseAssetLock,
+  plannedAssets,
+  type LockGroup,
+  type PrepareAssetsSurface,
+  type PreparedAssetRegistry,
+} from './prepared-assets.ts'
+import { planPreparation } from './deployment-coordinator.ts'
+import { createHttpSource } from './http-acquisition.ts'
+import type { AcquisitionSource } from './asset-acquisition.ts'
+import { buildSurface, type CatalogGeneration, type ImplementationCandidate } from './publication.ts'
+import { admitsLogRecord, buildInvocationReceipt, buildLifecycleRecord, DEFAULT_LOG_POLICY, MAX_RETAINED_RECEIPTS, type InvocationReceipt, type LifecycleRecord } from './receipt.ts'
+import {
+  createFileReceiptStore,
+  createMemoryReceiptStore,
+  receiptCounterFloor,
+  receiptStorePathFor,
+} from './receipt-store.ts'
+import { admit } from './resource-governance.ts'
+import { createMcpHost, type PublishedTool } from './mcp/host-binding.ts'
+import { normalizeCachePolicy } from './mcp/protocol.ts'
+import { applyMcpExportPolicy } from './mcp/export-policy.ts'
+import type { ClientGrantConfig } from './mcp/client-grant.ts'
+import { ToolCallId } from '@deepseek-ai/dsh-llm'
+import { STANDARD_CONTRACTS, assertAgainstSchema, compileSchema, projectSchemaToDsh, type ToolContract } from '@try-works/tool-mode-contracts'
+import { describeDataHandling, renderSkillBody } from './skills.ts'
+import { loadPlaybooks } from './playbook.ts'
+import { commandExists, DEFAULT_CLI_COMMAND } from './transport.ts'
+import {
+  createFileStateStore,
+  createMemoryStateStore,
+  defaultStateFile,
+  resolveSelection,
+  withChoice,
+  type PersistedState,
+  type StateStore,
+} from './state.ts'
+import type { ModelCatalogEntry } from './types.ts'
+import { runLegacyStartupMigration } from './legacy-migration.ts'
+import { ApprovalStore } from './approval.ts'
+import { createExtensionsService, DEFAULT_TRUSTED_PREBUILT_DEPENDENCIES, recordRestoreIntegrityFailure, selectInstalled, type HarnessProviderStatus } from './extensions-service.ts'
+import { provideModelToolsService } from './extensions-remote.ts'
+import { recordLicenseBasis } from './license-basis.ts'
+import { installVozSpeechProvider, type SpeechRegistryLike } from './speech-bridge.ts'
+import type { ModelToolsRemote, McpCallsQuery, ToolSourceRow, UsageReportQuery } from './extensions-api.ts'
+import { TOOL_USAGE_KEY, toolUsageDayKey, toolUsageProjectionDefinition, type ToolUsageState } from './tool-usage-projection.ts'
+import { buildUsageReport, rangeWindow, type SessionUsageInput, type UsageReport, type UsageRange } from './tool-usage-report.ts'
+import { buildToolInventory } from './tool-inventory.ts'
+import { resolveToolOwner, staticToolOwner } from './tool-sources.ts'
+import { McpUsageLedger, recordFromAccounting } from './mcp-usage.ts'
+import { buildMcpStatus, type McpStatusView } from './mcp-status.ts'
+import type { BoundEndpoint } from './mcp/http.ts'
+import type { SessionEvent, SessionHeader, SessionLogOffset, SessionStore } from '@deepseek-ai/dsh-session'
+import type { ProjectionDefinition, SessionProjectionRegistry } from '@deepseek-ai/dsh-session-projection'
+
+export const name = 'model-tools'
+export const inject = ['tools']
+
+/**
+ * The version this host reports in every receipt and MCP `serverInfo`.
+ *
+ * Read from the shipped manifest: the previous hard-coded `'0.1.1'` was stale by four
+ * minor versions, so provenance named a build nobody could match to a release.
+ */
+const HOST_VERSION = PACKAGE_VERSION
+
+/** Largest extension tool schema read at registration, in bytes. */
+const MAX_SCHEMA_BYTES = 512 * 1024
+
+/** The DSH value-schema keywords a recipe input may advertise (mirrors contracts/dsh.ts's DSH_SUPPORTED). */
+const DSH_PARAMETER_KEYWORDS = new Set([
+  'type', 'enum', 'const', 'description', 'default', 'examples',
+  'items', 'properties', 'additionalProperties', 'required',
+])
+
+/** Plugin configuration. */
+export interface Config {
+  /** Catalog document to load; defaults to the bundled Desert Ant catalog. */
+  catalogFile?: string
+  /** Playbook document to load; defaults to the bundled playbooks. */
+  playbookFile?: string
+  /**
+   * Model ids to expose. An empty list (the default) means every model that can
+   * run here; a non-empty list is intersected with what can run, so naming an
+   * unsupported model never registers a tool that would fail at call time.
+   *
+   * The field is an empty array rather than `undefined` when unset: the config
+   * schema materializes a declared array, so the code treats empty as "no
+   * explicit allowlist" instead of "expose nothing".
+   */
+  models?: string[]
+  /** Model ids to exclude, applied after `models`. */
+  exclude?: string[]
+  /**
+   * Register a tool for a model whose runtime is missing, so the failure is
+   * reported at call time instead of the tool being absent. Off by default:
+   * exposing a tool that cannot work wastes a model turn.
+   */
+  exposeUnavailable?: boolean
+  /** Publish one skill per registered tool. Default true. */
+  registerSkills?: boolean
+  /** Register the `model_tools` inspection tool. Default true. */
+  registerControlTool?: boolean
+  /**
+   * Register the separate management tool (`model_tools_manage`). Default false:
+   * discovery (`model_tools`) is read-only unless the operator explicitly grants
+   * model/extension/credential mutations.
+   */
+  managementGrant?: boolean
+  /**
+   * Tool names whose canonical result is confidential (MCP-11). They are blocked at
+   * the MCP and Code Mode boundaries before any value is returned; native callers
+   * unaffected by this external-surface policy.
+   */
+  confidentialTools?: string[]
+  /**
+   * The operator's CONSENT to hosted code execution (CODE-10).
+   *
+   * Code execution is a SEPARATE consent from ordinary model-tool access, and it
+   * ships disabled until granted. This flag is the grant: the operator turns it
+   * on explicitly. It is checked in addition to — never instead of — the
+   * confinement gate (CODE-09), which remains closed until the confinement
+   * acceptance tests pass, so flipping this flag alone cannot expose the runtime.
+   * Default false.
+   */
+  hostedCode?: boolean
+  /**
+   * LIC-04: a strict no-network deployment. Extensions whose DECLARED network
+   * behaviour is not eligible are refused at activation, rather than having their
+   * telemetry silently suppressed. Default `any`.
+   */
+  networkPolicy?: 'any' | 'no-network'
+  /**
+   * The Desert Ant CLI transport, which runs on macOS and Linux and can reach
+   * every shipping model — including the Apple-only ones that have no npm
+   * package.
+   */
+  cli?: {
+    /** Whether the CLI may be used when it is found on PATH. Default true. */
+    enabled?: boolean
+    /** Command name or absolute path. Default `desertant`. */
+    command?: string
+  }
+  /**
+   * A user-hosted bridge, reached over HTTP, for models this machine cannot run
+   * itself — most importantly the Apple-only models.
+   *
+   * The plugin does not run this service; the user does, on a machine that can
+   * execute the model. The licence forbids re-hosting the models as a service,
+   * so point this at your own machine.
+   */
+  remote?: {
+    /** Bridge base URL, for example `http://mac-studio.local:8787`. */
+    endpoint?: string
+    /** Optional bearer token sent to the bridge. */
+    token?: string
+  }
+  /**
+   * Whether in-process npm packages may be used. Set false to force every call
+   * through the CLI or the bridge. Default true.
+   */
+  allowNpm?: boolean
+  /**
+   * Where the user's enable/disable choices are persisted. Defaults to
+   * `<DSH_HOME>/model-as-tool/state.json`.
+   */
+  stateFile?: string
+  /**
+   * Root of the profile-scoped custom-tool store. Defaults to
+   * `<dirname(stateFile)>/custom-tools`.
+   */
+  customToolsDir?: string
+  /** Whether the custom-tools service loads and registers tools. Default true. */
+  customToolsEnabled?: boolean
+  /**
+   * Where generated external MCP client credentials are persisted (SEC-01).
+   *
+   * Defaults to `<DSH_HOME>/model-as-tool/credentials.json`, next to the state file,
+   * so the store inherits the operator profile's owner-only protection. A deployment
+   * that disables persistence refuses generation rather than issuing a credential a
+   * restart would forget.
+   */
+  credentialsFile?: string
+  /**
+   * Directory of the operator-owned EXTENSION store.
+   *
+   * When set, the host mounts the extension lifecycle and restores the extensions the
+   * operator approved as active. Left unset, no extension is mounted and behaviour is
+   * exactly as before - which is why this is a directory rather than a boolean: an
+   * absent directory is a deployment that has no extensions, not one that forbade them.
+   */
+  extensionStore?: string
+  /**
+   * Directory that holds first-party extension PACKAGE checkouts, one directory per
+   * package, for the Settings → Model as Tool install path.
+   *
+   * A package lives in the directory named by its final identity segment: a package
+   * `@try-works/extension-laya` is installed from
+   * `<extensionSourceDir>/extension-laya`. Left empty, no first-party source is
+   * advertised and `describe()` reports `sourceDir: null`; an install then needs an
+   * explicit source directory.
+   *
+   * This is DEVELOPER MODE (EXT-06): the directory is only ever used when
+   * `extensions.allowSourceDirectories` explicitly allows it, the installer copies
+   * the tree rather than linking it, and the installation lands INACTIVE.
+   */
+  extensionSourceDir?: string
+  /**
+   * How an install with no explicit source directory gets its package bytes.
+   *
+   * - `registry`: resolve the package from the npm registry (`extensionRegistry`),
+   *   verify the registry-declared sha512 and install the tarball.
+   * - `directory`: the developer-mode source-directory path above.
+   * - `auto` (default): prefer the registry; fall back to the source directory
+   *   ONLY when the registry is unreachable (transport/timeout/5xx/unconfigured)
+   *   and `extensions.allowSourceDirectories` is on. A package-level registry
+   *   refusal (404, missing integrity, bad tarball, digest mismatch) is always a
+   *   named error and is NEVER silently retried against a local directory.
+   */
+  extensionInstallSource?: 'registry' | 'directory' | 'auto'
+  /**
+   * The npm registry registry installs resolve against. Defaults to the public
+   * npm registry; set it empty to disable the registry route (directory installs
+   * still need `extensions.allowSourceDirectories`).
+   */
+  extensionRegistry?: string
+  /** Hard cap on one registry package tarball download. Default 256 MiB. */
+  extensionTarballMaxBytes?: number
+  /**
+   * IDLE timeout for one registry tarball download, in ms. Default 10 minutes.
+   * Applies only when NO bytes arrive; a slow large download is not aborted.
+   */
+  extensionTarballTimeoutMs?: number
+  /** Registry packument/metadata timeout in ms. Default 30 s. */
+  extensionMetadataTimeoutMs?: number
+  /**
+   * Dependency-graph depth bound for registry installs. Default 12.
+   *
+   * Preinstalled dependencies are leaves (their own tree travels with them);
+   * registry-resolved graphs are bounded by this, and a refusal names the level
+   * and the package.
+   */
+  extensionDependencyDepth?: number
+  /**
+   * Package-count bound for dependency graphs (both arms). Default 256: the SDK
+   * default of 64 refused the real transformers/minilm engine trees.
+   */
+  extensionDependencyPackages?: number
+  /**
+   * Operator gate: allow dependency content that arrived already materialized.
+   *
+   * OFF by default. When off, a declared dependency whose package.json carries
+   * install-time scripts refuses (EXT-10), exactly as before. When on, the
+   * resolver may supply the host's installed tree for such a dependency (for
+   * example onnxruntime-node after the operator's npm ran its postinstall); the
+   * SDK copies it into the extension's own installation directory and records
+   * `provenance: 'preinstalled'` with the source — stating that the installer
+   * did NOT run the scripts, rather than silently skipping them.
+   */
+  allowPreinstalledDependencies?: boolean
+  /**
+   * The root a preinstalled dependency directory must live under.
+   *
+   * Required when {@link allowPreinstalledDependencies} is on: the SDK refuses a
+   * preinstalled directory outside it as a path escape. Point it at a root that
+   * contains the host dependency tree (for example the repository or profile
+   * root); never a world-writable location.
+   */
+  preinstalledDependenciesRoot?: string
+  /**
+   * Exact `name@version` dependencies whose published tarball ships prebuilt
+   * runtime artifacts. Their lifecycle-script declarations are admitted but the
+   * scripts are NEVER executed. Defaults to the first-party allowlist; an empty
+   * array restores the strict EXT-10 refusal for every package.
+   */
+  trustedPrebuiltDependencies?: string[]
+  /**
+   * The operator's STANDING RES-02 approval for executable asset preparation
+   * initiated from the client/Remote path (Settings → Model as Tool → Prepare).
+   *
+   * DEFAULT FALSE. With it off, a preparation plan that contains an executable
+   * asset returns the exact RES-02 refusal: acquiring a downloaded engine is a
+   * separate approval from approving a model download, not a checkbox riding along
+   * with it. With it on, the Remote `prepare` call is the operator's approval for
+   * every executable asset of the digest-pinned, first-party plans the host
+   * resolves — which is why it should be enabled only for such engines, never for
+   * an arbitrary package source. The management channel (`model_tools`
+   * `extensions-prepare`) keeps its own PER-CALL `allowExecutable` flag and is not
+   * affected by this setting.
+   */
+  allowExecutablePreparation?: boolean
+  /**
+   * SEC-09: require an explicit operator approval for extension ACTIVATION.
+   *
+   * OPT-IN, default false, and deliberately so for this slice: mounting the gate
+   * unconditionally would turn the Settings Enable action — and every existing host
+   * composition — into a pending refusal, because no approval UI/management path ships
+   * yet. A deployment that has one turns this on; the default is the documented
+   * PRE-APPROVED direct path, not a silent bypass (the switch is explicit).
+   */
+  requireActivationApproval?: boolean
+  /** INTERNAL TEST SEAM: the acquisition source extensions-prepare uses instead
+   * of the ranged HTTP source. A suite injects a local file source so the
+   * acquisition path is exercised with ZERO network; a deployment never sets
+   * this, and the default stays the real opt-in source. */
+  assetSourceFactory?: () => AcquisitionSource
+  /** TASK-99 test seams: the bounded-retry interval/cap (defaults 250 ms / 30 s). */
+  harnessRetryIntervalMs?: number
+  harnessRetryCapMs?: number
+  /**
+   * TASK-127 test seam: the retry SCHEDULER. A suite injects a fake
+   * {setInterval, clearInterval} so the tests advance the retry by explicit
+   * ticks instead of wall-clock (deterministic under full-suite load). A
+   * deployment never sets this; the default is the global scheduler, so the
+   * product behavior is byte-identical.
+   */
+  harnessRetryScheduler?: {
+    setInterval: (handler: () => void, ms: number) => unknown
+    clearInterval: (handle: unknown) => void
+  }
+  /**
+   * TASK-131 (RC2): the prepared-assets cache root. Defaults to the
+   * state-file-adjacent `asset-cache` directory; set it to a volume with room
+   * for the planned asset set (the embeddinggemma set is ~3.2 GB). The
+   * prepare preflight refuses with `extension-asset-space-insufficient` when
+   * the free space cannot hold the missing bytes.
+   */
+  assetCacheRoot?: string
+  /** TASK-131 test seam: the free-space probe the prepare preflight uses. */
+  assetFreeSpaceProbe?: (path: string) => number
+  /** §12 config v3: the nested shape + the fixed-false flags (see the zod). */
+  schemaVersion?: number
+  extensions?: {
+    protocolMajor?: number
+    manifestVersion?: string
+    registry?: string
+    allowHttpsArchives?: boolean
+    allowLocalArchives?: boolean
+    allowSourceDirectories?: boolean
+    automaticUpdates?: boolean
+    runInstallScripts?: boolean
+  }
+  mcpV3?: {
+    enabled?: boolean
+    protocolVersions?: string[]
+    legacyCompatibility?: boolean
+    host?: string
+    port?: number
+    path?: string
+    /**
+     * A file holding the operator bearer token, trimmed on read.
+     *
+     * DSH_TOOL_MODE_MCP_TOKEN still wins when set (a launch override); the file exists
+     * so a desktop-launched host, whose environment the operator does not control, can
+     * serve MCP with a durable credential. The raw token never enters this config.
+     */
+    tokenFile?: string
+    allowedOrigins?: string[]
+    /**
+     * MCP-only export allowlist, separate from the native `models` selection.
+     * `['*']` (the default) preserves the full surface; an empty list exports no
+     * inference tools; otherwise only the exact listed names are published.
+     */
+    exportTools?: string[]
+    /** Operator client-grant policy passed to the MCP server (see ClientGrantConfig). */
+    grants?: ClientGrantConfig
+    catalogTtlMs?: number
+    catalogCacheScope?: string
+    auth?: { mode?: string; authorizationServerProfile?: string | null }
+  }
+  compositionV3?: {
+    enabled?: boolean
+    defaultTimeoutMs?: number
+    maxTimeoutMs?: number
+    maxToolCalls?: number
+    maxConcurrentBindings?: number
+    maxHarnessModelCalls?: number
+  }
+  multimodalV3?: {
+    defaultDimensions?: number
+    defaultOverflow?: string
+    maxVideoFrames?: number
+    audioSampleRateHz?: number
+    selectiveEncoderLoading?: boolean
+  }
+  harnessExecutorV3?: {
+    enabled?: boolean
+    nativeSelection?: string
+    externalDefaultProfile?: string | null
+    profiles?: Readonly<Record<string, unknown>>[]
+    defaultMaxAttempts?: number
+    defaultRepairAttempts?: number
+    defaultMaxOutputTokens?: number
+    defaultTimeoutMs?: number
+    inheritConversation?: boolean
+    allowModelToolCalls?: boolean
+  }
+  recipesV3?: {
+    schemaVersion?: string
+    allowLocalAuthoring?: boolean
+    automaticActivation?: boolean
+    allowExecutableTemplates?: boolean
+  }
+  clientsV3?: Readonly<Record<string, unknown>>[]
+  captureV3?: {
+    bodies?: boolean
+    retentionDays?: number
+    maxBytes?: number
+    auxiliaryLlmJournal?: { enabled?: boolean; retentionDays?: number }
+  }
+  /**
+   * Whether `enable`/`disable` persist across restarts. Default true; false
+   * restores the earlier session-scoped behaviour.
+   */
+  persist?: boolean
+  /**
+   * Which model serves each standard contract, as `{ "stt.transcribe": "voz" }`.
+   *
+   * Provider selection is host configuration (BASE-02), not something a caller
+   * chooses per call. An override naming a model that cannot run here is ignored
+   * in favour of the first eligible implementation rather than silently
+   * registering a tool that would fail.
+   */
+  providers?: Record<string, string>
+  /**
+   * Register the deprecated per-model compatibility aliases.
+   *
+   * Off by default so they stay out of the default catalog and a caller sees one
+   * transcription tool rather than two (BASE-03). When on, the alias keeps its
+   * original argument and result contract through a tested adapter — it is never
+   * silently reinterpreted as the new contract.
+   */
+  legacyAliases?: boolean
+  /**
+   * Filesystem roots this deployment authorizes (SEC-06).
+   *
+   * Empty by default, which fails closed: a path-bearing tool then refuses every
+   * call rather than admitting an arbitrary path. An operator adds the roots this
+   * machine may read from.
+   */
+  approvedRoots?: string[]
+  /** Grant identity recorded in receipts; defaults to `local-interactive`. */
+  grantId?: string
+  /** Whether receipts may be recorded (SEC-03); default true. */
+  recordReceipts?: boolean
+  /**
+   * The CODE-11 repair-attempt ceiling for bounded-repair tools.
+   *
+   * The FLAT key is the deprecated-alias-compatible spelling that drives
+   * behaviour; `harnessExecutorV3.defaultRepairAttempts` is its v3 equivalent.
+   * An integer 0..8; 0 disables repairs. Default 1. An invalid value refuses
+   * at config parse, never silently clamps.
+   */
+  repairAttempts?: number
+  /**
+   * Which capture profile this deployment runs under (OBS-03).
+   *
+   * `standard` is the default. `metadata-only` is for a headless local-specialist deployment: it
+   * REFUSES harness-backed execution where a no-retention policy cannot be honoured alongside
+   * DSH's requirement that model-visible inputs be reconstructable — rather than logging bodies
+   * against the policy or bypassing DSH, both of which are forbidden.
+   */
+  captureProfile?: 'standard' | 'metadata-only'
+  /**
+   * The deployment's harness provider, for executing DECLARATIVE packages (HLM-01).
+   *
+   * Supplied by the DEPLOYMENT rather than constructed here, because which model answers a
+   * harness call is not this plugin's business — and the architecture gate forbids
+   * model-specific code in the host. Absent means a declarative package resolves but is not
+   * served, and the refusal says so at preparation rather than at the first invocation.
+   */
+  harnessProvider?: LlmProvider
+  /**
+   * Operator-bound logical executor profiles for approved-profile recipes
+   * (HLM-02/RCP-05). Each binding is a provider plus the version the operator
+   * approved; an unresolved profile makes the recipe's tool unavailable.
+   */
+  harnessProfiles?: Readonly<Record<string, { readonly provider: LlmProvider; readonly version: string }>>
+  /**
+   * Opt the host INTO a REAL DSH-backed harness provider (HLM-01/02/03).
+   *
+   * DEFAULT OFF: absent, nothing is wired and every existing test and packed probe is
+   * unchanged. When set, the host builds a {@link DshLlmProvider} over the deployment's
+   * DSH LLM surface (`ctx.llm`), reading the model's OWN capability descriptor, and uses
+   * it for declarative recipes — with the image transport minted only when the DSH
+   * attachment service is reachable, otherwise capabilities honestly report `unknown`
+   * and the broker refuses image recipes rather than dropping them. An explicit
+   * `harnessProvider` wins over this option (test doubles and prebuilt providers).
+   */
+  harnessModel?: HarnessModelConfig
+  /**
+   * Optional remote Jev (TypeSafe System One) provider (TOOL-02, DEC-07).
+   *
+   * Jev is a remote typed-question API, never local weights. When `enabled`, the
+   * host registers `decision_choose_jev` on the standard `decision.choose`
+   * contract. The key comes from `apiKey`, then the DSH credentials service
+   * (`credentialRef`, default `jev/api-key`), then `apiKeyEnv` (default
+   * `TYPESAFE_API_KEY`); a missing key is a diagnostic, never a fake answer.
+   */
+  jev?: JevConfig
+  /**
+   * Opt the host INTO routing extension invocations through managed worker
+   * processes (EXT-20).
+   *
+   * DEFAULT OFF: absent, every extension runs in-process exactly as before, and no
+   * child process is ever spawned by this plugin. When set, each extension's module
+   * entry runs in a scrubbed-environment managed process — ONE process per extension
+   * per activation generation, disposed when the generation advances — and the host's
+   * dispatch discipline is unchanged: grant authorization and schema validation stay
+   * HOST-side before the worker call, and the worker's result is validated against
+   * the declared output schema exactly like the in-process path.
+   */
+  managedWorkers?: boolean
+  /** Maximum one managed-worker invoke may wait before it is failed and disposed. */
+  managedWorkerInvokeTimeoutMs?: number
+  /**
+   * Extension ids the operator switched OFF in Settings.
+   *
+   * The store still holds them and their desired activation is unchanged; the
+   * host simply does not restore them, so their tools never register. Removing
+   * an id re-activates the extension on the next load.
+   */
+  disabledExtensions?: string[]
+  /**
+   * Environment names to pass through to managed workers, on top of the SDK's
+   * bootstrap allowlist. Explicit names only — never `process.env` wholesale.
+   */
+  workerEnvPassthrough?: string[]
+  /** Hard resource limits overriding the conservative defaults. */
+  limits?: {
+    maxInputBytes?: number
+    maxAudioSeconds?: number
+    maxResultBytes?: number
+    maxModelCalls?: number
+    maxOutputTokens?: number
+    maxImages?: number
+    deadlineMs?: number
+  }
+}
+
+/** Validate and default the plugin configuration. */
+/**
+ * Mark one Config field as Settings-UI editable.
+ *
+ * schemastery exposes a field to the settings mirror only when it carries the
+ * volatile marker (the reference plugin `@try-works/dsh-memory` documents this:
+ * "Only .volatile() fields are exposed to the Settings UI and may be written by
+ * the config editor"). `.volatile()` also narrows the schema's inferred type, so
+ * this helper keeps the declared `z<Config>` surface intact.
+ * @param schema - the field schema.
+ * @returns the same schema with the runtime volatile marker.
+ */
+function settingsField<T>(schema: z<T>): z<T> {
+  return schema.volatile() as unknown as z<T>
+}
+
+export const Config: z<Config> = z.object({
+  catalogFile: z.string(),
+  playbookFile: z.string(),
+  stateFile: z.string(),
+  customToolsDir: z.string().default(''),
+  customToolsEnabled: z.boolean().default(true),
+  credentialsFile: z.string(),
+  /**
+   * Where first-party extension package checkouts live (developer-mode installs).
+   * Empty by default: a deployment with no first-party source advertises none.
+   */
+  extensionSourceDir: z.string().default(''),
+  /**
+   * Install route for the Settings page: registry, directory, or auto (registry
+   * first, directory only for a transport failure when directory installs are
+   * allowed). Default auto.
+   */
+  extensionInstallSource: z.union([z.const('registry'), z.const('directory'), z.const('auto')]).default('auto'),
+  /** npm registry base URL; empty disables the registry route. Default: public npm. */
+  extensionRegistry: z.string().default('https://registry.npmjs.org/'),
+  /** Hard cap on one registry tarball download, in bytes. Default 256 MiB. */
+  extensionTarballMaxBytes: z.number().min(1).default(256 * 1024 * 1024),
+  /**
+   * IDLE timeout for one registry tarball download, in ms. Default 10 minutes.
+   * Aborts only when NO bytes arrive for this long; a large dependency streaming
+   * slowly is not aborted by the short package-metadata timeout.
+   */
+  extensionTarballTimeoutMs: z.number().min(1000).default(10 * 60_000),
+  extensionMetadataTimeoutMs: z.number().min(1000).default(30_000),
+  /** Depth bound for registry dependency graphs. Default 12 (SDK default is 3). */
+  extensionDependencyDepth: z.number().min(1).max(64).default(12),
+  /** Package-count bound for dependency graphs. Default 256 (SDK default is 64). */
+  extensionDependencyPackages: z.number().min(1).max(4096).default(256),
+  allowPreinstalledDependencies: z.boolean().default(false),
+  preinstalledDependenciesRoot: z.string().default(''),
+  /**
+   * Exact prebuilt dependency pairs admitted on the registry arm. Their
+   * lifecycle scripts are never executed; unlisted versions still refuse.
+   */
+  trustedPrebuiltDependencies: z.array(z.string()).default([...DEFAULT_TRUSTED_PREBUILT_DEPENDENCIES]),
+  /**
+   * Standing RES-02 approval for executable assets prepared from the client path.
+   * FALSE by default: a downloaded engine still needs the explicit approval.
+   */
+  allowExecutablePreparation: z.boolean().default(false),
+  /**
+   * SEC-09: gate extension ACTIVATION behind request/approve/commit.
+   *
+   * Default FALSE for this slice: no approval UI/management path ships with it, so an
+   * unconditional gate would make the Settings Enable action a pending refusal. With
+   * it on, `enable` records a pending request and refuses and only `commitApproval`
+   * mutates; with it off, the documented pre-approved direct path is preserved.
+   */
+  requireActivationApproval: z.boolean().default(false),
+  persist: z.boolean().default(true),
+  providers: z.dict(z.string()).default({}),
+  legacyAliases: z.boolean().default(false),
+  /**
+   * Settings → Model as Tool.
+   *
+   * Only volatile fields are exposed to the Settings UI and may be written by
+   * the config editor; every other field is config-file only. Keep this surface
+   * the operator knobs the client page edits.
+   */
+  approvedRoots: settingsField(z.array(z.string()).default([])),
+  grantId: z.string().default('local-interactive'),
+  recordReceipts: z.boolean().default(true),
+  repairAttempts: settingsField(z.number().min(0).max(8).default(1)),
+  limits: z.object({
+    maxInputBytes: z.number(),
+    maxAudioSeconds: z.number(),
+    maxResultBytes: z.number(),
+    maxModelCalls: z.number(),
+    maxOutputTokens: z.number(),
+    maxImages: z.number(),
+    deadlineMs: z.number(),
+  }),
+  models: settingsField(z.array(z.string()).default([])),
+  exclude: settingsField(z.array(z.string()).default([])),
+  exposeUnavailable: settingsField(z.boolean().default(false)),
+  registerSkills: settingsField(z.boolean().default(true)),
+  registerControlTool: settingsField(z.boolean().default(true)),
+  managementGrant: z.boolean().default(false),
+  confidentialTools: z.array(z.string()).default([]),
+  hostedCode: z.boolean().default(false),
+  networkPolicy: z.union([z.const('any'), z.const('no-network')]).default('any'),
+  cli: z.object({
+    enabled: z.boolean().default(true),
+    command: z.string().default(DEFAULT_CLI_COMMAND),
+  }),
+  remote: z.object({
+    endpoint: z.string(),
+    token: z.string(),
+  }),
+  harnessModel: z.object({
+    provider: z.string(),
+    model: z.string(),
+  }),
+  jev: z.object({
+    enabled: z.boolean().default(false),
+    apiKey: z.string(),
+    apiKeyEnv: z.string().default('TYPESAFE_API_KEY'),
+    credentialRef: z.string().default('jev/api-key'),
+    baseURL: z.string().default('https://api.typesafe.ai'),
+    model: z.string().default('jev-1.14'),
+  }),
+  managedWorkers: settingsField(z.boolean().default(false)),
+  managedWorkerInvokeTimeoutMs: z.number(),
+  workerEnvPassthrough: z.array(z.string()).default([]),
+  allowNpm: settingsField(z.boolean().default(true)),
+  disabledExtensions: settingsField(z.array(z.string()).default([])),
+  /**
+   * §12 CONFIG V3: the proposed nested schemaVersion-3 shape. The spec's
+   * fixed-false flags are parsed here and REJECTED when set true (unsupported
+   * values refuse rather than being accepted as ineffective flags); the
+   * remaining nested fields are carried as data for the launcher's doctor and
+   * future wiring. The flat legacy fields above remain the deprecated aliases
+   * that actually drive behavior, so existing v1/v2 configs stay green.
+   */
+  schemaVersion: z.number(),
+  extensions: z.object({
+    protocolMajor: z.number(),
+    manifestVersion: z.string(),
+    registry: z.string(),
+    allowHttpsArchives: z.boolean(),
+    allowLocalArchives: z.boolean(),
+    allowSourceDirectories: z.boolean(),
+    automaticUpdates: z.boolean(),
+    runInstallScripts: z.boolean(),
+  }),
+  mcpV3: z.object({
+    enabled: z.boolean(),
+    protocolVersions: z.array(z.string()),
+    legacyCompatibility: z.boolean(),
+    host: z.string(),
+    port: z.number(),
+    path: z.string(),
+    tokenFile: z.string().default(''),
+    allowedOrigins: z.array(z.string()),
+    exportTools: z.array(z.string()).default(['*']),
+    /**
+     * The operator's MCP client-grant policy. Before this field existed the
+     * HTTP server always received `{}` (allowedHarnessProfiles [], allowedTools
+     * all), so no external caller could ever name a server-owned executor
+     * profile even when the operator configured one.
+     */
+    grants: z.any(),
+    catalogTtlMs: z.number(),
+    catalogCacheScope: z.string(),
+    auth: z.object({ mode: z.string(), authorizationServerProfile: z.any() }),
+  }),
+  compositionV3: z.object({
+    enabled: z.boolean(),
+    defaultTimeoutMs: z.number(),
+    maxTimeoutMs: z.number(),
+    maxToolCalls: z.number(),
+    maxConcurrentBindings: z.number(),
+    maxHarnessModelCalls: z.number(),
+  }),
+  multimodalV3: z.object({
+    defaultDimensions: z.number(),
+    defaultOverflow: z.string(),
+    maxVideoFrames: z.number(),
+    audioSampleRateHz: z.number(),
+    selectiveEncoderLoading: z.boolean(),
+  }),
+  harnessExecutorV3: z.object({
+    enabled: z.boolean(),
+    nativeSelection: z.string(),
+    externalDefaultProfile: z.any(),
+    profiles: z.array(z.any()),
+    defaultMaxAttempts: z.number(),
+    defaultRepairAttempts: z.number().min(0).max(8),
+    defaultMaxOutputTokens: z.number(),
+    defaultTimeoutMs: z.number(),
+    inheritConversation: z.boolean(),
+    allowModelToolCalls: z.boolean(),
+  }),
+  recipesV3: z.object({
+    schemaVersion: z.string(),
+    allowLocalAuthoring: z.boolean(),
+    automaticActivation: z.boolean(),
+    allowExecutableTemplates: z.boolean(),
+  }),
+  clientsV3: z.array(z.any()),
+  captureV3: z.object({
+    bodies: z.boolean(),
+    retentionDays: z.number(),
+    maxBytes: z.number(),
+    auxiliaryLlmJournal: z.object({ enabled: z.boolean(), retentionDays: z.number() }),
+  }),
+})
+
+/**
+ * §12: the spec's fixed-false flags REJECT unsupported values instead of being
+ * accepted as ineffective flags. A config that sets any of them to true fails
+ * the configuration with the named flag, never silently ignores it.
+ * @param config - the parsed configuration.
+ * @throws Error naming the first flag set to an unsupported value.
+ */
+export function assertConfigV3DisabledFlags(config: Config): void {
+  const fixedFalse = [
+    ['extensions.automaticUpdates', config.extensions?.automaticUpdates],
+    ['extensions.runInstallScripts', config.extensions?.runInstallScripts],
+    ['recipes.automaticActivation', config.recipesV3?.automaticActivation],
+    ['recipes.allowExecutableTemplates', config.recipesV3?.allowExecutableTemplates],
+    ['harnessExecutor.inheritConversation', config.harnessExecutorV3?.inheritConversation],
+    ['harnessExecutor.allowModelToolCalls', config.harnessExecutorV3?.allowModelToolCalls],
+  ] as const
+  for (const [name, value] of fixedFalse) {
+    if (value === true) {
+      throw new Error(
+        `${name} is fixed false in this implementation (spec §12); setting it to true is refused rather than `
+        + 'accepted as an ineffective flag. Remove the field or set it to false.',
+      )
+    }
+  }
+}
+
+/**
+ * The CODE-11 repair-attempt ceiling for one configuration (task-74).
+ *
+ * The flat `repairAttempts` key drives; the v3 nested spelling
+ * `harnessExecutorV3.defaultRepairAttempts` is its equivalent; absent both,
+ * the default is 1. An out-of-range value is a REFUSAL, never a silent clamp:
+ * a ceiling the operator did not write is a budget nobody approved.
+ * @param config - the parsed configuration.
+ * @throws Error naming the invalid value.
+ */
+export function repairCeilingOf(config: Config): number {
+  const ceiling = config.repairAttempts ?? config.harnessExecutorV3?.defaultRepairAttempts ?? 1
+  if (typeof ceiling !== 'number' || !Number.isInteger(ceiling) || ceiling < 0 || ceiling > 8) {
+    throw new Error(
+      `repairAttempts must be an integer between 0 and 8 (CODE-11); received ${JSON.stringify(ceiling)}. `
+      + 'A repair ceiling outside this range is refused rather than silently clamped.',
+    )
+  }
+  return ceiling
+}
+
+/** One registered model, as reported by `model_tools`. */
+interface InstalledModel {
+  readonly entry: ModelCatalogEntry
+  readonly toolName: string
+  readonly dispose: () => void
+  disposeSkill?: () => void
+  /** Disposer for the opt-in deprecated alias, when one was registered (BASE-03). */
+  disposeAlias?: () => void
+}
+
+/** One model as the `model_tools` control tool reports it. */
+export interface ModelDescriptor {
+  readonly id: string
+  readonly name: string
+  readonly summary: string
+  readonly capability: string
+  readonly input: string
+  readonly tool: string
+  readonly skill: string
+  readonly runnable: boolean
+  readonly route: string
+  readonly reason: string
+  readonly languages: number | null
+  readonly license: string
+  readonly docs: string
+}
+
+/** Render the model list the control tool returns, and the plugin logs. */
+export function describeModels(resolved: readonly ResolvedModel[]): ModelDescriptor[] {
+  return resolved.map(({ entry, verdict }) => ({
+    id: entry.id,
+    name: entry.name,
+    summary: entry.summary,
+    capability: entry.capability,
+    input: entry.input,
+    tool: entry.tool.name,
+    skill: entry.skill.name,
+    runnable: verdict.runnable,
+    route: verdict.route,
+    reason: verdict.reason,
+    languages: entry.languages,
+    license: entry.license,
+    docs: entry.docsUrl,
+  }))
+}
+
+/**
+ * Register the Desert Ant model tools and skills.
+ * @param ctx - the plugin context whose tool registry receives the definitions.
+ * @param config - deployment configuration for which models to expose.
+ */
+/**
+ * The Config fields the Settings page edits (marked volatile in the schema).
+ *
+ * schemastery parses a volatile field into a LIVE REFERENCE (`{ get() }`) rather
+ * than a plain value, so the settings editor can commit a new value into the
+ * running fiber. Every consumer here reads the plain value, so apply unwraps
+ * them once and re-unwraps on `loader/volatile-update`.
+ */
+const VOLATILE_CONFIG_KEYS = [
+  'approvedRoots', 'repairAttempts', 'models', 'exclude', 'exposeUnavailable',
+  'registerSkills', 'registerControlTool', 'managedWorkers', 'allowNpm', 'disabledExtensions',
+] as const
+
+/** Read a plain value out of a volatile reference (or return it untouched). */
+function unwrapVolatile<T>(value: T | { get(): T }): T {
+  const candidate = value as { get?: () => T } | undefined
+  return candidate !== undefined && typeof candidate.get === 'function' ? candidate.get() : value as T
+}
+
+/** Replace every volatile field on the config object with its current value. */
+function absorbVolatileConfig(config: Config): void {
+  const writable = config as unknown as Record<string, unknown>
+  for (const key of VOLATILE_CONFIG_KEYS) {
+    if (key in writable) writable[key] = unwrapVolatile(writable[key])
+  }
+}
+
+export async function apply(ctx: Context, config: Config = {}): Promise<void> {
+  // Volatile fields arrive as live references; the rest of apply reads values.
+  absorbVolatileConfig(config)
+  // A Settings save commits a new volatile value into the running fiber; without
+  // this the page would persist the change and the plugin keep the old value.
+  // The event is declared by the harness loader (not by the cordis types this
+  // package compiles against), so the name is cast rather than left unchecked.
+  ctx.on('loader/volatile-update' as never, (() => {
+    try {
+      absorbVolatileConfig(config)
+    } catch (error) {
+      ctx.logger?.warn?.(`could not re-read volatile configuration: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }) as never)
+  // §12: the fixed-false flags REFUSE unsupported values before anything runs.
+  assertConfigV3DisabledFlags(config)
+  const entries = loadCatalog(config.catalogFile)
+
+  /**
+   * Declared at the apply top so the catalog-change notifier (below) can read
+   * the generation without a temporal-dead-zone window during the startup
+   * install loop; the extension-store block assigns it.
+   */
+  let extensionLifecycle: ExtensionLifecycle | undefined
+
+  /**
+   * TASK-117: the catalogue-vs-extension tool-name reconciliation.
+   *
+   * OWNERSHIP RULE: an INSTALLED extension that declares a tool with a given
+   * name OWNS that name — its activation registers the tool, so the catalogue
+   * must SKIP its own registration for a contract-backed entry with the same
+   * tool name (the live EXTENSION_FAULT was the catalogue winning the race at
+   * boot). The skip is recorded; when the owning extension deactivates, the
+   * catalogue registration is RESTORED. Deterministic in both orders: the
+   * probe reads the durable store, not an in-flight registry.
+   */
+  const extensionStore = config.extensionStore !== undefined && config.extensionStore.length > 0
+    ? new ExtensionStore(config.extensionStore)
+    : undefined
+  const catalogueDeferred = new Set<string>()
+
+  /**
+   * The installation the operator MEANS for an identity.
+   *
+   * `listInstalled().find(id)` returns the OLDEST record. After an update that made
+   * dispatch, the registrar and the prepare surface load a SUPERSEDED version while
+   * `describe()` reported the newest — stale code served, and no report disagreed.
+   * The service's own selection (EXT-30 pointer, else the last appended record) is
+   * the single answer for every host lookup.
+   * @param extensionId - the extension identity.
+   * @returns the selected installed record, or undefined when nothing is installed.
+   */
+  const selectedInstalled = (extensionId: string): InstalledRecord | undefined => {
+    if (extensionStore === undefined) return undefined
+    const pointers = extensionStore.readProfilePointers('default')
+    return selectInstalled(
+      extensionStore.listInstalled().value,
+      pointers.corrupt ? {} : pointers.value.activeVersions,
+      extensionId,
+    )
+  }
+  const extensionOwnsToolName = (toolName: string): boolean => {
+    if (extensionStore === undefined) return false
+    try {
+      // Only an ACTIVE extension owns a name at runtime: a disabled (or
+      // failed) installation must not keep the catalogue from serving it.
+      const active = new Set(
+        extensionStore.readProfileState('default').value
+          .filter(entry => entry.desiredActivation === 'active' && entry.observedActivation === 'active')
+          .map(entry => entry.extensionId),
+      )
+      for (const record of extensionStore.listInstalled().value) {
+        if (!active.has(record.extensionId)) continue
+        const discovery = discoverExtension(record.installPath)
+        if (discovery.manifest.tools.some(tool => tool.name === toolName)) return true
+        // TASK-121: an implementation-only extension owns the STANDARD tool
+        // name of each implementation's contract (text.embed -> text_embed),
+        // exactly as the registrar registers it.
+        const implementationNames = (discovery.manifest.implementations ?? [])
+          .map(implementation => STANDARD_CONTRACTS.find(contract => contract.contract === implementation.contractId)?.toolName)
+          .filter((name): name is string => name !== undefined)
+        if (implementationNames.includes(toolName)) return true
+      }
+    } catch (error) {
+      // A broken package cannot own a tool name; the catalogue keeps it.
+      return false
+    }
+    return false
+  }
+
+  /**
+   * The extensions the contribution registrar currently admits.
+   *
+   * Seeded from the durable desired-active state when the store mounts, and kept
+   * in step by the extension-management service: the registrar refuses a
+   * contribution whose extension is absent, so a runtime `enable` must admit the
+   * id BEFORE the lifecycle publishes, and `disable` must revoke it.
+   */
+  const activatedExtensions = new Set<string>()
+
+  /**
+   * Why the startup asset walk could not rebuild an extension's prepared handles, by
+   * extension id. The restore pass writes it and clears it on success; the service
+   * surfaces it in the row, so a missing or resized cache file is distinguishable from
+   * a model that was never prepared.
+   */
+  const assetRestoreFailures = new Map<string, string>()
+
+  /**
+   * The host half of Settings → Model as Tool's extension management.
+   *
+   * Constructed even when no extension store is configured, so `describe()` can
+   * truthfully answer `store: null` instead of the surface being absent. The
+   * lifecycle thunk resolves once the extension-store block below mounts it; the
+   * disabled getter reads the live (volatile) config list, so a Settings save is
+   * observed without reconstructing the service.
+   *
+   * `provideModelToolsService` attaches the gateway's visible `typertRemote`
+   * binding and provides the object as the `modelTools` Cordis service, which is
+   * what the generated Host artifact dispatches through. It throws at apply time
+   * if a wire method is missing, so a half-wired surface cannot start.
+   */
+  /** Set once the receipt ring below is declared; service audits arrive only after apply. */
+  let recordLifecycleEvent: (event: LifecycleAuditEvent) => void = () => { /* replaced below */ }
+
+  /**
+   * SEC-09: ONE approval state machine per host process.
+   *
+   * The STORE is always constructed; the GATE is applied only when
+   * `config.requireActivationApproval` is on. Mounting it unconditionally
+   * would turn the Settings Enable action — and every existing management caller —
+   * into a pending refusal, because no approval UI/management path ships in this
+   * slice. With the flag off the composition keeps the documented PRE-APPROVED direct
+   * path; with it on, `enable` records a pending request and refuses and only a
+   * committed approval activates. The store is deliberately in-memory — durability is
+   * separate work, and a half-persisted approval that silently vanishes would be worse
+   * than the prompt in-process one.
+   */
+  const approvalStore = new ApprovalStore()
+  const activationApprovalRequired = config.requireActivationApproval === true
+
+  const extensionsService = createExtensionsService({
+    storeDir: config.extensionStore ?? '',
+    sourceDir: config.extensionSourceDir ?? '',
+    allowSourceDirectories: config.extensions?.allowSourceDirectories === true,
+    onAudit: recordLifecycleEvent,
+    /**
+     * Registry installs (task-104). `auto` prefers the registry and uses the
+     * developer-mode directory only as a TRANSPORT-failure fallback when the
+     * source-directory gate is on; package-level registry refusals are named and
+     * never retried locally.
+     */
+    installSource: config.extensionInstallSource ?? 'auto',
+    registryUrl: config.extensionRegistry ?? 'https://registry.npmjs.org/',
+    registryTarballMaxBytes: config.extensionTarballMaxBytes ?? 256 * 1024 * 1024,
+    registryTarballTimeoutMs: config.extensionTarballTimeoutMs ?? 10 * 60_000,
+    registryMetadataTimeoutMs: config.extensionMetadataTimeoutMs ?? 30_000,
+    registryDependencyDepth: config.extensionDependencyDepth ?? 12,
+    registryDependencyPackages: config.extensionDependencyPackages ?? 256,
+    /**
+     * The operator gate for already-materialized dependencies. OFF by default:
+     * a dependency whose package.json declares install-time scripts still
+     * refuses (EXT-10). When ON, the resolver may supply content from a
+     * completed host install (e.g. onnxruntime-node after the operator's npm
+     * ran its postinstall), and the SDK records provenance rather than
+     * pretending it ran the scripts.
+     */
+    allowPreinstalledDependencies: config.allowPreinstalledDependencies === true,
+    preinstalledDependenciesRoot: config.preinstalledDependenciesRoot ?? '',
+    trustedPrebuiltDependencies: config.trustedPrebuiltDependencies ?? DEFAULT_TRUSTED_PREBUILT_DEPENDENCIES,
+    profile: 'default',
+    disabledExtensions: () => config.disabledExtensions ?? [],
+    lifecycle: () => extensionLifecycle,
+    /**
+     * SEC-09: the gate is mounted only for a deployment that has an operator approval
+     * path (config.extensions.requireActivationApproval). The spread is how an OPTIONAL
+     * seam is absent under exactOptionalPropertyTypes; `approvals: undefined` would be
+     * an invalid assignment, not an absence.
+     */
+    ...activationApprovalRequired ? { approvals: () => approvalStore } : {},
+    assetRestoreDiagnostic: extensionId => assetRestoreFailures.get(extensionId),
+    /**
+     * The prepared-assets surface is constructed inside the extension-store block
+     * below; the thunk resolves at call time, after apply has finished. The source
+     * is the SAME seam `extensions-prepare` uses, so the Settings page and the
+     * management channel acquire through one implementation (and the test suite
+     * injects a local source through `assetSourceFactory`, never the network).
+     */
+    prepareSurface: () => prepareAssetsSurface,
+    preparationSource: () => config.assetSourceFactory?.() ?? createHttpSource(),
+    /**
+     * RES-02 for the client/Remote path: the operator's standing approval, read
+     * live so a config edit applies without reconstructing the service. DEFAULT
+     * FALSE — with it off the exact executable-preparation refusal is returned and
+     * nothing is acquired. The management channel keeps its per-call flag.
+     */
+    allowExecutablePreparation: () => config.allowExecutablePreparation === true,
+    /**
+     * Keep the registrar's admission set in step with activation changes made
+     * through the Settings surface. A failed activation revokes the admission,
+     * unless the lifecycle still reports the extension active under another owner
+     * (another host's surface is not this registrar's to revoke).
+     */
+    onActivationChange: (extensionId, active) => {
+      if (active) {
+        activatedExtensions.add(extensionId)
+        // TASK-117: the extension now owns its tool names — withdraw the
+        // catalogue registrations for those names BEFORE the lifecycle
+        // publishes (the hook runs before activate), so the activation cannot
+        // collide with a catalogue tool. The names are deferred, not lost.
+        for (const item of resolved.filter(candidate => candidate.entry.contract !== null)) {
+          if (!extensionOwnsToolName(item.entry.tool.name)) continue
+          if (!installed.has(item.entry.id)) continue
+          uninstall(item.entry.id)
+          catalogueDeferred.add(item.entry.id)
+          ctx.logger.info(
+            `model-tools: ${item.entry.name}'s tool ${item.entry.tool.name} is taken over by ${extensionId}; `
+            + 'the catalogue registration is withdrawn and deferred',
+          )
+        }
+        return
+      }
+      if (extensionLifecycle?.stateOf(extensionId)?.observedActivation !== 'active') {
+        activatedExtensions.delete(extensionId)
+      }
+      // TASK-117: the extension released its tool names — restore every
+      // deferred catalogue registration the release freed.
+      void restoreDeferredCatalogue()
+    },
+    /**
+     * The harness-model provider status seam (task-93): the thunk evaluates the
+     * SAME composition decided below (explicit provider > config.harnessModel >
+     * AUTO discovery), so the preflight reason the extensions service reports
+     * can never contradict what activation would actually do.
+     */
+    harnessProviderStatus: () => harnessStatusThunk(),
+  })
+
+  /**
+   * TOOL INSIGHTS (task-13): the projection, the external ledger and the additive
+   * Remote methods. The projection is registered through an OPTIONAL injection, so a
+   * host without `sessionProjections` simply gets no usage unit and the page degrades.
+   */
+  ctx.inject(['sessionProjections'], (projectionCtx) => {
+    // SAFETY: the projection contract types its schemas as `ZodType`, but the registry's
+    // only runtime use is `parse(value)`; this unit implements that boundary without a
+    // second zod installation (see `tool-usage-projection.ts`). The assertion mirrors the
+    // WIRED overload (`wire` required) so the registry cannot treat the compact view as
+    // absent.
+    const definition = {
+      ...toolUsageProjectionDefinition,
+      wire: toolUsageProjectionDefinition.wire,
+    } as unknown as ProjectionDefinition<'toolModeUsage', ToolUsageState> & {
+      wire: NonNullable<ProjectionDefinition<'toolModeUsage', ToolUsageState>['wire']>
+    }
+    projectionCtx.sessionProjections.register(definition)
+  })
+
+  const insightsStatePath = resolve(config.stateFile ?? defaultStateFile())
+  const mcpUsageLedger = new McpUsageLedger(join(dirname(insightsStatePath), 'mcp-usage.jsonl'))
+  /** The bound MCP endpoint, assigned when the transport starts (null until then). */
+  let mcpBoundEndpoint: BoundEndpoint | undefined
+  /** When the endpoint bound, for the status uptime (null until then). */
+  let mcpStartedAt: number | null = null
+  /** Tool names the export surface withheld, with the export policy's reasons. */
+  const mcpWithheldTools = new Set<string>()
+  const mcpWithheldReasons = new Map<string, string>()
+
+  /**
+   * The optional stored-session reader used for BACKFILL.
+   *
+   * The projection registry only materializes a Session already in the live
+   * store. A historical log opened by the UI is read through persistence, not
+   * appended to a live Session, so its projection state would otherwise never
+   * exist. These structural types keep `sessionPersistence` OPTIONAL: a host
+   * without it simply has no backfill and the page degrades.
+   */
+  interface StoredSessionSnapshot {
+    readonly header: SessionHeader
+    readonly revision: unknown
+  }
+  interface StoredSessionHandle {
+    readonly inheritedEventCount: SessionLogOffset
+    read(): Promise<{ events: readonly SessionEvent[] }>
+    close(): Promise<void>
+  }
+  interface StoredSessionPersistence {
+    list(): Promise<readonly StoredSessionSnapshot[]>
+    open(id: string, access: 'read'): Promise<StoredSessionHandle>
+  }
+
+  /** One cached projection state per stored session, invalidated by its revision. */
+  const storedUsageCache = new Map<string, { revision: unknown; state: ToolUsageState; workspace: string | null }>()
+  /** Kept outside the request path: warming may be slow, but it must never block a page read. */
+  let storedWarmStarted = false
+  /** A page read may spend at most this long warming stored history. */
+  const STORED_BACKFILL_BUDGET_MS = 2_000
+  /** Read the newest sessions first; older history is filled on later reads. */
+  const STORED_BACKFILL_LIMIT = 100
+  /** A single slow stored read must not consume the whole budget. */
+  const STORED_READ_TIMEOUT_MS = 300
+  /** Listing stored sessions is metadata, but must not block the page either. */
+  const STORED_LIST_TIMEOUT_MS = 750
+
+  /**
+   * Fold stored logs through the SAME projection definition once per revision.
+   * Recent sessions first, bounded by a total time budget: on a large profile the
+   * first page read must return promptly, and later reads reuse this cache.
+   * A failed/timeout read is skipped, never turned into a fabricated zero.
+   */
+  const readStoredUsage = async (
+    projections: SessionProjectionRegistry,
+    persistence: StoredSessionPersistence,
+  ): Promise<SessionUsageInput[]> => {
+    let snapshots: readonly StoredSessionSnapshot[] | null
+    try {
+      snapshots = await Promise.race([
+        persistence.list(),
+        new Promise<null>(resolve => setTimeout(() => resolve(null), STORED_LIST_TIMEOUT_MS)),
+      ])
+    } catch {
+      return []
+    }
+    if (snapshots === null) return []
+    const inputs: SessionUsageInput[] = []
+    const ordered = [...snapshots]
+      .sort((left, right) => (right.header.createdAt ?? 0) - (left.header.createdAt ?? 0))
+      .slice(0, STORED_BACKFILL_LIMIT)
+    const deadline = Date.now() + STORED_BACKFILL_BUDGET_MS
+    for (const snapshot of ordered) {
+      const sessionId = String(snapshot.header.id)
+      const cached = storedUsageCache.get(sessionId)
+      if (cached !== undefined && cached.revision === snapshot.revision) {
+        inputs.push({ sessionId, workspace: cached.workspace ?? snapshot.header.cwd ?? null, state: cached.state })
+        continue
+      }
+      if (Date.now() >= deadline) break
+      let handle: StoredSessionHandle
+      try {
+        handle = await persistence.open(sessionId, 'read')
+      } catch {
+        continue
+      }
+      try {
+        const read = await Promise.race([
+          handle.read(),
+          new Promise<null>(resolve => setTimeout(() => resolve(null), STORED_READ_TIMEOUT_MS)),
+        ])
+        if (read === null || read.events.length === 0) continue
+        // SAFETY: `baseSeq` is the branded log offset 0 — the stored read starts at seq 0.
+        const restored = projections.restore({}, read.events, 0 as SessionLogOffset, snapshot.header, handle.inheritedEventCount)
+        const row = restored.checkpoint[TOOL_USAGE_KEY]
+        if (row === undefined) continue
+        // SAFETY: the registry writes this row from `toolUsageProjectionDefinition.stateSchema`.
+        const state = row.val as ToolUsageState
+        storedUsageCache.set(sessionId, { revision: snapshot.revision, state, workspace: snapshot.header.cwd ?? null })
+        inputs.push({ sessionId, workspace: snapshot.header.cwd ?? null, state })
+      } catch {
+        // A corrupt/stale stored log is skipped; it never fabricates a row.
+      } finally {
+        await handle.close()
+      }
+    }
+    return inputs
+  }
+
+  /**
+   * Aggregate live projection states plus optional stored-log backfill over a
+   * query window. The inventory read opts out: on a large profile the history
+   * backfill can take many seconds, and the tool list must not wait for it.
+   */
+  let customToolsServiceRef: CustomToolsService | undefined
+  const readUsageReport = async (
+    query?: UsageReportQuery,
+    options: { readonly backfill?: boolean } = {},
+  ): Promise<UsageReport> => {
+    const now = Date.now()
+    const range: UsageRange = query?.range ?? '7d'
+    const window = query?.from !== undefined && query?.to !== undefined
+      ? { range, from: query.from, to: query.to, fromDay: toolUsageDayKey(query.from), toDay: toolUsageDayKey(query.to) }
+      : rangeWindow(range, now)
+    // SAFETY: Cordis resolves `get(name)` to the service a mounted plugin provided;
+    // these names are the harness's own and the casts only restore the static type
+    // the untyped registry lookup erased.
+    const sessionsService = ctx.get('sessions') as SessionStore | undefined
+    const projections = ctx.get('sessionProjections') as SessionProjectionRegistry | undefined
+    const persistence = ctx.get('sessionPersistence') as unknown as StoredSessionPersistence | undefined
+    const inputs: SessionUsageInput[] = []
+    const seen = new Set<string>()
+    if (sessionsService !== undefined && projections !== undefined) {
+      for (const session of sessionsService.list()) {
+        // `stateOf` folds a missing cell over the whole in-memory log. On a
+        // profile with hundreds of stored sessions, that is the difference
+        // between an instant page and a multi-second gateway stall. Only
+        // sessions whose cell is already materialized are page-visible; the
+        // rest arrive through the background stored-history warm.
+        if (typeof projections.cachedSnapshot === 'function') {
+          const cached = projections.cachedSnapshot(session, [TOOL_USAGE_KEY])
+          if (cached === undefined) continue
+        }
+        const state = projections.stateOf(session, TOOL_USAGE_KEY)
+        if (state === undefined) continue
+        inputs.push({ sessionId: session.id, workspace: session.header.cwd ?? null, state })
+        seen.add(session.id)
+      }
+    }
+    if (options.backfill !== false && projections !== undefined && persistence !== undefined) {
+      // NEVER await the history scan here. On the main profile the stored-session
+      // list covers hundreds of large logs; the page read must stay responsive.
+      // Warm the cache in the background and serve whatever is already folded.
+      if (!storedWarmStarted) {
+        storedWarmStarted = true
+        void readStoredUsage(projections, persistence).catch(() => {})
+      }
+      for (const [sessionId, entry] of storedUsageCache) {
+        if (seen.has(sessionId)) continue
+        inputs.push({ sessionId, workspace: entry.workspace, state: entry.state })
+        seen.add(sessionId)
+      }
+    }
+    return buildUsageReport(inputs, window, {
+      resolveOwner: (name: string) => {
+        const custom = customToolsServiceRef?.describe().tools.find(tool => tool.name === name)
+        return custom?.id ?? staticToolOwner(name).owner
+      },
+    })
+  }
+
+  /** The registered tools with owner attribution (extension store is live). */
+  const readToolSources = async (): Promise<readonly ToolSourceRow[]> => {
+    const describe = await extensionsService.describeFast()
+    return ctx.tools.schemas().map((tool) => {
+      const owner = resolveToolOwner(tool.name, describe.extensions)
+      return { name: tool.name, description: tool.description, owner: owner.owner, kind: owner.kind, origin: owner.origin }
+    })
+  }
+
+  const readMcpStatus = (): McpStatusView => buildMcpStatus({
+    enabled: config.mcpV3?.enabled === true,
+    configured: config.mcpV3 === undefined
+      ? null
+      : { host: config.mcpV3.host ?? '127.0.0.1', port: config.mcpV3.port ?? 3765, path: config.mcpV3.path ?? '/mcp' },
+    endpoint: mcpBoundEndpoint === undefined ? null : { host: mcpBoundEndpoint.host, port: mcpBoundEndpoint.port, url: mcpBoundEndpoint.url },
+    authMode: config.mcpV3?.enabled === true ? 'static-token' : 'none',
+    tokenFile: config.mcpV3?.tokenFile !== undefined && config.mcpV3.tokenFile.length > 0 ? config.mcpV3.tokenFile : null,
+    published: mcpHost.listTools().map(tool => tool.name),
+    withheld: [...mcpWithheldTools],
+    credentialClients: credentialStore === undefined ? [] : credentialStore.list().map(entry => entry.clientId),
+    staticClientId: config.mcpV3?.enabled === true ? 'host' : null,
+    startedAt: mcpStartedAt,
+    ledger: mcpUsageLedger.summarize(),
+  })
+
+  /**
+   * The provided service: the extension surface PLUS the additive Tool Insights
+   * methods. They are optional on {@link ModelToolsRemote}, so an older client never
+   * calls them and a host that wired only the extension half still binds.
+   */
+  const customToolsRoot = resolve(
+    config.customToolsDir !== undefined && config.customToolsDir !== ''
+      ? config.customToolsDir
+      : join(dirname(resolve(config.stateFile ?? defaultStateFile())), 'custom-tools'),
+  )
+  const remoteService: ModelToolsRemote = {
+    describe: signal => extensionsService.describe(signal),
+    install: (id, source, signal) => extensionsService.install(id, source, signal),
+    enable: (id, signal) => extensionsService.enable(id, signal),
+    disable: (id, signal) => extensionsService.disable(id, signal),
+    prepare: (id, signal) => extensionsService.prepare(id, signal),
+    setToolEnabled: (id, toolName, enabled, signal) => extensionsService.setToolEnabled(id, toolName, enabled, signal),
+    uninstall: (id, deactivate, signal) => extensionsService.uninstall(id, deactivate, signal),
+    toolSources: async () => ({ tools: await readToolSources() }),
+    toolInventory: async () => {
+      const describe = await extensionsService.describeFast()
+      const report = await readUsageReport({ range: '30d' }, { backfill: false })
+      return {
+        tools: buildToolInventory({
+          registry: ctx.tools.schemas(),
+          extensions: describe.extensions,
+          usage: report.tools,
+          mcpExposed: mcpHost.listTools().map(tool => tool.name),
+          ...customToolsServiceRef === undefined
+            ? {}
+            : {
+                customTools: customToolsServiceRef.describe().tools.map(tool => ({
+                  name: tool.name,
+                  id: tool.id,
+                  title: tool.title,
+                })),
+              },
+        }),
+      }
+    },
+    mcpStatus: async () => readMcpStatus(),
+    mcpCalls: async (query?: McpCallsQuery) => mcpUsageLedger.read(query),
+    toolUsageReport: async (query?: UsageReportQuery) => readUsageReport(query),
+    customToolsDescribe: async () => customToolsServiceRef?.describe()
+      ?? { store: customToolsRoot, writable: false, tools: [] },
+    customToolsGet: async id => customToolsServiceRef?.get(id) ?? null,
+    customToolsDraft: async description => {
+      if (customToolsServiceRef === undefined) {
+        return { ok: false, error: { code: 'custom-tools-unavailable', message: 'custom tools are not enabled on this host' } }
+      }
+      return customToolsServiceRef.draft(description)
+    },
+    customToolsValidate: async draft => customToolsServiceRef?.validate(draft)
+      ?? { ok: false, issues: [{ path: '', message: 'custom tools are not enabled on this host' }] },
+    customToolsTest: async (draft, args) => customToolsServiceRef?.test(draft, args as Readonly<Record<string, unknown>>)
+      ?? { ok: false, error: { code: 'custom-tools-unavailable', message: 'custom tools are not enabled on this host' } },
+    customToolsSave: async draft => {
+      if (customToolsServiceRef === undefined) throw new Error('custom tools are not enabled on this host')
+      return customToolsServiceRef.save(draft)
+    },
+    customToolsSetEnabled: async (id, enabled) => {
+      if (customToolsServiceRef === undefined) throw new Error('custom tools are not enabled on this host')
+      return customToolsServiceRef.setEnabled(id, enabled)
+    },
+    customToolsDelete: async id => customToolsServiceRef?.delete(id) ?? false,
+  }
+  provideModelToolsService(ctx, remoteService)
+
+  /**
+   * ARCH-04: when DSH exposes its speech registry and the local Voz extension is
+   * installed, publish ONE host-local provider backed by the SAME `stt_transcribe`
+   * tool. Native, MCP and speech-UI callers therefore share one Voz deployment.
+   */
+  {
+    const speechCandidate = (ctx as unknown as { get?: (name: string) => unknown }).get?.('speechToText')
+    const isSpeechRegistry = speechCandidate !== undefined
+      && speechCandidate !== null
+      && typeof (speechCandidate as { register?: unknown }).register === 'function'
+    if (isSpeechRegistry) {
+      const vozInstalled = extensionStore?.listInstalled().value.some(record => (
+        record.extensionId === '@try-works/extension-desert-ant-voz'
+      )) ?? false
+      if (vozInstalled) {
+        const disposeSpeech = installVozSpeechProvider(
+          speechCandidate as SpeechRegistryLike,
+          ctx.tools as never,
+          {
+            stateDir: dirname(resolve(config.stateFile ?? defaultStateFile())),
+            onSkipped: reason => ctx.logger?.info?.(`model-tools: ${reason}`),
+          },
+        )
+        ctx.effect(() => disposeSpeech)
+      }
+    }
+  }
+
+  /**
+   * P26-09/MCP-07 (task-65 + task-73): the host-side catalog subscription
+   * pipeline. Every lifecycle transition publishes
+   * `notifications/tools/list_changed` and runs it through the DELIVERY
+   * consumer (deliverCatalogChange): the registry's per-caller filtering
+   * decides who gets the event, and the sink carries it to each client's
+   * stream. The memory sink is the transport seam — a streaming transport
+   * injects its own writer; the consumer path, the ack-first ordering and the
+   * revocation discipline are all exercised by the tests.
+   */
+  const subscriptionRegistry = new SubscriptionRegistry()
+  const subscriptionSink = new MemoryDeliverySink()
+  const notifyCatalogChange = (): void => {
+    const generation = extensionLifecycle?.generation ?? host.activationGeneration
+    deliverCatalogChange(subscriptionRegistry, generation, subscriptionSink)
+  }
+  const playbooks = loadPlaybooks(config.playbookFile)
+  const installed = new Map<string, InstalledModel>()
+
+  // An empty allowlist means "no explicit selection" rather than "select
+  // nothing": the config schema materializes a declared array to `[]`.
+  const wanted = config.models !== undefined && config.models.length > 0
+    ? new Set(config.models)
+    : undefined
+  const excluded = new Set(config.exclude ?? [])
+  const exposeUnavailable = config.exposeUnavailable ?? false
+  const registerSkills = config.registerSkills ?? true
+  const confidentialTools = new Set(config.confidentialTools ?? [])
+
+  // Persistence: the config states the deployment default, the store records the
+  // user's choices on top of it, so enable/disable outlives the session.
+  const persist = config.persist ?? true
+  const stateStore: StateStore = persist
+    ? createFileStateStore(config.stateFile ?? defaultStateFile())
+    : createMemoryStateStore()
+  let persisted: PersistedState = stateStore.read()
+  /**
+   * EXT-35 (recommendation slice 2): invocation receipts persist NEXT TO the state
+   * file, in their own document. They are deliberately separate from the
+   * enable/disable state document: provenance and operator choices have different
+   * lifetimes and different corruption consequences.
+   */
+  const receiptStore = persist
+    ? createFileReceiptStore(receiptStorePathFor(config.stateFile ?? defaultStateFile()), {
+        limit: MAX_RETAINED_RECEIPTS,
+        onQuarantine: diagnostic => ctx.logger.warn(
+          `model-tools: receipt store was malformed (${diagnostic.reason}); moved to ${diagnostic.quarantinePath}`,
+        ),
+      })
+    : createMemoryReceiptStore({ limit: MAX_RETAINED_RECEIPTS })
+
+  /**
+   * BASE-09/10 LEGACY MIGRATION (one-time, per profile — task-26).
+   *
+   * A legacy model-id era state document is migrated on the FIRST startup that
+   * sees it: disabled choices are preserved into the host's persisted state,
+   * legacy enables are STAGED (never granted — no implicit consent to install,
+   * activate or prepare third-party code), the original document is journaled,
+   * and the SDK profile half runs through the SDK's own migration when an
+   * extension store is mounted. A sidecar marker commits the transaction, so
+   * every later startup is a byte-stable no-op. Corrupt or foreign-version
+   * documents and markers fail the boot closed (src/legacy-migration.ts).
+   */
+  const legacy = persist
+    ? await runLegacyStartupMigration({
+        stateFile: config.stateFile ?? defaultStateFile(),
+        store: stateStore,
+        extensionStoreDir: config.extensionStore ?? '',
+        log: line => ctx.logger.info(`model-tools: ${line}`),
+      })
+    : undefined
+  // ALWAYS adopt the hook's fresh read: another process may have committed the
+  // migration between OUR initial stateStore.read() above and the hook's lock,
+  // and the pre-hook snapshot would silently re-apply the legacy enables.
+  if (legacy !== undefined) persisted = legacy.hostState
+
+  /**
+   * The operator-owned credential store (SEC-01).
+   *
+   * Only a DEPLOYMENT THAT PERSISTS may generate credentials: with persistence off
+   * there is nowhere owner-only to put a secret, and issuing one that a restart
+   * would forget violates the fail-closed clause, so generation refuses.
+   */
+  const credentialStore = persist
+    ? createFileCredentialStore(config.credentialsFile ?? defaultCredentialStoreFile())
+    : undefined
+
+  /**
+   * The harness provider composition (HLM-01/02/03) + the AUTO step (task-93).
+   *
+   * RESOLUTION ORDER: an EXPLICIT `harnessProvider` (a test double, or a
+   * deployment-built provider) always wins; then the opt-in `harnessModel`
+   * builds the named route; then AUTO composes from the deployment's LLM
+   * surface using the deployment's default/selected model when it is
+   * discoverable unambiguously (the `agent-default-model` settings entry, or
+   * `config.model.default` as `provider/model`). DEFAULT-SAFE: an absent LLM
+   * surface or an unresolvable model constructs NOTHING, and the exact reason
+   * is what the extensions service reports at preflight — the same composition
+   * decides both, so the preflight and the activation can never contradict.
+   */
+  const harnessWarn = (message: string): void => {
+    ctx.logger?.warn?.(`model-tools: ${message}`)
+  }
+  const harnessBuildEnv = () => ({
+    // ctx.get (not property access): the plugin declares only `tools` in its
+    // inject list, so reading an undeclared service as a property would throw;
+    // get() answers undefined for anything the deployment did not mount.
+    ...ctx.get('llm') === undefined ? {} : { llm: ctx.get('llm') as unknown },
+    ...ctx.get('attachments') === undefined
+      ? {}
+      : {
+          attachments: ctx.get('attachments') as
+            { saveImage(input: { data: Uint8Array; mediaType: string }): Promise<unknown> },
+        },
+  })
+  let harnessProvider: LlmProvider | undefined
+  let harnessProviderStatus: HarnessProviderStatus
+  /**
+   * The harnessModel is EXPLICIT only when BOTH halves are non-empty strings.
+   * The parsed Config MATERIALIZES the nested object even when the operator
+   * set nothing ({} or {provider: undefined, model: undefined}), so a bare
+   * presence check would run the explicit branch with an undefined/undefined
+   * pair and print a nonsense reason — the live 0.3.0 regression. Absent,
+   * empty or partial always falls through to AUTO.
+   */
+  const explicitHarnessModel = config.harnessModel !== undefined
+    && typeof config.harnessModel.provider === 'string' && config.harnessModel.provider.length > 0
+    && typeof config.harnessModel.model === 'string' && config.harnessModel.model.length > 0
+    ? config.harnessModel
+    : undefined
+  /**
+   * TASK-98: the composition resolves the RUNNABLE pair the way the runtime
+   * does — the configured provider may be a settings namespace, not the
+   * registered ROUTE — and 'not ready yet' (the adapters register later in
+   * the composition order) is a RETRYABLE state, never locked in as 'none'.
+   * The refresh re-runs the same resolution; the status thunk triggers it
+   * when the last answer was not-ready-yet, so the next preflight read sees
+   * the refreshed result (preflight and activation share this ONE resolver).
+   */
+  let harnessNotReadyYet = false
+  let harnessRefreshInFlight = false
+  let harnessRetrying = false
+  let harnessPendingStatus: HarnessProviderStatus | undefined
+  /**
+   * TASK-101: the transient presentation. While the bounded retry is ACTIVE,
+   * any failing AUTO verdict (not-ready-yet OR not-configured) is presented as
+   * the not-ready-yet string — a startup blocker, never a false configuration
+   * error — and the REAL verdict is parked; the cap publishes it.
+   */
+  const harnessNotReadyStatus = (): HarnessProviderStatus => ({
+    available: false,
+    reason:
+      'the deployment\'s LLM surface has not registered its provider routes yet; retry once the deployment '
+      + 'finishes starting (this is not a configuration error)',
+    action: 'config',
+  })
+  const refreshHarness = async (): Promise<void> => {
+    if (harnessRefreshInFlight) return
+    harnessRefreshInFlight = true
+    try {
+      const llmSurface = ctx.get('llm') as HarnessLlmRuntimeSurface | undefined
+      if (config.harnessProvider !== undefined) {
+        harnessProvider = config.harnessProvider
+        harnessProviderStatus = {
+          available: true,
+          provider: config.harnessProvider.id,
+          model: 'explicit harnessProvider',
+        }
+        harnessNotReadyYet = false
+        harnessPendingStatus = undefined
+        return
+      }
+      const desired = explicitHarnessModel ?? (() => {
+        const hostConfig = ctx.get('config') as { model?: { default?: unknown } } | undefined
+        return discoverDefaultHarnessModel({
+          settings: ctx.get('settings') as unknown,
+          ...hostConfig === undefined ? {} : { config: hostConfig },
+        })
+      })()
+      if (desired === undefined) {
+        harnessProvider = undefined
+        harnessProviderStatus = {
+          available: false,
+          reason:
+            'no chat model is configured for this deployment, so declarative extensions cannot be served; '
+            + 'set config.harnessModel = {provider, model} to a runnable model',
+          action: 'config',
+        }
+        harnessNotReadyYet = false
+        harnessPendingStatus = undefined
+        return
+      }
+      const labeled = explicitHarnessModel === undefined ? 'the deployment\'s default model' : 'config.harnessModel'
+      if (llmSurface === undefined) {
+        harnessProvider = undefined
+        harnessProviderStatus = {
+          available: false,
+          reason:
+            `${labeled} ${desired.provider}/${desired.model} cannot be served: the DSH LLM surface is not mounted `
+            + 'in this deployment; set config.harnessModel = {provider, model} to a runnable model',
+          action: 'config',
+        }
+        harnessNotReadyYet = false
+        harnessPendingStatus = undefined
+        return
+      }
+      const resolution = await resolveRunnableHarnessModel(llmSurface, desired, harnessWarn)
+      if (!resolution.ok) {
+        /**
+         * TASK-99: never downgrade a satisfied status on a later probe. A
+         * retry whose registry momentarily reports empty after a success keeps
+         * the composed provider and the satisfied status — the composed pair
+         * was built from a REAL resolution and stays the truth for the process.
+         */
+        if (harnessProvider !== undefined || harnessProviderStatus?.available === true) {
+          return
+        }
+        const realStatus: HarnessProviderStatus = {
+          available: false,
+          reason:
+            resolution.kind === 'not-ready-yet'
+              ? resolution.reason
+              : `${labeled} ${desired.provider}/${desired.model} cannot be served: ${resolution.reason}`,
+          action: 'config',
+        }
+        harnessProvider = undefined
+        if (explicitHarnessModel !== undefined) {
+          // Explicit config is final: the real verdict, immediately, no retry.
+          harnessNotReadyYet = false
+          harnessProviderStatus = realStatus
+          harnessPendingStatus = undefined
+        } else if (harnessRetrying) {
+          // TASK-101: the retry is active — present the transient startup
+          // blocker and park the real verdict for the cap.
+          harnessNotReadyYet = true
+          harnessPendingStatus = realStatus
+          harnessProviderStatus = harnessNotReadyStatus()
+        } else {
+          // The initial AUTO resolution: start the retry cycle with the
+          // transient presentation.
+          harnessNotReadyYet = true
+          harnessPendingStatus = realStatus
+          harnessProviderStatus = harnessNotReadyStatus()
+        }
+        return
+      }
+      const built = await buildHarnessLlmProvider(harnessBuildEnv(), { provider: resolution.route, model: resolution.model }, harnessWarn)
+      harnessProvider = built
+      harnessNotReadyYet = false
+      harnessPendingStatus = undefined
+      harnessProviderStatus = built === undefined
+        ? {
+            available: false,
+            reason:
+              `${labeled} ${desired.provider}/${desired.model} resolves to the ${resolution.route} route, but the `
+              + 'provider could not be built; set config.harnessModel = {provider, model} to a runnable model',
+            action: 'config',
+          }
+        : {
+            available: true,
+            provider: resolution.route,
+            model: resolution.model,
+          }
+    } finally {
+      harnessRefreshInFlight = false
+    }
+  }
+  await refreshHarness()
+  /**
+   * The status thunk (consumed by the extensions service): a snapshot of the
+   * SAME resolution the declarative lane uses. A not-ready-yet answer kicks a
+   * refresh (fire-and-forget), so the NEXT preflight read observes the
+   * refreshed state — the one-read lag is the honest cost of the synchronous
+   * seam over an asynchronous registry.
+   */
+  const harnessStatusThunk = (): HarnessProviderStatus => {
+    if (harnessNotReadyYet && !harnessRefreshInFlight) void refreshHarness()
+    return harnessProviderStatus
+  }
+
+  /**
+   * Custom tools (Create tool tab). The store is profile-scoped and separate
+   * from the extension store. Registration is synchronous; a bad record is
+   * reported by `sync()` rather than preventing the rest of the plugin from
+   * starting.
+   */
+  const credentialSeam = ctx.get('credentials') as unknown as {
+    resolve(ref: string): Promise<{ readonly value: string } | undefined>
+  } | undefined
+  const customToolDispatch: CustomToolDispatchDeps = {
+    http: {
+      ...credentialSeam === undefined
+        ? {}
+        : { resolveCredential: async (name: string) => (await credentialSeam.resolve(name))?.value },
+    },
+    prompt: harnessProvider === undefined
+      ? {}
+      : {
+          runPrompt: async input => {
+            const provider = harnessProvider
+            if (provider === undefined) throw new Error('no model provider is composed for prompt tools')
+            const completion = await provider.complete({
+              prompt: input.prompt,
+              maxOutputTokens: input.maxOutputTokens ?? 512,
+              signal: input.signal,
+            })
+            if (completion.kind === 'text') return completion.text
+            if (completion.kind === 'truncated') return completion.text
+            throw new Error(completion.kind === 'refused' ? completion.reason : `the model returned ${completion.kind}`)
+          },
+        },
+    composite: {
+      callTool: async (name, args, signal) => {
+        const result = await ctx.tools.execute({
+          signal,
+          callId: ToolCallId(`custom_${name}_${Date.now().toString(36)}`),
+          name,
+          arguments: args,
+        })
+        if (result.isError) throw new Error(result.error?.message ?? `${name} failed`)
+        return result.value
+      },
+    },
+  }
+  const customToolsService = config.customToolsEnabled === false
+    ? undefined
+    : (() => {
+        const store = new CustomToolStore({ rootDir: customToolsRoot })
+        const registrar = new CustomToolRegistrar({
+          store,
+          tools: ctx.tools,
+          execute: customToolExecutor(customToolDispatch),
+        })
+        return new CustomToolsService({
+          store,
+          registrar,
+          dispatch: customToolDispatch,
+          ...harnessProvider === undefined
+            ? {}
+            : {
+                draftModel: async (prompt, signal) => {
+                  const provider = harnessProvider
+                  if (provider === undefined) throw new Error('no host model is composed for drafting')
+                  const completion = await provider.complete({ prompt, maxOutputTokens: 2_048, signal })
+                  if (completion.kind === 'text' || completion.kind === 'truncated') return completion.text
+                  throw new Error(completion.kind === 'refused' ? completion.reason : `the model returned ${completion.kind}`)
+                },
+              },
+        })
+      })()
+  if (customToolsService !== undefined) {
+    customToolsServiceRef = customToolsService
+    const result = customToolsService.sync()
+    for (const error of result.errors) ctx.logger.warn(`model-tools custom tool ${error.id}: ${error.reason}`)
+    ctx.effect(() => () => customToolsService.registrar.disposeAll())
+  }
+
+  /**
+   * TASK-99/101: the bounded background retry. After a failing AUTO verdict,
+   * re-run the SAME resolution on an interval so the FIRST Settings read lands
+   * on the refreshed status instead of a blocked row the operator has to
+   * close/reopen to clear. TASK-101's safe rule: an AUTO candidate is
+   * RETRYABLE UNTIL THE CAP — the retry stops only on success, the cap, or
+   * dispose (and never starts for explicit config). While it runs, ANY failing
+   * verdict is presented as the transient not-ready-yet string; at the cap the
+   * REAL parked verdict (unknown provider / unserved model) is published and
+   * polling ends. A satisfied status is never downgraded.
+   */
+  const HARNESS_RETRY_INTERVAL_MS = config.harnessRetryIntervalMs ?? 250
+  const HARNESS_RETRY_CAP_MS = config.harnessRetryCapMs ?? 30_000
+  const HARNESS_RETRY_MAX_POLLS = Math.max(1, Math.floor(HARNESS_RETRY_CAP_MS / HARNESS_RETRY_INTERVAL_MS))
+  // TASK-127: the scheduler seam. The default IS the global scheduler — a
+  // deployment behaves exactly as before; only a test injects a fake so the
+  // retry advances by explicit ticks rather than wall-clock.
+  const retryScheduler = config.harnessRetryScheduler ?? {
+    setInterval: (handler: () => void, ms: number) => setInterval(handler, ms),
+    clearInterval: (handle: unknown) => clearInterval(handle as ReturnType<typeof setInterval>),
+  }
+  let harnessRetryTimer: ReturnType<typeof retryScheduler.setInterval> | undefined
+  let harnessRetryPolls = 0
+  const stopHarnessRetry = (): void => {
+    if (harnessRetryTimer !== undefined) {
+      retryScheduler.clearInterval(harnessRetryTimer)
+      harnessRetryTimer = undefined
+    }
+    harnessRetrying = false
+  }
+  const startHarnessRetry = (): void => {
+    // Explicit config is final: no background probe may override it.
+    if (config.harnessProvider !== undefined || explicitHarnessModel !== undefined) return
+    if (harnessRetryTimer !== undefined) return
+    harnessRetrying = true
+    harnessRetryPolls = 0
+    harnessRetryTimer = retryScheduler.setInterval(() => {
+      harnessRetryPolls += 1
+      void refreshHarness().then(() => {
+        if (harnessProvider !== undefined) {
+          // Success: the answer is final.
+          stopHarnessRetry()
+        } else if (harnessRetryPolls >= HARNESS_RETRY_MAX_POLLS) {
+          // TASK-101: the cap publishes the REAL parked verdict and ends polling.
+          stopHarnessRetry()
+          harnessNotReadyYet = false
+          if (harnessPendingStatus !== undefined) {
+            harnessProviderStatus = harnessPendingStatus
+            harnessPendingStatus = undefined
+          }
+        }
+        // Otherwise keep retrying: an unresolved AUTO candidate is retryable
+        // until the cap, never terminal on an incomplete registry/directory.
+      })
+    }, HARNESS_RETRY_INTERVAL_MS)
+    ;(harnessRetryTimer as { unref?: () => void } | undefined)?.unref?.()
+  }
+  if (harnessNotReadyYet) startHarnessRetry()
+  // The plugin fiber's teardown stops the retry: no leaked timers.
+  ctx.effect(() => () => stopHarnessRetry())
+
+  /**
+   * The managed-worker half (EXT-20), DEFAULT OFF.
+   *
+   * `managedWorkers` opts the deployment in; absent, the registry exists but never
+   * receives a binding, so no child process is ever spawned. The per-extension
+   * activation generation is captured at RESTORE (the host's only activation surface)
+   * and the registry disposes the old process the moment a newer generation is bound.
+   */
+  const managedWorkers = config.managedWorkers ?? false
+  const workerEnvPassthrough = config.workerEnvPassthrough ?? []
+  const workerRegistry = createManagedWorkerRegistry(
+    config.managedWorkerInvokeTimeoutMs === undefined
+      ? {}
+      : { invokeTimeoutMs: config.managedWorkerInvokeTimeoutMs },
+  )
+  const activationGenerations = new Map<string, number>()
+
+  const cliCommand = config.cli?.command ?? DEFAULT_CLI_COMMAND
+  const cliEnabled = config.cli?.enabled ?? true
+  // Established once: probing PATH per model would repeat identical work and
+  // make the reported reasons depend on when they were read.
+  const cliAvailable = cliEnabled && commandExists(cliCommand)
+  const remoteEndpoint = config.remote?.endpoint
+  const transportOptions = {
+    cliCommand,
+    ...remoteEndpoint !== undefined ? { endpoint: remoteEndpoint } : {},
+    ...config.remote?.token !== undefined ? { token: config.remote.token } : {},
+  }
+
+  const resolved: ResolvedModel[] = entries.map(entry => ({
+    entry,
+    verdict: resolveCapability(entry, {
+      cliAvailable,
+      remoteEndpoint,
+      ...config.allowNpm !== undefined ? { allowNpm: config.allowNpm } : {},
+    }),
+  }))
+  const byId = new Map(resolved.map(item => [item.entry.id, item]))
+
+  /**
+   * Choose the implementation that serves each standard contract (BASE-02).
+   *
+   * A contract is registered once. Selection is host configuration: an explicit
+   * `providers` override wins only if that model can actually run here, and
+   * otherwise the first eligible implementation in catalog order is used. The
+   * alternatives are kept so discovery can report them without a caller having to
+   * choose a model.
+   */
+  // The host owns provenance and authority: `extension`/`version` name THIS
+  // package, the receipt counter lives here, and the grant is built from operator
+  // configuration, so an implementation can forge neither (BASE-05, DECL-03).
+  // Start the counter ABOVE every persisted id, so a receipt id is never reused
+  // after a restart (EXT-35). The in-memory ring is the read cache; the file is
+  // the durable record.
+  let receiptCounter = receiptCounterFloor(receiptStore.records)
+  /** The most recent invocation receipts (EXT-35), bounded so retention cannot grow without limit. */
+  const invocationReceipts: InvocationReceipt[] = [...receiptStore.records]
+  /** Host-known contract/implementation identity for a tool name (OBS-01). */
+  const receiptIdentityByTool = new Map<string, {
+    readonly contract: string
+    readonly contractVersion: string
+    readonly implementationId: string
+    readonly extension: string
+    readonly extensionVersion: string
+  }>()
+  /** Lifecycle outcomes, recorded SEPARATELY from invocation provenance (EXT-35). */
+  const lifecycleRecords: LifecycleRecord[] = []
+  /** Active extension tool calls, so deactivation can cancel and bound them (EXT-27). */
+  const activeExtensionCalls = new Map<string, Set<{
+    readonly abort: () => void
+    readonly done: Promise<void>
+    readonly settled: () => boolean
+  }>>()
+
+  /** Track one extension call; the returned finish MUST run in a finally block. */
+  function trackExtensionCall(extensionId: string, parent: AbortSignal | undefined): {
+    readonly signal: AbortSignal
+    readonly finish: () => void
+  } {
+    const controller = new AbortController()
+    let settled = false
+    let resolve: () => void = () => {}
+    const done = new Promise<void>(settle => { resolve = settle })
+    const entry = {
+      abort: () => controller.abort(),
+      done,
+      settled: () => settled,
+    }
+    const existing = activeExtensionCalls.get(extensionId) ?? new Set()
+    existing.add(entry)
+    activeExtensionCalls.set(extensionId, existing)
+    const signal = parent === undefined ? controller.signal : AbortSignal.any([parent, controller.signal])
+    return {
+      signal,
+      finish: () => {
+        if (settled) return
+        settled = true
+        resolve()
+        existing.delete(entry)
+        if (existing.size === 0) activeExtensionCalls.delete(extensionId)
+      },
+    }
+  }
+
+  /** Abort owned calls and wait up to the documented grace period (EXT-27). */
+  async function withdrawExtensionCalls(extensionId: string): Promise<boolean> {
+    const calls = activeExtensionCalls.get(extensionId)
+    if (calls === undefined || calls.size === 0) return true
+    for (const call of calls) call.abort()
+    let timer: NodeJS.Timeout | undefined
+    const completed = await Promise.race([
+      Promise.all([...calls].map(call => call.done)).then(() => true),
+      new Promise<boolean>(resolve => { timer = setTimeout(() => resolve(false), 5_000) }),
+    ])
+    if (timer !== undefined) clearTimeout(timer)
+    return completed && [...calls].every(call => call.settled())
+  }
+
+  /**
+   * RES-01: measured admission at the INVOCATION boundary. The value is measured
+   * before work begins and over-budget input is refused with the ACTUAL limits.
+   */
+  function admitSerialized(label: 'input' | 'result', value: unknown, limit: number): void {
+    const measured = Buffer.byteLength(JSON.stringify(value ?? null), 'utf8')
+    const decision = admit({ sourceBytes: measured }, { sourceBytes: limit })
+    if (decision.admitted) return
+    const detail = decision.exceeded.map(entry => `${entry.measured} > ${entry.limit}`).join(', ')
+    throw new Error(`${label} exceeds the declared budget: ${detail} bytes (${label === 'input' ? 'maxInputBytes' : 'maxResultBytes'})`)
+  }
+  /** Apply the host's lifecycle-audit policy to one SDK/service event. */
+  recordLifecycleEvent = (event: LifecycleAuditEvent): void => {
+    try {
+      lifecycleRecords.push(buildLifecycleRecord({
+        operation: event.operation,
+        extensionId: event.extensionId,
+        version: event.version,
+        contentDigest: null,
+        profile: 'default',
+        outcome: event.outcome === 'succeeded' ? 'succeeded' : 'failed',
+        reason: event.reason ?? null,
+        approvedBy: { kind: 'operator', identity: 'local-interactive' },
+      }))
+      if (lifecycleRecords.length > MAX_RETAINED_RECEIPTS) lifecycleRecords.shift()
+    } catch (error) {
+      ctx.logger.warn(`model-tools: lifecycle audit record failed: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+  /**
+   * External (MCP) call accounting, bounded like the receipts (OBS-02).
+   *
+   * Kept SEPARATE from the native receipts: the shapes differ (a native receipt
+   * is provenance — contract/implementation/extension identities — while an
+   * external accounting is timings, class and sizes), and merging them would
+   * force one record to pretend it is the other.
+   */
+  const externalAccountings: InvocationAccounting[] = []
+  const grant = createGrant({
+    grantId: config.grantId ?? 'local-interactive',
+    // Every registered tool is granted to the interactive operator. EXTERNAL
+    // clients do NOT share this grant: since round 66, each authenticated MCP
+    // client's call carries its OWN derived grant (SEC-04) — resolved by the
+    // transport, enforced at the surface boundary below with authorizeTool — so
+    // an external call never dispatches as the operator. model_tools is part of
+    // THIS grant only, which is why it is reachable interactively but never
+    // appears on the external surface.
+    allowedTools: [...STANDARD_CONTRACTS.map(contract => contract.toolName), 'model_tools'],
+    allowedHarnessProfiles: Object.keys(config.harnessProfiles ?? {}),
+    approvedRoots: config.approvedRoots ?? [],
+    hostedCode: false,
+    recordingPolicy: config.recordReceipts === false ? 'none' : 'receipts',
+    ...config.limits === undefined ? {} : { limits: config.limits },
+  })
+  const host: HostIdentity = {
+    extension: '@try-works/dsh-tool-mode',
+    extensionVersion: HOST_VERSION,
+    activationGeneration: 1,
+    nextReceiptId: () => `rcpt_${(++receiptCounter).toString(36).padStart(6, '0')}`,
+    grant,
+    callerKind: 'interactive',
+    // EXT-35: bounded in-memory retention. A receipt is provenance, not a log of
+    // content, so retaining the last N costs little and makes the record
+    // recoverable after the call rather than only during it.
+    recordReceipt: receipt => {
+      // Persist FIRST, then update the read cache. A failed write throws out of the
+      // call path rather than presenting a receipt that would vanish on restart.
+      receiptStore.append(receipt)
+      invocationReceipts.push(receipt)
+      if (invocationReceipts.length > MAX_RETAINED_RECEIPTS) invocationReceipts.shift()
+    },
+  }
+
+  /** Record one auxiliary harness-model call as a native-shaped receipt (OBS-01). */
+  function recordAuxiliaryReceipt(record: BrokerRecord, extensionId: string, extensionVersion: string): void {
+    host.recordReceipt?.(buildInvocationReceipt({
+      receiptId: host.nextReceiptId(),
+      contract: record.contractId,
+      contractVersion: '1.0.0',
+      implementationId: record.recipeId,
+      extension: extensionId,
+      extensionVersion,
+      modelIdentity: record.providerId,
+      recipeVersion: record.recipeVersion,
+      activationGeneration: extensionLifecycle?.generation ?? host.activationGeneration,
+      executionLocation: record.destination === 'remote' ? 'remote' : 'host',
+      kind: 'auxiliary',
+      usage: 'unknown',
+      cost: 'unknown',
+      warnings: [`provider generation ${record.providerGeneration}`, `prompt bytes ${record.prompt.length}`],
+    }))
+  }
+
+  /**
+   * Extension providers, reached only through the public extension API (BASE-09).
+   *
+   * The host holds no adapter for any model: a catalog entry names the package
+   * that implements it, and this bridge loads it. One bridge per activation, so an
+   * extension serving several models is imported once.
+   */
+  const bridge = new ProviderBridge({
+    grant,
+    activationGeneration: host.activationGeneration,
+    // A STORE INSTALL is reached through the path the operator installed, never by
+    // package name: the store is off the plugin's module graph, so by-name resolution
+    // fails and the deployment records `failed` on every boot.
+    installedPath: extensionId => selectedInstalled(extensionId)?.installPath,
+    // EXT-20: the opt-in routes the bridge's catalog invocation AND inspection
+    // through the managed-worker registry; without it the in-process path is
+    // exactly as before (default OFF).
+    ...managedWorkers ? { managed: workerRegistry } : {},
+    log: (message, fields) => ctx.logger?.debug?.(`[model-as-tool] ${message}`, fields),
+  })
+
+  const contractById = new Map<string, ToolContract>(
+    STANDARD_CONTRACTS.map(contract => [contract.contract, contract]),
+  )
+  const bindings = new Map<string, ContractBinding>()
+  for (const contract of STANDARD_CONTRACTS) {
+    const eligible = resolved.filter(
+      item => item.entry.contract === contract.contract && item.verdict.runnable,
+    )
+    if (eligible.length === 0) continue
+    const override = config.providers?.[contract.contract]
+    const chosen = eligible.find(item => item.entry.id === override) ?? eligible[0]
+    if (chosen === undefined) continue
+    const adapter = createAdapter(chosen.entry, { route: chosen.verdict.route, ...transportOptions }, undefined, bridge)
+    if (adapter === undefined) continue
+    bindings.set(contract.contract, {
+      contract,
+      implementation: chosen.entry,
+      adapter,
+      route: chosen.verdict.route,
+      alternatives: eligible.filter(item => item.entry.id !== chosen.entry.id).map(item => item.entry.id),
+    })
+  }
+
+
+  /** Contracts already registered, so a second implementation joins rather than duplicates. */
+  const registeredContracts = new Map<string, { toolName: string; dispose: () => void }>()
+
+  /**
+   * TOOLS PUBLISHED BY EXTENSIONS, for the MCP surface.
+   *
+   * Extension-owned tools are deliberately DEFERRED from the catalogue contract map above
+   * (the extension registers them itself), so a surface built only from that map advertised
+   * `tool_mode_run` while withholding every installed model tool. MCP clients listed an empty
+   * catalogue and programs could not bind `lang_detect`. Each registration boundary records
+   * the tool's DECLARED schemas here — never a host guess — and the surface publishes them.
+   */
+  const extensionMcpTools = new Map<string, {
+    readonly description: string
+    readonly inputSchema?: Readonly<Record<string, unknown>>
+    readonly outputSchema?: Readonly<Record<string, unknown>>
+  }>()
+  /** DECL-08: sha256 of the installed recipe, keyed by caller-facing tool name. */
+  const declarativeRecipeDigests = new Map<string, string>()
+  const exposeExtensionToolToMcp = (
+    name: string,
+    tool: {
+      readonly description: string
+      readonly inputSchema?: Readonly<Record<string, unknown>>
+      readonly outputSchema?: Readonly<Record<string, unknown>>
+    },
+  ): void => { extensionMcpTools.set(name, tool) }
+  const withdrawExtensionToolFromMcp = (name: string): void => { extensionMcpTools.delete(name) }
+
+  /**
+   * The MCP surface over the tools this activation actually published (MCP-08/09).
+   *
+   * It reads `registeredContracts`, so a tool appears over MCP only if it was
+   * REGISTERED here — the publication surface already decided that, and re-deriving
+   * it would let MCP advertise something the host had withheld.
+   */
+  /**
+   * P26-14: the catalog cache policy is operator configuration, validated ONCE here at
+   * apply. `tools/list` and `server/discover` are authorization-filtered, so the scope
+   * must stay private; a non-private scope or a bad TTL throws a NAMED error instead of
+   * reaching the wire as a misleading cache header.
+   */
+  const catalogCachePolicy = normalizeCachePolicy({
+    ttlMs: config.mcpV3?.catalogTtlMs ?? 0,
+    cacheScope: config.mcpV3?.catalogCacheScope ?? 'private',
+  })
+  const catalogFacts = (): Record<string, unknown> => ({
+    profile: 'default',
+    generation: extensionLifecycle?.generation ?? host.activationGeneration,
+    models: resolved.map(item => ({
+      id: item.entry.id,
+      available: item.verdict.runnable,
+      installed: installed.has(item.entry.id),
+    })),
+  })
+
+  const mcpHost = createMcpHost({
+    serverInfo: { name: '@try-works/dsh-tool-mode', version: HOST_VERSION },
+    confidentialTools: [...confidentialTools],
+    catalogFacts,
+    cachePolicy: catalogCachePolicy,
+    surface: {
+      get published() {
+        const out: PublishedTool[] = []
+        for (const [contractId, registered] of registeredContracts) {
+          const contract = contractById.get(contractId)
+          if (contract === undefined) continue
+          out.push({ toolName: registered.toolName, contract })
+        }
+        /**
+         * EXTENSION-PUBLISHED TOOLS. The deferral above is why this loop exists: an active
+         * extension owns its name and registers it outside `registeredContracts`, so MCP
+         * must read the registration boundary too or the catalogue is empty on the wire.
+         * A tool without a declared output schema is WITHHELD with its reason rather than
+         * advertised with a partial shape (MCP-09).
+         */
+        for (const [toolName, tool] of extensionMcpTools) {
+          if (out.some(published => published.toolName === toolName)) continue
+          const contract = {
+            description: tool.description,
+            inputSchema: tool.inputSchema ?? { type: 'object', additionalProperties: true },
+            outputSchema: tool.outputSchema ?? {},
+          } as never
+          out.push(tool.outputSchema === undefined
+            ? {
+                toolName,
+                contract,
+                notExportableReason: 'the extension declares no output schema, so MCP cannot advertise a result shape',
+              }
+            : { toolName, contract })
+        }
+        // DECL-07: read-only discovery is available to native AND external callers.
+        // These are host-owned contracts, not model-package contributions.
+        out.push({ toolName: 'tool_mode_list', contract: TOOL_MODE_LIST_CONTRACT as never })
+        out.push({ toolName: 'tool_mode_describe', contract: TOOL_MODE_DESCRIBE_CONTRACT as never })
+        // Custom tools: registered agent tools are MCP-visible only after the
+        // per-tool opt-in. A tool without an opt-in is still listed as WITHHELD
+        // so the status surface can explain why it is absent.
+        if (customToolsServiceRef !== undefined) {
+          const records = customToolsServiceRef.registrar.list()
+            .map(registration => customToolsServiceRef?.store.read(registration.id))
+            .filter((record): record is NonNullable<typeof record> => record !== undefined)
+          out.push(...customToolPublishedTools(records))
+        }
+        // CODE-02: `tool_mode_run` is exported over MCP exactly when the exposure
+        // gate permits it — the conjunction of operator consent and confinement
+        // evidence. While the gate is closed the export is simply absent, which is
+        // the disabled-until-granted state CODE-10 names. The contract is ONE
+        // shared definition (TOOL_MODE_RUN_CONTRACT), validated by a conformance
+        // test before it ever appears on a live tools/list.
+        // The pure combiner and the optional Jev batch are host-owned contracts.
+        out.push({ toolName: 'decision_combine', contract: DECISION_COMBINE_CONTRACT as never })
+        out.push({ toolName: 'decision_route', contract: DECISION_ROUTE_CONTRACT as never })
+        out.push({ toolName: 'decision_evaluate', contract: DECISION_EVALUATE_CONTRACT as never })
+        if (config.jev?.enabled === true) {
+          out.push({ toolName: 'decision_choose_jev', contract: JEV_CHOOSE_CONTRACT as never })
+          out.push({ toolName: 'decision_judgments_jev', contract: JEV_JUDGMENTS_CONTRACT as never })
+        }
+        if (programRunner.externalExposurePermitted()) {
+          out.push({ toolName: 'tool_mode_run', contract: TOOL_MODE_RUN_CONTRACT as never })
+        }
+        const confidentialityFiltered = out.map(tool => confidentialTools.has(tool.toolName)
+          ? { ...tool, notExportableReason: 'the operator confidentiality policy blocks this tool' }
+          : tool)
+        return applyMcpExportPolicy(confidentialityFiltered, config.mcpV3?.exportTools)
+      },
+      /**
+       * Slice 3: names the publication decision WITHHELD, with the same reasons
+       * `published` carries. Confidential tools are excluded here because the
+       * confidentiality check (MCP-11) refuses them before any lookup, and a reason
+       * map must not become a second way to learn about them.
+       */
+      get withheld() {
+        const reasons = new Map<string, string>()
+        for (const tool of this.published) {
+          if (tool.notExportableReason !== undefined && !confidentialTools.has(tool.toolName)) {
+            reasons.set(tool.toolName, tool.notExportableReason)
+          }
+        }
+        return reasons
+      },
+      async execute({ name, arguments: args, signal, callId, caller }) {
+        if (confidentialTools.has(name)) {
+          // MCP-11: block before authorization or execution; a content redaction after
+          // the fact would still leave the canonical value reachable.
+          return {
+            isError: true,
+            message: `"${name}" is blocked by the operator confidentiality policy (MCP-11)`,
+          }
+        }
+        /**
+         * SEC-04: AN EXTERNAL CLIENT RUNS UNDER ITS OWN GRANT, never the host's.
+         *
+         * The transport resolved the authenticated caller and its derived grant; the
+         * host ENFORCES it here with the SEC-03 authority — a tool the operator is
+         * granted but the client is not stays refused for that client. A call with no
+         * caller (the native/interactive path) keeps the host's own authority, which
+         * is unchanged.
+         */
+        if (caller !== undefined) {
+          try {
+            authorizeTool({
+              grantId: caller.grantId,
+              allowedTools: caller.allowedTools,
+              approvedRoots: [],
+              remoteDestinations: caller.remoteDestinations,
+              allowedHarnessProfiles: caller.allowedHarnessProfiles,
+              modelCapabilities: caller.modelCapabilities,
+              hostedCode: false,
+              recordingPolicy: caller.recordingPolicy,
+              limits: caller.limits,
+            }, name)
+          } catch (error) {
+            // The refusal is a TOOL error, not a protocol error: the exchange
+            // succeeded and the grant refused the work (P26-04, SEC-03).
+            return { isError: true, message: error instanceof Error ? error.message : String(error) }
+          }
+        }
+        // MCP-08: routed through the DSH tool runtime with a SERVER-ISSUED call
+        // identity and the CALLER's signal, never by resolving a definition and
+        // calling it directly — that path would bypass the grant, the receipt and
+        // the result policy the runtime applies.
+        //
+        // SEC-04 COMPOSITION: an external call runs INSIDE the caller's grant
+        // context, so any COMPOSED work — a tool_mode_run program dispatching
+        // sub-calls — authorizes against the CLIENT's grant, not the host's
+        // (H1). The native path carries no context and is unchanged.
+        const result = caller === undefined
+          ? await ctx.tools.execute({
+              signal,
+              callId: ToolCallId(callId),
+              name,
+              arguments: args,
+            })
+          : await externalGrantContext.run(caller.allowedTools, () => ctx.tools.execute({
+              signal,
+              callId: ToolCallId(callId),
+              name,
+              arguments: args,
+            }), caller.allowedHarnessProfiles, caller.remoteDestinations)
+        return result.isError
+          ? { isError: true, message: result.error.message }
+          : { isError: false, value: result.value }
+      },
+    },
+    onWithheld: tool => {
+      mcpWithheldTools.add(tool.toolName)
+      mcpWithheldReasons.set(tool.toolName, tool.notExportableReason ?? 'the export policy supplied no reason')
+      ctx.logger.info(
+        `model-tools: ${tool.toolName} is not exported over MCP: ${tool.notExportableReason ?? 'no reason given'}`,
+      )
+    },
+    // OBS-02: the external half of the traffic gets its receipt WIRED rather than
+    // dropped. The hook receives timings, class and SIZES — never the payload —
+    // so this records the external call without duplicating a large result. The
+    // ring is bounded exactly like the native one (EXT-35). TASK-13: the same hook
+    // appends the bounded external ledger row (tool name included, payload absent).
+    onAccounted: (accounting, toolName) => {
+      externalAccountings.push(accounting)
+      if (externalAccountings.length > MAX_RETAINED_RECEIPTS) externalAccountings.shift()
+      mcpUsageLedger.record(recordFromAccounting(toolName, accounting))
+      // OBS-01: the external lane now yields a NATIVE-SHAPED provenance receipt,
+      // not only an accounting row. Identity comes from the host's registration
+      // map; no caller-supplied value participates.
+      const identity = receiptIdentityByTool.get(toolName) ?? {
+        contract: toolName,
+        contractVersion: 'unknown',
+        implementationId: toolName,
+        extension: host.extension,
+        extensionVersion: host.extensionVersion,
+      }
+      const outcome = accounting.failureClass === 'none'
+        ? 'ok'
+        : accounting.failureClass === 'cancelled'
+          ? 'cancelled'
+          : accounting.failureClass === 'timeout'
+            ? 'timed-out'
+            : accounting.failureClass === 'refused' || accounting.failureClass === 'policy-denied'
+              ? 'policy-denied'
+              : 'failed'
+      // The native dispatch already recorded a receipt with this id when the call
+      // ran. Mark THAT receipt as the external lane rather than appending a second
+      // row with the same correlation id.
+      const existing = invocationReceipts.find(receipt => receipt.receiptId === accounting.receiptId)
+      if (existing !== undefined) {
+        Object.assign(existing, {
+          kind: 'external',
+          outcome,
+          warnings: [
+            ...existing.warnings,
+            `external client ${accounting.clientId ?? 'unknown'}`,
+            `grant ${accounting.grantId ?? 'unknown'}`,
+          ],
+        })
+        return
+      }
+      host.recordReceipt?.(buildInvocationReceipt({
+        receiptId: accounting.receiptId,
+        ...identity,
+        modelIdentity: 'none',
+        activationGeneration: host.activationGeneration,
+        executionLocation: 'host',
+        kind: 'external',
+        outcome,
+        warnings: [
+          `external client ${accounting.clientId ?? 'unknown'}`,
+          `grant ${accounting.grantId ?? 'unknown'}`,
+        ],
+      }))
+    },
+  })
+
+  /**
+   * THE HOST'S OWN MCP SURFACE, EXPOSED so an operator can serve it (OBS-02).
+   *
+   * Before this service existed the host's mcpHost was reachable only through
+   * the model_tools inspection actions — which meant its `callTool` path (and
+   * therefore the wired external accounting) had NO production caller. The
+   * service is what `startHttpServer` composes over; a deployment that serves
+   * MCP reads it here instead of rebuilding a surface that would not carry the
+   * host's receipts.
+   *
+   * Guarded (round 65): `provide` THROWS if the name is already provided in the
+   * scope (a double mount), and a context without `provide` must degrade with a
+   * diagnostic rather than silently or loudly failing the mount.
+   */
+  try {
+    ;(ctx as unknown as { provide?: (name: string, value: unknown) => void }).provide?.('model-tools.mcp-host', mcpHost)
+  } catch (error) {
+    ctx.logger?.warn?.(
+      `model-tools: could not expose the MCP host service: ${error instanceof Error ? error.message : String(error)}`,
+    )
+  }
+
+  /**
+   * SERVE the host's MCP surface on loopback when the operator enables it (MCP-02).
+   *
+   * The plugin has always EXPOSED `model-tools.mcp-host`; nothing bound a port, so an
+   * MCP client could only reach the separate headless composition. With
+   * `mcpV3.enabled` the SAME surface is served here, so dispatch, per-client grants and
+   * receipts stay in DSH. Credentials come from `DSH_TOOL_MODE_MCP_TOKEN` (the operator
+   * token) and, when present, the generated-credential store — the raw token is never
+   * configuration. A missing token or a port conflict is LOGGED and the host keeps
+   * running (RUN-06); it never takes the session down.
+   */
+  if (config.mcpV3?.enabled === true) {
+    /**
+     * The bearer token: the launch environment WINS (it is the explicit override), then
+     * the operator's token FILE. The file route exists because a desktop-launched host
+     * inherits an environment the operator cannot change; without it, enabling MCP in a
+     * profile had no effect until the app was launched with a special variable.
+     */
+    const envToken = process.env.DSH_TOOL_MODE_MCP_TOKEN
+    const configuredTokenFile = config.mcpV3.tokenFile ?? ''
+    let fileToken = ''
+    if (configuredTokenFile.length > 0) {
+      try {
+        fileToken = readFileSync(configuredTokenFile, 'utf8').trim()
+      } catch (error) {
+        ctx.logger.warn(
+          `model-tools: could not read mcpV3.tokenFile ${configuredTokenFile}: `
+          + `${error instanceof Error ? error.message : String(error)}`,
+        )
+      }
+    }
+    const mcpToken = envToken !== undefined && envToken.length > 0 ? envToken : fileToken
+    const authSelection = selectHttpAuth({
+      ...config.mcpV3.auth?.mode === undefined ? {} : { mode: config.mcpV3.auth.mode },
+      ...config.mcpV3.auth?.authorizationServerProfile === undefined
+        ? {}
+        : { profile: config.mcpV3.auth.authorizationServerProfile },
+      token: mcpToken,
+      ...credentialStore === undefined ? {} : { store: credentialStore },
+    })
+    if (!authSelection.ok) {
+      ctx.logger.warn(`model-tools: ${authSelection.reason}; no MCP endpoint is served`)
+    } else {
+      try {
+        const endpoint = await startHttpServer({
+          host: config.mcpV3.host ?? '127.0.0.1',
+          port: config.mcpV3.port ?? 3765,
+          path: config.mcpV3.path ?? '/mcp',
+          maxBodyBytes: 4 * 1024 * 1024,
+          allowedOrigins: config.mcpV3.allowedOrigins ?? [],
+          auth: authSelection.auth,
+          grants: config.mcpV3.grants ?? {},
+        }, mcpHost)
+        // TASK-13: the status surface reports the ACTUAL bound endpoint (port 0 is
+        // resolved to the OS-assigned port by startHttpServer), never the config.
+        mcpBoundEndpoint = endpoint
+        mcpStartedAt = Date.now()
+        ctx.effect(() => () => { void endpoint.close() })
+        try {
+          ;(ctx as unknown as { provide?: (name: string, value: unknown) => void })
+            .provide?.('model-tools.mcp-endpoint', endpoint)
+        } catch (error) {
+          ctx.logger?.warn?.(
+            `model-tools: could not expose the MCP endpoint service: `
+            + `${error instanceof Error ? error.message : String(error)}`,
+          )
+        }
+        ctx.logger.info(`model-tools: MCP endpoint ${endpoint.url}`)
+      } catch (error) {
+        ctx.logger.warn(
+          `model-tools: could not serve MCP on ${config.mcpV3.host ?? '127.0.0.1'}:`
+          + `${String(config.mcpV3.port ?? 3765)}: ${error instanceof Error ? error.message : String(error)}`,
+        )
+      }
+    }
+  }
+
+  /**
+   * The publication decision for one catalog entry (EXT-24, EXT-32).
+   *
+   * ONE function decides what may be published, used by the installer and by the
+   * discovery surface. Two call sites computing this separately is how a tool ends
+   * up registered while discovery reports it withheld, or the reverse.
+   */
+  /**
+   * The selected implementation's current preparation state.
+   *
+   * Capability resolution only proves that a route can be reached. For extension
+   * providers that is not enough to publish a working tool: the extension's
+   * read-only inspection owns the distinction between missing prerequisites,
+   * prepared-cold and ready. Non-extension transports have no preparation
+   * lifecycle yet, so their existing capability verdict remains the readiness
+   * source.
+   */
+  const callableReadiness = new Set<ImplementationCandidate['readiness']>([
+    'prepared-cold',
+    'loading',
+    'ready',
+    'busy',
+  ])
+
+  const readinessOf = async (item: ResolvedModel): Promise<ImplementationCandidate['readiness']> => {
+    if (item.verdict.route !== 'extension') return 'ready'
+    try {
+      const inspection = await bridge.inspect(item.entry, new AbortController().signal)
+      return inspection?.readiness ?? 'failed'
+    } catch (error) {
+      ctx.logger.warn(
+        `model-tools: ${item.entry.name} provider inspection failed: ${error instanceof Error ? error.message : String(error)}`,
+      )
+      return 'failed'
+    }
+  }
+
+  const implementationFor = async (item: ResolvedModel): Promise<ImplementationCandidate> => ({
+    extensionId: item.entry.provider?.extension
+      ?? item.entry.npmPackage
+      ?? 'unknown',
+    modelId: item.entry.id,
+    readiness: await readinessOf(item),
+    runnable: item.verdict.runnable,
+  })
+
+  const surfaceFor = async (entry: ModelCatalogEntry): Promise<CatalogGeneration | undefined> => {
+    const binding = entry.contract === null ? undefined : bindings.get(entry.contract)
+    if (binding === undefined) return undefined
+    const selected = resolved.find(item => item.entry.id === binding.implementation.id)
+    if (selected === undefined) return undefined
+    return buildSurface({
+      generation: host.activationGeneration,
+      tools: [{
+        name: binding.contract.toolName,
+        contractId: binding.contract.contract,
+        selectedModelId: binding.implementation.id,
+        implementations: [
+          await implementationFor(selected),
+          ...await Promise.all(binding.alternatives.map(async alternativeId => {
+            const alternative = resolved.find(item => item.entry.id === alternativeId)
+            return alternative === undefined
+              ? {
+                  extensionId: 'unknown',
+                  modelId: alternativeId,
+                  readiness: 'failed' as const,
+                  runnable: false,
+                }
+              : implementationFor(alternative)
+          })),
+        ],
+      }],
+      skills: [],
+    })
+  }
+
+  /**
+   * Register one model's tool and skill.
+   *
+   * A model bound to a standard contract contributes to that CONTRACT's single
+   * tool; a model with no contract keeps its own per-model tool. Idempotent in
+   * both cases, so the control tool can call it without first checking.
+   * @param item - the resolved model to install.
+   * @returns whether the model is installed after the call.
+   */
+  const install = async (item: ResolvedModel): Promise<boolean> => {
+    const { entry, verdict } = item
+    if (installed.has(entry.id)) return true
+    if (!verdict.runnable && !exposeUnavailable) return false
+
+    let toolName = entry.tool.name
+    let dispose: () => void
+
+    if (entry.contract !== null && contractById.has(entry.contract)) {
+      const binding = bindings.get(entry.contract)
+      if (binding === undefined) {
+        // The model implements a contract but lost provider selection, or cannot
+        // run. Report rather than register a second tool for the same contract.
+        ctx.logger.info(
+          `model-tools: ${entry.name} implements ${entry.contract} but is not the selected provider; `
+          + 'no separate tool is registered (BASE-02)',
+        )
+        return false
+      }
+
+      /**
+       * EXT-24: decide what may be published BEFORE registering anything.
+       *
+       * The surface is built whole and consulted first, so a tool is registered
+       * only when the surface actually published it. Registering first and
+       * reconciling afterwards is the state EXT-24 forbids: a caller would observe
+       * an available tool whose binding was not yet in place.
+       *
+       * One helper serves the installer and the discovery surface, because two call
+       * sites computing this separately is how a tool gets registered while
+       * discovery reports it withheld, or the reverse.
+       */
+      const surface = await surfaceFor(entry)
+      const decision = surface?.tools[0]
+      if (decision === undefined) {
+        const reason = surface?.withheld[0]
+        ctx.logger.info(
+          `model-tools: ${entry.name} is active but its tool is withheld (${reason?.code ?? 'unknown'}): `
+          + `${reason?.message ?? 'no reason reported'}`,
+        )
+        return false
+      }
+
+      const existing = registeredContracts.get(entry.contract)
+      if (existing !== undefined) {
+        // Already served by another implementation: this model joins that tool.
+        toolName = existing.toolName
+        dispose = () => {}
+      } else if (extensionOwnsToolName(entry.tool.name) || extensionOwnsToolName(contractById.get(entry.contract)?.toolName ?? '')) {
+        /**
+         * TASK-117: an installed extension OWNS this tool name — its
+         * activation registers it, so the catalogue registration is SKIPPED
+         * rather than racing it (the live EXTENSION_FAULT). The deferral is
+         * recorded; the extension's deactivation restores the catalogue tool.
+         */
+        catalogueDeferred.add(entry.id)
+        ctx.logger.info(
+          `model-tools: ${entry.name}'s tool ${entry.tool.name} is owned by an installed extension; `
+          + 'the catalogue registration is deferred until the extension releases the name',
+        )
+        return false
+      } else {
+        const registered = registerContractTool(
+          ctx as unknown as { tools: { register(definition: unknown): () => void } },
+          binding,
+          host,
+        )
+        registeredContracts.set(entry.contract, registered)
+        toolName = registered.toolName
+        dispose = registered.dispose
+        receiptIdentityByTool.set(toolName, {
+          contract: entry.contract,
+          contractVersion: contractById.get(entry.contract)?.version ?? 'unknown',
+          implementationId: entry.id,
+          extension: host.extension,
+          extensionVersion: host.extensionVersion,
+        })
+      }
+    } else {
+      if (verdict.route === 'extension') {
+        const readiness = await readinessOf(item)
+        if (!callableReadiness.has(readiness)) {
+          ctx.logger.info(
+            `model-tools: ${entry.name} is active but its provider reports ${readiness}; skipping ${entry.tool.name}`,
+          )
+          return false
+        }
+      }
+      const adapter = createAdapter(entry, { route: verdict.route, ...transportOptions }, undefined, bridge)
+      if (adapter === undefined) {
+        // Runnable but no adapter yet: report rather than register a dead tool.
+        ctx.logger.info(
+          `model-tools: ${entry.name} can run here (${verdict.route}) but no adapter ships yet; skipping ${entry.tool.name}`,
+        )
+        return false
+      }
+      const registration = registerModelTool(
+        ctx as unknown as { tools: { register(definition: unknown): () => void } },
+        entry,
+        adapter,
+      )
+      toolName = registration.toolName
+      dispose = registration.dispose
+    }
+
+    const record: InstalledModel = { entry, toolName, dispose }
+
+    if (registerSkills) {
+      const skills = ctx.get('skills')
+      if (skills !== undefined) {
+        const body = renderSkillBody(entry, playbooks.get(entry.id))
+        record.disposeSkill = skills.register({
+          name: entry.skill.name,
+          description: entry.skill.description,
+          ...entry.skill.whenToUse !== undefined ? { whenToUse: entry.skill.whenToUse } : {},
+          content: body,
+          source: 'bundled',
+        })
+      }
+    }
+
+    // BASE-03: the deprecated alias is opt-in, so the default catalog shows one
+    // transcription tool. It keeps its own name and adapter, never the new
+    // contract's schema, so an old caller's arguments are not reinterpreted.
+    if (config.legacyAliases === true && entry.contract !== null && entry.tool.name !== toolName) {
+      const aliasAdapter = createAdapter(entry, { route: verdict.route, ...transportOptions }, undefined, bridge)
+      if (aliasAdapter !== undefined) {
+        const alias = registerModelTool(
+          ctx as unknown as { tools: { register(definition: unknown): () => void } },
+          entry,
+          aliasAdapter,
+        )
+        record.disposeAlias = alias.dispose
+        ctx.logger.info(`model-tools: registered deprecated alias ${alias.toolName} (BASE-03)`)
+      }
+    }
+
+    installed.set(entry.id, record)
+    ctx.logger.info(
+      `model-tools: registered ${toolName} for ${entry.name} (${verdict.route})`,
+    )
+    notifyCatalogChange()
+    return true
+  }
+
+  /**
+   * Unregister one model's tool and skill.
+   * @param modelId - the catalog id to remove.
+   * @returns whether the model was installed.
+   */
+  const uninstall = (modelId: string): boolean => {
+    const record = installed.get(modelId)
+    if (record === undefined) return false
+    record.disposeSkill?.()
+    record.disposeAlias?.()
+    record.dispose()
+    // A contract-served model's registration is owned by the contract; dropping
+    // the last model that used it must also release the contract's tool, or a
+    // removed implementation would keep answering calls.
+    if (record.entry.contract !== null) {
+      const stillInstalled = [...installed.values()].some(
+        other => other.entry.id !== modelId && other.entry.contract === record.entry.contract,
+      )
+      if (!stillInstalled) registeredContracts.delete(record.entry.contract)
+    }
+    installed.delete(modelId)
+    ctx.logger.info(`model-tools: unregistered ${record.toolName}`)
+    notifyCatalogChange()
+    return true
+  }
+
+  /**
+   * Record one user choice durably.
+   *
+   * A failed write is reported rather than swallowed: the caller asked for a
+   * change that is supposed to survive a restart, and quietly keeping it
+   * in-memory would make the next session silently disagree.
+   * @param modelId - the model the user acted on.
+   * @param enabled - true to turn on, false to turn off.
+   * @returns whether the choice was written to the durable store.
+   */
+  const remember = (modelId: string, enabled: boolean): boolean => {
+    persisted = withChoice(persisted, modelId, enabled)
+    if (!persist) return false
+    stateStore.write(persisted)
+    return true
+  }
+
+  /** The configuration's own selection, before the user's choices are layered on. */
+  const configuredIds = resolved
+    .filter(item => (wanted === undefined || wanted.has(item.entry.id)) && !excluded.has(item.entry.id))
+    .map(item => item.entry.id)
+
+  /**
+   * TASK-117: the deferred catalogue registrations, restored when the owning
+   * extension releases a tool name (deactivation). Runs after `install` and
+   * `resolved` exist; the onActivationChange hook fires it asynchronously.
+   */
+  const restoreDeferredCatalogue = async (): Promise<void> => {
+    for (const modelId of [...catalogueDeferred]) {
+      const item = resolved.find(candidate => candidate.entry.id === modelId)
+      if (item === undefined) {
+        catalogueDeferred.delete(modelId)
+        continue
+      }
+      if (extensionOwnsToolName(item.entry.tool.name)) continue
+      catalogueDeferred.delete(modelId)
+      ctx.logger.info(`model-tools: ${item.entry.name}'s tool ${item.entry.tool.name} is released; restoring the catalogue registration`)
+      try {
+        await install(item)
+      } catch (error) {
+        // A failed restore is reported, never swallowed silently: the operator
+        // must see why the catalogue tool did not come back.
+        ctx.logger.warn(
+          `model-tools: could not restore the catalogue registration for ${item.entry.name}: `
+          + `${error instanceof Error ? error.message : String(error)}`,
+        )
+      }
+    }
+  }
+
+  for (const item of resolved) {
+    const { install: selection, disabled } = resolveSelection(configuredIds, persisted)
+    if (!selection.has(item.entry.id)) {
+      if (disabled.has(item.entry.id) && item.verdict.runnable) {
+        ctx.logger.info(`model-tools: ${item.entry.name} stays uninstalled (disabled by the user)`)
+      }
+      continue
+    }
+    // A model the user enabled that cannot run here is reported, not installed:
+    // the persisted choice is kept so it takes effect once a route appears.
+    await install(item)
+  }
+
+  /**
+   * The host's EXT-30 update surface, constructed when the extension store is
+   * configured (the management-channel actions below drive it). Declared here,
+   * outside the control-tool registration, so the execute closure and the
+   * extension-store block share it.
+   */
+  let updateSurface: UpdateHostSurface | undefined
+
+  /**
+   * The host's prepared-assets surface (RES-02/03/05, the last slice): lock
+   * reading, the preparation plan, acquisition and the PreparedAssetMapV1 the
+   * provider routes consume. Same outer-scope reason as updateSurface.
+   */
+  let prepareAssetsSurface: PrepareAssetsSurface | undefined
+
+  if (config.registerControlTool ?? true) {
+    const controlDefinition = defineTool({
+      name: 'model_tools',
+      description:
+        'Inspect and control the on-device models available to this agent: list what each one does and whether it '
+        + 'can run on this machine, install a model\'s tool, or remove one. Installs and removals are remembered '
+        + 'across restarts. Use it before calling a model tool when unsure which one fits, to install a model the '
+        + 'user asked for, or to explain why a model is unavailable here. Models that cannot run in this process '
+        + 'report the exact reason.',
+      parameters: {
+        action: {
+          type: 'string',
+          required: true,
+          enum: ['list', 'installed', 'describe', 'enable', 'disable', 'reset', 'receipts', 'mcp', 'diagnostics', 'credentials', 'extensions-pending', 'extensions-approve', 'extensions-deny', 'extensions-commit', 'extensions-rollback', 'extensions-prepare-plan', 'extensions-prepare', 'extensions-purge-assets', 'extensions-license-basis'],
+          description:
+            'list: every catalogued model and whether it runs here. installed: only the models whose tools are '
+            + 'registered. describe: full detail for one model. enable: install a model\'s tool and remember it. '
+            + 'disable: remove a model\'s tool and remember it. reset: forget the remembered choice for one model, '
+            + 'or for every model when no id is given. credentials: list or revoke external MCP client credentials '
+            + '(SEC-01). GENERATION IS REFUSED HERE: the generated secret must never reach a model, so credentials '
+            + 'are generated by the human-only CLI instead. extensions-pending: the staged extension updates awaiting '
+            + 'an operator decision (EXT-30). extensions-approve/extensions-deny: record the operator decision for one '
+            + 'staged update. extensions-commit: commit an APPROVED staged update (quiesce, pointer, rebind). '
+            + 'extensions-rollback: restore the previous version pointer. extensions-prepare-plan: disclose the '
+            + 'preparation plan (per-asset bytes, total, license, executable gate) for one installed extension. '
+            + 'extensions-prepare: download and digest-verify the planned assets into the isolated cache and flip the '
+            + 'deployment to prepared-cold (the acquisition IS the operator consent; a real download is opt-in).',
+        },
+        model: {
+          type: 'string',
+          description:
+            'Model id, required for describe, enable and disable, and optional for reset (for example "tongue" or "title"). '
+            + 'For the extensions actions it names the EXTENSION id (for example "@try-works/extension-desert-ant-voz").',
+        },
+        version: {
+          type: 'string',
+          description:
+            'The staged extension version, required for extensions-approve, extensions-deny and extensions-commit.',
+        },
+        allowExecutable: {
+          type: 'boolean',
+          description:
+            'The extensions-prepare action: set true to grant the separate EXECUTABLE-preparation approval (RES-02). Without it a plan containing an executable asset refuses. The pinned EmbeddingGemma assets are NOT executable.',
+        },
+        licenseBasis: {
+          type: 'object',
+          additionalProperties: false,
+          description:
+            'The extensions-license-basis action (LIC-03): the human-recorded permission basis — native use, '
+            + 'external export, distribution and telemetry — for one provider, recorded with the approving principal.',
+          properties: {
+            native: { type: 'boolean' },
+            export: { type: 'boolean' },
+            distribution: { type: 'boolean' },
+            telemetry: { type: 'boolean' },
+          },
+        },
+        principal: {
+          type: 'string',
+          description: 'The approving principal (operator identity) for the extensions-license-basis action (LIC-03).',
+        },
+        sub: {
+          type: 'string',
+          enum: ['generate', 'list', 'revoke'],
+          description:
+            'The credentials action: list names existing clients, revoke removes one. generate is DECLARED for '
+            + 'schema completeness but always refused on this model-visible surface (SEC-01): the secret must '
+            + 'never reach a model, so generation happens in the human-only CLI.',
+        },
+        scheme: {
+          type: 'string',
+          enum: ['static-token', 'oauth-resource-server'],
+          description: 'Which authentication scheme the generated credential is for.',
+        },
+        clientId: {
+          type: 'string',
+          description: 'The client identity to generate or revoke, at most 64 characters.',
+        },
+        scope: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'OAuth scope tokens for the generated client; defaults to mcp:call.',
+        },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            models: {
+              type: 'array',
+              required: true,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  id: { type: 'string', required: true },
+                  name: { type: 'string', required: true },
+                  summary: { type: 'string', required: true },
+                  capability: { type: 'string', required: true },
+                  input: { type: 'string', required: true },
+                  tool: { type: 'string', required: true },
+                  skill: { type: 'string', required: true },
+                  runnable: { type: 'boolean', required: true },
+                  installed: { type: 'boolean', required: true },
+                  /** The user's remembered choice for this model. */
+                  choice: { type: 'string', required: true, enum: ['none', 'enabled', 'disabled'] },
+                  route: { type: 'string', required: true },
+                  reason: { type: 'string', required: true },
+                  languages: {
+                    required: true,
+                    oneOf: [
+                      { type: 'integer' },
+                      { type: 'null' },
+                    ],
+                  },
+                  license: { type: 'string', required: true },
+                  docs: { type: 'string', required: true },
+                  /**
+                   * Public extension/implementation provenance (EXT-32).
+                   *
+                   * Declared rather than left open: a discovery surface that could
+                   * return anything would let the shape drift unnoticed, and the
+                   * output schema refusing undeclared fields is what caught this
+                   * addition in the first place.
+                   */
+                  provenance: {
+                    type: 'object',
+                    additionalProperties: false,
+                    properties: {
+                      contract: {
+                        required: true,
+                        oneOf: [{ type: 'string' }, { type: 'null' }],
+                      },
+                      extension: {
+                        required: true,
+                        oneOf: [{ type: 'string' }, { type: 'null' }],
+                      },
+                      modelId: {
+                        required: true,
+                        oneOf: [{ type: 'string' }, { type: 'null' }],
+                      },
+                      publishedTool: {
+                        required: true,
+                        oneOf: [{ type: 'string' }, { type: 'null' }],
+                      },
+                      alternatives: { type: 'array', required: true, items: { type: 'string' } },
+                    },
+                  },
+                  /** The deployment's readiness, so an absent tool is explicable. */
+                  readiness: { type: 'string', required: true },
+                  /** Whether the tool is genuinely callable right now. */
+                  callable: { type: 'boolean', required: true },
+                  /** Why the tool is absent, when it is. */
+                  withheld: {
+                    type: 'object',
+                    additionalProperties: false,
+                    properties: {
+                      code: { type: 'string', required: true },
+                      message: { type: 'string', required: true },
+                    },
+                  },
+                },
+              },
+            },
+            installed: { type: 'integer', required: true },
+            runnable: { type: 'integer', required: true },
+            /** Set by the mcp action: what this host would export over MCP (MCP-09). */
+            mcp: {
+              type: 'array',
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  name: { type: 'string', required: true },
+                  hasOutputSchema: { type: 'boolean', required: true },
+                  title: {
+                    required: true,
+                    oneOf: [{ type: 'string' }, { type: 'null' }],
+                  },
+                },
+              },
+            },
+            /** Set by the receipts action: recent invocation provenance (EXT-35). */
+            receipts: {
+              type: 'array',
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  receiptId: { type: 'string', required: true },
+                  contract: { type: 'string', required: true },
+                  implementationId: { type: 'string', required: true },
+                  extension: { type: 'string', required: true },
+                  modelIdentity: { type: 'string', required: true },
+                  activationGeneration: { type: 'integer', required: true },
+                  executionLocation: { type: 'string', required: true },
+                  kind: { type: 'string', required: true },
+                  parentReceiptId: {
+                    required: true,
+                    oneOf: [{ type: 'string' }, { type: 'null' }],
+                  },
+                  outcome: { type: 'string' },
+                  usage: {
+                    oneOf: [
+                      { type: 'object', additionalProperties: true },
+                      { type: 'string' },
+                    ],
+                  },
+                  cost: {
+                    oneOf: [
+                      { type: 'object', additionalProperties: true },
+                      { type: 'string' },
+                    ],
+                  },
+                },
+              },
+            },
+            /**
+             * Set by the receipts action: external (MCP) call accounting (OBS-02).
+             *
+             * Sizes, class and engine version — never a payload. Declared here so
+             * the output projection admits the wired external half. SEC-04: the
+             * entry also names the CLIENT's grant identity, so the operator can tell
+             * who called — identity only, still never the payload.
+             */
+            external: {
+              type: 'array',
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  receiptId: { type: 'string', required: true },
+                  failureClass: { type: 'string', required: true },
+                  reason: {
+                    required: true,
+                    oneOf: [{ type: 'string' }, { type: 'null' }],
+                  },
+                  totalMs: { type: 'number', required: true },
+                  inputBytes: { type: 'integer', required: true },
+                  outputBytes: { type: 'integer', required: true },
+                  engineVersion: { type: 'string', required: true },
+                  /** The CLIENT's grant identity (SEC-04); absent for host-initiated external calls. */
+                  grantId: { type: 'string' },
+                  clientId: { type: 'string' },
+                },
+              },
+            },
+            /**
+             * Set by the receipts action: lifecycle outcomes, kept separate from
+             * invocation provenance (EXT-35).
+             */
+            lifecycle: {
+              type: 'array',
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  operation: { type: 'string', required: true },
+                  extensionId: { type: 'string', required: true },
+                  version: {
+                    required: true,
+                    oneOf: [{ type: 'string' }, { type: 'null' }],
+                  },
+                  contentDigest: {
+                    required: true,
+                    oneOf: [{ type: 'string' }, { type: 'null' }],
+                  },
+                  profile: {
+                    required: true,
+                    oneOf: [{ type: 'string' }, { type: 'null' }],
+                  },
+                  outcome: { type: 'string', required: true },
+                  reason: {
+                    required: true,
+                    oneOf: [{ type: 'string' }, { type: 'null' }],
+                  },
+                  approvedBy: {
+                    type: 'object',
+                    required: true,
+                    additionalProperties: false,
+                    properties: {
+                      kind: { type: 'string', required: true },
+                      identity: { type: 'string' },
+                      grantId: { type: 'string' },
+                      policyId: { type: 'string' },
+                    },
+                  },
+                  at: { type: 'string', required: true },
+                },
+              },
+            },
+            /**
+             * Set by the diagnostics action: the OBS-04 surface.
+             *
+             * Declared here because DSH refuses an undeclared output property — which is a
+             * useful constraint rather than an obstacle: it means a new action cannot quietly
+             * return a shape no caller was told about. The declaration is deliberately SHALLOW
+             * (`additionalProperties: true`) because the value schema DSL cannot express the
+             * nested report faithfully, and a wrong declaration is worse than a permissive one.
+             * See the note on unrepresentable keywords for the same reasoning.
+             */
+            capture: {
+              type: 'object',
+              additionalProperties: true,
+            },
+            diagnostics: {
+              type: 'object',
+              additionalProperties: true,
+              // NOT required: only the diagnostics action returns it, and marking it
+              // required would demand the property from every other action's result — which
+              // is what the type checker refused, correctly.
+            },
+            /** Set by enable/disable/reset: whether the requested change took effect. */
+            changed: { type: 'boolean' },
+            /** Set by enable/disable/reset: what the call did to the tool surface. */
+            action: { type: 'string' },
+            /** Set by enable/disable/reset: whether the choice was written to the durable store. */
+            persisted: { type: 'boolean' },
+            /** Where choices are stored, so a caller can tell the user what to edit. */
+            stateFile: { type: 'string' },
+            /**
+             * Set by the credentials action when generation was asked for on this
+             * surface (SEC-01). It NEVER carries a secret: the model-visible surface
+             * refuses generation outright, and this note is how the refusal guidance
+             * reaches a caller without any secret ever entering the transcript.
+             */
+            credentialNote: { type: 'string' },
+            /** Set by credentials list: live clients WITHOUT secrets. */
+            credentials: {
+              type: 'array',
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  clientId: { type: 'string', required: true },
+                  scheme: { type: 'string', required: true },
+                  createdAt: { type: 'string', required: true },
+                },
+              },
+            },
+            /** Set by extensions-pending: the staged updates awaiting a decision (EXT-30). */
+            pending: {
+              type: 'array',
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  extensionId: { type: 'string', required: true },
+                  stagedVersion: { type: 'string', required: true },
+                  currentVersion: { type: 'string', required: true },
+                  stagedAt: { type: 'string', required: true },
+                  licenseDelta: { type: 'string' },
+                  permissionDeltas: { type: 'array', items: { type: 'string' } },
+                  requiresApproval: { type: 'boolean', required: true },
+                  approval: {
+                    type: 'object',
+                    additionalProperties: false,
+                    properties: {
+                      approved: { type: 'boolean', required: true },
+                      reason: { type: 'string' },
+                    },
+                  },
+                },
+              },
+            },
+            /** Set by extensions-commit/extensions-rollback: the resulting pointer. */
+            updateResult: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                extensionId: { type: 'string', required: true },
+                activeVersion: { type: 'string', required: true },
+                previousVersion: { type: 'string' },
+                hookFailure: { type: 'string' },
+              },
+            },
+            /** Set by extensions-prepare-plan: the RES-02 disclosure. */
+            plan: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                extensionId: { type: 'string', required: true },
+                modelId: { type: 'string', required: true },
+                modelRevision: { type: 'string', required: true },
+                assets: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    additionalProperties: false,
+                    properties: {
+                      assetId: { type: 'string', required: true },
+                      bytes: { type: 'number', required: true },
+                      source: { type: 'string', required: true },
+                      executable: { type: 'boolean', required: true },
+                    },
+                  },
+                },
+                totalBytes: { type: 'number', required: true },
+                storageBytes: { type: 'number', required: true },
+                requiresExecutableApproval: { type: 'boolean', required: true },
+                license: {
+                  type: 'object',
+                  additionalProperties: false,
+                  properties: {
+                    name: { type: 'string', required: true },
+                    url: { type: 'string', required: true },
+                  },
+                },
+              },
+            },
+            /** Set by extensions-prepare: the acquired groups. */
+            prepared: { type: 'boolean' },
+            /** Set by extensions-purge-assets: whether a group directory was removed. */
+            purged: { type: 'boolean' },
+            /** Set by extensions-license-basis: the recorded permission basis (LIC-03). */
+            licenseBasis: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                native: { type: 'boolean' },
+                export: { type: 'boolean' },
+                distribution: { type: 'boolean' },
+                telemetry: { type: 'boolean' },
+                principal: { type: 'string' },
+                recordedAt: { type: 'string' },
+              },
+            },
+            providerId: { type: 'string' },
+            groups: {
+              type: 'array',
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  groupId: { type: 'string', required: true },
+                  path: { type: 'string', required: true },
+                  digests: { type: 'array', items: { type: 'string' } },
+                },
+              },
+            },
+          },
+        },
+        render: (_args, value) => {
+          if (value.credentialNote !== undefined) {
+            return [{ type: 'text', text: value.credentialNote }]
+          }
+          if (value.credentials !== undefined) {
+            const lines = value.credentials.map(entry => `- ${entry.clientId} (${entry.scheme}, ${entry.createdAt})`)
+            return [{ type: 'text', text: `${lines.length} live client credential(s):\n${lines.join('\n')}` }]
+          }
+          const headline = value.action !== undefined
+            ? `${value.action}: ${value.changed === true ? 'done' : 'no change'}`
+              + `${value.persisted === true ? ', remembered across restarts' : ''}. `
+            : ''
+          const lines = value.models.map(model =>
+            `- [${model.installed ? 'installed' : model.runnable ? 'ready' : 'unavailable'}] `
+            + `${model.id} (\`${model.tool}\`)${model.choice === 'none' ? '' : ` (${model.choice} by you)`}: `
+            + `${model.summary}`
+            + (model.runnable || model.installed ? '' : `\n  why not: ${model.reason}`),
+          )
+          return [{
+            type: 'text',
+            text: `${headline}${value.installed} of ${value.models.length} catalogued models are installed as tools; `
+              + `${value.runnable} can run on this machine.\n\n${lines.join('\n')}`,
+          }]
+        },
+      },
+      async execute(args, exec) {
+        void exec
+        const action = args.action
+        const modelId = args.model as string | undefined
+        const sub = args.sub
+        const clientId = args.clientId
+        const stagedVersion = args.version
+
+        /** The user's remembered choice for one model. */
+        const choiceOf = (id: string): 'none' | 'enabled' | 'disabled' =>
+          persisted.enabled.includes(id) ? 'enabled' : persisted.disabled.includes(id) ? 'disabled' : 'none'
+
+        /**
+         * The provenance and readiness a discovery surface must expose (EXT-32).
+         *
+         * ALWAYS returns the full shape, including for a model with no contract
+         * binding: the fields are declared required in the output schema, so a
+         * partial object would be refused — and a caller reading `readiness` should
+         * get an answer for every model rather than having to handle its absence.
+         */
+        const provenanceOf = async (entry: ModelCatalogEntry) => {
+          const surface = await surfaceFor(entry)
+          const published = surface?.tools[0]
+          const notice = surface?.readiness.find(item => item.modelId === entry.id)
+          const withheld = surface === undefined
+            ? undefined
+            : surface.withheld.find(item => item.subject === published?.name) ?? surface.withheld[0]
+          return {
+            provenance: {
+              contract: entry.contract,
+              // Which PACKAGE implements this model, and which model inside it. Read
+              // from the catalog binding, so it is reported even for a model that is
+              // not the selected provider and therefore has no published tool.
+              extension: entry.provider?.extension ?? null,
+              modelId: entry.provider?.modelId ?? null,
+              publishedTool: published?.name ?? null,
+              // Copied into a mutable array: the surface's own list is readonly, and
+              // a discovery result is a plain JSON value.
+              alternatives: [...(published?.alternatives ?? [])],
+            },
+            readiness: notice?.readiness ?? 'unknown',
+            callable: notice?.callable ?? false,
+            ...withheld === undefined ? {} : {
+              withheld: { code: withheld.code, message: withheld.message },
+            },
+          }
+        }
+
+        /**
+         * The current snapshot, with per-model installed and remembered state.
+         *
+         * `tool` reports the name actually REGISTERED, not the catalog's per-model
+         * name: under a contract two implementations share one tool, and reporting
+         * the catalog name would tell a caller to call something that does not exist.
+         */
+        const snapshot = async (items: ResolvedModel[]) => Promise.all(items.map(async item => {
+          const record = installed.get(item.entry.id)
+          return {
+            ...(describeModels([item])[0] as ModelDescriptor),
+            ...record === undefined ? {} : { tool: record.toolName },
+            ...await provenanceOf(item.entry),
+            installed: record !== undefined,
+            choice: choiceOf(item.entry.id),
+          }
+        }))
+        /**
+         * The most recent invocation receipts (EXT-35).
+         *
+         * Exposed through discovery so the provenance is observable rather than
+         * merely recorded: a receipt nobody can read is indistinguishable from no
+         * receipt at all.
+         */
+        const receipts = () => invocationReceipts.map(receipt => ({
+          receiptId: receipt.receiptId,
+          contract: receipt.contract,
+          implementationId: receipt.implementationId,
+          extension: receipt.extension,
+          modelIdentity: receipt.modelIdentity,
+          activationGeneration: receipt.activationGeneration,
+          executionLocation: receipt.executionLocation,
+          kind: receipt.kind ?? 'invocation',
+          parentReceiptId: receipt.parentReceiptId ?? null,
+          ...receipt.outcome === undefined ? {} : { outcome: receipt.outcome },
+          ...receipt.usage === undefined ? {} : { usage: receipt.usage },
+          ...receipt.cost === undefined ? {} : { cost: receipt.cost },
+        }))
+
+        const counts = () => ({
+          installed: installed.size,
+          runnable: resolved.filter(item => item.verdict.runnable).length,
+          ...persist ? { stateFile: config.stateFile ?? defaultStateFile() } : {},
+        })
+
+        if (action === 'mcp') {
+          return { models: [], ...counts(), mcp: mcpHost.listTools().map(tool => ({
+            name: tool.name,
+            // Presence of the OUTPUT schema is the MCP-09 fact worth exposing: DSH
+            // model-facing projection omits it, so this is the evidence that the
+            // export is built from the contract instead.
+            hasOutputSchema: tool.outputSchema !== undefined,
+            title: tool.title ?? null,
+          })) } as never
+        }
+
+        if (action === 'diagnostics') {
+          /**
+           * THE OBS-04 SURFACE, WIRED RATHER THAN MERELY BUILT.
+           *
+           * `buildDiagnostics` is only worth having if something calls it, and this repository
+           * has produced fully-tested components with zero callers three times already
+           * (`ptc-authority.ts`, `ptc-runtime.ts`, and the recipes broker). Reporting through
+           * the control tool the agent already has keeps the surface reachable without adding a
+           * second way in.
+           */
+          const registered = ctx.tools.schemas().map(schema => schema.name).sort()
+          const exported = mcpHost.listTools().map(tool => tool.name).sort()
+          const exportedSet = new Set(exported)
+          const withheldTools = registered.filter(name => !exportedSet.has(name))
+          const withheldReasons = Object.fromEntries(withheldTools.map(name => [
+            name,
+            mcpWithheldReasons.get(name)
+              ?? 'this host tool is not a Tool Mode contract, a TMX extension tool or an opted-in custom tool; '
+              + 'explicit review is required before it can be exported to MCP',
+          ]))
+          return {
+            models: [],
+            ...counts(),
+            diagnostics: buildDiagnostics({
+              mcpMounted: true,
+              /**
+               * The endpoint is OMITTED rather than set to `undefined`, because the input type
+               * is exact-optional. The host serves its own agent and the endpoint is a
+               * deployment decision this plugin does not own, so it is reported as ABSENT —
+               * which the surface distinguishes from "MCP is off".
+               */
+              exportedTools: exported,
+              // The withheld half is the security-relevant half, and it is derivable: anything
+              // registered that is NOT exported was withheld deliberately.
+              withheldTools: registered.filter(name => !exportedSet.has(name)),
+              withheldReasons,
+              platform: {
+                os: process.platform,
+                arch: process.arch,
+                nodeVersion: process.version,
+              },
+            }),
+            /**
+             * THE CAPTURE PATH, on the surface an operator actually reads (OBS-03).
+             *
+             * Reported here rather than in a document because a reader asking "what is recorded"
+             * must see the surfaces this plugin does NOT control — a sibling logging plugin and
+             * the DSH LLM service — not only its own writes. A list of our own writes would be
+             * taken as complete, which is the misreading OBS-03 exists to prevent.
+             */
+            capture: {
+              profile: (config.captureProfile ?? 'standard') as string,
+              surfaces: CAPTURE_PATH.map(surface => ({
+                surface: surface.surface,
+                writtenByThisPlugin: surface.writtenByThisPlugin,
+                control: surface.control,
+              })),
+            },
+          } as never
+        }
+
+        if (action === 'credentials') {
+          /**
+           * SEC-01 CREDENTIAL SURFACE, model-visible and therefore SECRET-FREE.
+           *
+           * `model_tools` is the operator's management surface. It was never
+           * published over MCP, but it IS model-visible: a generated secret
+           * returned here would land in the model's transcript. Generation is
+           * therefore REFUSED on this surface with guidance to the human-only
+           * CLI, which prints the secret exactly once to the operator's
+           * terminal. The generation primitive itself lives in
+           * credential-store.ts (`generateCredential`) for the CLI and tests.
+           */
+          if (credentialStore === undefined) {
+            throw new Error(
+              'credential generation requires persistence (SEC-01): this deployment runs with persistence disabled, '
+              + 'and a credential a restart would forget must never be issued',
+            )
+          }
+          if (sub === 'generate') {
+            return {
+              models: [],
+              ...counts(),
+              credentialNote:
+                'Credential generation is refused on this model-visible surface (SEC-01): a generated secret must '
+                + 'never enter a model transcript. Run the human-only CLI instead — `dsh-tool-mode-credentials '
+                + 'generate --scheme static-token --client-id <id>` (or --scheme oauth-resource-server) — which '
+                + 'prints the secret exactly once to the operator\'s terminal and persists it owner-only.',
+            } as never
+          }
+          if (sub === 'list') {
+            return {
+              models: [],
+              ...counts(),
+              // SECRETS ARE NEVER RE-ECHOED: the list carries identity only.
+              credentials: credentialStore.list().map(entry => ({
+                clientId: entry.clientId,
+                scheme: entry.scheme,
+                createdAt: entry.createdAt,
+              })),
+            } as never
+          }
+          if (sub === 'revoke') {
+            if (typeof clientId !== 'string' || clientId.length === 0) {
+              throw new Error('credentials revoke requires a clientId')
+            }
+            const existed = credentialStore.get(clientId) !== undefined
+            credentialStore.delete(clientId)
+            return {
+              models: [],
+              ...counts(),
+              changed: existed,
+              action: `credentials revoke ${clientId}`,
+              persisted: existed,
+            } as never
+          }
+          throw new Error('credentials requires a sub: generate, list or revoke')
+        }
+
+        if (action === 'receipts') {
+          return {
+            models: [],
+            ...counts(),
+            receipts: receipts(),
+            external: externalAccountings.map(accounting => ({
+              receiptId: accounting.receiptId,
+              failureClass: accounting.failureClass,
+              reason: accounting.reason,
+              totalMs: accounting.timings.totalMs,
+              inputBytes: accounting.sizes.inputBytes,
+              outputBytes: accounting.sizes.outputBytes,
+              engineVersion: accounting.measuredOn.engineVersion,
+              // SEC-04: the CLIENT's own identity, so the operator can tell who
+              // called — identity only, never the payload.
+              ...accounting.grantId === undefined ? {} : { grantId: accounting.grantId },
+              ...accounting.clientId === undefined ? {} : { clientId: accounting.clientId },
+            })),
+            lifecycle: lifecycleRecords,
+          } as never
+        }
+
+        if (action === 'reset') {
+          // Forgetting a choice is what makes the config authoritative again.
+          if (modelId !== undefined) {
+            if (!byId.has(modelId)) throw new Error(`unknown model "${modelId}"`)
+            persisted = {
+              enabled: persisted.enabled.filter(id => id !== modelId),
+              disabled: persisted.disabled.filter(id => id !== modelId),
+            }
+          } else {
+            persisted = { enabled: [], disabled: [] }
+          }
+          if (persist) stateStore.write(persisted)
+          // Re-apply the config's own selection, so a reset takes effect now
+          // rather than only at the next start.
+          for (const item of resolved) {
+            if (configuredIds.includes(item.entry.id)) await install(item)
+            else uninstall(item.entry.id)
+          }
+          const models = modelId === undefined ? resolved : [byId.get(modelId) as ResolvedModel]
+          return {
+            models: await snapshot(models),
+            ...counts(),
+            changed: true,
+            action,
+            persisted: persist,
+          }
+        }
+
+        if (action === 'describe' || action === 'enable' || action === 'disable') {
+          if (modelId === undefined) throw new Error(`${action} requires a "model" id`)
+          const item = byId.get(modelId)
+          if (item === undefined) throw new Error(`unknown model "${modelId}"`)
+          if (action === 'describe') {
+            return { models: await snapshot([item]), ...counts() }
+          }
+          const changed = action === 'enable' ? await install(item) : uninstall(modelId)
+          if (action === 'enable' && !changed) {
+            // Say why rather than reporting a silent no-op: the caller asked for
+            // a tool and did not get one.
+            throw new Error(
+              `${item.entry.name} cannot be installed here. ${item.verdict.reason}`,
+            )
+          }
+          // Only remember a choice that actually took effect: persisting a
+          // failed enable would install it silently on the next start.
+          const remembered = remember(modelId, action === 'enable')
+          return {
+            models: await snapshot([item]),
+            ...counts(),
+            changed,
+            action,
+            persisted: remembered,
+          }
+        }
+
+        /**
+         * LIC-03: the human permission-basis recording surface. The basis
+         * (native use, external export, distribution, telemetry) is recorded
+         * per provider with the approving principal, durably, in the isolated
+         * state dir. It is a RECORD — the export eligibility itself stays on
+         * the existing publication gate (the operator's exportTools
+         * selection); the basis is what a reviewer reads before flipping it.
+         */
+        if ((action as string) === 'extensions-license-basis') {
+          if (modelId === undefined) throw new Error('extensions-license-basis requires the provider id in "model"')
+          const basis = args.licenseBasis as { native?: boolean; export?: boolean; distribution?: boolean; telemetry?: boolean } | undefined
+          const principal = typeof args.principal === 'string' && args.principal.length > 0 ? args.principal : 'unattributed'
+          if (basis === undefined) throw new Error('extensions-license-basis requires the "licenseBasis" fields')
+          const record = recordLicenseBasis(
+            dirname(resolve(config.stateFile ?? defaultStateFile())),
+            modelId,
+            basis,
+            principal,
+          )
+          return {
+            models: [],
+            ...counts(),
+            action,
+            changed: true,
+            licenseBasis: record,
+            providerId: modelId,
+          } as never
+        }
+
+        if (action === 'extensions-pending' || action === 'extensions-approve' || action === 'extensions-deny'
+          || action === 'extensions-commit' || action === 'extensions-rollback') {
+          /**
+           * EXT-30 slice 3: the MANAGEMENT channel is the ONLY update path (AT-39)
+           * — these actions live inside model_tools, never on the model-callable
+           * MCP surface. The surface is wired when the extension store exists.
+           */
+          const surface = updateSurface
+          if (surface === undefined) {
+            throw new Error('extension updates require the extension store (config.extensionStoreDir); it is not configured')
+          }
+          if (action === 'extensions-pending') {
+            return {
+              models: [],
+              ...counts(),
+              pending: surface.listPendingUpdates().map(entry => ({
+                extensionId: entry.extensionId,
+                stagedVersion: entry.stagedVersion,
+                currentVersion: entry.currentVersion,
+                stagedAt: entry.stagedAt,
+                ...entry.report.licenseDelta === undefined ? {} : { licenseDelta: entry.report.licenseDelta },
+                permissionDeltas: entry.report.permissionDeltas,
+                requiresApproval: entry.report.requiresApproval,
+                ...entry.approval === undefined ? {} : { approval: entry.approval },
+              })),
+            } as never
+          }
+          if (modelId === undefined) throw new Error(`${action} requires the extension id in "model"`)
+          if (stagedVersion === undefined && action !== 'extensions-rollback') {
+            throw new Error(`${action} requires a "version"`)
+          }
+          const version = stagedVersion as string // narrowed by the guard above for every action but rollback
+          if (action === 'extensions-approve' || action === 'extensions-deny') {
+            surface.decide(modelId, version, action === 'extensions-approve'
+              ? { approved: true }
+              : { approved: false, reason: 'denied through the management channel' })
+            return {
+              models: [],
+              ...counts(),
+              action,
+              changed: true,
+            } as never
+          }
+          let result
+          try {
+            result = action === 'extensions-commit'
+              ? await surface.commit(modelId, version)
+              : await surface.rollback(modelId)
+            recordLifecycleEvent({
+              operation: 'update', extensionId: modelId, version: result.activeVersion, outcome: 'succeeded',
+            })
+          } catch (error) {
+            recordLifecycleEvent({
+              operation: 'update',
+              extensionId: modelId,
+              version,
+              outcome: 'failed',
+              reason: error instanceof Error ? error.message : String(error),
+            })
+            throw error
+          }
+          // P26-09/MCP-07: a committed pointer or a rollback both REPUBLISH the
+          // extension surface through the lifecycle — the catalog changed, and
+          // every subscriber is notified.
+          notifyCatalogChange()
+          // The lossless-JSON contract: undefined fields are omitted, never present.
+          return {
+            models: [],
+            ...counts(),
+            action,
+            updateResult: {
+              extensionId: result.extensionId,
+              activeVersion: result.activeVersion,
+              ...result.previousVersion === undefined ? {} : { previousVersion: result.previousVersion },
+              ...'hookFailure' in result && result.hookFailure !== undefined ? { hookFailure: result.hookFailure } : {},
+            },
+          } as never
+        }
+
+        if (action === 'extensions-prepare-plan' || action === 'extensions-prepare' || action === 'extensions-purge-assets') {
+          /**
+           * RES-02: the preparation plan is DISCLOSED (bytes, storage, license,
+           * executable gate) before the acquisition; the acquisition itself IS
+           * the operator's consent, through the management channel only. A REAL
+           * acquisition uses the ranged HTTP source (opt-in); the suite injects
+           * a local source and never reaches the network.
+           */
+          const surface = prepareAssetsSurface
+          if (surface === undefined) {
+            throw new Error('asset preparation requires the extension store (config.extensionStoreDir); it is not configured')
+          }
+          if (modelId === undefined) throw new Error(`${action} requires the extension id in "model"`)
+          if (action === 'extensions-purge-assets') {
+            const purged = await surface.purge(modelId)
+            return {
+              models: [],
+              ...counts(),
+              action,
+              purged: purged.removed,
+            } as never
+          }
+          if (action === 'extensions-prepare-plan') {
+            const plan = surface.plan(modelId)
+            return {
+              models: [],
+              ...counts(),
+              action,
+              plan: {
+                extensionId: plan.identity.extensionId,
+                modelId: plan.identity.modelId,
+                modelRevision: plan.identity.modelRevision,
+                assets: plan.assets.map(asset => ({
+                  assetId: asset.assetId,
+                  bytes: asset.bytes,
+                  source: asset.source,
+                  executable: asset.executable,
+                })),
+                totalBytes: plan.totalBytes,
+                storageBytes: plan.storageBytes,
+                requiresExecutableApproval: plan.requiresExecutableApproval,
+                license: plan.license,
+              },
+            } as never
+          }
+          const outcome = await surface.prepare(modelId, {
+            source: config.assetSourceFactory?.() ?? createHttpSource(),
+            allowExecutable: args.allowExecutable === true,
+            signal: exec?.signal ?? new AbortController().signal,
+          })
+          if (!outcome.ok) throw new Error(`the preparation failed: ${outcome.reason}`)
+          return {
+            models: [],
+            ...counts(),
+            action,
+            prepared: true,
+            groups: outcome.groups.map(group => ({ groupId: group.groupId, path: group.path, digests: group.digests })),
+          } as never
+        }
+
+        const models = action === 'installed'
+          ? await snapshot(resolved.filter(item => installed.has(item.entry.id)))
+          : await snapshot(resolved)
+        return { models, ...counts() }
+      },
+      presentCall(args) {
+        return { card: 'generic', title: `Model tools: ${args.action}`, kind: 'read', rawInput: args.model ?? args.action }
+      },
+    })
+
+    /**
+     * BASE-07 / SEC-09: discovery is read-only by default. Mutations live on a
+     * SEPARATE tool that only exists when the operator sets `managementGrant`.
+     * The read-only clone advertises only its own action set and rejects a mutation
+     * even if a caller constructs it by hand.
+     */
+    const readOnlyActions = [
+      'list', 'installed', 'describe', 'receipts', 'mcp', 'diagnostics',
+      'credentials', 'extensions-pending', 'extensions-prepare-plan',
+    ] as const
+    const mutationActions = new Set([
+      'enable', 'disable', 'reset',
+      'extensions-approve', 'extensions-deny', 'extensions-commit', 'extensions-rollback',
+      'extensions-prepare', 'extensions-purge-assets', 'extensions-license-basis',
+    ])
+    const readOnlyParameters = structuredClone(controlDefinition.parameters) as {
+      properties?: Record<string, { enum?: readonly string[] }>
+    }
+    const actionProperty = readOnlyParameters.properties?.['action']
+    if (actionProperty !== undefined) actionProperty.enum = readOnlyActions
+    const credentials = readOnlyParameters.properties?.['sub']
+    if (credentials !== undefined) credentials.enum = ['list']
+    ctx.tools.register({
+      ...controlDefinition,
+      description:
+        'Read-only inspection of the on-device models available to this agent: list what each one does and '
+        + 'whether it can run on this machine, describe a model, and read diagnostics, receipts and MCP status. '
+        + 'Model installation, enable/disable, credential revocation and extension management are on the separate '
+        + 'management tool and require an explicit operator grant.',
+      parameters: readOnlyParameters,
+      async execute(args, exec) {
+        const record = args as Record<string, unknown>
+        const action = String(record['action'] ?? '')
+        const sub = String(record['sub'] ?? '')
+        if (mutationActions.has(action) || (action === 'credentials' && sub !== 'list')) {
+          throw new Error(
+            `model_tools is read-only; action "${action}" requires the separate model_tools_manage tool `
+            + 'and an explicit managementGrant',
+          )
+        }
+        return controlDefinition.execute(record, exec)
+      },
+    })
+    if (config.managementGrant === true) {
+      ctx.tools.register({
+        ...controlDefinition,
+        name: 'model_tools_manage',
+        description:
+          'Operator-granted management of Tool Mode: install/remove model tools, remember enable/disable choices, '
+          + 'revoke external MCP credentials, and approve/commit/rollback prepared extension updates. Discovery is '
+          + 'on model_tools and needs no grant.',
+      })
+    }
+
+    /**
+     * DECL-07: the read-only discovery pair under the SPEC NAMES. Ordinary
+     * tool-only clients get the permitted tools + readiness (list) and the
+     * selected schemas/limits/locations (describe) without relying on skills
+     * or server instructions. The existing model_tools actions stay as the
+     * management aliases; these two are READ-ONLY and never mutate.
+     */
+    const catalogRevision = () => String(extensionLifecycle?.generation ?? host.activationGeneration)
+    const describeOne = async (name: string) => {
+      const registrySchema = ctx.tools.schemas().find(schema => schema.name === name)
+      const definition = ctx.tools.get(name)
+      const modelItem = resolved.find(item => (installed.get(item.entry.id)?.toolName ?? item.entry.tool?.name ?? '') === name)
+      const descriptor = modelItem === undefined ? undefined : describeModels([modelItem])[0]
+      const owner = undefined
+      const inputSchema = registrySchema?.parameters ?? {}
+      const outputSchema = definition?.output.schema ?? {}
+      const skill = modelItem === undefined ? undefined : describeSkill(modelItem.entry.skill as never)
+      const contract = STANDARD_CONTRACTS.find(candidate => candidate.toolName === name)
+        ?? [TOOL_MODE_LIST_CONTRACT, TOOL_MODE_DESCRIBE_CONTRACT].find(candidate => candidate.toolName === name)
+      return {
+        name,
+        description: registrySchema?.description ?? descriptor?.summary ?? '',
+        parameters: inputSchema,
+        outputSchema,
+        typescript: {
+          input: typescriptBindings(name, 'Input', inputSchema),
+          output: typescriptBindings(name, 'Output', outputSchema),
+        },
+        examples: [exampleFromSchema(inputSchema)],
+        // DECL-01/slice 5: the contract already carries these two; describe must not
+        // drop the half a schema cannot express (semantics) or the refusal list.
+        // The refusal list is bounded here because the value-schema DSL cannot
+        // express an array maxItems.
+        semantics: contract?.semantics ?? {},
+        limits: contract?.limits ?? {},
+        unsupported: (contract?.unsupported ?? []).slice(0, 64),
+        dataHandling: modelItem === undefined
+          ? 'This host-owned discovery tool reads the local registry; it does not send model input anywhere.'
+          : describeDataHandling(modelItem.entry),
+        recovery:
+          'If a model tool is unavailable, prepare and enable it through the operator surface; fix validation errors '
+          + 'instead of retrying unchanged; never silently substitute a remote provider.',
+        ...skill === undefined ? {} : { skill },
+        ...descriptor === undefined ? {} : {
+          model: {
+            id: descriptor.id,
+            capability: descriptor.capability,
+            runnable: descriptor.runnable,
+            reason: descriptor.reason,
+            route: descriptor.route,
+            extension: modelItem?.entry.provider?.extension ?? null,
+          },
+        },
+        ...owner === undefined ? {} : { ownerExtension: owner },
+        executionLocation: 'device',
+        executionKind: declarativeRecipeDigests.has(name) ? 'declarative' : 'extension',
+        recipeDigest: declarativeRecipeDigests.get(name) ?? null,
+        catalogRevision: catalogRevision(),
+      }
+    }
+    ctx.tools.register(defineTool({
+      name: 'tool_mode_list',
+      description:
+        'List the tools this caller is permitted to use, with readiness summaries and the current catalog '
+        + 'revision. Read-only discovery (DECL-07): it never installs, prepares, activates or changes anything.',
+      parameters: {},
+      output: {
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            catalogRevision: { type: 'string' },
+            tools: { type: 'array' },
+          },
+        },
+        render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      async execute() {
+        const callerGrant = externalGrantContext.current()
+        const permitted = callerGrant === undefined ? undefined : new Set(callerGrant)
+        const tools = []
+        for (const item of resolved) {
+          const record = installed.get(item.entry.id)
+          const descriptor = describeModels([item])[0]!
+          const toolName = record?.toolName ?? item.entry.tool?.name ?? item.entry.id
+          if (permitted !== undefined && !permitted.has(toolName)) continue
+          tools.push({
+            name: toolName,
+            description: descriptor.summary,
+            readiness: item.verdict.runnable ? 'callable' : `unavailable: ${descriptor.reason}`,
+            model: item.entry.id,
+            extension: item.entry.provider?.extension ?? null,
+            route: item.verdict.route,
+            executionKind: declarativeRecipeDigests.has(toolName) ? 'declarative' : 'extension',
+            recipeDigest: declarativeRecipeDigests.get(toolName) ?? null,
+          })
+        }
+        return { catalogRevision: catalogRevision(), tools } as never
+      },
+      presentCall() {
+        return { card: 'generic', title: 'Tool mode list', kind: 'read', rawInput: '' }
+      },
+    }))
+    ctx.tools.register(defineTool({
+      name: 'tool_mode_describe',
+      description:
+        'Describe one or more tools by name: the selected input/output schemas, the resolved model, limits and '
+        + 'the catalog revision. Read-only discovery (DECL-07): it never installs, prepares, activates or changes anything.',
+      parameters: {
+        tools: {
+          type: 'array',
+          required: true,
+          items: { type: 'string' },
+          description: 'The tool names to describe.',
+        },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            catalogRevision: { type: 'string' },
+            tools: {
+              type: 'array',
+              items: {
+                type: 'object',
+                additionalProperties: true,
+                properties: {
+                  name: { type: 'string' },
+                  description: { type: 'string' },
+                  // DECL-01/slice 5: declared so a client can rely on both fields even
+                  // though the entry keeps room for implementation-specific extras.
+                  semantics: { type: 'object', additionalProperties: true },
+                  unsupported: { type: 'array', items: { type: 'string' } },
+                },
+              },
+            },
+          },
+        },
+        render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      async execute(args) {
+        const names = args.tools as string[]
+        const callerGrant = externalGrantContext.current()
+        const permitted = callerGrant === undefined ? undefined : new Set(callerGrant)
+        const entries = []
+        for (const name of names) {
+          if (permitted !== undefined && !permitted.has(name)) {
+            throw new Error(`tool ${JSON.stringify(name)} is forbidden for this caller (EXT-32)`)
+          }
+          const described = await describeOne(name)
+          // describeOne returns an EMPTY description + empty parameters + no
+          // model for an unknown name; a real tool always has at least one.
+          if (described.description.length === 0
+            && Object.keys(described.parameters).length === 0
+            && described.model === undefined) {
+            throw new Error(`unknown tool ${JSON.stringify(name)}`)
+          }
+          entries.push(described)
+        }
+        return { catalogRevision: catalogRevision(), tools: entries } as never
+      },
+      presentCall(args) {
+        return { card: 'generic', title: 'Tool mode describe', kind: 'read', rawInput: String((args.tools as string[] | undefined)?.join(',') ?? '') }
+      },
+    }))
+  }
+
+  // The registry disposes each registration with the plugin fiber, but doing it
+  // explicitly keeps model resources (a loaded ONNX session, a cached weight
+  // file) bounded by the plugin's own lifetime rather than the process's.
+  ctx.effect(() => () => {
+    for (const record of installed.values()) {
+      record.disposeSkill?.()
+      record.disposeAlias?.()
+      record.dispose()
+    }
+    installed.clear()
+    void bridge.dispose('shutdown')
+  }, 'model-tools teardown')
+
+  /**
+   * THE AUTHORIZED PROGRAM PIPELINE, wired so its controls have a CALLER (CODE-02/03/08).
+   *
+   * Adversarial review found `ptc-authority.ts` and `ptc-runtime.ts` with zero callers
+   * outside tests: every control in them was correct, thoroughly covered, and never ran.
+   * `tool_mode_run` did not exist, so the mount guard never executed and the exposure gate
+   * guarded nothing — there was no caller to refuse. A control with no callers is a symbol.
+   *
+   * The runner reaches tools through `buildToolBindings`, the SAME pipeline an external
+   * surface would use, so authorization cannot differ between the two doors.
+   *
+   * SEC-04 COMPOSITION: the grant is read PER RUN from {@link externalGrantContext}. An
+   * external client's call runs inside that context (set by the surface's execute), so a
+   * program the client composes authorizes its sub-calls against the CLIENT's grant —
+   * a client granted only `tool_mode_run` cannot reach host-granted tools through a
+   * program. The native/interactive path carries no context and keeps the host's grant.
+   */
+  const externalGrantContext = createExternalGrantContext()
+  const programRunner = createProgramRunner({
+    context: ctx as never,
+    /**
+     * Resolved lazily and may be ABSENT: a deployment without the Node PTC backend still
+     * runs every other tool, and failing the plugin load because an optional capability is
+     * missing would remove working functionality. `prepare()` reports the absence.
+     */
+    backend: async () => {
+      try {
+        // The backend is an optional deployment fact, imported only when a run needs it
+        // (EXT-19: no heavyweight load at plugin startup). The dynamic import keeps it
+        // out of the module graph for hosts that never run programs.
+        const module = await import('@deepseek-ai/dsh-ptc-runtime-node') as {
+          default?: unknown
+          NodePtcRuntime?: unknown
+        }
+        return module.NodePtcRuntime ?? module.default
+      } catch (error) {
+        ctx.logger.warn(
+          `model-tools: the Node PTC backend is unavailable: ${error instanceof Error ? error.message : String(error)}`,
+        )
+        return undefined
+      }
+    },
+    /**
+     * THE GRANT A PROGRAM'S SUB-CALLS AUTHORIZE AGAINST, read per run:
+     * the external caller's own grant when the run happens inside an external call,
+     * the host's own grant otherwise. Never a caller's claim about what it may use.
+     */
+    grant: () => externalGrantContext.current() ?? grant.allowedTools,
+    // Read at RUN time, not once: extension restore registers tools after this closure
+    // is created, and a program must see the live registry, not a stale snapshot.
+    visible: () => ctx.tools.schemas().map(schema => schema.name),
+    confidential: () => [...confidentialTools],
+    resolve: name => async (args: Record<string, unknown>) => {      // A binding dispatches through the SAME registry pipeline a native call uses
+      // (ARCH-01), so a program cannot reach a tool the registry would refuse.
+      const result = await ctx.tools.execute({
+        signal: new AbortController().signal,
+        callId: `ptc_${name}_${Date.now().toString(36)}` as never,
+        name,
+        arguments: args,
+      })
+      if (result.isError) throw new Error(result.error?.message ?? `${name} failed`)
+      return result.value
+    },
+    runtime: () => ctx.get(PTC_SERVICE) as unknown as {
+      resolve(request: Record<string, unknown>): unknown
+      run(spec: unknown): Promise<{ value?: unknown; logs?: readonly string[]; error?: { kind?: string; message?: string } }>
+    } | undefined,
+    // CODE-11: one root budget, charged by every nested call and never reset by
+    // calling another tool. The tool-call ceiling defaults; the harness-model ceiling
+    // applies only when the deployment configured it.
+    budgets: {
+      maxToolCalls: config.compositionV3?.maxToolCalls ?? 64,
+      ...config.compositionV3?.maxHarnessModelCalls === undefined
+        ? {}
+        : { maxHarnessModelCalls: config.compositionV3.maxHarnessModelCalls },
+      isHarnessTool: name => declarativeRecipeDigests.has(name),
+    },
+    // CODE-10: the operator's separate consent for hosted code execution, read
+    // at check time so a config change mid-session takes effect.
+    operatorGranted: () => config.hostedCode === true,
+  })
+
+  /**
+   * CODE-02: `tool_mode_run` is ALWAYS registered so its CODE-10 refusal is reachable
+   * on a default host; the EXPOSURE gate (`externalRefusal`) is what decides whether it
+   * may serve a caller. It is NOT part of `registerControlTool` — tying it there made a
+   * host that hides model_tools unregister the tool while MCP still advertised it, so
+   * every external call failed "unknown tool".
+   */
+  ctx.tools.register(defineTool({
+      name: 'tool_mode_run',
+      description:
+        'Run a program that calls Tool Mode tools (CODE-02). The requested `tools` list is '
+        + 'a binding subset, not a grant: only names the host itself has granted are bound, '
+        + 'and the whole request is refused when any name is unattainable.',
+      parameters: {
+        // Advisory only, and optional: the program's code is what runs, and the
+        // literal CODE-02 payload `{ code, tools }` must be callable as advertised.
+        description: { type: 'string', description: 'What the program does (advisory).' },
+        code: { type: 'string', required: true, description: 'Body of an async TypeScript function.' },
+        input: { type: 'json', description: 'Program data, bound structurally — never interpolated into source.' },
+        tools: {
+          type: 'array',
+          required: true,
+          items: { type: 'string' },
+          description: 'The tool names the program will call.',
+        },
+        timeout_ms: { type: 'integer', description: 'A requested deadline; clamped to host policy.' },
+      } as unknown as ParameterSchemaSpec,
+      output: {
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            result: { type: 'json' },
+            logs: { type: 'array', items: { type: 'string' } },
+            meta: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                receiptId: { type: 'string', required: true },
+                elapsedMs: { type: 'integer', required: true },
+                toolCalls: { type: 'integer', required: true },
+                catalogRevision: { type: 'string', required: true },
+                warnings: { type: 'array', items: { type: 'string' } },
+                /**
+                 * The bounded sub-call trace (name, ok, elapsedMs, previews, error). It is
+                 * DECLARED here because the output validator closes an object with no
+                 * explicit `additionalProperties`, so an undeclared field fails every run.
+                 */
+                calls: { type: 'array' },
+                /** The generated bindings the report already emits. */
+                typescript: { type: 'string' },
+              },
+            },
+          },
+        } as unknown as ValueSchemaSpec,
+        render: (_args: unknown, value: unknown) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      async execute(args) {
+        /**
+         * THE GATE, ENFORCED — the caller `mayExposeToClients()` never had, so the refusal
+         * is now REACHABLE rather than a boolean nothing consults. This tool is only
+         * served to callers when the confinement tests have passed; the in-process
+         * pipeline below is the same one the external surface would use.
+         */
+        const refusal = externalRefusal(programRunner)
+        if (refusal !== undefined) throw new Error(refusal.message)
+        // The catalog revision is the LIVE extension-lifecycle generation when the
+        // lifecycle is mounted (CODE-05 needs a revision that changes), falling
+        // back to the host activation generation otherwise.
+        const revision = String(extensionLifecycle?.generation ?? host.activationGeneration)
+        const receiptId = host.nextReceiptId()
+        const report = await serveProgram(args as Record<string, unknown>, programRunner, {
+          receiptId,
+          catalogRevision: revision,
+        })
+        // OBS-01: EVERY nested call gets its own provenance receipt, parented to the
+        // program's composition receipt. The trace is the host's own observation.
+        for (const call of report.meta.calls) {
+          host.recordReceipt?.(buildInvocationReceipt({
+            receiptId: host.nextReceiptId(),
+            contract: `nested:${call.name}`,
+            contractVersion: '1.0.0',
+            implementationId: call.name,
+            extension: host.extension,
+            extensionVersion: host.extensionVersion,
+            activationGeneration: Number(revision),
+            executionLocation: 'host',
+            modelIdentity: 'none',
+            kind: 'nested',
+            parentReceiptId: receiptId,
+            outcome: call.ok ? 'ok' : 'failed',
+          }))
+        }
+        // The program run's receipt is RECORDED like a contract invocation's, so
+        // the receipts action can answer for it (EXT-35 symmetry the review named).
+        host.recordReceipt?.(buildInvocationReceipt({
+          receiptId,
+          contract: 'tool_mode_run',
+          contractVersion: HOST_VERSION,
+          implementationId: 'hosted-composition',
+          extension: host.extension,
+          extensionVersion: host.extensionVersion,
+          activationGeneration: Number(revision),
+          executionLocation: 'host',
+          modelIdentity: 'none',
+        }))
+        return report as never
+      },
+    }))
+
+  /*
+   * "Jev makes judgments, code makes decisions" (TypeSafe, 2026-11-03): this
+   * pure tool composes caller-supplied atomic judgments and code facts through
+   * explicit first-match rules and returns the full evaluated trace. It calls no
+   * model; an agent uses it after asking one judgment per model question.
+   */
+  ctx.tools.register(defineTool({
+    name: 'decision_combine',
+    description:
+      'Combine code-computed facts and model judgment probabilities through explicit first-match policy rules. '
+      + 'Returns the exit plus every rule and condition examined. It calls no model: use atomic judgment tools '
+      + 'first, then let code make the decision and keep the trace.',
+    parameters: {
+      facts: { type: 'json', required: true, description: 'Code-computed facts (booleans/numbers/strings).' },
+      judgments: { type: 'json', required: true, description: 'Atomic model probabilities keyed by judgment name, each in [0,1].' },
+      rules: { type: 'json', required: true, description: 'First-match rules: {id, when:[{source,key,op,value?}], exit}.' },
+      fallback: { type: 'string', description: 'Exit when no rule matches; required by the implementation.' },
+    } as unknown as ParameterSchemaSpec,
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          exit: { type: 'string' },
+          fallback: { type: 'boolean' },
+          trace: { type: 'array' },
+        },
+      } as unknown as ValueSchemaSpec,
+      render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+    },
+    async execute(args) {
+      const input = args as { facts?: unknown; judgments?: unknown; rules?: unknown; fallback?: unknown }
+      const result = combineDecision(input.facts, input.judgments, input.rules, typeof input.fallback === 'string' ? input.fallback : '')
+      return result as never
+    },
+  }))
+
+  /*
+   * Hightouch's identity-resolution study (2026-11-04) found that a calibrated
+   * cheap judge should escalate only its uncertain band, and that a fixed 50%
+   * cutoff is arbitrary. These two pure tools make that policy explicit:
+   * route a probability (optionally with a secondary judge), and evaluate a
+   * labeled set with accuracy/FPR/FNR/Brier/ECE plus a hybrid arm.
+   */
+  ctx.tools.register(defineTool({
+    name: 'decision_route',
+    description:
+      'Route a primary judgment probability into accept-true, reject-false, or escalate to a stronger judge. '
+      + 'Defaults 0.9/0.1 are illustrative, not calibrated for our models; pass reviewed thresholds.',
+    parameters: {
+      probability: { type: 'number', required: true, description: 'Primary judge P(condition is true), in [0,1].' },
+      acceptAt: { type: 'number', description: 'At or above this, accept true (default 0.9).' },
+      rejectAt: { type: 'number', description: 'At or below this, accept false (default 0.1).' },
+    } as unknown as ParameterSchemaSpec,
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          route: { type: 'string', enum: ['accept', 'reject', 'escalate'] },
+          decision: { type: 'json' },
+          band: { type: 'string', enum: ['high', 'middle', 'low'] },
+          reason: { type: 'string' },
+        },
+      } as unknown as ValueSchemaSpec,
+      render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+    },
+    async execute(args) {
+      const input = args as { probability?: unknown; acceptAt?: unknown; rejectAt?: unknown }
+      const result = routeConfidence(
+        input.probability as number,
+        typeof input.acceptAt === 'number' ? input.acceptAt : undefined,
+        typeof input.rejectAt === 'number' ? input.rejectAt : undefined,
+      )
+      return result as never
+    },
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'decision_evaluate',
+    description:
+      'Evaluate labeled decisions: accuracy, confusion rates, Brier score, calibration bins, the best observed threshold, '
+      + 'and an optional escalation arm using rejectAt/acceptAt and the secondary probability.',
+    parameters: {
+      cases: { type: 'json', required: true, description: 'Array of {expected:boolean, probability, escalatedProbability?, costUsd?, latencyMs?}.' },
+      threshold: { type: 'number', description: 'Primary cutoff in [0,1]; default 0.5.' },
+      escalation: { type: 'json', description: 'Optional {rejectAt, acceptAt} hybrid band.' },
+    } as unknown as ParameterSchemaSpec,
+    output: {
+      schema: { type: 'json' } as unknown as ValueSchemaSpec,
+      render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+    },
+    async execute(args) {
+      const input = args as { cases?: unknown; threshold?: unknown; escalation?: unknown }
+      const escalation = typeof input.escalation === 'object' && input.escalation !== null
+        ? input.escalation as { rejectAt: number; acceptAt: number }
+        : undefined
+      return evaluateDecisions(input.cases, typeof input.threshold === 'number' ? input.threshold : 0.5, escalation) as never
+    },
+  }))
+
+  /*
+   * TOOL-02 / DEC-07: the optional remote Jev choice tool. This is a typed
+   * question service, not a chat completion: the request is Jev's native
+   * choice shape and the response is converted by the versioned adapter. The
+   * tool exists only when the operator enabled it, so no default inventory or
+   * external surface changes.
+   */
+  if (config.jev?.enabled === true) {
+    ctx.tools.register(defineTool({
+      name: 'decision_choose_jev',
+      description:
+        'Choose one of 2–16 options through the remote Jev (TypeSafe System One) typed-question API on '
+        + 'the standard decision.choose contract. The confidence is the provider\'s UNCALIBRATED value.',
+      parameters: {
+        decision: { type: 'string', required: true, description: 'The decision to make.' },
+        options: {
+          type: 'array',
+          required: true,
+          items: { type: 'string' },
+          description: 'The mutually exclusive options; the answer is an index into this list.',
+        },
+      } as unknown as ParameterSchemaSpec,
+      output: {
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            chosen: { type: 'integer' },
+            confidence: { type: 'string', enum: ['confident', 'likely', 'tentative'] },
+            reason: { type: 'string' },
+          },
+        } as unknown as ValueSchemaSpec,
+        render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      async execute(args) {
+        const input = args as { decision?: unknown; options?: unknown }
+        if (typeof input.decision !== 'string' || input.decision.trim().length === 0) {
+          throw new Error('JEV_INVALID_INPUT: `decision` must be a non-empty string')
+        }
+        if (
+          !Array.isArray(input.options)
+          || input.options.length < 2
+          || input.options.length > 16
+          || input.options.some(option => typeof option !== 'string' || option.trim().length === 0)
+        ) {
+          throw new Error('JEV_INVALID_INPUT: `options` must be 2–16 non-empty strings')
+        }
+        const options = input.options as string[]
+        const configured = config.jev
+        let apiKey = configured?.apiKey?.trim()
+        if ((apiKey === undefined || apiKey.length === 0) && credentialSeam !== undefined) {
+          apiKey = (await credentialSeam.resolve(configured?.credentialRef ?? 'jev/api-key'))?.value?.trim()
+        }
+        if (apiKey === undefined || apiKey.length === 0) {
+          apiKey = process.env[configured?.apiKeyEnv ?? 'TYPESAFE_API_KEY']?.trim()
+        }
+        if (apiKey === undefined || apiKey.length === 0) {
+          throw new Error(
+            'JEV_API_KEY_NOT_CONFIGURED: add a Jev API key through `jev.apiKey`, the DSH credentials '
+            + `service (${configured?.credentialRef ?? 'jev/api-key'}), or the ${configured?.apiKeyEnv ?? 'TYPESAFE_API_KEY'} environment variable`,
+          )
+        }
+        try {
+          const result = await chooseWithJev(input.decision, options, {
+            apiKey,
+            ...configured?.baseURL === undefined ? {} : { baseURL: configured.baseURL },
+            ...configured?.model === undefined ? {} : { model: configured.model },
+          })
+          return result as never
+        } catch (error) {
+          if (error instanceof JevError) throw new Error(`${error.code.toUpperCase()}: ${error.message}`)
+          throw error
+        }
+      },
+    }))
+
+    /*
+     * The multi-question form: independent atomic judgments in ONE native
+     * request, so code can combine them without one request per judgment.
+     */
+    ctx.tools.register(defineTool({
+      name: 'decision_judgments_jev',
+      description:
+        'Ask 1–16 independent atomic questions through the remote Jev API in one native request. '
+        + 'Boolean questions return a probability in [0,1]; choice questions return the chosen criterion, its '
+        + 'probability map and confidence. The judgments are independent; combine them in code with decision_combine.',
+      parameters: {
+        state: { type: 'json', required: true, description: 'The same state for every question (text or JSON).' },
+        questions: {
+          type: 'json',
+          required: true,
+          description: 'Array of {id, type:"boolean", proposition} or {id, type:"choice", instructions, criteria:{id:description}}.',
+        },
+      } as unknown as ParameterSchemaSpec,
+      output: {
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            model: { type: 'string' },
+            judgments: { type: 'json' },
+          },
+        } as unknown as ValueSchemaSpec,
+        render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      async execute(args) {
+        const input = args as { state?: unknown; questions?: unknown }
+        if (!Array.isArray(input.questions)) throw new Error('JEV_INVALID_INPUT: `questions` must be an array')
+        const configured = config.jev
+        let apiKey = configured?.apiKey?.trim()
+        if ((apiKey === undefined || apiKey.length === 0) && credentialSeam !== undefined) {
+          apiKey = (await credentialSeam.resolve(configured?.credentialRef ?? 'jev/api-key'))?.value?.trim()
+        }
+        if (apiKey === undefined || apiKey.length === 0) {
+          apiKey = process.env[configured?.apiKeyEnv ?? 'TYPESAFE_API_KEY']?.trim()
+        }
+        if (apiKey === undefined || apiKey.length === 0) {
+          throw new Error(
+            'JEV_API_KEY_NOT_CONFIGURED: add a Jev API key through `jev.apiKey`, the DSH credentials '
+            + `service (${configured?.credentialRef ?? 'jev/api-key'}), or the ${configured?.apiKeyEnv ?? 'TYPESAFE_API_KEY'} environment variable`,
+          )
+        }
+        try {
+          const result = await judgeWithJev(input.state, input.questions as never, {
+            apiKey,
+            ...configured?.baseURL === undefined ? {} : { baseURL: configured.baseURL },
+            ...configured?.model === undefined ? {} : { model: configured.model },
+          })
+          return result as never
+        } catch (error) {
+          if (error instanceof JevError) throw new Error(`${error.code.toUpperCase()}: ${error.message}`)
+          throw error
+        }
+      },
+    }))
+  }
+
+  /**
+   * Mount the EXTENSION LIFECYCLE, which is what lets an extension's tools reach the
+   * registry at all.
+   *
+   * This was MISSING: the SDK could install, activate and publish contributions and was
+   * fully tested doing so, but the host never mounted the lifecycle — so an extension
+   * could report `observedActivation: 'active'` with its tool listed and a caller still
+   * could not invoke it. The registrar is the other half of that bridge.
+   *
+   * Opt-in through `extensionStore`, so a deployment with no extensions behaves exactly
+   * as before. RUN-05 governs what happens here: startup RESTORES extensions the operator
+   * already approved and reads their declarations. It performs NO model preparation and
+   * NO package resolution, so nothing downloads because a plugin loaded.
+   */
+  const extensionStoreDir = config.extensionStore ?? ''
+  if (extensionStoreDir.length > 0) {
+    // TASK-117: the store is the HOISTED instance (constructed at the apply
+    // top so the catalogue-install loop can probe extension tool ownership).
+    const store = extensionStore as ExtensionStore
+
+    /**
+     * How dispatch reaches an ACTIVATED extension.
+     *
+     * The module is imported and the instance created ONCE per IDENTITY AND VERSION and
+     * cached, because `create()` is documented as lightweight and repeating it per call
+     * would re-run an extension's activation on every invocation. The version is part of
+     * the key because an upgrade selects new bytes: a cache keyed by identity alone kept
+     * serving the SUPERSEDED module after the operator activated a newer version, so the
+     * new tools registered but every call reached the old implementation. PROVIDERS are
+     * created per call inside `createDispatch`, so a deactivated extension is never served
+     * from a stale provider handle.
+     */
+    const extensionInstances = new Map<string, Promise<{
+      createProvider(request: { modelId: string; configuration: Readonly<Record<string, unknown>> }): Promise<unknown>
+      dispose?(reason: string): Promise<void>
+    }>>()
+    /** Per-instance storage. See the note on storage below. */
+    const memoryStorage = new Map<string, JsonValue>()
+
+    /**
+     * The host-issued context an extension receives.
+     *
+     * It carries NO DSH context, no registry access, no global credentials and no
+     * unfiltered environment (ARCH-06) — an extension gets identity, private storage, a
+     * bounded logger and a teardown signal, and nothing else.
+     */
+    function contextForExtension(extensionId: string): ExtensionContextV1 {
+      const installed = selectedInstalled(extensionId)
+      // EXT-35: bounded, host-policy-controlled extension logging.
+      let logRecords = 0
+      return {
+        extensionId,
+        extensionVersion: installed?.version ?? '0.0.0',
+        activationGeneration: 1,
+        /**
+         * Storage is an IN-MEMORY map for the life of this instance, and that is stated
+         * rather than implied: a full private on-disk store is separate work, and a stub
+         * that LOOKS persistent while losing everything on restart would be worse than one
+         * that visibly does not persist.
+         */
+        storage: {
+          // The declared private directory, so an extension that writes files has a place
+          // the HOST chose rather than one the extension invented for itself.
+          directory: join(store.rootDir, 'extension-private', extensionId),
+          async read(key: string) { return memoryStorage.get(`${extensionId}:${key}`) },
+          async write(key: string, value: JsonValue) {
+            memoryStorage.set(`${extensionId}:${key}`, value)
+          },
+        },
+        logger: {
+          log: (level, message) => {
+            if (logRecords >= DEFAULT_LOG_POLICY.maxRecords) return
+            if (!admitsLogRecord(DEFAULT_LOG_POLICY, { level })) return
+            logRecords += 1
+            if (level === 'error') ctx.logger.error(`[${extensionId}] ${message}`)
+            else if (level === 'warn') ctx.logger.warn(`[${extensionId}] ${message}`)
+            else ctx.logger.info(`[${extensionId}] ${message}`)
+          },
+        },
+        signal: new AbortController().signal,
+        configuration: {},
+      }
+    }
+    function environmentFor(extensionId: string): DispatchEnvironment {
+      /**
+       * The installed package ROOT for an extension, from the store.
+       *
+       * Deliberately NOT named installPathFor: the SDK exports a function of that name
+       * which returns the path SEGMENT a package occupies, not a resolved store lookup. Two
+       * different meanings under one name is how a caller ends up with the wrong one.
+       */
+      const installedRootFor = (id: string): string => {
+        const installed = selectedInstalled(id)
+        if (installed === undefined) {
+          throw new Error(`${id} is not installed, so its recipes cannot be resolved`)
+        }
+        return installed.installPath
+      }
+      const discoveryFor = () => {
+        const installed = selectedInstalled(extensionId)
+        if (installed === undefined) {
+          throw new Error(`${extensionId} is not installed, so its tools cannot be dispatched`)
+        }
+        return discoverExtension(installed.installPath)
+      }
+      return {
+        getManifest: () => discoveryFor().manifest as unknown as DispatchManifest,
+        /**
+         * The host-verified prepared-asset map for THIS extension, built by the
+         * extensions-prepare flow; undefined (the empty map) until then.
+         */
+        assetsFor: () => prepareAssetsSurface?.assetMapFor(extensionId),
+        async providerFor(modelId) {
+          const discovery = discoveryFor()
+          /**
+           * A DECLARATIVE PACKAGE HAS NO MODULE, so it never reaches the import path.
+           *
+           * This branch did not exist, and its absence is why `PTCAuthority`-style
+           * disconnection went unnoticed here for so long: a declarative manifest was
+           * schema-valid, its recipe convention was implemented, and its broker had 132
+           * passing tests — and NOTHING joined them, because this function assumed every
+           * package could be imported. Resolving an entry for a no-code package fails with
+           * "the package declares no importable ./tool-mode export", which is true and
+           * useless: the package was never supposed to declare one.
+           *
+           * Recipes are resolved through the published convention instead, and a package
+           * whose recipes do not resolve is refused BY NAME rather than by import failure.
+           */
+          const kind = (discovery.manifest as unknown as { execution?: { kind?: string } })
+            .execution?.kind
+          if (kind === 'declarative') {
+            const resolved = resolveDeclarativeImplementations(
+              installedRootFor(extensionId),
+              (discovery.manifest as unknown as {
+                implementations: readonly { id: string; contractId: string; recipeVersion: string }[]
+              }).implementations ?? [],
+            )
+            if (!resolved.ok) {
+              throw new Error(
+                `${extensionId} is declarative but its recipe could not be resolved: `
+                + `${resolved.id} — ${resolved.detail}`,
+              )
+            }
+            /**
+             * The recipes RESOLVE, and execution is refused honestly rather than faked.
+             *
+             * THIS MESSAGE WAS CORRECTED, and the correction matters. It used to say "the link
+             * from the host to @try-works/tool-mode-recipes is not wired" — which was true when
+             * written and is NO LONGER: `scripts/link-dsh.mjs` listed only four of eight
+             * workspace packages, so the broker could not be imported by anything, and
+             * completing that map made the bare specifier resolve. Leaving the old text would
+             * have pointed the next reader at a link that now exists.
+             *
+             * What is genuinely missing is narrower, and it is a COMPOSITION rather than a
+             * connection: a declarative package's behaviour is executed by a harness broker
+             * fed by an `LlmProvider`, and this deployment supplies none. The recipes are real,
+             * the broker is importable, and nothing can call a model.
+             */
+            /**
+             * SERVED WHEN THE DEPLOYMENT SUPPLIES A PROVIDER, refused when it does not.
+             *
+             * The joining lives in `prepareDeclarative` so the host holds no model-specific code:
+             * this branch hands over the deployment's provider and a journal sink, and receives
+             * callable tools or an honest refusal. The journal is required by the BROKER itself,
+             * which will not construct one that reports nothing (HLM-09).
+             */
+            const served = prepareDeclarative({
+              ...harnessProvider === undefined ? {} : { provider: harnessProvider },
+              ...config.harnessProfiles === undefined ? {} : { profiles: config.harnessProfiles },
+              journal: record => recordAuxiliaryReceipt(record, extensionId, 'unknown'),
+            }, resolved.resolved)
+
+            if (!served.ok) {
+              throw new Error(
+                `${extensionId} is declarative and its ${resolved.resolved.length} recipe(s) resolved, `
+                + `but they cannot be served: ${served.detail}`,
+              )
+            }
+            /**
+             * THE DISPATCH PROVIDER SHAPE, and the previous version of this branch did not have it.
+             *
+             * It returned `{ async createProvider() { return { async invoke() {} } } }` — an
+             * INSTANCE, where `createDispatch` requires a `DispatchProvider`. Adversarial review
+             * reproduced the consequence exactly: `dispatch.ok = true` and then
+             * `TypeError: provider.load is not a function`. The module branch below has the right
+             * shape and this one did not, so the two differed in a way no test could see because
+             * `harnessProvider` appeared in no test at all.
+             *
+             * The contract is:
+             *   load({ assets, signal })                        -> Promise<void>
+             *   invoke({ implementationId, input, context })    -> Promise<Record<string, unknown>>
+             *
+             * AND `implementationId` IS USED. The previous version called `served.served[0]`
+             * unconditionally, so the SECOND recipe of a two-recipe package could never be served
+             * — it would silently answer with the first one's output. A package declaring two
+             * implementations is the normal case, not an edge case.
+             */
+            return {
+              async load() {
+                // Recipes are already parsed, validated and authorized by `prepareDeclarative`.
+                // There is no module to import and no asset to fetch, so loading is complete.
+              },
+              async invoke(request: {
+                readonly implementationId: string
+                readonly input: Readonly<Record<string, unknown>>
+              }): Promise<Record<string, unknown>> {
+                const recipe = served.served.find(entry => entry.implementationId === request.implementationId)
+                // An unknown id is REFUSED rather than defaulted to the first recipe, which is the
+                // silent-wrong-answer failure the previous version would have produced.
+                if (recipe === undefined) {
+                  throw new Error(
+                    `${extensionId} declares no implementation ${JSON.stringify(request.implementationId)}`
+                    + `; it serves: ${served.served.map(entry => entry.implementationId).join(', ')}`,
+                  )
+                }
+                const text = await recipe.invoke(request.input)
+                // The dispatch contract returns a RECORD, not a bare value.
+                return { text } as Record<string, unknown>
+              },
+            } as never
+          }
+
+          /**
+           * EXT-20, THE MANAGED HALF: when the deployment opted in, the extension's
+           * module entry runs OUT OF PROCESS — one scrubbed-environment worker per
+           * extension per activation generation, disposed when the generation advances.
+           *
+           * The GRANT and the schemas stay host-side: this branch only runs after the
+           * caller passed authorization and the input passed the declared schema, and
+           * the returned value is validated by the same output-schema path as the
+           * in-process result. The worker receives exactly `{implementationId, input}`.
+           */
+          if (managedWorkers) {
+            const entry = resolveExtensionEntry(discovery)
+            const generation = activationGenerations.get(extensionId)
+              ?? extensionLifecycle?.generation
+              ?? host.activationGeneration
+            return await workerRegistry.providerFor({
+              extensionId,
+              entryPath: entry,
+              generation,
+              envPassthrough: workerEnvPassthrough,
+            })
+          }
+
+          const installedForInstance = selectedInstalled(extensionId)
+          const instanceKey = `${extensionId}@${installedForInstance?.version ?? '0.0.0'}`
+          let pending = extensionInstances.get(instanceKey)
+          if (pending === undefined) {
+            pending = (async () => {
+              const module = await loadExtensionModule(resolveExtensionEntry(discovery))
+              return module.create(contextForExtension(extensionId)) as never
+            })()
+            extensionInstances.set(instanceKey, pending)
+          }
+          const instance = await pending
+          return instance.createProvider({ modelId, configuration: {} }) as never
+        },
+        // The manifest is resolved per call: a deactivated+reactivated extension's
+        // discovery must be fresh, not a startup snapshot.
+        // TASK-123: the invocation context carries the FULL host-granted surface
+        // the SDK contract documents (InvocationContextV1): the invocation id,
+        // the signal, the resource limits, and the path authority broker — the
+        // SAME authority the catalogue/contract path builds, so an extension
+        // that reads a caller-supplied file path asks the host exactly like the
+        // catalogue adapter does. The broker is always present; a composition
+        // without a grant fails with a NAMED error, never undefined.
+        contextFor: (implementationId, signal) => {
+          if (host.grant === undefined) {
+            throw new Error('path access denied: the host has no configured grant, so the path authority broker is unavailable')
+          }
+          const authority = createInvocationAuthority(host.grant, host.callerKind)
+          return {
+            implementationId,
+            signal,
+            invocationId: `inv_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e6).toString(36)}`,
+            limits: authority.limits,
+            resolvePath: (candidate: string): string => authority.resolvePath(candidate),
+          }
+        },
+      }
+    }
+
+    /**
+     * Stamp the reserved root `meta` envelope on an extension tool result (EXT-17, DECL-03).
+     *
+     * An extension's shipped output schema may REQUIRE `meta` — the Needle planning and
+     * extraction contracts do, because the schema declares the field the HOST authors and
+     * the provider must not (EXT-17 reserves it, `assertNoReservedMeta` rejects a provider
+     * attempt). Without this stamp the host's own output validation would refuse every
+     * successful call for such a tool. The stamp is only applied when the declared schema
+     * requires it, so a tool whose schema has no envelope keeps returning exactly what its
+     * provider produced.
+     *
+     * The receipt is recorded with the same envelope (EXT-35 symmetry with the
+     * `tool_mode_run` path): a caller that wants provenance for a planning call can ask the
+     * receipts action, and a receipt never appears only in the result object.
+     * @param ownerExtension - the extension the tool belongs to.
+     * @param toolName - the caller-facing name.
+     * @param value - the provider's result.
+     * @param warnings - non-fatal notes already free of caller content.
+     * @returns the result with the host-authored `meta`.
+     */
+    const stampResultMeta = (
+      ownerExtension: string,
+      toolName: string,
+      value: Record<string, unknown>,
+      warnings: readonly string[] = [],
+    ): Record<string, unknown> => {
+      const resolved = resolveImplementation(environmentFor(ownerExtension).getManifest(), toolName)
+      if (!resolved.ok) throw new Error(describeDispatchFailure(resolved.failure))
+      const installed = selectedInstalled(ownerExtension)
+      const receiptId = host.nextReceiptId()
+      const activationGeneration = extensionLifecycle?.generation ?? host.activationGeneration
+      const meta = {
+        contract: resolved.tool.contractId,
+        contractVersion: resolved.tool.contractVersion,
+        implementationId: resolved.implementation.id,
+        extension: ownerExtension,
+        extensionVersion: installed?.version ?? '0.0.0',
+        activationGeneration,
+        executionLocation: 'device' as const,
+        receiptId,
+        warnings: [...warnings],
+      }
+      host.recordReceipt?.(buildInvocationReceipt({
+        receiptId,
+        contract: resolved.tool.contractId,
+        contractVersion: resolved.tool.contractVersion,
+        implementationId: resolved.implementation.id,
+        extension: ownerExtension,
+        extensionVersion: meta.extensionVersion,
+        extensionContentDigest: installed?.contentDigest ?? null,
+        dependencyLockDigest: installed?.dependencyLockDigest ?? null,
+        modelIdentity: resolved.implementation.modelId,
+        activationGeneration,
+        executionLocation: meta.executionLocation,
+        warnings,
+      }))
+      return { ...value, meta }
+    }
+
+    /**
+     * Read the schemas an extension's manifest declares for one contributed tool.
+     *
+     * Bounded and confined: the manifest validator already proved the referenced files
+     * exist inside the package, and the byte cap keeps a hostile package from making
+     * registration read an unbounded file. A DECLARED schema the host cannot read or
+     * compile REFUSES the tool (P26-13): publishing it unenforced would advertise
+     * constraints that are enforced nowhere. The throw reaches the lifecycle, whose
+     * narrow rollback withdraws only this extension's handles and quarantines it with
+     * the reason named, so other extensions are untouched.
+     * @param tool - the contributed tool whose schemas are wanted.
+     * @returns the declared input/output schemas and description.
+     */
+    const readDeclaredToolSchemas = (tool: RegistrableTool): {
+      inputSchema?: Readonly<Record<string, unknown>>
+      outputSchema?: Readonly<Record<string, unknown>>
+      description?: string
+    } => {
+      const record = selectedInstalled(tool.ownerExtension)
+      if (record === undefined) return {}
+      let discovery: ReturnType<typeof discoverExtension>
+      try {
+        discovery = discoverExtension(record.installPath)
+      } catch (error) {
+        /**
+         * TASK-128: a discovery failure must NOT masquerade as "no schemas
+         * declared". The old `return {}` here turned an unreadable package
+         * (a moved store, a stale lock path) into the NDL-02 refusal "must
+         * declare the planning input shape" — blaming the schema for a
+         * package the host could not even read. The real reason is surfaced
+         * instead: the narrow rollback quarantines with THIS message.
+         */
+        throw new Error(
+          `${tool.name}'s package cannot be read at ${record.installPath}: `
+          + `${error instanceof Error ? error.message : String(error)}. `
+          + 'Reinstall or repair the package; the tool is not published.',
+        )
+      }
+      const declared = discovery.manifest.tools.find(candidate => candidate.name === tool.name)
+      if (declared === undefined) return {}
+      const readSchema = (relative: string): Readonly<Record<string, unknown>> => {
+        // A MANIFEST-DECLARED schema the host cannot read or compile is a broken
+        // package, and the tool is REFUSED rather than published with the declared
+        // constraints enforced nowhere (P26-13: reject unsupported constraints, do
+        // not silently strip them). The throw reaches the lifecycle, whose narrow
+        // rollback withdraws this extension's published handles and quarantines it
+        // with the reason named.
+        try {
+          const path = join(record.installPath, relative)
+          const size = statSync(path).size
+          if (size > MAX_SCHEMA_BYTES) {
+            throw new Error(`the declared schema is ${size} bytes, over the ${MAX_SCHEMA_BYTES} cap`)
+          }
+          const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'))
+          if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+            throw new Error('the declared schema is not a JSON object')
+          }
+          return parsed as Readonly<Record<string, unknown>>
+        } catch (error) {
+          throw new Error(
+            `${tool.name} declares ${relative} which cannot be enforced: `
+            + `${error instanceof Error ? error.message : String(error)}. `
+            + 'Fix or replace the package; the tool is not published.',
+          )
+        }
+      }
+      const inputSchema = readSchema(declared.inputSchema)
+      const outputSchema = readSchema(declared.outputSchema)
+      return {
+        ...inputSchema === undefined ? {} : { inputSchema },
+        ...outputSchema === undefined ? {} : { outputSchema },
+        description: declared.description,
+      }
+    }
+    /**
+     * The host's own name → owning-extension map for CONTRIBUTED tools.
+     *
+     * The registry's `schemas()` projection exposes names only, so the planning re-check
+     * (NDL-03) cannot ask `lifecycle.admits(extensionId, toolName)` without knowing WHICH
+     * extension owns a proposed tool. This map is that knowledge, maintained at the same
+     * boundary that publishes and withdraws the tool — a tool present here but not
+     * admitted is deactivated or quarantined, which is exactly the state a fresh policy
+     * check must refuse.
+     */
+    const extensionToolOwners = new Map<string, string>()
+    // Seed the LIVE admission set the management service also maintains; the
+    // registrar holds the same Set, not a snapshot, so a runtime enable publishes.
+    for (const entry of store.readProfileState('default').value) {
+      if (entry.desiredActivation === 'active') activatedExtensions.add(entry.extensionId)
+    }
+    const registrar = createContributionRegistrar({
+      activated: activatedExtensions,
+      registry: {
+        registerTool: tool => {
+          /**
+           * The tool is registered through the SAME DSH registry a native tool uses, so an
+           * extension contribution is subject to the same pipeline rather than a parallel
+           * one (ARCH-05).
+           *
+           * Its `execute` walks the REAL chain: the TMX runtime API has no
+           * tool-invocation surface, so a tool is a name whose contract binds to an
+           * implementation, and the implementation is a model provider. The provider is
+           * created on first CALL, keeping activation lightweight (EXT-19).
+           */
+          // The manifest the contribution came from declares the tool's REAL schemas;
+          // reading them here closes the exact-schema gap an empty `parameters: {}`
+          // and open output would leave. Files are bounded and the manifest already
+          // validated they exist inside the package.
+          const declared = readDeclaredToolSchemas(tool)
+
+          /**
+           * THE PLANNING CONTRACT IS RECOGNIZED BY NAME PLUS SHAPE (NDL-02).
+           *
+           * `tools_plan` is the spec's normative caller-facing name for the read-only
+           * proposal tool, so any contribution using the name is served through the
+           * planning pipeline — the frozen host snapshot supplies the tool list, never
+           * the caller's input. A contribution that takes the name WITHOUT the planning
+           * input shape (a declared `tools` array) is refused outright: serving it as an
+           * ordinary tool would put a non-planner behind the planner's name, and serving
+           * it through the planning pipeline would fail in ways nobody could see.
+           */
+          const isPlanning = tool.name === PLANNING_TOOL_NAME
+          if (isPlanning && !hasPlanningInputShape(declared.inputSchema)) {
+            throw new Error(
+              'tools_plan is the reserved planning contract (NDL-02): a contribution using the name '
+              + 'must declare the planning input shape, an array-valued "tools" property in its '
+              + 'input schema. Refused rather than published, so the name cannot be taken by a '
+              + 'package that is not a planner.',
+            )
+          }
+
+          // Compile the schemas ONCE, at registration. A declared schema
+          // that cannot be compiled REFUSES the tool (P26-13): publishing it with
+          // the projection but no full-schema enforcement would advertise
+          // constraints that are enforced nowhere, and silently stripping them is
+          // exactly what P26-13 forbids. The throw reaches the lifecycle, which
+          // rolls back narrowly and quarantines the extension with the reason.
+          // The planning tool's INPUT is the host's own schema: the caller names
+          // tools as strings and the host supplies the snapshot entries, so the
+          // extension's declared input shape is its provider contract, not the
+          // caller-facing advertisement.
+          const inputValidator = isPlanning
+            ? compileSchema(PLANNING_TOOL_INPUT_SCHEMA as unknown as Readonly<Record<string, unknown>>)
+            : declared.inputSchema === undefined
+              ? undefined
+              : compileSchema(declared.inputSchema)
+          const outputValidator = declared.outputSchema === undefined
+            ? undefined
+            : compileSchema(declared.outputSchema)
+          const inputProjection = isPlanning
+            ? projectSchemaToDsh(PLANNING_TOOL_INPUT_SCHEMA as unknown as Readonly<Record<string, unknown>>).parameters
+            : declared.inputSchema === undefined
+              ? {}
+              : projectSchemaToDsh(declared.inputSchema).parameters
+          // Closedness comes from the DECLARED schema, not a hardcoded `false`: an
+          // extension that declares an open output schema must not have legitimate
+          // extra fields rejected by the registry as undeclared.
+          const declaredClosed = declared.outputSchema?.additionalProperties === false
+          const outputProjection = declared.outputSchema === undefined
+            ? { type: 'object', additionalProperties: true }
+            : {
+                type: 'object',
+                properties: projectSchemaToDsh(declared.outputSchema).parameters,
+                additionalProperties: declaredClosed,
+              }
+          // The envelope is stamped only when the DECLARED schema requires it (EXT-17):
+          // the needle contracts declare `meta` as host-authored, and output validation
+          // must not be run against a result that is still missing it.
+          const requiredMeta = Array.isArray(declared.outputSchema?.required)
+            && (declared.outputSchema?.required as readonly unknown[]).includes('meta')
+
+          /**
+           * THE PLANNING PIPELINE STATE, closed over per registration (NDL-02/03).
+           *
+           * The snapshot is captured LAZILY on the first planning call rather than at
+           * publication: restoration is asynchronous across extensions, so a
+           * publication-time capture would freeze whatever subset had published so far
+           * and make the plannable set depend on restore order. By the first call the
+           * registry is settled, and the snapshot is then FROZEN for the tool's life — a
+           * later registration does not enter it (that is the "frozen at capture"
+           * property the tests pin). Freshness is handled by the per-call re-checks, not
+           * by re-capturing.
+           */
+          let planningSnapshot: ToolSchemaSnapshot | undefined
+          const planningLiveLeaf = (): ReadonlySet<string> => filterPlanningLiveTools(
+            ctx.tools.schemas().map(schema => schema.name),
+            PLANNING_EXCLUDED_TOOLS,
+            externalGrantContext.current(),
+          )
+          const capturePlanningSnapshot = (): ToolSchemaSnapshot => {
+            planningSnapshot ??= captureToolSchemaSnapshot(
+              ctx.tools.schemas() as unknown as readonly RegistryToolSchema[],
+              {
+                generation: extensionLifecycle?.generation ?? host.activationGeneration,
+                excluded: PLANNING_EXCLUDED_TOOLS,
+              },
+            )
+            return planningSnapshot
+          }
+          /**
+           * The fresh NDL-03 authorization check, consulted at PROPOSAL time.
+           *
+           * Registry membership alone is not admission: a quarantined extension's tool can
+           * still be registered (its withdrawal is what failed), and a proposal for it
+           * must land in `rejected` rather than pass as valid. Tools the HOST registered
+           * itself (model catalog tools) have no owner here and are authorized by their
+           * registry presence; contributed tools are additionally admitted through the
+           * lifecycle, the same signal the dispatch path itself enforces per call.
+           */
+          const planningAuthorized = (name: string): true | string => {
+            if (!planningLiveLeaf().has(name)) {
+              return 'it was withdrawn or deactivated after the snapshot was captured'
+            }
+            const owner = extensionToolOwners.get(name)
+            const lifecycle = extensionLifecycle
+            if (owner === undefined || lifecycle === undefined) return true
+            return lifecycle.admits(owner, name)
+              ? true
+              : 'its extension no longer admits it (deactivated or quarantined)'
+          }
+
+          const dispose = ctx.tools.register(defineTool({
+            name: tool.name,
+            description: declared.description ?? `Provided by ${tool.ownerExtension}.`,
+            parameters: inputProjection as unknown as ParameterSchemaSpec,
+            output: {
+              schema: outputProjection as unknown as ValueSchemaSpec,
+              render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+            },
+            async execute(args, exec) {
+              /**
+               * ADMISSION IS ENFORCED AT THE CALL PATH (EXT-04, EXT-24). A registered
+               * definition is not enough: a tool whose extension was deactivated, whose
+               * handle failed to withdraw, or whose toggle disabled it must refuse here,
+               * not dispatch. The lifecycle's admission is the same signal publication
+               * used, so a caller can never run a tool the host has stopped admitting.
+               */
+              const lifecycle = extensionLifecycle
+              if (lifecycle !== undefined && !lifecycle.admits(tool.ownerExtension, tool.name)) {
+                throw new Error(
+                  `${tool.name} is not admitted: its extension is inactive, disabled, or no longer publishes it`,
+                )
+              }
+
+              if (isPlanning) {
+                return servePlanningCall(
+                  (args ?? {}) as Record<string, unknown>,
+                  exec?.signal ?? new AbortController().signal,
+                ) as unknown as never
+              }
+
+              /**
+               * FULL-SCHEMA enforcement against the DECLARED manifest schemas. The
+               * projected advertisement the registry validates is deliberately LOOSER
+               * (union members become `json`, unsupported keywords are dropped), so
+               * without this the dropped keywords — maxLength, minimum, pattern — are
+               * enforced nowhere for extension tools.
+               */
+              if (inputValidator !== undefined) {
+                assertAgainstSchema(`${tool.name} input`, inputValidator, args ?? {})
+              }
+              admitSerialized('input', args ?? {}, grant.limits.maxInputBytes)
+              const dispatch = await createDispatch(environmentFor(tool.ownerExtension), tool.name)
+              if (!dispatch.ok) {
+                // A declared-but-unserved contract is an ERROR naming which situation the
+                // caller is in, never an empty success.
+                throw new Error(describeDispatchFailure(dispatch.failure))
+              }
+              const tracked = trackExtensionCall(tool.ownerExtension, exec?.signal)
+              let value
+              try {
+                value = await dispatch.execute(
+                  (args ?? {}) as Record<string, unknown>,
+                  tracked.signal,
+                )
+              } finally {
+                tracked.finish()
+              }
+              if (requiredMeta) {
+                value = stampResultMeta(tool.ownerExtension, tool.name, value)
+              }
+              // The RESULT is checked against the declared output schema before it
+              // reaches a caller: the projected advertisement is looser, so this is the
+              // check that enforces the keywords the projection dropped.
+              if (outputValidator !== undefined) {
+                assertAgainstSchema(`${tool.name} output`, outputValidator, value)
+              }
+              admitSerialized('result', value, grant.limits.maxResultBytes)
+              return value as unknown as never
+            },
+          }))
+
+          /**
+           * Serve one `tools_plan` call through the frozen-snapshot pipeline (NDL-02/03).
+           *
+           * Kept INSIDE registration so it closes over the tool's validators, dispatch
+           * environment and the snapshot state — and outside the registry definition so
+           * the shared admission check above still runs first.
+           * @param callArgs - the caller's arguments, already shape-checked by the registry.
+           * @param signal - cancellation.
+           * @returns the validated, meta-stamped plan.
+           */
+          async function servePlanningCall(
+            callArgs: Record<string, unknown>,
+            signal: AbortSignal,
+          ): Promise<Record<string, unknown>> {
+            // The host's own schema is the call contract; the extension's shipped input
+            // schema is its provider contract, so the declared input validator is
+            // deliberately not consulted here.
+            if (inputValidator !== undefined) {
+              assertAgainstSchema(`${tool.name} input`, inputValidator, callArgs)
+            }
+            const snapshot = capturePlanningSnapshot()
+            const requested = Array.isArray(callArgs.tools)
+              ? callArgs.tools.filter((name): name is string => typeof name === 'string')
+              : []
+            /**
+             * THE REQUESTED-NAME GATE. The caller's names are intersected with the LIVE
+             * registry and the FROZEN snapshot; anything unattainable refuses the WHOLE
+             * call rather than shrinking the offer set silently.
+             */
+            const decision = offerToolsFromSnapshot(snapshot, requested, planningLiveLeaf())
+            if (!decision.ok) throw new Error(describePlanningRejections(decision.rejections))
+
+            const dispatch = await createDispatch(environmentFor(tool.ownerExtension), tool.name)
+            if (!dispatch.ok) throw new Error(describeDispatchFailure(dispatch.failure))
+
+            /**
+             * The provider receives SNAPSHOT entries, never the caller's declared list and
+             * never anything executable — names, descriptions and JSON Schema parameters,
+             * which is exactly NDL-02's "narrow public broker".
+             */
+            const providerInput: Record<string, unknown> = {
+              request: callArgs.request,
+              tools: decision.offered.map(entry => ({
+                name: entry.name,
+                description: entry.description,
+                parameters: entry.parameters,
+              })),
+            }
+            if (typeof callArgs.system === 'string') providerInput.system = callArgs.system
+            if (typeof callArgs.max_new_tokens === 'number') providerInput.max_new_tokens = callArgs.max_new_tokens
+            const raw = await dispatch.execute(providerInput, signal)
+
+            /**
+             * HOST-SIDE RE-VALIDATION plus the NDL-03 fresh policy check: every proposal
+             * is re-checked against the frozen snapshot, the per-call OFFERED set, and the
+             * live authorization state (registry membership AND lifecycle admission for
+             * contributed tools) — a proposal that is snapshotted, schema-valid but no
+             * longer offered or no longer admitted is moved to `rejected` with the reason,
+             * never returned as a valid plan step.
+             */
+            const { payload, warnings } = recheckProposals(
+              snapshot,
+              raw,
+              new Set(decision.offered.map(entry => entry.name)),
+              planningAuthorized,
+            )
+            const withCatalog = {
+              ...payload,
+              noMatch: (Array.isArray(payload.proposals) ? payload.proposals.length : 0) === 0,
+              toolCatalogRevision: String(snapshot.generation),
+            }
+            const stamped = stampResultMeta(tool.ownerExtension, tool.name, withCatalog, warnings)
+            if (outputValidator !== undefined) {
+              assertAgainstSchema(`${tool.name} output`, outputValidator, stamped)
+            }
+            return stamped
+          }
+          // The owner map is maintained at the same boundary that publishes and withdraws
+          // the tool, so the planning admission check never consults a stale owner.
+          extensionToolOwners.set(tool.name, tool.ownerExtension)
+          exposeExtensionToolToMcp(tool.name, {
+            description: declared.description ?? '',
+            /**
+             * `tools_plan` is served through the HOST's planning contract, whose `tools`
+             * are tool NAMES (strings) that the host snapshots into the planner's offered
+             * entries. The manifest's own schema describes the ENGINE's object-shaped
+             * tool descriptors, so advertising it over MCP made every schema-valid call
+             * fail `"tools[0]" must be a string` while string callers failed the
+             * advertised-object validation — a contradiction no client could satisfy.
+             * Advertise the shape the registry actually accepts.
+             */
+            ...isPlanning
+              ? { inputSchema: PLANNING_TOOL_INPUT_SCHEMA as unknown as Readonly<Record<string, unknown>> }
+              : declared.inputSchema === undefined ? {} : { inputSchema: declared.inputSchema },
+            ...declared.outputSchema === undefined ? {} : { outputSchema: declared.outputSchema },
+          })
+          return () => {
+            extensionToolOwners.delete(tool.name)
+            withdrawExtensionToolFromMcp(tool.name)
+            dispose()
+          }
+        },
+
+        /**
+         * REGISTER ONE DECLARATIVE IMPLEMENTATION'S CALLER-FACING TOOL (RCP-01, HLM-01).
+         *
+         * A declarative package's manifest declares implementations only — no `tools`
+         * array — so the tool names and schemas can only come from the RESOLVED RECIPES,
+         * and a recipe can only be SERVED when the deployment composes a harness
+         * provider. The contribution arrives per implementation; this resolves the whole
+         * package, prepares the broker, and registers the one tool this implementation
+         * names, returning its disposer so the registrar withdraws it on deactivation
+         * exactly like a module tool.
+         *
+         * The refusal without a provider is the SAME message the per-call declarative
+         * branch raises, moved to publication: activating a declarative package on a
+         * deployment with no harness composition fails loudly (the narrow rollback
+         * quarantines it) instead of silently registering nothing.
+         */
+        /**
+         * TASK-121: the STANDARD contract tool for an implementation-only
+         * MODULE extension. The contract id maps to the standard tool name
+         * (text.embed -> text_embed — never invented per extension), and the
+         * tool's schemas come from the contract definition itself. The
+         * extension owns the name while active (task-117's probe reads the
+         * implementations' standard names too); the deactivation withdraws it.
+         */
+        registerContractImplementation: (contribution): (() => void) | undefined => {
+          const record = selectedInstalled(contribution.extensionId)
+          if (record === undefined) return undefined
+          const discovery = discoverExtension(record.installPath)
+          // DECLARATIVE packages are served by the recipe path below, never by
+          // this standard-contract path (their contracts may share standard
+          // names, e.g. text.title, but their execution is the recipe broker).
+          if (discovery.manifest.execution?.kind === 'declarative') return undefined
+          const contract = STANDARD_CONTRACTS.find(candidate => candidate.contract === contribution.contractId)
+          if (contract === undefined) return undefined
+          const toolName = contract.toolName
+          // No duplicate: the extension's own manifest tool (when it declares
+          // one) already serves the contract under the standard name.
+          if (extensionToolOwners.get(toolName) === contribution.extensionId) return () => {}
+          const environment = environmentFor(contribution.extensionId)
+          const manifestImplementation = environment.getManifest().implementations.find(
+            candidate => candidate.contractId === contribution.contractId,
+          )
+          const registered = registerContractImplementationTool(
+            ctx as unknown as { tools: { register(definition: unknown): () => void } },
+            contract,
+            host,
+            async (args, signal) => {
+              const dispatch = await createDispatchForContract(environment, contribution.contractId)
+              if (!dispatch.ok) throw new Error(describeDispatchFailure(dispatch.failure))
+              return dispatch.execute(args, signal)
+            },
+            {
+              id: contribution.implementationId,
+              extensionId: contribution.extensionId,
+              modelId: manifestImplementation?.modelId ?? contribution.implementationId,
+            },
+          )
+          extensionToolOwners.set(toolName, contribution.extensionId)
+          exposeExtensionToolToMcp(toolName, {
+            description: contract.description,
+            inputSchema: contract.inputSchema,
+            outputSchema: contract.outputSchema,
+          })
+          return () => {
+            extensionToolOwners.delete(toolName)
+            withdrawExtensionToolFromMcp(toolName)
+            registered.dispose()
+          }
+        },
+        registerDeclarative: (contribution): (() => void) => {
+          const record = selectedInstalled(contribution.extensionId)
+          if (record === undefined) return () => {}
+          const discovery = discoverExtension(record.installPath)
+          const manifest = discovery.manifest as unknown as {
+            execution?: { kind?: string }
+            implementations?: readonly { id: string; contractId: string; recipeVersion: string }[]
+          }
+          if (manifest.execution?.kind !== 'declarative') {
+            // A MODULE package's implementation is not a caller-facing tool; the model
+            // catalogue binds it, and there is nothing to register.
+            return () => {}
+          }
+          if (harnessProvider === undefined && config.harnessProfiles === undefined) {
+            throw new Error(
+              `${contribution.extensionId} is declarative and its recipes resolved, but they cannot be served: `
+              + 'this deployment composes no harness LlmProvider, so a declarative package\'s recipes '
+              + 'cannot be executed. Set config.harnessModel (or supply harnessProvider/harnessProfiles) to serve them.',
+            )
+          }
+          const resolved = resolveDeclarativeImplementations(record.installPath, manifest.implementations ?? [])
+          if (!resolved.ok) {
+            throw new Error(
+              `${contribution.extensionId} is declarative but its recipe could not be resolved: `
+              + `${resolved.id} — ${resolved.detail}`,
+            )
+          }
+          const served = prepareDeclarative({
+            ...harnessProvider === undefined ? {} : { provider: harnessProvider },
+            ...config.harnessProfiles === undefined ? {} : { profiles: config.harnessProfiles },
+            journal: journalRecord => recordAuxiliaryReceipt(journalRecord, contribution.extensionId, 'unknown'),
+          }, resolved.resolved)
+          if (!served.ok) {
+            throw new Error(
+              `${contribution.extensionId} is declarative and its ${resolved.resolved.length} recipe(s) resolved, `
+              + `but they cannot be served: ${served.detail}`,
+            )
+          }
+          const rawEntry = resolved.resolved.find(entry => entry.id === contribution.name)
+          if (rawEntry === undefined) return () => {}
+          const parsed = parseRecipe(rawEntry.recipe)
+          if (!parsed.ok) {
+            throw new Error(`${contribution.extensionId} declares a recipe that did not validate: ${JSON.stringify(parsed).slice(0, 300)}`)
+          }
+          const recipe = parsed.recipe as RecipeManifest
+          const servedRecipe = served.served.find(entry => entry.implementationId === contribution.name)
+          if (servedRecipe === undefined) return () => {}
+          // The ADVERTISEMENT comes from the RECIPE's declared inputs (AT-63: the built-in's
+          // input schema comes from the recipe, never a host guess). The recipe format is
+          // JSON-Schema-flavoured (per-property `required` flags, minLength/maxLength), which
+          // the DSH value-schema DSL does not fully speak — so the host applies the same
+          // dual discipline it applies to extension tools (P26-13): the registry advertises
+          // the DSL subset, and the FULL schema is compiled and enforced at call time.
+          const dsl: Record<string, unknown> = {}
+          const properties: Record<string, unknown> = {}
+          const requiredNames: string[] = []
+          for (const [name, raw] of Object.entries(recipe.inputs)) {
+            const record = raw as unknown as Record<string, unknown>
+            const advertised: Record<string, unknown> = {}
+            for (const [key, value] of Object.entries(record)) {
+              // The DSH DSL admits `required` only as true; a false flag is simply omitted.
+              if (key === 'required' && value !== true) continue
+              if (key === 'type' && value === 'image') {
+                // Typed media is not a DSH scalar type; the broker does its own media
+                // typing (and refuses a path/URL that is not typed media), so the
+                // advertisement is the permissive json while enforcement stays full.
+                advertised.type = 'json'
+                continue
+              }
+              if (DSH_PARAMETER_KEYWORDS.has(key)) advertised[key] = value
+            }
+            dsl[name] = advertised
+            // The full-schema half: per-property `required` folds into the root array,
+            // image-typed properties validate as permissive objects (the broker types
+            // them), and everything else keeps its declared keywords.
+            const full: Record<string, unknown> = { ...record }
+            delete full.required
+            if (record.required === true) requiredNames.push(name)
+            if (record.type === 'image') {
+              full.type = 'object'
+              full.additionalProperties = true
+              delete full.mediaTypes
+              delete full.maxBytes
+            }
+            properties[name] = full
+          }
+          const inputValidator = compileSchema({
+            type: 'object',
+            additionalProperties: false,
+            properties,
+            required: requiredNames,
+          })
+          const disposeTool = ctx.tools.register(defineTool({
+            name: recipe.tool.name,
+            description: recipe.description,
+            parameters: dsl as unknown as ParameterSchemaSpec,
+            output: recipe.response === undefined
+              ? {
+                  schema: { type: 'string' },
+                  render: (_args, value) => [{ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value) }],
+                }
+              : {
+                  schema: { type: 'json' },
+                  render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+                },
+            async execute(args, exec) {
+              // FULL-SCHEMA enforcement before the broker runs the recipe: the
+              // advertised DSL subset is looser, so the dropped keywords are enforced
+              // here, exactly as the extension-tool path does (P26-13).
+              assertAgainstSchema(`${recipe.tool.name} input`, inputValidator, args ?? {})
+              // Typed media crosses the tool boundary in the JSON-safe form
+              // `{ mediaType, bytes: number[] }` (the harness requires losslessly
+              // JSON-serializable arguments); the recipe wants the ACTUAL bytes, so the
+              // conversion happens HERE, and only here — never a path and never a URL,
+              // which the recipe binding refuses (AT-64).
+              const converted: Record<string, unknown> = { ...(args ?? {}) }
+              for (const [name, value] of Object.entries(converted)) {
+                const candidate = value as { mediaType?: unknown; bytes?: unknown }
+                if (
+                  typeof candidate?.mediaType === 'string'
+                  && Array.isArray(candidate.bytes)
+                  && candidate.bytes.every(entry => typeof entry === 'number' && Number.isInteger(entry) && entry >= 0 && entry <= 255)
+                ) {
+                  converted[name] = {
+                    mediaType: candidate.mediaType,
+                    bytes: Uint8Array.from(candidate.bytes as number[]),
+                  }
+                }
+              }
+              // NO lifecycle.admits gate: declarative tools have no per-tool entries in the
+              // lifecycle state (the SDK models manifest tools only). Deactivation
+              // withdrawal — the registrar's handle for exactly this disposer — is the
+              // enforcement, and it removes the tool from the registry before any call.
+              admitSerialized('input', converted, grant.limits.maxInputBytes)
+              if (recipe.modelSelection?.strategy === 'approved-profile') {
+                const profiles = externalGrantContext.currentProfiles() ?? grant.allowedHarnessProfiles
+                if (!profiles.includes(recipe.modelSelection.profile)) {
+                  throw new Error(
+                    `EXECUTOR_NOT_CONFIGURED: harness executor profile "${recipe.modelSelection.profile}" is not `
+                    + 'approved for this caller; an external caller cannot borrow the UI session or another client\'s profile',
+                  )
+                }
+              } else if (externalGrantContext.currentProfiles() !== undefined) {
+                // HLM-03/AT-67: an external MCP application does not automatically have
+                // the DSH conversational model. It may use the operator's explicit
+                // server-owned externalDefaultProfile only when its OWN grant names it.
+                const profiles = externalGrantContext.currentProfiles() ?? []
+                const externalDefault = config.harnessExecutorV3?.externalDefaultProfile
+                if (typeof externalDefault !== 'string' || externalDefault.length === 0
+                  || !profiles.includes(externalDefault)) {
+                  throw new Error(
+                    'EXECUTOR_NOT_CONFIGURED: an external caller has no DSH conversational model and no approved '
+                    + 'server-owned executor profile for this client/workspace',
+                  )
+                }
+              }
+              const tracked = trackExtensionCall(contribution.extensionId, exec?.signal)
+              const grantPolicy = narrowBrokerPolicy(INITIAL_HOST_POLICY, {
+                outputTokens: grant.limits.maxOutputTokens,
+                imageInputs: grant.limits.maxImages,
+                // The native/interactive path uses the operator-configured DSH provider;
+                // an EXTERNAL caller may reach remote only with an explicit remote grant.
+                remoteDestinations: externalGrantContext.currentProfiles() === undefined
+                  || (externalGrantContext.currentRemoteDestinations()?.length ?? 0) > 0,
+              })
+              let raw: unknown
+              try {
+                raw = await servedRecipe.invoke(converted, tracked.signal, {
+                  policy: grantPolicy,
+                  deadlineMs: grant.limits.deadlineMs,
+                })
+              } finally {
+                tracked.finish()
+              }
+              if (typeof raw !== 'string') {
+                throw new Error(`${recipe.tool.name}: the provider returned ${typeof raw}, not text`)
+              }
+              const interpreted = interpretRecipeResponse(recipe, raw)
+              if (!interpreted.ok) {
+                throw new Error(`${recipe.tool.name}: ${interpreted.code}: ${interpreted.reason}`)
+              }
+              admitSerialized('result', interpreted.value, grant.limits.maxResultBytes)
+              return interpreted.value as never
+            },
+          }))
+          exposeExtensionToolToMcp(recipe.tool.name, {
+            description: recipe.description,
+            inputSchema: {
+              type: 'object',
+              additionalProperties: false,
+              properties,
+              required: requiredNames,
+            },
+            outputSchema: recipe.response === undefined ? { type: 'string' } : { type: 'json' },
+          })
+          if (servedRecipe.recipeDigest !== undefined) {
+            declarativeRecipeDigests.set(recipe.tool.name, servedRecipe.recipeDigest)
+          }
+          return () => {
+            declarativeRecipeDigests.delete(recipe.tool.name)
+            withdrawExtensionToolFromMcp(recipe.tool.name)
+            disposeTool()
+          }
+        },
+      },
+      onRefused: (contribution, error) => {
+        ctx.logger.warn(`model-tools: refused ${contribution.name} from ${contribution.extensionId}: ${error.message}`)
+      },
+    })
+    extensionLifecycle = new ExtensionLifecycle({
+      store,
+      profile: 'default',
+      registrar,
+      // EXT-20, task-29's hook: when the lifecycle finishes withdrawing an
+      // extension's handles (deactivate or uninstall, success or failure), the host
+      // disposes that extension's managed worker so the child process is joined
+      // before the deactivation returns — no worker outlives its extension.
+      onWithdrawal: async (extensionId) => {
+        // EXT-27: abort owned foreground calls, then TERMINATE the managed workers so a
+        // hung callback cannot keep the call alive to its invoke deadline. Wait for the
+        // aborted calls within the documented 5s grace.
+        const calls = withdrawExtensionCalls(extensionId)
+        await workerRegistry.dispose(extensionId)
+        const callsStopped = await calls
+        // EXT-29: release the extension instance (and any native/model resources it
+        // owns) BEFORE an uninstall deletes the package directory. A dispose failure is
+        // surfaced after the worker join so the lifecycle can report cleanup pending.
+        let failure: unknown
+        for (const [key, pending] of extensionInstances) {
+          if (!key.startsWith(`${extensionId}@`)) continue
+          try {
+            const instance = await pending
+            await instance.dispose?.('extension withdrawn')
+          } catch (error) {
+            failure ??= error
+          }
+          extensionInstances.delete(key)
+        }
+        if (!callsStopped) {
+          failure ??= new Error(
+            `${extensionId}: owned foreground call(s) did not settle within the 5s grace; they were terminated and reported`,
+          )
+        }
+        if (failure !== undefined) throw failure
+      },
+      // EXT-03: the host release's trusted lock, never a package manifest claim.
+      protectedBuiltins: PROTECTED_BUILTIN_IDS,
+      networkPolicy: config.networkPolicy ?? 'any',
+      // EXT-35: lifecycle outcomes are recorded separately from invocation
+      // receipts, with the approving principal and the installed content digest.
+      onAudit: (event) => {
+        const installed = store.listInstalled().value.find(record => (
+          record.extensionId === event.extensionId
+          && (event.version === null || record.version === event.version)
+        ))
+        try {
+          lifecycleRecords.push(buildLifecycleRecord({
+            operation: event.operation,
+            extensionId: event.extensionId,
+            version: event.version,
+            contentDigest: installed?.contentDigest ?? null,
+            profile: 'default',
+            outcome: event.outcome === 'succeeded' ? 'succeeded' : 'failed',
+            reason: event.reason ?? null,
+            approvedBy: { kind: 'operator', identity: 'local-interactive' },
+          }))
+          if (lifecycleRecords.length > MAX_RETAINED_RECEIPTS) lifecycleRecords.shift()
+        } catch (error) {
+          ctx.logger.warn(`model-tools: lifecycle audit record failed: ${error instanceof Error ? error.message : String(error)}`)
+        }
+      },
+    })
+
+    /**
+     * EXT-29: retry owned deletion left pending by an uninstall that could not remove
+     * its private installation. Only records whose profile state is already absent are
+     * touched, and only their recorded install path.
+     */
+    {
+      const cleanup = await extensionLifecycle.retryCleanupPending()
+      for (const failure of cleanup.failed) {
+        ctx.logger.warn(`model-tools: pending cleanup for ${failure.extensionId} failed: ${failure.reason}`)
+      }
+    }
+
+    /**
+     * EXT-30 slice 3: the host update surface over the SDK's staged-update seams.
+     *
+     * quiesce = deactivate through the lifecycle (withdraws the handles, stops
+     * admissions — the onWithdrawal hook disposes the worker). rebind = activate
+     * the named version through the lifecycle (all-or-nothing: a failed
+     * activation withdraws its own partial publications). The surface module
+     * wraps the rebind all-or-nothing with the internal revert and bounds the
+     * rollback's rebindRestored host-side.
+     */
+    updateSurface = createUpdateHostSurface({
+      storeDir: extensionStoreDir,
+      profile: 'default',
+      hooks: {
+        quiesce: async (extensionId) => {
+          const lifecycle = extensionLifecycle
+          if (lifecycle === undefined) return
+          await lifecycle.deactivate(extensionId)
+        },
+        rebind: async (extensionId, version) => {
+          const lifecycle = extensionLifecycle
+          if (lifecycle === undefined) throw new Error(`the extension lifecycle is not mounted; ${extensionId}@${version} cannot rebind`)
+          await lifecycle.activate(extensionId, version)
+        },
+      },
+    })
+
+    /**
+     * RES-02/03/05, the LAST in-repo slice: the prepared-assets surface.
+     *
+     * The cache root is the ISOLATED STATE DIR the host already owns (the
+     * directory of the state file), never the repository and never HOME. The
+     * default source is the real ranged HTTP source — a real acquisition run
+     * stays OPT-IN (an operator explicitly runs extensions-prepare); the test
+     * suite injects a local file source and performs no network.
+     */
+    {
+      const statePath = config.stateFile ?? defaultStateFile()
+      const registry: PreparedAssetRegistry = createPreparedAssetRegistry({
+        cacheRoot: config.assetCacheRoot ?? join(dirname(resolve(statePath)), 'asset-cache'),
+        ...config.assetFreeSpaceProbe === undefined ? {} : { freeSpaceBytes: config.assetFreeSpaceProbe },
+      })
+      const planCache = new Map<string, { plan: ReturnType<typeof planPreparation>; groups: readonly LockGroup[]; modelId: string }>()
+      prepareAssetsSurface = {
+        plan(extensionId) {
+          const cached = planCache.get(extensionId)
+          if (cached !== undefined) return cached.plan
+          const record = selectedInstalled(extensionId)
+          if (record === undefined) throw new Error(`${extensionId} is not installed, so its assets cannot be planned`)
+          const discovery = discoverExtension(record.installPath)
+          const model = discovery.manifest.models[0]
+          if (model === undefined) throw new Error(`${extensionId} declares no model deployment to prepare`)
+          const lockPath = join(dirname(discovery.manifestPath), model.assetLock)
+          const lock = parseAssetLock(readFileSync(lockPath, 'utf8'))
+          const groups = lockGroups(lock, model.assetSet)
+          const plan = planPreparation(
+            identityFor(extensionId, model.id, lock),
+            plannedAssets(lock, model.assetSet),
+            lock.license,
+          )
+          planCache.set(extensionId, { plan, groups, modelId: model.id })
+          return plan
+        },
+        groupsForPlan(extensionId) {
+          const cached = planCache.get(extensionId)
+          if (cached === undefined) throw new Error(`no preparation plan for ${extensionId}; run the plan disclosure first`)
+          return cached.groups
+        },
+        modelIdFor(extensionId) {
+          const cached = planCache.get(extensionId)
+          if (cached === undefined) throw new Error(`no preparation plan for ${extensionId}`)
+          return cached.modelId
+        },
+        async prepare(extensionId, options) {
+          const cached = planCache.get(extensionId)
+          if (cached === undefined) throw new Error(`no preparation plan for ${extensionId}; run the plan disclosure first`)
+          /**
+           * REFUSE BEFORE THE TRANSFER when readiness has no writer. Acquiring a
+           * multi-GB asset set is the expensive half of preparation, and it buys
+           * nothing if the readiness write that lets activation proceed cannot
+           * happen. The old wiring SKIPPED that write when the lifecycle was not
+           * mounted and still returned `ok`, so the page could report a successful
+           * prepare while the deployment stayed `needs-preparation` forever — the
+           * exact "Prepare did not make it usable" report. Naming the host gap here
+           * costs nothing and acquires nothing.
+           */
+          const lifecycle = extensionLifecycle
+          if (lifecycle === undefined) {
+            throw new Error(
+              `the extension lifecycle is not mounted, so ${extensionId}'s readiness cannot be recorded; `
+              + 'no assets were acquired',
+            )
+          }
+          const outcome = await registry.prepare(extensionId, cached.plan, cached.groups, options)
+          if (!outcome.ok) return outcome
+          // The verified assets flip the deployment from needs-preparation to
+          // PREPARED-COLD through the same readiness recorder the restore
+          // chain uses — the prepared-cold-callable admission then admits the
+          // tool's first call.
+          await lifecycle.recordReadiness(extensionId, { [cached.modelId]: 'prepared-cold' })
+          return outcome
+        },
+        assetMapFor(extensionId) {
+          return registry.assetMapFor(extensionId)
+        },
+        /**
+         * RESTART RESTORE: rebuild this process's handles from the group
+         * directories an earlier process's verified prepare left on disk. Without
+         * it, a restart keeps `prepared-cold` in the store while the in-memory map
+         * is empty, so every tool call fails with "the … asset group was not
+         * prepared" and the page offers no Prepare action (the requirement is
+         * already satisfied).
+         */
+        restore(extensionId) {
+          const cached = planCache.get(extensionId) ?? (() => {
+            const record = selectedInstalled(extensionId)
+            if (record === undefined) throw new Error(`${extensionId} is not installed, so its assets cannot be restored`)
+            const discovery = discoverExtension(record.installPath)
+            const model = discovery.manifest.models[0]
+            if (model === undefined) throw new Error(`${extensionId} declares no model deployment to restore`)
+            const lockPath = join(dirname(discovery.manifestPath), model.assetLock)
+            const lock = parseAssetLock(readFileSync(lockPath, 'utf8'))
+            const entry = {
+              plan: planPreparation(identityFor(extensionId, model.id, lock), plannedAssets(lock, model.assetSet), lock.license),
+              groups: lockGroups(lock, model.assetSet),
+              modelId: model.id,
+            }
+            planCache.set(extensionId, entry)
+            return entry
+          })()
+          return registry.restore(extensionId, cached.plan, cached.groups)
+        },
+        async purge(extensionId) {
+          const cached = planCache.get(extensionId)
+          const result = registry.purge(extensionId)
+          planCache.delete(extensionId)
+          const lifecycle = extensionLifecycle
+          if (lifecycle !== undefined && cached !== undefined) {
+            await lifecycle.recordReadiness(extensionId, { [cached.modelId]: 'needs-preparation' })
+          }
+          return result
+        },
+        registry,
+      }
+    }
+
+    /**
+     * RESTORE what the operator already approved.
+     *
+     * RUN-05 permits exactly this much at startup: an approved activation may be restored
+     * and its declarations read. It performs NO model preparation and NO package
+     * resolution, so nothing downloads because the plugin loaded.
+     *
+     * A failure is LOGGED rather than thrown: one broken extension must not remove every
+     * working tool (RUN-06).
+     */
+
+    /**
+     * Inspect every provider-backed catalog entry belonging to an extension and record
+     * the results into the lifecycle, so activation can publish callable tools instead
+     * of leaving every deployment at the `needs-preparation` default.
+     *
+     * Inspection is read-only (EXT-18): it never loads model assets, so this does not
+     * prepare anything at startup.
+     * @param lifecycle - the lifecycle whose store receives the recorded readiness.
+     * @param extensionId - the extension being restored.
+     */
+    const recordInspectedReadiness = async (
+      lifecycle: ExtensionLifecycle,
+      extensionId: string,
+    ): Promise<void> => {
+      /**
+       * Every inspection is TIME-BOUNDED: the restore chain is sequential, and one
+       * extension whose inspect() hangs would stall activation for every later
+       * extension indefinitely. The timeout turns a hang into a recorded `failed`
+       * deployment, which is honest and lets the rest of the chain proceed.
+       */
+      const inspectionSignal = () => AbortSignal.timeout(15_000)
+      const inspected: Record<string, ModelReadiness> = {}
+      const entries = resolved.filter(item => item.entry.provider?.extension === extensionId)
+      for (const item of entries) {
+        // Key by the MANIFEST model id, not the catalog entry id: the durable state is
+        // keyed by what the manifest declares, and an alias row whose entry id differs
+        // from its provider.modelId would otherwise be silently dropped.
+        const modelId = item.entry.provider?.modelId ?? item.entry.id
+        try {
+          const inspection = await bridge.inspect(item.entry, inspectionSignal())
+          if (inspection?.readiness !== undefined) inspected[modelId] = inspection.readiness
+        } catch (error) {
+          // A FAILED inspection is a failed deployment, not "keep the old answer": a
+          // previously-recorded prepared-cold surviving an inspection error would
+          // publish a tool whose prerequisites just went missing, and the first call
+          // would fail. This matches the catalog-path readinessOf, which maps a thrown
+          // or absent inspection to 'failed'. In managed mode the inspection ran in
+          // the WORKER process, so this catch covers the worker's fault too.
+          ctx.logger.warn(
+            `model-tools: readiness inspection failed for ${item.entry.name}: `
+            + `${error instanceof Error ? error.message : String(error)}`,
+          )
+          if (process.env.DSH_DEBUG_INSPECT === '1') console.error('INSPECT-FAIL', item.entry.id, error)
+          inspected[modelId] = 'failed'
+        }
+      }
+
+      /**
+       * Extensions WITHOUT catalog rows (EmbeddingGemma, Needle) declare models the
+       * catalog never binds. Inspect them through their own manifest: the store record
+       * gives the install path, discovery reads the declared model ids, and the
+       * extension-level inspection route activates the public entry like dispatch does.
+       */
+      const record = installedRecords.find(candidate => candidate.extensionId === extensionId)
+      if (record !== undefined) {
+        let declaredIds: readonly string[] = []
+        try {
+          declaredIds = discoverExtension(record.installPath).manifest.models.map(model => model.id)
+        } catch (error) {
+          ctx.logger.warn(
+            `model-tools: could not read ${extensionId} manifest for inspection: `
+            + `${error instanceof Error ? error.message : String(error)}`,
+          )
+        }
+        for (const modelId of declaredIds) {
+          // Only a value the CATALOG path recorded wins; a catalog-path `failed` (a
+          // stale or wrong catalog binding) must not suppress the manifest-path
+          // inspection, which inspects the verified store copy this extension actually is.
+          if (inspected[modelId] !== undefined) continue
+          try {
+            // Inspect the STORE COPY, not whatever the package name resolves to in
+            // node_modules: the restore loop just verified these bytes, and running the
+            // unverified dependency copy instead would invert the integrity gate.
+            // The VERIFIED asset map rides along (when this deployment has one) so a
+            // provider whose inspect cannot see it reports the truth instead of
+            // needs-preparation on a prepared machine (Needle).
+            const inspection = await bridge.inspectExtension(
+              record.installPath,
+              modelId,
+              inspectionSignal(),
+              prepareAssetsSurface?.assetMapFor(extensionId),
+            )
+            if (inspection?.readiness !== undefined) inspected[modelId] = inspection.readiness
+          } catch (error) {
+            ctx.logger.warn(
+              `model-tools: readiness inspection failed for ${extensionId} model ${modelId}: `
+              + `${error instanceof Error ? error.message : String(error)}`,
+            )
+            if (process.env.DSH_DEBUG_INSPECT === '1') console.error('INSPECT-FAIL-EXT', extensionId, error)
+            inspected[modelId] = 'failed'
+          }
+        }
+      }
+      if (Object.keys(inspected).length > 0) await lifecycle.recordReadiness(extensionId, inspected)
+    }
+
+    const installedRecords = store.listInstalled().value
+    /**
+     * Extensions the operator switched OFF in Settings.
+     *
+     * Checked at the restore decision because this loop is the host's only
+     * activation surface: filtering after activation would let the extension
+     * register its tools and then be denied, which is the two-sources-of-truth
+     * mistake the publication path already forbids.
+     */
+    const disabledExtensions = new Set(config.disabledExtensions ?? [])
+    /**
+     * THE VERSION THE OPERATOR MEANS, not the first one recorded.
+     *
+     * `installedRecords.find(...)` returns the OLDEST record for an identity, so a
+     * restart used to activate a superseded version while `describe()` reported the
+     * newest — the host served stale code and no report disagreed. The service's own
+     * selection (EXT-30 pointer, else the last appended record) is the single answer.
+     */
+    const restorePointers = store.readProfilePointers('default')
+    const restoreActiveVersions = restorePointers.corrupt ? {} : restorePointers.value.activeVersions
+    const toRestore = store.readProfileState('default').value
+      .filter(entry => entry.desiredActivation === 'active' && !disabledExtensions.has(entry.extensionId))
+      .map(entry => ({
+        extensionId: entry.extensionId,
+        version: selectInstalled(installedRecords, restoreActiveVersions, entry.extensionId)?.version,
+      }))
+      .filter((entry): entry is { extensionId: string; version: string } => entry.version !== undefined)
+
+    /**
+     * `apply` is SYNCHRONOUS, so restoration runs as a settled chain rather than blocking
+     * plugin load. That is also the right behaviour: a host must not stall on each
+     * extension's activation, and RUN-06 says one broken extension must not prevent the
+     * rest from working — so every failure is logged and the chain continues.
+     */
+    const lifecycleForRestore = extensionLifecycle
+    void (async () => {
+      for (const entry of toRestore) {
+        try {
+          /**
+           * INTEGRITY BEFORE ANY EXTENSION CODE RUNS. Inspection imports the extension
+           * module and runs its `create()`, so it must come AFTER the same byte-integrity
+           * gate activation applies — otherwise a tampered installed package executes
+           * first and is only refused afterwards.
+           */
+          const record = installedRecords.find(candidate =>
+            candidate.extensionId === entry.extensionId && candidate.version === entry.version)
+          if (record !== undefined) {
+            const integrity = store.verifyUnchanged(record)
+            if (!integrity.unchanged) {
+              const reason = integrity.diagnostic ?? 'the installed content changed'
+              /**
+               * A SKIPPED RESTORE IS NOT "ACTIVE". The previous state row could still
+               * say active from an earlier boot, and the catalogue would then keep the
+               * extension's tool names reserved while no tool is published — a ghost
+               * capability. Record the failure and withdraw the tool list first.
+               */
+              recordRestoreIntegrityFailure(store, entry.extensionId)
+              ctx.logger.warn(                `model-tools: not restoring ${entry.extensionId}: [INTEGRITY_MISMATCH] ${reason}`,
+              )
+              continue
+            }
+          }
+          /**
+           * RESTORE THE PREPARED-ASSET HANDLES **BEFORE** INSPECTION.
+           *
+           * Store readiness (`prepared-cold`) is persisted, but the map the dispatch
+           * hands to an extension lives in THIS process and only `prepare()` fills it.
+           * Inspection (`inspect()`) is what decides the readiness recorded below, and a
+           * model-backed extension reports `needs-preparation` (or `failed`) when its
+           * asset handles are absent. Rebuilding them from the cache directories is a
+           * stat walk, so it belongs at the START of the restore chain; doing it after
+           * inspection made every restart record a stale `needs-preparation` and required
+           * a manual prepare before the tools could publish.
+           *
+           * A failure is recorded (and logged) rather than thrown: the extension still
+           * verifies its own bytes on load, and one broken extension must not stop the
+           * others (RUN-06).
+           */
+          try {
+            const restored = prepareAssetsSurface?.restore(entry.extensionId)
+            if (restored !== undefined && restored.ok === false) {
+              // Remember WHY: the row must name a missing/resized cache file rather than
+              // the generic "needs its model assets prepared".
+              assetRestoreFailures.set(entry.extensionId, restored.reason)
+              ctx.logger.info(`model-tools: ${entry.extensionId} assets not restored: ${restored.reason}`)
+            } else {
+              assetRestoreFailures.delete(entry.extensionId)
+            }
+          } catch (error) {
+            const reason = error instanceof Error ? error.message : String(error)
+            assetRestoreFailures.set(entry.extensionId, reason)
+            ctx.logger.warn(
+              `model-tools: could not restore ${entry.extensionId}'s prepared assets: ${reason}`,
+            )
+          }
+          /**
+           * RECORD what inspection knows BEFORE activation publishes. The lifecycle
+           * defaults every declared deployment to `needs-preparation`, so without this
+           * a model-backed package can never publish a callable tool. Inspection is the
+           * read-only EXT-18 surface — it may import the extension but loads no assets —
+           * so this stays inside RUN-05's "read declarations, prepare nothing" boundary.
+           * It runs AFTER the asset-handle restore above, so it observes the real map.
+           */
+          await recordInspectedReadiness(lifecycleForRestore, entry.extensionId)
+          const activated = await lifecycleForRestore.activate(entry.extensionId, entry.version)
+          // EXT-20: the activation generation is captured here so the managed-worker
+          // registry can bind a process to exactly this activation and dispose it when
+          // a later one is observed.
+          activationGenerations.set(entry.extensionId, activated.generation)
+        } catch (error) {
+          ctx.logger.warn(
+            `model-tools: could not restore ${entry.extensionId}: `
+            + `${error instanceof Error ? error.message : String(error)}`,
+          )
+          /**
+           * The logger is not always visible to the operator (and was silent in the
+           * isolated profile), so a restore failure also lands beside the store. This
+           * is a diagnostic record only: it does not change activation.
+           */
+          if (config.extensionStore !== undefined) {
+            try {
+              appendFileSync(
+                join(config.extensionStore, 'restore-failures.log'),
+                `${new Date().toISOString()} ${entry.extensionId}@${entry.version}: `
+                + `${error instanceof Error ? error.message : String(error)}\n`,
+              )
+            } catch {
+              // The store may be read-only; the logged failure above remains.
+            }
+          }
+        }
+      }
+    })()
+    ctx.effect(() => () => {
+      extensionLifecycle = undefined
+      // EXT-20: host teardown disposes every managed worker process — no child
+      // outlives the host that spawned it.
+      void workerRegistry.disposeAll()
+    }, 'model-tools extension teardown')
+    ctx.logger.info(`model-tools: extension store mounted at ${config.extensionStore}`)
+  }
+
+
+  /**
+   * RES-01: one admission boundary covers EVERY registered tool — catalog,
+   * extension, declarative and control surfaces — because the DSH registry's
+   * execute is the single path all of them use. The host grant is the authority;
+   * an external client's own grant is additionally enforced before this point.
+   */
+  {
+    const executeBeforeAdmission = ctx.tools.execute.bind(ctx.tools)
+    ctx.tools.execute = (async request => {
+      admitSerialized('input', (request as { arguments?: unknown }).arguments ?? {}, grant.limits.maxInputBytes)
+      const result = await executeBeforeAdmission(request)
+      admitSerialized('result', result, grant.limits.maxResultBytes)
+      return result
+    }) as typeof ctx.tools.execute
+  }
+
+  const runnable = resolved.filter(item => item.verdict.runnable).length
+  ctx.logger.info(
+    `model-tools: ${installed.size} model tool(s) registered from ${entries.length} catalogued models `
+    + `(${runnable} runnable in this process)`,
+  )
+}
+
+export { loadCatalog, CatalogError, DEFAULT_CATALOG_FILE } from './catalog.ts'
+export { resolveCapability, resolveCatalog, canResolve, packageSpecifier, type ResolvedModel } from './capability.ts'
+export { createAdapter, ADAPTER_FACTORIES } from './adapters/index.ts'
+export {
+  buildArgv,
+  commandExists,
+  createCliTransport,
+  createRemoteTransport,
+  parseBridgeResponse,
+  parseCliOutcome,
+  splitArguments,
+  BRIDGE_PATH,
+  DEFAULT_CLI_COMMAND,
+  type CommandRunner,
+  type CommandTransport,
+  type HttpPost,
+  type TransportOptions,
+} from './transport.ts'
+export { renderSkillBody } from './skills.ts'
+export {
+  EmbeddingIndex, IncompatibleEmbeddingSpace, openMemoryEmbeddingIndex,
+  type EmbeddingRecord, type EmbeddingSpaceIdentity,
+} from './embedding-index.ts'
+export { loadPlaybooks, DEFAULT_PLAYBOOK_FILE, type ModelPlaybook } from './playbook.ts'
+export {
+  createFileStateStore,
+  createMemoryStateStore,
+  defaultStateFile,
+  parseState,
+  resolveSelection,
+  withChoice,
+  EMPTY_STATE,
+  StateError,
+  type PersistedState,
+  type StateStore,
+} from './state.ts'
+export type {
+  CapabilityVerdict,
+  ModelCatalogEntry,
+  ModelInput,
+  ModelParam,
+  ModelParamType,
+  ModelRoute,
+  ModelToolSpec,
+  ModelSkillSpec,
+  WindowsSupport,
+} from './types.ts'

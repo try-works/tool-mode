@@ -1,0 +1,396 @@
+{
+  "recordedAt": "2026-11-08T08:47:15.448Z",
+  "model": "Cactus-Compute/mirage",
+  "engine": "4.1.0 WASM",
+  "imageSha256": "b3eef62d14ca7f44b227db21fc88425dfcd674419cb7d4b994353fee0f2841d6",
+  "imagePixels": null,
+  "describe": {
+    "scene": {
+      "setting": "webpage",
+      "background": "white",
+      "style": "digital"
+    },
+    "objects": [
+      {
+        "id": 1,
+        "name": "webpage",
+        "bbox": [
+          12,
+          6,
+          980,
+          995
+        ],
+        "score": 0.647,
+        "position": "center",
+        "description": {
+          "color": "white and black"
+        }
+      },
+      {
+        "id": 2,
+        "name": "text block",
+        "bbox": [
+          74,
+          647,
+          242,
+          676
+        ],
+        "score": 0.445,
+        "position": "center",
+        "description": {
+          "color": "black"
+        }
+      },
+      {
+        "id": 3,
+        "name": "logo",
+        "bbox": [
+          470,
+          689,
+          539,
+          737
+        ],
+        "score": 0.568,
+        "position": "bottom right",
+        "description": {
+          "color": "red and white"
+        }
+      }
+    ],
+    "text": [
+      {
+        "string": "images in English, German, French, Spanish, Italian, Dutch and Polish",
+        "bbox": [
+          9,
+          263,
+          931,
+          284
+        ],
+        "score": 0.802
+      },
+      {
+        "string": "We trade general language capacity, to compete top small VLMs today",
+        "bbox": [
+          16,
+          311,
+          959,
+          331
+        ],
+        "score": 0.809
+      },
+      {
+        "string": "Read more and benchmark it yourself he",
+        "bbox": [
+          25,
+          479,
+          562,
+          502
+        ],
+        "score": 0.82
+      },
+      {
+        "string": "Mirage",
+        "bbox": [
+          47,
+          559,
+          324,
+          614
+        ],
+        "score": 0.808
+      },
+      {
+        "string": "Spatial relations",
+        "bbox": [
+          685,
+          715,
+          839,
+          735
+        ],
+        "score": 0.835
+      }
+    ],
+    "relations": [
+      {
+        "subject": 2,
+        "predicate": "on",
+        "object": 1
+      },
+      {
+        "subject": 3,
+        "predicate": "on",
+        "object": 1
+      }
+    ],
+    "reasoning": "lang: en | white and black webpage with black text block, red and white logo, black text block, red and white logo | webpages are digital documents viewed in browser | logos identify brands or services | text blocks are read top to bottom | cannot read the text content or identify the site",
+    "language": "en"
+  },
+  "detect": {
+    "objects": [
+      {
+        "id": 1,
+        "name": "webpage",
+        "bbox": [
+          12,
+          6,
+          980,
+          995
+        ],
+        "score": 0.647,
+        "mask": [
+          [
+            19,
+            8,
+            13,
+            12,
+            13,
+            51,
+            13,
+            527,
+            17,
+            988,
+            19,
+            989,
+            31,
+            986,
+            56,
+            988,
+            119,
+            989,
+            231,
+            983,
+            257,
+            988,
+            294,
+            990,
+            344,
+            989,
+            381,
+            986,
+            531,
+            984,
+            644,
+            985,
+            706,
+            987,
+            806,
+            984,
+            831,
+            984,
+            851,
+            988,
+            869,
+            989,
+            906,
+            988,
+            969,
+            984,
+            973,
+            980,
+            974,
+            973,
+            974,
+            12,
+            969,
+            8,
+            894,
+            8,
+            506,
+            10,
+            381,
+            8,
+            44,
+            9
+          ]
+        ]
+      },
+      {
+        "id": 2,
+        "name": "logo",
+        "bbox": [
+          470,
+          689,
+          539,
+          737
+        ],
+        "score": 0.568,
+        "mask": [
+          [
+            481,
+            689,
+            477,
+            691,
+            475,
+            715,
+            475,
+            723,
+            481,
+            729,
+            494,
+            734,
+            531,
+            734,
+            536,
+            730,
+            537,
+            723,
+            537,
+            699,
+            534,
+            691,
+            519,
+            688
+          ]
+        ]
+      }
+    ],
+    "maskFormat": "polygons"
+  },
+  "ocr": {
+    "text": [
+      {
+        "text": "images in English, German, French, Spanish, Italian, Dutch and Polish",
+        "bbox": [
+          9,
+          263,
+          931,
+          284
+        ],
+        "score": 0.802
+      },
+      {
+        "text": "We trade general language capacity, to compete top small VLMs today",
+        "bbox": [
+          16,
+          311,
+          959,
+          331
+        ],
+        "score": 0.809
+      },
+      {
+        "text": "Read more and benchmark it yourself he",
+        "bbox": [
+          25,
+          479,
+          562,
+          502
+        ],
+        "score": 0.82
+      },
+      {
+        "text": "Mirage",
+        "bbox": [
+          47,
+          559,
+          324,
+          614
+        ],
+        "score": 0.808
+      },
+      {
+        "text": "Spatial relations",
+        "bbox": [
+          685,
+          715,
+          839,
+          735
+        ],
+        "score": 0.835
+      }
+    ]
+  },
+  "extract": {
+    "fields": [
+      {
+        "name": "sign",
+        "value": "stop",
+        "probabilities": [
+          {
+            "key": "stop",
+            "probability": 0.6427722500998413
+          },
+          {
+            "key": "yield",
+            "probability": 0.06472706174658727
+          },
+          {
+            "key": "speed limit",
+            "probability": 0.023394156681534252
+          },
+          {
+            "key": "-",
+            "probability": 0.2691065314720371
+          }
+        ]
+      },
+      {
+        "name": "colour",
+        "value": "blue",
+        "probabilities": [
+          {
+            "key": "red",
+            "probability": 0.305391002205349
+          },
+          {
+            "key": "blue",
+            "probability": 0.4053665074219206
+          },
+          {
+            "key": "green",
+            "probability": 0.018350617265168248
+          },
+          {
+            "key": "-",
+            "probability": 0.2708918731075621
+          }
+        ]
+      },
+      {
+        "name": "location",
+        "value": [
+          19,
+          12,
+          93,
+          53
+        ],
+        "probability": 0.4044250335362159
+      },
+      {
+        "name": "count",
+        "value": 1,
+        "probabilities": [
+          {
+            "key": "0",
+            "probability": 0.007890314800801084
+          },
+          {
+            "key": "1",
+            "probability": 0.8023953496614933
+          },
+          {
+            "key": "2",
+            "probability": 0.11039885565546634
+          },
+          {
+            "key": "3",
+            "probability": 0.05854435982349552
+          },
+          {
+            "key": "4",
+            "probability": 0.01711379921316854
+          },
+          {
+            "key": "5",
+            "probability": 0.0036573208455753623
+          }
+        ]
+      },
+      {
+        "name": "label",
+        "value": "sign",
+        "probability": 0.044151757205592376
+      }
+    ],
+    "language": "en"
+  }
+}

@@ -1,0 +1,67 @@
+Captured RED run for task-14 (Tool Insights client), 2026-10-23, before the template,
+generator and package.json wiring existed. Command shape (from repo root):
+
+  node packages/dsh-tool-mode/tests/tool-insights-{client,render,registration,bundle}.test.ts
+
+Provenance note (honest): the four test files were authored before client/tool-insights.js
+existed. The first red attempt was refused by the sandbox (the pwsh file policy denies
+writes to D:\DEV\dsh-tool-mode, and `tsx --test` spawns PIPE children, which this
+sandbox refuses with EPERM). The log below is the first run that could execute at all,
+after the page source existed but BEFORE any registration/bundle wiring: it shows the S9
+registration and bundle slices red for missing behaviour, and the S7/S8 slices red on a
+syntax defect in the then-unfinished source (fixed before the green run). The final green
+run is in client-green-2026-10-23.log.
+
+=== packages/dsh-tool-mode/tests/tool-insights-client.test.ts ===
+✖ the three tabs are ordered and labelled for the page (42.485ms)
+✖ deep links resolve to a tab with an insights fallback (3.3905ms)
+✖ page math clamps and reports a showing range (3.4421ms)
+✖ formatting is stable and never invents a value (4.7382ms)
+✖ normalizeProjection keeps only finite, well-shaped facts (3.6315ms)
+✖ aggregateProjections sums sessions and reports coverage (3.3009ms)
+✖ deriveInsights prefers the host report and degrades honestly without it (3.3003ms)
+✖ All calls groups Code Mode parents with their sub-calls and never orphans them (3.186ms)
+✖ inventory filters, groups, paginates and keeps never-called rows (3.4058ms)
+✖ MCP view derives endpoint, exposure and a paginated call log truthfully (3.7042ms)
+ℹ tests 10
+ℹ pass 0
+ℹ fail 10
+  SyntaxError: Unexpected token ')' — at new Function, loadSurface
+  (packages/dsh-tool-mode/tests/tool-insights-client.test.ts:40)
+
+=== packages/dsh-tool-mode/tests/tool-insights-render.test.ts ===
+✖ TabBar renders three accessible tabs and marks the active one (4.7142ms)
+✖ InsightsView renders KPI band, charts, performance and All calls (3.8009ms)
+✖ an empty projection renders an explicit empty state, never zeroed cards (3.2858ms)
+✖ InventoryView groups by origin, shows withheld tools and paginates (4.9195ms)
+✖ McpView renders the endpoint, clients, exposure and external call log (3.6484ms)
+✖ ToolInsightsPage renders the three tabs without throwing on stub props (3.3306ms)
+ℹ tests 6
+ℹ pass 0
+ℹ fail 6
+  SyntaxError: Unexpected token ')' — same loadSurface defect
+
+=== packages/dsh-tool-mode/tests/tool-insights-registration.test.ts ===
+✖ apply registers the page, the sidebar entry at order 15 and keeps Settings (6.59ms)
+✔ an older host without the page slots keeps Settings and does not throw (4.5026ms)
+✖ the page registers without a Remote (config-only hosts still mount it) (2.7238ms)
+✖ exports inject and package client inject edges name the real packages (1.5265ms)
+ℹ tests 4
+ℹ pass 1
+ℹ fail 3
+  AssertionError: the Tool Insights main page must be registered
+  AssertionError: @deepseek-ai/dsh-client-ui-slots must be declared in dsh.client.inject
+  TypeError: (intermediate value) is not a function (the page component was absent)
+
+=== packages/dsh-tool-mode/tests/tool-insights-bundle.test.ts ===
+✔ the authoring source exists and exposes the factory (2.2428ms)
+✖ the template carries the placeholder and registers the page once (1.388ms)
+✖ the generated bundle inlines the page with no chunk fetch (0.9708ms)
+✖ gen-client-catalog --check reports the committed bundle current (4.2848ms)
+ℹ tests 4
+ℹ pass 1
+ℹ fail 3
+  AssertionError: the template must hold the inlining placeholder
+  AssertionError: the page must be inlined
+  Error: spawnSync node.exe EPERM (test used execFileSync; switched to stdio:'ignore')
+EXIT: 1

@@ -1,0 +1,31 @@
+
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\DEV\dsh-tool-mode\scripts\verify-tool-insights-instance.mjs' imported from D:\DEV\dsh-tool-mode\tests\verify-tool-insights-instance.test.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    at moduleResolve (node:internal/modules/esm/resolve:864:10)
+    at defaultResolve (node:internal/modules/esm/resolve:990:11)
+    at nextResolve (node:internal/modules/esm/hooks:748:28)
+    at resolveBase (file:///D:/DEV/dsh-tool-mode/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:10494)
+    at async resolveDirectory (file:///D:/DEV/dsh-tool-mode/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:11575) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///D:/DEV/dsh-tool-mode/scripts/verify-tool-insights-instance.mjs'
+}
+
+Node.js v24.11.0
+✖ tests\verify-tool-insights-instance.test.ts (565.6069ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 585.873
+
+✖ failing tests:
+
+test at tests\verify-tool-insights-instance.test.ts:1:1
+✖ tests\verify-tool-insights-instance.test.ts (565.6069ms)
+  'test failed'

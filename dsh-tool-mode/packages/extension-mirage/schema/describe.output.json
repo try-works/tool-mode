@@ -1,0 +1,302 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "mirage_describe output",
+  "description": "Everything Mirage derived from one image. The model is a small on-device VLM: boxes, masks, OCR and relations are model predictions and may be wrong; the reasoning field is generated text, not a verified explanation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "scene",
+    "objects",
+    "text",
+    "relations",
+    "reasoning",
+    "language",
+    "meta"
+  ],
+  "properties": {
+    "scene": {
+      "type": "object",
+      "description": "The scene section; empty when none.",
+      "properties": {
+        "setting": {
+          "type": "string"
+        },
+        "background": {
+          "type": "string"
+        },
+        "surface": {
+          "type": "string"
+        },
+        "lighting": {
+          "type": "string"
+        },
+        "weather": {
+          "type": "string"
+        },
+        "time_of_day": {
+          "type": "string"
+        },
+        "sky": {
+          "type": "string"
+        },
+        "style": {
+          "type": "string"
+        },
+        "position": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "objects": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "bbox",
+          "score"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "bbox": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "score": {
+            "type": "number"
+          },
+          "position": {
+            "type": "string"
+          },
+          "description": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "color": {
+                "type": "string"
+              },
+              "shape": {
+                "type": "string"
+              },
+              "material": {
+                "type": "string"
+              },
+              "pattern": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "size": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "text": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "string",
+          "bbox",
+          "score"
+        ],
+        "properties": {
+          "string": {
+            "type": "string"
+          },
+          "bbox": {
+            "type": "array",
+            "minItems": 4,
+            "maxItems": 4,
+            "items": {
+              "type": "number"
+            },
+            "description": "[x1,y1,x2,y2] on the model 0..1000 scale."
+          },
+          "score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        }
+      }
+    },
+    "relations": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "subject": {
+            "type": "integer"
+          },
+          "predicate": {
+            "type": "string"
+          },
+          "object": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "reasoning": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 8192
+    },
+    "language": {
+      "type": "string",
+      "enum": [
+        "en",
+        "de",
+        "fr",
+        "es",
+        "it",
+        "nl",
+        "pl"
+      ]
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract",
+        "contractVersion",
+        "implementationId",
+        "extension",
+        "extensionVersion",
+        "activationGeneration",
+        "executionLocation",
+        "receiptId",
+        "warnings"
+      ],
+      "properties": {
+        "contract": {
+          "type": "string",
+          "minLength": 1
+        },
+        "contractVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "implementationId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "extension": {
+          "type": "string",
+          "minLength": 1
+        },
+        "extensionVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+"
+        },
+        "activationGeneration": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "executionLocation": {
+          "type": "string",
+          "enum": [
+            "host",
+            "device",
+            "team-server",
+            "remote"
+          ]
+        },
+        "receiptId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract",
+        "contractVersion",
+        "implementationId",
+        "extension",
+        "extensionVersion",
+        "activationGeneration",
+        "executionLocation",
+        "receiptId",
+        "warnings"
+      ],
+      "properties": {
+        "contract": {
+          "type": "string",
+          "minLength": 1
+        },
+        "contractVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "implementationId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "extension": {
+          "type": "string",
+          "minLength": 1
+        },
+        "extensionVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+"
+        },
+        "activationGeneration": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "executionLocation": {
+          "type": "string",
+          "enum": [
+            "host",
+            "device",
+            "team-server",
+            "remote"
+          ]
+        },
+        "receiptId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

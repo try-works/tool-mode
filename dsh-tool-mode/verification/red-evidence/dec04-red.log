@@ -1,0 +1,9 @@
+# DEC-04 TDD red — probability-vector validation
+
+Date: 2026-11-01
+Command: `npx tsx --test --test-name-pattern "score distributions are validated" packages/extension-laya/tests/laya-decision.test.ts`
+
+Before implementation: 1 test, 0 pass, 1 fail.
+- The module import failed: `validateProbabilityDistribution` does not exist.
+- The new test asserts length, [0,1] bounds, finiteness, and a sum-to-1 tolerance;
+  the current extension casts the runtime's `probabilities` object with no validation.

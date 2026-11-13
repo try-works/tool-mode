@@ -1,0 +1,224 @@
+{
+  "acceptance": "AT-57",
+  "recordedAt": "2026-11-05T13:51:31.399Z",
+  "modelDir": "E:\\dsh-asset-cache\\groups\\@try-works__extension-laya\\laya\\text-backbone",
+  "fixture": {
+    "path": "docs/tool-mode/evaluation/laya-heldout.json",
+    "version": "1.0.0",
+    "schema": "laya-heldout-v1"
+  },
+  "gates": {
+    "path": "docs/tool-mode/evaluation/laya-gates.json",
+    "version": "1.0.0",
+    "minimumCoverage": 0.9,
+    "passed": true
+  },
+  "items": [
+    {
+      "id": "fruit",
+      "kind": "choose",
+      "prompt": "Which of these is a fruit?",
+      "expected": "apple",
+      "choice": "apple",
+      "correct": true,
+      "confidence": 0.0035,
+      "calibrated": false,
+      "probabilities": {
+        "apple": 0.3741,
+        "car": 0.3193,
+        "banana": 0.3066
+      },
+      "action": {
+        "act_probability": 1
+      },
+      "durationMs": 285
+    },
+    {
+      "id": "water",
+      "kind": "test",
+      "prompt": "Is water wet?",
+      "expected": "yes",
+      "choice": "yes",
+      "correct": true,
+      "confidence": 0.0018,
+      "calibrated": false,
+      "probabilities": {
+        "yes": 0.5252,
+        "no": 0.4748
+      },
+      "action": {
+        "act_probability": 1
+      },
+      "durationMs": 321
+    },
+    {
+      "id": "even",
+      "kind": "choose",
+      "prompt": "Which number is even?",
+      "expected": "4",
+      "choice": "7",
+      "correct": false,
+      "confidence": 0.0014,
+      "calibrated": false,
+      "probabilities": {
+        "3": 0.3098,
+        "4": 0.3352,
+        "7": 0.355
+      },
+      "action": {
+        "act_probability": 1
+      },
+      "durationMs": 320
+    },
+    {
+      "id": "color",
+      "kind": "choose",
+      "prompt": "Which of these is a colour?",
+      "expected": "blue",
+      "choice": "blue",
+      "correct": true,
+      "confidence": 0.0323,
+      "calibrated": false,
+      "probabilities": {
+        "blue": 0.4562,
+        "table": 0.3008,
+        "run": 0.243
+      },
+      "action": {
+        "act_probability": 1
+      },
+      "durationMs": 329
+    },
+    {
+      "id": "sun",
+      "kind": "test",
+      "prompt": "Is the sun a star?",
+      "expected": "yes",
+      "choice": "no",
+      "correct": false,
+      "confidence": 0.0002,
+      "calibrated": false,
+      "probabilities": {
+        "yes": 0.4923,
+        "no": 0.5077
+      },
+      "action": {
+        "act_probability": 1
+      },
+      "durationMs": 423
+    },
+    {
+      "id": "large",
+      "kind": "choose",
+      "prompt": "Which animal is larger?",
+      "expected": "elephant",
+      "choice": "elephant",
+      "correct": true,
+      "confidence": 0.9164,
+      "calibrated": false,
+      "probabilities": {
+        "mouse": 0.0104,
+        "elephant": 0.9896
+      },
+      "action": {
+        "act_probability": 1
+      },
+      "durationMs": 501
+    },
+    {
+      "id": "mammal",
+      "kind": "choose",
+      "prompt": "Which of these is a mammal?",
+      "expected": "dolphin",
+      "choice": "dolphin",
+      "correct": true,
+      "confidence": 0.0053,
+      "calibrated": false,
+      "probabilities": {
+        "shark": 0.4571,
+        "dolphin": 0.5429
+      },
+      "action": {
+        "act_probability": 1
+      },
+      "durationMs": 406
+    },
+    {
+      "id": "ice",
+      "kind": "test",
+      "prompt": "Is ice hot?",
+      "expected": "no",
+      "choice": "yes",
+      "correct": false,
+      "confidence": 0.1524,
+      "calibrated": false,
+      "probabilities": {
+        "yes": 0.7256,
+        "no": 0.2744
+      },
+      "action": {
+        "act_probability": 1
+      },
+      "durationMs": 280
+    }
+  ],
+  "metrics": {
+    "total": 8,
+    "attempted": 8,
+    "correct": 5,
+    "accuracy": 0.625,
+    "coverage": 1,
+    "abstentionRate": 0,
+    "confidenceIntervals": {
+      "accuracy": {
+        "low": 0.30574239460262737,
+        "high": 0.8631557141764026,
+        "method": "Wilson score 95%",
+        "n": 8
+      },
+      "coverage": {
+        "low": 0.6755924351161198,
+        "high": 1,
+        "method": "Wilson score 95%",
+        "n": 8
+      },
+      "note": "95% Wilson score intervals for the held-out sample; they describe this sample, not a population claim."
+    },
+    "calibration": {
+      "calibrated": false,
+      "note": "The pinned Laya card ships uncalibrated logits/confidences; this report therefore measures raw confidence-bin calibration and never relabels it calibrated.",
+      "bins": [
+        {
+          "range": "[0, 0.25)",
+          "n": 7,
+          "accuracy": 0.5714285714285714,
+          "meanConfidence": 0.02812857142857143
+        },
+        {
+          "range": "[0.25, 0.5)",
+          "n": 0,
+          "accuracy": null,
+          "meanConfidence": null
+        },
+        {
+          "range": "[0.5, 0.75)",
+          "n": 0,
+          "accuracy": null,
+          "meanConfidence": null
+        },
+        {
+          "range": "[0.75, 1.0001)",
+          "n": 1,
+          "accuracy": 1,
+          "meanConfidence": 0.9164
+        }
+      ],
+      "expectedCalibrationError": 0.48583750000000003
+    }
+  },
+  "limitations": [
+    "8 held-out items; report confidence intervals rather than claiming a population metric.",
+    "Confidence is the model's raw uncalibrated value (DEC-08); no probability calibration is claimed.",
+    "No Jev live endpoint is involved; Jev status remains independently reported."
+  ]
+}

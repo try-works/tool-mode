@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://try-works.dev/tool-mode/extension-needle/extract-with-repair.input.schema.json",
+  "title": "extract_with_repair input",
+  "description": "Input for extract_with_repair: identical to structured_extract's input. The source is inline text or a host-authorized file and exactly one must be supplied; the exactly-one rule is a `oneOf` over the two required-key branches, so a document carrying both satisfies both branches and fails the `oneOf`. The schema subset is the same one, sanitised by the same code, because the repair attempt must be judged against the contract the caller actually expressed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "instruction",
+    "schema"
+  ],
+  "oneOf": [
+    {
+      "required": [
+        "text"
+      ],
+      "properties": {
+        "text": {}
+      }
+    },
+    {
+      "required": [
+        "path"
+      ],
+      "properties": {
+        "path": {}
+      }
+    }
+  ],
+  "properties": {
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 32768,
+      "description": "The source document, inline."
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "description": "A path the HOST authorizes through resolvePath; the resolved path is what is read, so a check-then-open window cannot be won by a symlink."
+    },
+    "instruction": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8192,
+      "description": "What to extract, in the caller's words. It is a prompt, so it is the caller's responsibility; the ENGINE's grammar, not this text, is what makes the result well-formed."
+    },
+    "schema": {
+      "type": "object",
+      "description": "A JSON Schema object describing the record to extract. Only the subset the engine's grammar compiler accepts is used: `type`, `properties`, `required`, `items`, `enum`, `const` and `description`. Unsupported keywords are REFUSED by name rather than silently dropped, because a dropped constraint produces a plausible object that violates the caller's contract.",
+      "properties": {
+        "type": {
+          "const": "object"
+        },
+        "properties": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "required": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "properties"
+      ],
+      "additionalProperties": true
+    },
+    "system": {
+      "type": "string",
+      "maxLength": 4096,
+      "description": "Session facts: the date, the locale, the device."
+    },
+    "max_new_tokens": {
+      "type": "integer",
+      "minimum": 16,
+      "maximum": 4096,
+      "default": 512
+    }
+  }
+}

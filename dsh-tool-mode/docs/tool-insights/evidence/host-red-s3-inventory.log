@@ -1,0 +1,27 @@
+# S3 red — `tests/tool-inventory.test.ts` before `src/tool-inventory.ts`
+
+Command (from `packages/dsh-tool-mode`):
+
+    node tests/tool-inventory.test.ts
+
+Output:
+
+    node:internal/modules/esm/resolve:274
+        throw new ERR_MODULE_NOT_FOUND(
+              ^
+
+    Error [ERR_MODULE_NOT_FOUND]: Cannot find module
+    'D:\DEV\dsh-tool-mode\packages\dsh-tool-mode\src\tool-inventory.ts'
+    imported from
+    D:\DEV\dsh-tool-mode\packages\dsh-tool-mode\tests\tool-inventory.test.ts
+        at finalizeResolution (node:internal/modules/esm/resolve:274:11)
+        at moduleResolve (node:internal/modules/esm/resolve:864:12)
+        at defaultResolve (node:internal/modules/esm/resolve:905:19)
+        at #cachedDefaultResolve (node:internal/modules/esm/loader:757:20)
+        at ModuleLoader.resolve (node:internal/modules/esm/loader:740:38)
+
+    Node.js v24.11.0
+
+Red proves: the registry + extension snapshot cannot produce an inventory row yet.
+Green after this slice: every registered tool plus never-called extension tools, with
+truthful owner/kind/state and MCP exposure.

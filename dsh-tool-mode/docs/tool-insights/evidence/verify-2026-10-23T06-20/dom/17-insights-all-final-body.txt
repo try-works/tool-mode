@@ -1,0 +1,106 @@
+DSH Local Build
+0.2.1-rc.2-687f282-dirty
+New Session
+Ctrl
++
+Alt
++
+N
+Plugins
+Automation tasks
+Tool Insights
+Workspaces
+dsh-anti-slop
+Untitled
+2mo
+Untitled
+2mo
+Are There Any Recursive Runs
+2mo
+Untitled
+2mo
+Ungrouped
+More
+Tool Insights
+Tool Inventory
+MCP
+Tool Insights
+
+What the agent actually did with tools: volume, health, latency, Code Mode nesting and model attribution. Figures are host-reported; nothing on this page is estimated.
+
+Range
+24h
+7d
+30d
+All
+CALLS
+2,448
+all time
+TOOLS USED
+43 / 6
+distinct tools with activity
+SUCCESS
+97.8%
+55 failed calls
+TOOL TIME
+338m 27s
+sum of settled calls
+SESSIONS
+5
+sessions carrying usage
+CALLS / SESSION
+489.6
+mean across sessions
+P50 LATENCY
+1.0s
+p95 1m
+CODE MODE
+24.3%
+share of sub-calls
+Calls per day
+success versus errors, host-local days
+08-19
+08-20
+08-21
+08-22
+10-17
+10-20
+10-22
+10-23
+Model leaderboard
+who used tools most
+MODEL	CALLS	TOOLS	SUCCESS	P50
+deepseek-flash	1,565	23	98.3%	2.0s
+baseline.remote-only	883	19	96.7%	200ms
+Tool performance
+settled calls; percentiles from the host histogram
+TOOL	OWNER	CALLS	SUCCESS	P50	P95	MAX	TOTAL	CODE	LAST USED
+pwsh	@deepseek-ai/dsh-tool-pwsh	769	99.9%	5.0s	1m	4m 39s	161m 33s	172	21m ago
+read	@deepseek-ai/dsh-tool-fs	447	98.9%	50ms	5.0s	28.0s	7m 33s	78	24m ago
+run_code	unattributed	303	96.7%	5.0s	3m 30s	3m 30s	107m 58s	0	3d ago
+edit	@deepseek-ai/dsh-tool-fs	259	96.1%	100ms	750ms	29.1s	1m 30s	123	23m ago
+grep	@deepseek-ai/dsh-tool-fs-search	182	98.9%	500ms	5.0s	1m 60s	4m 44s	40	1h ago
+write	@deepseek-ai/dsh-tool-fs	172	94.2%	100ms	1.0s	37.7s	2m 29s	76	27m ago
+read_image	@deepseek-ai/dsh-tool-fs	52	96.2%	300ms	1m	1m 40s	4m 15s	52	6d ago
+Showing 1-7 of 43 tools
+Page 1 of 7
+Previous
+Next
+All calls
+newest first; Code Mode parents expand into their sub-calls
+Inventory →
+	TIME	TOOL	OWNER	SESSION	MS	STATUS
+	21m ago	pwsh	@deepseek-ai/dsh-tool-pwsh	64c910b6-f2d4-49c4-8f6f-1e59136c55fd	—	ok
+	23m ago	send_message	@deepseek-ai/dsh-tool-subagent-control	64c910b6-f2d4-49c4-8f6f-1e59136c55fd	13ms	ok
+	23m ago	edit	@deepseek-ai/dsh-tool-fs	64c910b6-f2d4-49c4-8f6f-1e59136c55fd	28ms	ok
+	24m ago	read	@deepseek-ai/dsh-tool-fs	64c910b6-f2d4-49c4-8f6f-1e59136c55fd	30ms	ok
+	24m ago	read	@deepseek-ai/dsh-tool-fs	64c910b6-f2d4-49c4-8f6f-1e59136c55fd	17ms	FS_NOT_FOUND
+	24m ago	pwsh	@deepseek-ai/dsh-tool-pwsh	64c910b6-f2d4-49c4-8f6f-1e59136c55fd	3.8s	ok
+	25m ago	pwsh	@deepseek-ai/dsh-tool-pwsh	64c910b6-f2d4-49c4-8f6f-1e59136c55fd	37.4s	ok
+	26m ago	pwsh	@deepseek-ai/dsh-tool-pwsh	64c910b6-f2d4-49c4-8f6f-1e59136c55fd	37.4s	ok
+	26m ago	pwsh	@deepseek-ai/dsh-tool-pwsh	64c910b6-f2d4-49c4-8f6f-1e59136c55fd	1.5s	ok
+	26m ago	pwsh	@deepseek-ai/dsh-tool-pwsh	64c910b6-f2d4-49c4-8f6f-1e59136c55fd	1.3s	ok
+Showing 1-10 of 200 calls
+Page 1 of 20
+Previous
+Next

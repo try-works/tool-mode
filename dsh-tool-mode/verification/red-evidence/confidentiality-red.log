@@ -1,0 +1,16 @@
+# task-27 TDD red — MCP-11 confidentiality policy
+
+Date: 2026-11-01
+Command: `npx tsx --test packages/dsh-tool-mode/tests/confidentiality.test.ts`
+
+Before implementation: 2 tests, 0 pass, 2 fail.
+- PTC arm: `authorizeProgramTools` accepted `lang_detect` even though the authority
+  supplied `confidential: ['lang_detect']`; `decision.ok` was true (the property is
+  currently ignored).
+- MCP arm: the plugin mount with `confidentialTools: ['lang_detect']` did not enable the
+  fixture because the config field is not yet declared, so the MCP surface assertion
+  failed before reaching the confidentiality rule.
+
+Expected after the fix: confidential names are rejected at the PTC binding boundary with
+reason `confidential`; the MCP host withholds the tool from `listTools` and `callTool`
+returns a tool error naming the confidentiality policy without executing it.

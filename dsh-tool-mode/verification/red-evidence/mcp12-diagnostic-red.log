@@ -1,0 +1,9 @@
+# MCP-12 TDD red — diagnostic reason for an excluded non-TMX host tool
+
+Date: 2026-11-01
+Command: `npx tsx --test --test-name-pattern "excluded non-TMX" packages/dsh-tool-mode/tests/diagnostics.test.ts`
+
+Before implementation: 1 test, 0 pass, 1 fail.
+- `model_tools diagnostics` reported `withheldTools: ['host_ui_only', ...]` but
+  `withheldReasons` was undefined. The name is listed, but an operator gets no reason
+  for why an arbitrary registered host tool is not exported to MCP.

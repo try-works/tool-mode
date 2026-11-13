@@ -1,0 +1,230 @@
+{
+  "acceptance": "AT-86",
+  "capturedAt": "2026-11-04T21:05:46.536Z",
+  "packedServer": {
+    "profile": "at03",
+    "dependency": "file:E:/tmp/dsh-home-at03/profiles/at03/plugins/try-works-dsh-tool-mode-0.5.42.tgz",
+    "pluginVersion": "0.5.42",
+    "endpoint": "http://127.0.0.1:3199/mcp"
+  },
+  "modernSdkClient": {
+    "package": "@modelcontextprotocol/client@2.3.1",
+    "transport": "StreamableHTTPClientTransport",
+    "negotiated": "2026-07-28",
+    "result": "server/discover, tools/list and tools/call(tool_mode_list) succeeded"
+  },
+  "rawProbe": {
+    "discover": {
+      "status": 200,
+      "request": {
+        "method": "server/discover",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "server/discover",
+          "authorization": "[redacted]"
+        },
+        "body": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "server/discover",
+          "params": {
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "at86-raw-probe",
+                "version": "1.0.0"
+              },
+              "io.modelcontextprotocol/clientCapabilities": {}
+            }
+          }
+        }
+      },
+      "response": {
+        "result": {
+          "supportedVersions": [
+            "2026-07-28"
+          ],
+          "capabilities": {
+            "tools": {
+              "listChanged": false
+            }
+          },
+          "resultType": "complete",
+          "ttlMs": 0,
+          "cacheScope": "private",
+          "_meta": {
+            "io.modelcontextprotocol/serverInfo": {
+              "name": "@try-works/dsh-tool-mode",
+              "version": "0.5.42"
+            }
+          }
+        },
+        "jsonrpc": "2.0",
+        "id": 1
+      }
+    },
+    "list": {
+      "status": 200,
+      "request": {
+        "method": "tools/list",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json",
+          "mcp-protocol-version": "2026-07-28",
+          "mcp-method": "tools/list",
+          "authorization": "[redacted]"
+        },
+        "body": {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "method": "tools/list",
+          "params": {
+            "_meta": {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientInfo": {
+                "name": "at86-raw-probe",
+                "version": "1.0.0"
+              },
+              "io.modelcontextprotocol/clientCapabilities": {}
+            }
+          }
+        }
+      },
+      "response": {
+        "result": {
+          "tools": [
+            {
+              "name": "tool_mode_describe",
+              "description": "Describe one or more tools by name: the selected input/output schemas, the resolved model, limits and the catalog revision. Read-only discovery (DECL-07): it never installs, prepares, activates or changes anything.",
+              "inputSchema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "tools"
+                ],
+                "properties": {
+                  "tools": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              },
+              "outputSchema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "catalogRevision",
+                  "tools"
+                ],
+                "properties": {
+                  "catalogRevision": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "tool_mode_list",
+              "description": "List the tools this caller is permitted to use, with readiness summaries and the current catalog revision. Read-only discovery (DECL-07): it never installs, prepares, activates or changes anything.",
+              "inputSchema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {},
+                "required": []
+              },
+              "outputSchema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "catalogRevision",
+                  "tools"
+                ],
+                "properties": {
+                  "catalogRevision": {
+                    "type": "string"
+                  },
+                  "tools": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "resultType": "complete",
+          "ttlMs": 0,
+          "cacheScope": "private",
+          "_meta": {
+            "io.modelcontextprotocol/serverInfo": {
+              "name": "@try-works/dsh-tool-mode",
+              "version": "0.5.42"
+            }
+          }
+        },
+        "jsonrpc": "2.0",
+        "id": 2
+      }
+    }
+  },
+  "schema": {
+    "toolNames": [
+      "tool_mode_describe",
+      "tool_mode_list"
+    ],
+    "toolModeDescribeInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tools"
+      ],
+      "properties": {
+        "tools": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "toolModeDescribeOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "catalogRevision",
+        "tools"
+      ],
+      "properties": {
+        "catalogRevision": {
+          "type": "string"
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  },
+  "sanitized": "The bearer token is replaced with [redacted]; no session cookie, credential or token appears in this record.",
+  "legacyClients": "No legacy handshake is offered by this 2026-07-28 endpoint; the legacy-only SDK 1.32 client is rejected explicitly (recorded separately during AT-06)."
+}

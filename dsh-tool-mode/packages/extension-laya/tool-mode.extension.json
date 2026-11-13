@@ -1,0 +1,160 @@
+{
+  "protocolVersion": "1.1.0",
+  "id": "@try-works/extension-laya",
+  "version": "1.0.4",
+  "displayName": "Laya decision family",
+  "description": "The Laya decision family (H5): decision_choose (a choice over the caller's options), decision_test (yes/no) and decision_score (an ordinal level) over the pinned multilingual Laya checkpoint (github.com/NandhaKishorM/laya, commit c73908d96ff73c0062c340a11bf7c54ec7d8bc4d, tag v0.4.6, Apache-2.0), running through the vendored laya-ts runtime. Every returned confidence is EXPLICITLY UNCALIBRATED (DEC-08): the upstream model card ships uncalibrated logits and a clamping warning, and this extension never presents them as calibrated probabilities.",
+  "license": "Apache-2.0",
+  "activation": {
+    "policy": "operator",
+    "deactivatable": true
+  },
+  "runtimeApi": 1,
+  "compatibility": {
+    "hostApi": "^1.1.0",
+    "requiredFeatures": [
+      "verified-assets-v1"
+    ]
+  },
+  "execution": {
+    "kind": "module",
+    "entry": "./lib/index.js",
+    "isolation": "managed-process"
+  },
+  "permissions": {
+    "networkOrigins": [],
+    "inputFiles": false,
+    "storage": "extension-private",
+    "secrets": [],
+    "nativeCode": true
+  },
+  "models": [
+    {
+      "id": "laya",
+      "assetSet": "laya-decision-onnx",
+      "assetLock": "./models.lock.json",
+      "platforms": [
+        {
+          "os": "win32",
+          "arch": "x64",
+          "accelerator": "cpu"
+        }
+      ]
+    }
+  ],
+  "tools": [
+    {
+      "id": "decision-choose-local",
+      "name": "decision_choose_local",
+      "contractId": "@try-works/extension-laya/decision_choose_local",
+      "contractVersion": "1.0.0",
+      "description": "Choose one of the caller's options for a stated prompt, over the pinned Laya checkpoint, using the extension-local result shape (label + per-option probabilities). Bounded by 512 state tokens and a 192-token head budget; up to 16 options. Requests that drop state tokens or collapse distinct options are rejected (INPUT_TRUNCATED / INDISTINGUISHABLE_OPTIONS, DEC-05). Returns the chosen option, the per-option scores, and a confidence that is EXPLICITLY UNCALIBRATED (DEC-08) — the upstream model ships uncalibrated logits.",
+      "inputSchema": "./schema/decision-choose.input.json",
+      "outputSchema": "./schema/decision-choose.output.json"
+    },
+    {
+      "id": "decision-choose-standard",
+      "name": "decision_choose",
+      "contractId": "decision.choose",
+      "contractVersion": "1.0.0",
+      "description": "Standard decision.choose: choose one of 2–16 options for a stated decision and return the chosen option as an INDEX plus a confidence bucket and reason. The runtime's chosen label is revalidated against the caller's FULL option set; an unknown label refuses. Confidence is a bucket over the EXPLICITLY UNCALIBRATED probability mass (DEC-08).",
+      "inputSchema": "./schema/decision-choose-standard.input.json",
+      "outputSchema": "./schema/decision-choose-standard.output.json"
+    },
+    {
+      "id": "decision-test",
+      "name": "decision_test",
+      "contractId": "@try-works/extension-laya/decision_test",
+      "contractVersion": "1.0.0",
+      "description": "Answer a stated yes/no question over the pinned Laya checkpoint. Bounded by 512 state tokens and a 192-token head budget; truncated state or collapsed options are rejected (INPUT_TRUNCATED / INDISTINGUISHABLE_OPTIONS, DEC-05). The confidence is EXPLICITLY UNCALIBRATED (DEC-08).",
+      "inputSchema": "./schema/decision-test.input.json",
+      "outputSchema": "./schema/decision-test.output.json"
+    },
+    {
+      "id": "decision-score",
+      "name": "decision_score",
+      "contractId": "@try-works/extension-laya/decision_score",
+      "contractVersion": "1.0.0",
+      "description": "Score a stated prompt onto one of the caller's ordinal levels over the pinned Laya checkpoint. Bounded by 512 state tokens and a 192-token head budget, with up to 16 levels/options; truncated state or collapsed levels are rejected (INPUT_TRUNCATED / INDISTINGUISHABLE_OPTIONS, DEC-05). The confidence is EXPLICITLY UNCALIBRATED (DEC-08).",
+      "inputSchema": "./schema/decision-score.input.json",
+      "outputSchema": "./schema/decision-score.output.json"
+    },
+    {
+      "id": "decision-test-typed",
+      "name": "decision_test_typed",
+      "contractId": "@try-works/extension-laya/decision_test_typed",
+      "contractVersion": "1.0.0",
+      "description": "Evaluate a yes/no proposition against a state over the SAME pinned Laya checkpoint and head as decision_test, returning the native P(proposition) explicitly as an UNCALIBRATED model_probability (DEC-06, DEC-08). Bounded by a 32768-character state and a 4096-character proposition; requests that exceed the prepared head's token budget or collapse options are rejected (INPUT_TRUNCATED / INDISTINGUISHABLE_OPTIONS, DEC-05). The boolean answer applies a disclosed reviewed threshold over probabilityTrue; it is not ground truth.",
+      "inputSchema": "./schema/decision-test-typed.input.json",
+      "outputSchema": "./schema/decision-test-typed.output.json"
+    },
+    {
+      "id": "decision-score-typed",
+      "name": "decision_score_typed",
+      "contractId": "@try-works/extension-laya/decision_score_typed",
+      "contractVersion": "1.0.0",
+      "description": "Score a state/question onto 2–32 ordered levels over the SAME pinned Laya checkpoint and head as decision_score, preserving the native ORDINAL distribution and its FRACTIONAL expected index (Σ i·p_i, never converted to a hard label), with UNCALIBRATED model_probability values (DEC-06, DEC-08). Level ids and descriptions must be unique; truncated state or collapsed levels are rejected (INPUT_TRUNCATED / INDISTINGUISHABLE_OPTIONS, DEC-05).",
+      "inputSchema": "./schema/decision-score-typed.input.json",
+      "outputSchema": "./schema/decision-score-typed.output.json"
+    }
+  ],
+  "implementations": [
+    {
+      "id": "laya-onnx-decision-choose",
+      "contractId": "@try-works/extension-laya/decision_choose_local",
+      "contractVersion": "1.0.0",
+      "modelId": "laya",
+      "recipeVersion": "1.0.0"
+    },
+    {
+      "id": "laya-onnx-decision-choose-standard",
+      "contractId": "decision.choose",
+      "contractVersion": "1.0.0",
+      "modelId": "laya",
+      "recipeVersion": "1.0.0"
+    },
+    {
+      "id": "laya-onnx-decision-test",
+      "contractId": "@try-works/extension-laya/decision_test",
+      "contractVersion": "1.0.0",
+      "modelId": "laya",
+      "recipeVersion": "1.0.0"
+    },
+    {
+      "id": "laya-onnx-decision-score",
+      "contractId": "@try-works/extension-laya/decision_score",
+      "contractVersion": "1.0.0",
+      "modelId": "laya",
+      "recipeVersion": "1.0.0"
+    },
+    {
+      "id": "laya-onnx-decision-test-typed",
+      "contractId": "@try-works/extension-laya/decision_test_typed",
+      "contractVersion": "1.0.0",
+      "modelId": "laya",
+      "recipeVersion": "1.0.0"
+    },
+    {
+      "id": "laya-onnx-decision-score-typed",
+      "contractId": "@try-works/extension-laya/decision_score_typed",
+      "contractVersion": "1.0.0",
+      "modelId": "laya",
+      "recipeVersion": "1.0.0"
+    }
+  ],
+  "skills": [
+    {
+      "id": "decision-decomposition",
+      "name": "decision-decomposition",
+      "description": "Decompose a decision into code-computed facts and atomic Laya/Jev judgments, then combine them with an explicit trace instead of one giant choice question.",
+      "path": "./skills/decision-decomposition/SKILL.md"
+    }
+  ],
+  "network": {
+    "requiredTelemetry": false,
+    "telemetryContent": [
+      "the vendored runtime performs no network access; the pinned artifacts load from the host-prepared local directory only"
+    ],
+    "otherNetworkUse": false
+  }
+}

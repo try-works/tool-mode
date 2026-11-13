@@ -1,0 +1,26 @@
+# S5 red — `tests/mcp-status.test.ts` before `src/mcp-status.ts`
+
+Command (from `packages/dsh-tool-mode`):
+
+    node tests/mcp-status.test.ts
+
+Output:
+
+    node:internal/modules/esm/resolve:274
+        throw new ERR_MODULE_NOT_FOUND(
+              ^
+
+    Error [ERR_MODULE_NOT_FOUND]: Cannot find module
+    'D:\DEV\dsh-tool-mode\packages\dsh-tool-mode\src\mcp-status.ts'
+    imported from
+    D:\DEV\dsh-tool-mode\packages\dsh-tool-mode\tests\mcp-status.test.ts
+        at finalizeResolution (node:internal/modules/esm/resolve:274:11)
+        at moduleResolve (node:internal/modules/esm/resolve:864:12)
+        at defaultResolve (node:internal/modules/esm/resolve:905:19)
+        at #cachedDefaultResolve (node:internal/modules/esm/loader:757:20)
+        at ModuleLoader.resolve (node:internal/modules/esm/loader:740:38)
+
+    Node.js v24.11.0
+
+Red proves: endpoint/clients/exposure are not derived from real facts. Green after this
+slice: configured port, truthful clients, exposed/withheld with model_tools withheld.

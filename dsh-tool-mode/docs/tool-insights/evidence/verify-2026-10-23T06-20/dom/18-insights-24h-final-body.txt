@@ -1,0 +1,99 @@
+DSH Local Build
+0.2.1-rc.2-687f282-dirty
+New Session
+Ctrl
++
+Alt
++
+N
+Plugins
+Automation tasks
+Tool Insights
+Workspaces
+dsh-anti-slop
+Untitled
+2mo
+Untitled
+2mo
+Are There Any Recursive Runs
+2mo
+Untitled
+2mo
+Ungrouped
+More
+Tool Insights
+Tool Inventory
+MCP
+Tool Insights
+
+What the agent actually did with tools: volume, health, latency, Code Mode nesting and model attribution. Figures are host-reported; nothing on this page is estimated.
+
+Range
+24h
+7d
+30d
+All
+CALLS
+668
+in 24h
+TOOLS USED
+23 / 6
+distinct tools with activity
+SUCCESS
+98.5%
+10 failed calls
+TOOL TIME
+120m 59s
+sum of settled calls
+SESSIONS
+1
+sessions carrying usage
+CALLS / SESSION
+668.0
+mean across sessions
+P50 LATENCY
+2.0s
+p95 1m
+CODE MODE
+0%
+share of sub-calls
+Calls per day
+success versus errors, host-local days
+10-22
+10-23
+Model leaderboard
+who used tools most
+MODEL	CALLS	TOOLS	SUCCESS	P50
+deepseek-flash	668	23	98.5%	2.0s
+Tool performance
+settled calls; percentiles from the host histogram
+TOOL	OWNER	CALLS	SUCCESS	P50	P95	MAX	TOTAL	CODE	LAST USED
+pwsh	@deepseek-ai/dsh-tool-pwsh	364	100%	5.0s	4m 39s	4m 39s	102m 15s	0	21m ago
+read	@deepseek-ai/dsh-tool-fs	71	98.6%	50ms	500ms	784ms	7.9s	0	24m ago
+edit	@deepseek-ai/dsh-tool-fs	57	96.5%	100ms	200ms	723ms	4.8s	0	24m ago
+browser_evaluate	unattributed	49	98.0%	50ms	5.0s	12.2s	1m 3s	0	29m ago
+write	@deepseek-ai/dsh-tool-fs	41	92.7%	100ms	500ms	667ms	4.3s	0	27m ago
+grep	@deepseek-ai/dsh-tool-fs-search	21	95.2%	1.0s	5.0s	1m 60s	2m 29s	0	1h ago
+send_message	@deepseek-ai/dsh-tool-subagent-control	14	100%	50ms	200ms	133ms	595ms	0	24m ago
+Showing 1-7 of 23 tools
+Page 1 of 4
+Previous
+Next
+All calls
+newest first; Code Mode parents expand into their sub-calls
+Inventory →
+	TIME	TOOL	OWNER	SESSION	MS	STATUS
+	21m ago	pwsh	@deepseek-ai/dsh-tool-pwsh	64c910b6-f2d4-49c4-8f6f-1e59136c55fd	—	ok
+	24m ago	send_message	@deepseek-ai/dsh-tool-subagent-control	64c910b6-f2d4-49c4-8f6f-1e59136c55fd	13ms	ok
+	24m ago	edit	@deepseek-ai/dsh-tool-fs	64c910b6-f2d4-49c4-8f6f-1e59136c55fd	28ms	ok
+	24m ago	read	@deepseek-ai/dsh-tool-fs	64c910b6-f2d4-49c4-8f6f-1e59136c55fd	30ms	ok
+	24m ago	read	@deepseek-ai/dsh-tool-fs	64c910b6-f2d4-49c4-8f6f-1e59136c55fd	17ms	FS_NOT_FOUND
+	24m ago	pwsh	@deepseek-ai/dsh-tool-pwsh	64c910b6-f2d4-49c4-8f6f-1e59136c55fd	3.8s	ok
+	25m ago	pwsh	@deepseek-ai/dsh-tool-pwsh	64c910b6-f2d4-49c4-8f6f-1e59136c55fd	37.4s	ok
+	26m ago	pwsh	@deepseek-ai/dsh-tool-pwsh	64c910b6-f2d4-49c4-8f6f-1e59136c55fd	37.4s	ok
+	26m ago	pwsh	@deepseek-ai/dsh-tool-pwsh	64c910b6-f2d4-49c4-8f6f-1e59136c55fd	1.5s	ok
+	26m ago	pwsh	@deepseek-ai/dsh-tool-pwsh	64c910b6-f2d4-49c4-8f6f-1e59136c55fd	1.3s	ok
+Showing 1-10 of 200 calls
+Page 1 of 20
+Previous
+Next

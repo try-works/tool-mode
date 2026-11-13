@@ -1,0 +1,52 @@
+{
+  "name": "@try-works/extension-needle",
+  "version": "0.1.3",
+  "type": "module",
+  "description": "First-party Tool Mode extension implementing tools_plan, structured_extract, validate_record and extract_with_repair on the Cactus Needle 3 native engine (windows-x86_64/needle.exe)",
+  "license": "MIT",
+  "exports": {
+    "./tool-mode": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./process-bridge": {
+      "types": "./lib/process-bridge.d.ts",
+      "default": "./lib/process-bridge.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "tool-mode.extension.json",
+    "lib",
+    "models.lock.json",
+    "schema",
+    "README.md",
+    "PINNING.md"
+  ],
+  "toolMode": {
+    "manifest": "./tool-mode.extension.json"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "tsx --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "ajv": "^8.20.0"
+  },
+  "devDependencies": {
+    "@try-works/tool-mode-extension-sdk": "^0.1.0"
+  },
+  "peerDependencies": {
+    "@try-works/tool-mode-extension-sdk": ">=0.1.0"
+  },
+  "peerDependenciesMeta": {
+    "@try-works/tool-mode-extension-sdk": {
+      "optional": true
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

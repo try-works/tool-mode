@@ -1,0 +1,46 @@
+name: verify
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: dsh-tool-mode
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: dsh-tool-mode/package-lock.json
+      - name: Install
+        run: npm ci
+        env:
+          npm_config_prefer_offline: 'true'
+          npm_config_fetch_retries: '1'
+          npm_config_fetch_timeout: '60000'
+      - name: Verify
+        run: npm run verify
+        env:
+          TMP: ${{ runner.temp }}
+          TEMP: ${{ runner.temp }}
+      - name: Verification artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-evidence
+          path: |
+            verification/
+            .agent-scratch/tdd/
+          if-no-files-found: warn
+          retention-days: 30
+

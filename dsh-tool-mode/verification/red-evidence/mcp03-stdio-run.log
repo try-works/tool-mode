@@ -1,0 +1,22 @@
+# MCP-03 — real stdio bridge stdout-purity run
+
+Date: 2026-11-02
+Host: Windows, Node v24.11.0
+
+Command (file redirection, no pipes):
+`node packages/dsh-tool-mode/bin/dsh-tool-mode-mcp-stdio.mjs` with
+`DSH_TOOL_MODE_MCP_TOKEN` unset, empty stdin, stdout/stderr redirected to files.
+
+Observed:
+- exit code: 2
+- stdout bytes: 0
+- stderr bytes: 213
+- stderr:
+  `dsh-tool-mode-mcp-stdio: no credential configured.`
+  `  Set DSH_TOOL_MODE_MCP_TOKEN to the token the operator configured for this client,`
+  `  and DSH_TOOL_MODE_MCP_URL if the endpoint is not http://127.0.0.1:3765/mcp.`
+
+This is an end-to-end launch of the packed executable (not the library): diagnostics go
+only to stderr, stdout stays protocol-free, and an unattended launch fails promptly with
+actionable guidance (P26-16) instead of hanging. The protocol-path stdout writer is the
+single remaining stdout write in the executable.

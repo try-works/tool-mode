@@ -1,0 +1,120 @@
+# SEC-09 approval state machine — TDD RED record (execution PENDING: sandbox blocks the shell)
+
+Date: 2026-11-02. Repo: `D:\DEV\dsh-tool-mode`.
+
+## What was attempted
+
+```
+cd D:\DEV\dsh-tool-mode\packages\dsh-tool-mode
+node tests/approval.test.ts        # twice; red then post-implementation green attempt
+npx tsx --test tests/approval.test.ts
+tsc -p packages/dsh-tool-mode/tsconfig.json
+```
+
+Every invocation of the `pwsh` tool failed BEFORE the command started:
+
+```
+Error: sandbox-local windows-acl temp grant materialization failed and its cleanup also failed
+```
+
+So there is NO captured test/tsc output from this session. This file is a record, not a claimed
+green run. Nothing below is presented as executed output.
+
+## Test written FIRST (before src/approval.ts existed)
+
+`packages/dsh-tool-mode/tests/approval.test.ts` — 22 tests in 8 `describe` groups:
+
+1. request creation, determinism and plain-JSON shape (4)
+2. no approval UI never hangs; unknown ids (2)
+3. explicit/idempotent decisions (4)
+4. one-shot, scope-bound commit (4)
+5. TTL expiry on the injected clock (3)
+6. plain-JSON durability round-trip (3)
+7. no secrets in serialized state (1)
+8. every required request kind admitted with its scope (1)
+
+Expected RED with no `src/approval.ts`: Node/tsx fails the static import with
+`ERR_MODULE_NOT_FOUND .../src/approval.ts` (all 22 tests fail to load). That is the TDD red for a
+new module; it could not be captured because the runner is sandbox-blocked.
+
+## Implementation written after the test
+
+`packages/dsh-tool-mode/src/approval.ts`: `ApprovalStore` + `ApprovalError` with
+states pending/approved/denied/committed/expired, lazy TTL on an injected `now`, deterministic
+`apr_<16 hex>` ids from request content + injected time, one-shot `commit(id, exactScope)`,
+idempotent same-decision `decide`, named refusals (`approval/pending`, `approval/denied`,
+`approval/expired`, `approval/already-decided`, `approval/already-committed`,
+`approval/scope-mismatch`, `approval/unknown-id`, `approval/invalid-request`,
+`approval/invalid-serialization`), fixed-schema records (caller extras dropped, so a token passed by
+mistake is never stored), and versioned `toJSON`/`fromJSON` durability.
+
+## Exact finish commands (Lead; execution pending)
+
+```
+cd D:\DEV\dsh-tool-mode
+npx tsx --test packages/dsh-tool-mode/tests/approval.test.ts   # expect 22/22 pass
+tsc -p packages/dsh-tool-mode/tsconfig.json                    # expect exit 0
+```
+
+Static checks run from this session (these DO execute — they are lexer-based, not the Node runner):
+`anti_slop_lint` parsed both files with no syntax errors. `src/approval.ts`: the only remaining
+finding on the 12-rule "contract" subset is `no-unsafe-dictionary-type` on the `isRecord(value:
+unknown)` boundary guard itself; the 15-rule run additionally reports the intentional
+`no-runtime-typeof` / `no-unknown-parameters` findings on the same input-parsing boundary (validation
+must start from `unknown`; this module IS the parser). Assertions carry `SAFETY:` comments where a
+checked invariant justifies them. The test file parses cleanly; its `unknown`/cast findings are test
+assertion callbacks and a deliberate hostile-input cast.
+
+## Wiring contract for the host (Lead wires; this task did not touch index.ts)
+
+```ts
+import { ApprovalStore, ApprovalError, type ApprovalKind, type ApprovalScope } from './approval.ts'
+
+// Once per host process; restore before serving management actions.
+const approvals = snapshot === undefined
+  ? new ApprovalStore({ defaultTtlMs: 5 * 60_000 })
+  : ApprovalStore.fromJSON(JSON.parse(snapshot), { /* now?: () => Date.now() */ })
+
+// 1. A management action asks for approval instead of mutating.
+const request = approvals.request({
+  kind: 'extension-install',                      // the exact ApprovalKind
+  scope: { kind: 'extension', id: extensionId },  // the exact subject
+  operator: operatorIdentity,                     // identity, never a secret
+  reason: operatorReason,                         // why, never a payload/token
+  ttlMs: 5 * 60_000,                              // optional; store default otherwise
+})
+persistState(JSON.stringify(approvals.toJSON()))  // durable-safe plain JSON
+return { approvalId: request.id, state: request.state }
+
+// 2. The UI/approver decides explicitly (idempotent for the same decision).
+const decided = approvals.decide(request.id, { approve: true, decidedBy: approverId, reason: 'ok' })
+persistState(JSON.stringify(approvals.toJSON()))
+
+// 3. Immediately before the mutation, consume the approval for the SAME scope.
+try {
+  approvals.commit(request.id, { kind: 'extension', id: extensionId })
+} catch (error) {
+  if (error instanceof ApprovalError) return { ok: false, code: error.code, message: error.message }
+  throw error
+}
+persistState(JSON.stringify(approvals.toJSON()))
+performTheMutation()
+
+// Inspection for the management/UI surface:
+approvals.list()      // every record, TTL applied
+approvals.describe(id)
+```
+
+Rules the caller must respect:
+- **Never await a decision.** `commit()` on a pending record throws `approval/pending`
+  synchronously; a host with no approval UI must surface that refusal, never hang.
+- `commit(id, scope)` requires the scope to equal the request's scope EXACTLY; mismatch throws
+  `approval/scope-mismatch` and does NOT consume the approval.
+- `commit` is one-shot; a second call throws `approval/already-committed`.
+- Scope kinds per request kind are fixed: model ops → `model`/`tool`; extension ops →
+  `extension`/`tool`; `model-provider-change` → `model`/`provider`/`tool`;
+  `credential-revoke` → `credential` only.
+- Persist `toJSON()` after every transition; `fromJSON` refuses corruption with
+  `approval/invalid-serialization`.
+- Do not store payloads, tokens or URLs in `reason`; the record schema has no place for them and
+  unknown caller fields are dropped.

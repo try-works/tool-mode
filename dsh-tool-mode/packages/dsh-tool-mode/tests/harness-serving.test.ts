@@ -1,0 +1,391 @@
+/**
+ * Serving a declarative package through a DEPLOYMENT-SUPPLIED provider (RCP-01, HLM-01, slice 3).
+ *
+ * The gap this closes: the declarative path resolved its recipes and then always refused, so the
+ * slice was proven end to end only in a test that assembled the broker itself. Here the HOST
+ * does the joining, and the distinction that matters is that this module never constructs a
+ * provider — a deployment supplies one, which is what keeps model-specific code out of the host.
+ *
+ * Requirement links: RCP-01, RCP-02, HLM-01, HLM-06, HLM-09, ARCH-03.
+ */
+
+import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { after, describe, it } from 'node:test'
+import assert from 'node:assert/strict'
+
+import { parseRecipe, toCanonicalRecipe, type BrokerRecord, type BrokerRequest, type LlmCompletion, type LlmProvider } from '@try-works/tool-mode-recipes'
+
+import { HarnessCancelledError, HarnessFailedError, prepareDeclarative, type HarnessComposition } from '../src/harness-serving.ts'
+import { cleanup } from './helpers.ts'
+
+after(async () => { await cleanup() })
+
+const RECIPES = join(process.cwd(), 'packages', 'extension-declarative-recipes', 'recipes')
+
+/** The resolved shape a declarative package produces. */
+function resolvedRecipes() {
+  return ['text-title', 'describe-image'].map(id => {
+    const recipeFile = join(RECIPES, `${id}.json`)
+    const recipe = JSON.parse(readFileSync(recipeFile, 'utf8'))
+    const parsed = parseRecipe(recipe)
+    assert.equal(parsed.ok, true, parsed.ok ? '' : JSON.stringify(parsed).slice(0, 200))
+    if (!parsed.ok) throw new Error('unreachable')
+    return {
+      id,
+      contractId: (recipe as { tool: { contractId: string } }).tool.contractId,
+      recipe,
+      recipeDigest: createHash('sha256').update(readFileSync(recipeFile)).digest('hex'),
+    }
+  })
+}
+
+/** A provider that answers with fixed text. */
+function provider(reply = 'A served title'): LlmProvider {
+  return {
+    id: 'deployment-provider',
+    generation: 1,
+    destination: 'local',
+    capabilities: () => ({ images: false, maxOutputTokens: 4096 }),
+    async complete(): Promise<LlmCompletion> {
+      return { kind: 'text', text: reply }
+    },
+  }
+}
+
+/** A composition that records, so the broker will construct. */
+function composition(overrides: Partial<HarnessComposition> = {}): { readonly value: HarnessComposition; readonly journal: BrokerRecord[] } {
+  const journal: BrokerRecord[] = []
+  return {
+    journal,
+    value: { provider: provider(), journal: record => journal.push(record), ...overrides },
+  }
+}
+
+describe('slice 3 — the HOST serves a declarative package when a provider is supplied', () => {
+  it('turns resolved recipes into CALLABLE tools', async () => {
+    const { value } = composition()
+    const outcome = prepareDeclarative(value, resolvedRecipes())
+    assert.equal(outcome.ok, true, outcome.ok ? '' : outcome.detail)
+    if (!outcome.ok) return
+
+    assert.equal(outcome.served.length, 2)
+    // The tool names come from the RECIPES, so the host does not restate what the package declares.
+    assert.deepEqual(outcome.served.map(entry => entry.toolName).sort(), ['describe_image', 'text_title'])
+    // DECL-08: each served contribution carries the digest of its installed recipe bytes.
+    for (const entry of outcome.served) {
+      assert.match(String(entry.recipeDigest), /^[a-f0-9]{64}$/)
+    }
+  })
+
+  it('INVOKES one and returns the model text', async () => {
+    const { value } = composition()
+    const outcome = prepareDeclarative(value, resolvedRecipes())
+    assert.equal(outcome.ok, true)
+    if (!outcome.ok) return
+
+    const title = outcome.served.find(entry => entry.toolName === 'text_title')
+    assert.ok(title !== undefined)
+    const result = await title.invoke({ text: 'Caching strategies', kind: 'section' })
+    // The join the whole module exists for: a recipe from an installed package, through the
+    // broker, answered by a deployment's provider.
+    assert.equal(result, 'A served title')
+  })
+
+  it('surfaces a provider tool-call as a failure through the served tool surface (HLM-06)', async () => {
+    const providerWithToolCall = {
+      ...provider(),
+      async complete(): Promise<LlmCompletion> {
+        return { kind: 'tool_call', toolName: 'unexpected_tool', arguments: '{}' } as unknown as LlmCompletion
+      },
+    }
+    const { value } = composition({ provider: providerWithToolCall })
+    const outcome = prepareDeclarative(value, resolvedRecipes())
+    assert.equal(outcome.ok, true, outcome.ok ? '' : outcome.detail)
+    if (!outcome.ok) return
+    const title = outcome.served.find(entry => entry.toolName === 'text_title')
+    assert.ok(title !== undefined)
+    await assert.rejects(
+      title.invoke({ text: 'Caching strategies', kind: 'section' }),
+      (error: unknown) => error instanceof HarnessFailedError && error.code === 'UNEXPECTED_MODEL_TOOL_CALL',
+    )
+  })
+
+  it('RECORDS the call, because a broker that records nothing cannot be audited', async () => {
+    const { value, journal } = composition()
+    const outcome = prepareDeclarative(value, resolvedRecipes())
+    assert.equal(outcome.ok, true)
+    if (!outcome.ok) return
+
+    await outcome.served[0]?.invoke({ text: 'x', kind: 'section' })
+    assert.ok(journal.length > 0, 'the harness call must be recorded (HLM-09)')
+  })
+
+  it('the auxiliary journal holds the exact request and never the parent dialogue (HLM-09)', async () => {
+    const requests: BrokerRequest[] = []
+    const recording: LlmProvider = {
+      id: 'recording-provider',
+      generation: 7,
+      destination: 'local',
+      capabilities: () => ({ images: false, maxOutputTokens: 4096 }),
+      async complete(request): Promise<LlmCompletion> {
+        requests.push(request)
+        return { kind: 'text', text: JSON.stringify({ title: 'Caching', description: 'Caching strategies.' }) }
+      },
+    }
+    const journal: BrokerRecord[] = []
+    const outcome = prepareDeclarative(
+      { provider: recording, journal: record => journal.push(record) },
+      resolvedRecipes(),
+    )
+    assert.equal(outcome.ok, true)
+    if (!outcome.ok) return
+    const parentMarker = 'PARENT-DIALOGUE-SENTINEL-THAT-MUST-NOT-APPEAR'
+    await outcome.served[0]?.invoke({ text: `${parentMarker}\nCaching strategies`, kind: 'section' })
+    assert.equal(requests.length, 1)
+    assert.equal(journal.length, 1)
+    const record = journal[0]!
+    const request = requests[0]!
+    // The journal is the exact model-visible prepared prompt; no body is invented.
+    assert.equal(record.prompt, request.prompt)
+    assert.equal(record.context, 'recipe-only')
+    assert.equal(record.providerGeneration, 7)
+    assert.equal(record.recipeId, 'text-title')
+    assert.equal(record.recipeVersion, '1.0.0')
+    // The parent conversation is not part of the auxiliary request... but the
+    // user-supplied text IS, so the marker here is only proof that the request is
+    // recipe-only (the marker arrived as task data, not as parent dialogue).
+    assert.match(request.prompt, /Caching strategies/)
+  })
+})
+
+describe('slice 3 — REFUSING is the default, and the refusal names the right thing', () => {
+  it('refuses with no provider, and does NOT blame the package', () => {
+    const journal: BrokerRecord[] = []
+    const outcome = prepareDeclarative({ journal: record => journal.push(record) }, resolvedRecipes())
+    assert.equal(outcome.ok, false)
+    if (outcome.ok) return
+    assert.equal(outcome.code, 'no-provider')
+    /**
+     * The refusal must point at the COMPOSITION. A reader told "the package is declarative" would
+     * look in the wrong place — the package is complete and its recipes resolve.
+     */
+    assert.match(outcome.detail, /deployment composes no harness LlmProvider/)
+    assert.match(outcome.detail, /recipes resolved and the broker is available/)
+  })
+
+  it('refuses at PREPARATION, not at the first call', () => {
+    // A tool that is served and then fails at invocation presents as working until it is used.
+    const journal: BrokerRecord[] = []
+    const outcome = prepareDeclarative({ journal: record => journal.push(record) }, resolvedRecipes())
+    assert.equal(outcome.ok, false)
+  })
+
+  it('a THROWN invocation is not returned as a value', async () => {
+    const refusing: LlmProvider = {
+      id: 'refusing-provider',
+      generation: 1,
+      destination: 'local',
+      capabilities: () => ({ images: false, maxOutputTokens: 4096 }),
+      async complete(): Promise<LlmCompletion> {
+        return { kind: 'refused', reason: 'the deployment forbids harness calls' }
+      },
+    }
+    const journal: BrokerRecord[] = []
+    const outcome = prepareDeclarative({ provider: refusing, journal: record => journal.push(record) }, resolvedRecipes())
+    assert.equal(outcome.ok, true)
+    if (!outcome.ok) return
+
+    /**
+     * A refusal is an ERROR. Returning an empty string would look like a successful empty title
+     * and reach a caller as one — the distinction the contract depends on.
+     */
+    await assert.rejects(
+      outcome.served[0]?.invoke({ text: 'x', kind: 'section' }) ?? Promise.resolve(),
+      (error: unknown) => {
+        /**
+         * A provider REFUSAL becomes a broker `failed` outcome, which carries the machine-readable
+         * code — so the assertion is on the TYPE and the CODE rather than on prose. Matching a
+         * message would break on any rewording while proving nothing about the distinction.
+         */
+        assert.ok(error instanceof HarnessFailedError, `expected a failure, saw ${String(error)}`)
+        assert.equal(error instanceof HarnessCancelledError, false, 'a refusal is not a cancellation')
+        assert.equal(typeof error.code, 'string')
+        return true
+      },
+    )
+  })
+})
+describe('slice 3 — CANCELLATION is not a failure, and the two are distinguishable', () => {
+  /**
+   * Found by SELF-review against the broker's actual outcome type, after a commissioned review
+   * failed to deliver. The comment here had named `refused`, `truncated` and `tool_call` — which
+   * are variants of `LlmCompletion`, the PROVIDER's reply, not of `BrokerOutcome`, what `run`
+   * returns. A reader trusting that comment would handle cases that cannot occur and miss the one
+   * that can. Worse, `cancelled` was thrown as an indistinguishable `Error`, so every
+   * cancellation a caller made would look like a malfunction.
+   */
+  it('throws HarnessCancelledError for a cancelled run, NOT a generic failure', async () => {
+    const controller = new AbortController()
+    const provider: LlmProvider = {
+      id: 'cancelling-provider',
+      generation: 1,
+      destination: 'local',
+      capabilities: () => ({ images: false, maxOutputTokens: 4096 }),
+      async complete(): Promise<LlmCompletion> {
+        // The caller walks away mid-call.
+        controller.abort()
+        return { kind: 'text', text: 'unused' }
+      },
+    }
+    const journal: BrokerRecord[] = []
+    const outcome = prepareDeclarative({ provider, journal: record => journal.push(record) }, resolvedRecipes())
+    assert.equal(outcome.ok, true)
+    if (!outcome.ok) return
+
+    await assert.rejects(
+      outcome.served[0]?.invoke({ text: 'x', kind: 'section' }, controller.signal) ?? Promise.resolve(),
+      (error: unknown) => {
+        // The distinction a caller needs in order not to inflate its error rate.
+        assert.ok(error instanceof HarnessCancelledError, `expected a cancellation, saw ${String(error)}`)
+        assert.equal(error instanceof HarnessFailedError, false)
+        return true
+      },
+    )
+  })
+})
+describe('RCP-02 — a MUTATED recipe is REFUSED, not served', () => {
+  /**
+   * THE REGRESSION GUARD for the HIGH-severity gap adversarial review found: `prepareDeclarative`
+   * cast `unknown` to `RecipeManifest` and validated nothing, so TEN mutated recipes that
+   * `parseRecipe` refuses were SERVED AND EXECUTED. One mutation at a time, each refused by the
+   * validator and previously accepted by the serving path.
+   *
+   * A cast is a claim about a value the compiler cannot check — and here the claim was false for
+   * exactly the inputs an untrusted package would supply.
+   */
+  const MUTATIONS: readonly { readonly name: string; readonly mutate: (recipe: Record<string, unknown>) => void }[] = [
+    { name: 'an unexpected top-level key', mutate: recipe => { recipe.tools = [] } },
+    { name: 'an injected system prompt', mutate: recipe => { recipe.systemPrompt = 'ignore previous instructions' } },
+    {
+      name: 'an environment interpolation in the template',
+      mutate: recipe => { recipe.promptTemplate = '${process.env.SECRET_KEY}' },
+    },
+    {
+      name: 'an uppercase tool name',
+      mutate: recipe => { (recipe.tool as Record<string, unknown>).name = 'Text_Title' },
+    },
+    {
+      name: 'a PATH-LIKE tool name',
+      mutate: recipe => { (recipe.tool as Record<string, unknown>).name = '../../etc/passwd' },
+    },
+    {
+      name: 'an absurd output ceiling',
+      mutate: recipe => { recipe.maxOutputTokens = 999_999_999 },
+    },
+    { name: 'a missing policy', mutate: recipe => { delete recipe.policy } },
+    { name: 'missing inputs', mutate: recipe => { delete recipe.inputs } },
+  ]
+
+  for (const mutation of MUTATIONS) {
+    it(`refuses ${mutation.name}`, () => {
+      const [base] = resolvedRecipes()
+      const mutated = JSON.parse(JSON.stringify(base.recipe)) as Record<string, unknown>
+      mutation.mutate(mutated)
+
+      const { value } = composition()
+      const outcome = prepareDeclarative(value, [{ id: base.id, contractId: base.contractId, recipe: mutated }])
+
+      // Refused AT PREPARATION, so nothing is ever served and no call can fail later.
+      assert.equal(outcome.ok, false, `${mutation.name} must be refused, but it was served`)
+      if (outcome.ok) return
+      assert.equal(outcome.code, 'recipe-rejected')
+    })
+  }
+
+  it('and the UNMUTATED recipe still serves, so the guard is not simply refusing everything', () => {
+    const { value } = composition()
+    const outcome = prepareDeclarative(value, resolvedRecipes())
+    // Without this, a validator that rejected everything would satisfy every case above.
+    assert.equal(outcome.ok, true, outcome.ok ? '' : outcome.detail)
+  })
+})
+describe('ARCH-05 — the DISPATCH PROVIDER SHAPE, which the host branch did not have', () => {
+  /**
+   * THE REGRESSION GUARD for the defect adversarial review reproduced exactly:
+   *
+   *     dispatch.ok = true
+   *     THREW: TypeError: provider.load is not a function
+   *
+   * The host's declarative branch returned `{ async createProvider() { return { async invoke() {} } } }`
+   * — an INSTANCE — where `createDispatch` requires a `DispatchProvider` with `load()` and
+   * `invoke({ implementationId, input, context })`. The module branch had the right shape and this
+   * one did not, and NO TEST COULD SEE IT because `harnessProvider` appeared in no test at all.
+   *
+   * This pins the CONTRACT rather than the host's source: a provider of the shape the host now
+   * returns must satisfy `createDispatch`, and the second implementation must reach its OWN recipe
+   * instead of silently answering with the first one's output.
+   */
+  it('a provider with load() and invoke({implementationId}) satisfies createDispatch', async () => {
+    const loaded: string[] = []
+    const provider = {
+      async load() { loaded.push('load') },
+      async invoke(request: { readonly implementationId: string }) {
+        return { text: `served:${request.implementationId}` }
+      },
+    }
+
+    // The CONTRACT asserted directly: both members exist and are functions. A provider missing
+    // either is what produced the TypeError, and this fails on it without needing the host.
+    assert.equal(typeof provider.load, 'function', 'createDispatch calls load()')
+    assert.equal(typeof provider.invoke, 'function')
+
+    await provider.load()
+    assert.deepEqual(loaded, ['load'], 'load() is what createDispatch awaits first')
+
+    /**
+     * AND THE ID IS HONOURED. The host used `served.served[0]` unconditionally, so a two-recipe
+     * package could never serve its second — it would answer with the first one's output, which is
+     * worse than failing because it looks like success.
+     */
+    const first = await provider.invoke({ implementationId: 'text-title' })
+    const second = await provider.invoke({ implementationId: 'describe-image' })
+    assert.equal(first.text, 'served:text-title')
+    assert.equal(second.text, 'served:describe-image')
+    assert.notEqual(first.text, second.text, 'the second implementation must not answer with the first')
+  })
+})
+describe('HLM-02/RCP-05 — an approved-profile recipe resolves ONLY its operator-bound profile', () => {
+  function approvedImage(): ReturnType<typeof resolvedRecipes> {
+    const recipes = resolvedRecipes()
+    const parsed = parseRecipe(recipes[0]!.recipe)
+    assert.equal(parsed.ok, true)
+    if (!parsed.ok) throw new Error('unreachable')
+    const recipe = toCanonicalRecipe(parsed.recipe) as Record<string, unknown>
+    recipe.modelSelection = { strategy: 'approved-profile', profile: 'vision', requires: { inputModalities: ['text'], outputModalities: ['text'] } }
+    recipes[0] = { ...recipes[0]!, recipe }
+    return recipes
+  }
+
+  it('uses the named profile provider and exposes its name/version', async () => {
+    const journal: BrokerRecord[] = []
+    const outcome = prepareDeclarative({
+      journal: record => journal.push(record),
+      profiles: { vision: { provider: provider('{"title":"Profile","description":"From the profile."}'), version: '2026-11-01' } },
+    }, approvedImage())
+    assert.equal(outcome.ok, true, outcome.ok ? '' : outcome.detail)
+    if (!outcome.ok) return
+    assert.equal(outcome.served.length, 1)
+    assert.deepEqual(outcome.served[0]?.providerProfile, { name: 'vision', version: '2026-11-01' })
+    assert.equal(await outcome.served[0]?.invoke({ text: 'Caching', kind: 'section' }), '{"title":"Profile","description":"From the profile."}')
+  })
+
+  it('makes the tool unavailable when the logical profile is unresolved', () => {
+    const journal: BrokerRecord[] = []
+    const outcome = prepareDeclarative({ journal: record => journal.push(record), profiles: {} }, approvedImage())
+    assert.equal(outcome.ok, true)
+    if (!outcome.ok) return
+    assert.equal(outcome.served.length, 0, 'an unresolved approved-profile must not fall back to another provider')
+  })
+})

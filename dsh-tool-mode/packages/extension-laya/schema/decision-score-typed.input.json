@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "decision_score_typed input (DEC-06)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["state", "question", "levels"],
+  "properties": {
+    "state": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 32768,
+      "description": "The situation/evidence the score is made over. Requests that exceed the prepared head's token budget are rejected (INPUT_TRUNCATED, DEC-05)."
+    },
+    "question": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "description": "The ordinal question to score against the state."
+    },
+    "levels": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 32,
+      "description": "The ordered levels, least to most. Unique ids and unique descriptions are required; duplicates would collapse native criteria (DEC-05).",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "description"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "The caller's stable level id, returned unchanged in the output."
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "description": "The level's native criterion text."
+          }
+        }
+      }
+    }
+  }
+}

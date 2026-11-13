@@ -1,0 +1,112 @@
+{
+  "lockVersion": 1,
+  "assetSets": {
+    "embeddinggemma-2-onnx": {
+      "model": {
+        "provider": "google",
+        "identity": "google/embeddinggemma-2",
+        "url": "https://huggingface.co/google/embeddinggemma-2",
+        "modalities": ["text", "code", "image", "audio", "video"],
+        "embeddingSpace": {
+          "nativeDimensions": 768,
+          "reducibleDimensions": [768, 512, 256, 128],
+          "sharedAcrossModalities": true,
+          "reduction": "leading-dimension truncation followed by L2 renormalization (MOD-04)"
+        }
+      },
+      "conversion": {
+        "identity": "onnx-community/embeddinggemma-2-ONNX",
+        "url": "https://huggingface.co/onnx-community/embeddinggemma-2-ONNX",
+        "kind": "third-party ONNX conversion of the source checkpoint",
+        "quantizationProfile": "unquantized",
+        "revision": "daa72c51243991dfcaf9f9137d2c573d8f7790c0",
+        "note": "The unquantized fp32 onnx weights — the fused model plus the vision and audio encoders, each with their external onnx_data — measured on this host: sizes and SHA-256s below are the files actually downloaded, verified and run (MOD-01)."
+      },
+      "engine": {
+        "kind": "onnxruntime-node (native CPU execution provider) driven by @huggingface/transformers",
+        "version": "onnxruntime-node 1.30.0 + @huggingface/transformers 3.8.1",
+        "note": "The ONNX session is created DIRECTLY over the pinned model.onnx (the custom embedding_gemma2 architecture has no dedicated transformers.js class), and the conversion's shipped GemmaTokenizer is loaded through transformers' AutoTokenizer — the packages the qualified route executed, not a semver range (MOD-19)."
+      },
+      "tokenizer": {
+        "kind": "GemmaTokenizer (HF fast tokenizer: tokenizer.json + tokenizer_config.json)",
+        "identity": "ships with the conversion at the pinned revision; vocab_size 262144",
+        "note": "Measured from the pinned files: tokenizer_class GemmaTokenizer. The tokenizer identity is part of the embedding-space descriptor (MOD-03)."
+      },
+      "processor": {
+        "kind": "no task prefix",
+        "note": "MOD-06 remainder, recorded honestly: the conversion ships no prompt template, so purpose/role are validated by the extension but NOT prefixed into the model input. Whether the source checkpoint's card prescribes per-role prefixes is not verified against the card on this host; a golden processor fixture remains unrecorded until it is."
+      },
+      "groups": [
+        {
+          "id": "text-backbone",
+          "enables": ["text", "code"],
+          "assets": [
+            { "id": "eg2-text-model-onnx", "file": "onnx/model.onnx", "bytes": 421421, "source": "https://huggingface.co/onnx-community/embeddinggemma-2-ONNX/resolve/daa72c51243991dfcaf9f9137d2c573d8f7790c0/onnx/model.onnx", "digest": "bc47de15f81208a5c99e5ab10f746d5e33b51ea228b7dc0bef9c133a94f1c1c3", "executable": false },
+            { "id": "eg2-text-model-data", "file": "onnx/model.onnx_data", "bytes": 1084170240, "source": "https://huggingface.co/onnx-community/embeddinggemma-2-ONNX/resolve/daa72c51243991dfcaf9f9137d2c573d8f7790c0/onnx/model.onnx_data", "digest": "9fd452bfc6916e5a92f080f8dada35598ca4512b21c65897d4c5974d5f9630a2", "executable": false },
+            { "id": "eg2-text-tokenizer", "file": "tokenizer.json", "bytes": 32170510, "source": "https://huggingface.co/onnx-community/embeddinggemma-2-ONNX/resolve/daa72c51243991dfcaf9f9137d2c573d8f7790c0/tokenizer.json", "digest": "4d777ef5bdc1aa36227abdfb77c3e49e7b9c892d16e1b6bda41c393504828be4", "executable": false },
+            { "id": "eg2-text-tokenizer-config", "file": "tokenizer_config.json", "bytes": 1599, "source": "https://huggingface.co/onnx-community/embeddinggemma-2-ONNX/resolve/daa72c51243991dfcaf9f9137d2c573d8f7790c0/tokenizer_config.json", "digest": "17bd5d6e9364ca49a534e1502076593317c298d4a663623091ed45388f004874", "executable": false },
+            { "id": "eg2-text-config", "file": "config.json", "bytes": 5031, "source": "https://huggingface.co/onnx-community/embeddinggemma-2-ONNX/resolve/daa72c51243991dfcaf9f9137d2c573d8f7790c0/config.json", "digest": "8d011bfe08b5e345bbe0b81e5c6fd02c381920b345b986047bc2a33ce7b90d1d", "executable": false }
+          ],
+          "note": "The text backbone, its tokenizer and its config, measured (MOD-01). A text-only load requires EXACTLY this group — the MOD-02 boundary, pinned by the extension's real-path test; the vision and audio weights are neither required nor fetched."
+        },
+        {
+          "id": "vision-encoder",
+          "enables": ["image", "video"],
+          "assets": [
+            { "id": "eg2-vision-model-onnx", "file": "onnx/vision_encoder.onnx", "bytes": 121253, "source": "https://huggingface.co/onnx-community/embeddinggemma-2-ONNX/resolve/daa72c51243991dfcaf9f9137d2c573d8f7790c0/onnx/vision_encoder.onnx", "digest": "a3fb44f8b5b152cfee6afe16e2cd69e774b7e1d3b822d1db1190ddf7b08b575e", "executable": false },
+            { "id": "eg2-vision-model-data", "file": "onnx/vision_encoder.onnx_data", "bytes": 671026176, "source": "https://huggingface.co/onnx-community/embeddinggemma-2-ONNX/resolve/daa72c51243991dfcaf9f9137d2c573d8f7790c0/onnx/vision_encoder.onnx_data", "digest": "ca8d28c99feb8129618f141978a27adae25090e0dadb68a30c235e191c01e37e", "executable": false },
+            { "id": "eg2-processor-config", "file": "processor_config.json", "bytes": 1788, "source": "https://huggingface.co/onnx-community/embeddinggemma-2-ONNX/resolve/daa72c51243991dfcaf9f9137d2c573d8f7790c0/processor_config.json", "digest": "168f6a08522f3ce5dea596d94d003af2fd691742d4f41fe1f9d8cce76bfbf69c", "executable": false }
+          ],
+          "note": "The vision encoder and the pinned image preprocessing (960x672 canonical grid, patch 16, pooling 3, 1/255 rescale). The encoder's observed signature: pixel_values [1, 2520, 768] flattened patches plus pixel_position_ids [1, 2520, 2]; the position-id formula is a RECONSTRUCTION recorded in the qualification record. The video half of this group stays the third-slice remainder."
+        },
+        {
+          "id": "audio-encoder",
+          "enables": ["audio"],
+          "assets": [
+            { "id": "eg2-audio-model-onnx", "file": "onnx/audio_encoder.onnx", "bytes": 204577, "source": "https://huggingface.co/onnx-community/embeddinggemma-2-ONNX/resolve/daa72c51243991dfcaf9f9137d2c573d8f7790c0/onnx/audio_encoder.onnx", "digest": "e0a62590c49949fe0b1410f5dc52c92a185abb4c4e69e2c50a4e316103fdbc09", "executable": false },
+            { "id": "eg2-audio-model-data", "file": "onnx/audio_encoder.onnx_data", "bytes": 1172750848, "source": "https://huggingface.co/onnx-community/embeddinggemma-2-ONNX/resolve/daa72c51243991dfcaf9f9137d2c573d8f7790c0/onnx/audio_encoder.onnx_data", "digest": "6943b910d1d1e9b5dffd4ccad63f61aa308ad10b70ed128bb61886b119da1e3a", "executable": false },
+            { "id": "eg2-audio-preprocessor-config", "file": "preprocessor_config.json", "bytes": 560, "source": "https://huggingface.co/onnx-community/embeddinggemma-2-ONNX/resolve/daa72c51243991dfcaf9f9137d2c573d8f7790c0/preprocessor_config.json", "digest": "9344893f8d0573a46ebb2ca54c03f56d044cea194c8dcfb1f4d652240ac21daa", "executable": false }
+          ],
+          "note": "The audio encoder and the pinned 16 kHz mel preprocessing (128 bins, 512 FFT, 320/160 frame/hop, 8 kHz max). The bounded Node WAV decoder and spectrogram live in the extension (src/media.ts); the conversion's own load_audio helper relies on browser APIs, which is exactly the gap this group's decoder fills."
+        }
+      ],
+      "assets": [
+        { "id": "eg2-text-model-onnx", "file": "onnx/model.onnx", "bytes": 421421, "source": "https://huggingface.co/onnx-community/embeddinggemma-2-ONNX/resolve/daa72c51243991dfcaf9f9137d2c573d8f7790c0/onnx/model.onnx", "digest": "bc47de15f81208a5c99e5ab10f746d5e33b51ea228b7dc0bef9c133a94f1c1c3", "executable": false },
+        { "id": "eg2-text-model-data", "file": "onnx/model.onnx_data", "bytes": 1084170240, "source": "https://huggingface.co/onnx-community/embeddinggemma-2-ONNX/resolve/daa72c51243991dfcaf9f9137d2c573d8f7790c0/onnx/model.onnx_data", "digest": "9fd452bfc6916e5a92f080f8dada35598ca4512b21c65897d4c5974d5f9630a2", "executable": false },
+        { "id": "eg2-text-tokenizer", "file": "tokenizer.json", "bytes": 32170510, "source": "https://huggingface.co/onnx-community/embeddinggemma-2-ONNX/resolve/daa72c51243991dfcaf9f9137d2c573d8f7790c0/tokenizer.json", "digest": "4d777ef5bdc1aa36227abdfb77c3e49e7b9c892d16e1b6bda41c393504828be4", "executable": false },
+        { "id": "eg2-text-tokenizer-config", "file": "tokenizer_config.json", "bytes": 1599, "source": "https://huggingface.co/onnx-community/embeddinggemma-2-ONNX/resolve/daa72c51243991dfcaf9f9137d2c573d8f7790c0/tokenizer_config.json", "digest": "17bd5d6e9364ca49a534e1502076593317c298d4a663623091ed45388f004874", "executable": false },
+        { "id": "eg2-text-config", "file": "config.json", "bytes": 5031, "source": "https://huggingface.co/onnx-community/embeddinggemma-2-ONNX/resolve/daa72c51243991dfcaf9f9137d2c573d8f7790c0/config.json", "digest": "8d011bfe08b5e345bbe0b81e5c6fd02c381920b345b986047bc2a33ce7b90d1d", "executable": false },
+        { "id": "eg2-vision-model-onnx", "file": "onnx/vision_encoder.onnx", "bytes": 121253, "source": "https://huggingface.co/onnx-community/embeddinggemma-2-ONNX/resolve/daa72c51243991dfcaf9f9137d2c573d8f7790c0/onnx/vision_encoder.onnx", "digest": "a3fb44f8b5b152cfee6afe16e2cd69e774b7e1d3b822d1db1190ddf7b08b575e", "executable": false },
+        { "id": "eg2-vision-model-data", "file": "onnx/vision_encoder.onnx_data", "bytes": 671026176, "source": "https://huggingface.co/onnx-community/embeddinggemma-2-ONNX/resolve/daa72c51243991dfcaf9f9137d2c573d8f7790c0/onnx/vision_encoder.onnx_data", "digest": "ca8d28c99feb8129618f141978a27adae25090e0dadb68a30c235e191c01e37e", "executable": false },
+        { "id": "eg2-audio-model-onnx", "file": "onnx/audio_encoder.onnx", "bytes": 204577, "source": "https://huggingface.co/onnx-community/embeddinggemma-2-ONNX/resolve/daa72c51243991dfcaf9f9137d2c573d8f7790c0/onnx/audio_encoder.onnx", "digest": "e0a62590c49949fe0b1410f5dc52c92a185abb4c4e69e2c50a4e316103fdbc09", "executable": false },
+        { "id": "eg2-audio-model-data", "file": "onnx/audio_encoder.onnx_data", "bytes": 1172750848, "source": "https://huggingface.co/onnx-community/embeddinggemma-2-ONNX/resolve/daa72c51243991dfcaf9f9137d2c573d8f7790c0/onnx/audio_encoder.onnx_data", "digest": "6943b910d1d1e9b5dffd4ccad63f61aa308ad10b70ed128bb61886b119da1e3a", "executable": false },
+        { "id": "eg2-processor-config", "file": "processor_config.json", "bytes": 1788, "source": "https://huggingface.co/onnx-community/embeddinggemma-2-ONNX/resolve/daa72c51243991dfcaf9f9137d2c573d8f7790c0/processor_config.json", "digest": "168f6a08522f3ce5dea596d94d003af2fd691742d4f41fe1f9d8cce76bfbf69c", "executable": false },
+        { "id": "eg2-audio-preprocessor-config", "file": "preprocessor_config.json", "bytes": 560, "source": "https://huggingface.co/onnx-community/embeddinggemma-2-ONNX/resolve/daa72c51243991dfcaf9f9137d2c573d8f7790c0/preprocessor_config.json", "digest": "9344893f8d0573a46ebb2ca54c03f56d044cea194c8dcfb1f4d652240ac21daa", "executable": false }
+      ],
+      "pinning": {
+        "state": "measured",
+        "revision": "daa72c51243991dfcaf9f9137d2c573d8f7790c0",
+        "measuredOn": { "os": "win32", "arch": "x64", "accelerator": "cpu", "node": "24.11.0" },
+        "recordedAt": "2026-10-17",
+        "reason": "The text backbone (five files), the vision encoder (two files plus the shared processor config) and the audio encoder (two files plus the feature-extractor config) were downloaded, hashed and RUN on this host; the qualification record at docs/tool-mode/qualification/embeddinggemma.json carries the measurements. The audio_encoder.onnx_data SHA-256 was verified against the pin after the full download completed (1,172,750,848 bytes). The audio prompt block is VARIABLE-LENGTH: one soft token per encoder feature row (measured 119 mel frames -> 30 rows for the 1.2 s fixture), never the fixed 280-token maximum. All prepared files are the FP32 variants; the fp16/q4/q4f16/quantized variants exist at the same revision and are NOT prepared. Video frame sampling stays the third-slice remainder."
+      },
+      "platforms": [
+        { "os": "win32", "arch": "x64", "accelerator": "cpu" }
+      ],
+      "platformNote": "MOD-19's target is plain built JavaScript on Windows x64 CPU. Other platforms are declared in the manifest only once a run exists there, because a platform table is not proof of correct inference (MODEL-05).",
+      "network": {
+        "preparationFetches": ["https://huggingface.co/onnx-community/embeddinggemma-2-ONNX"],
+        "when": "once, during asset preparation by the host, before any inference",
+        "note": "The extension itself performs no network call: the host acquires and verifies the pinned bytes and hands the extension local paths (PreparedAssetMapV1). The manifest therefore declares network.otherNetworkUse true while permissions.networkOrigins stays empty."
+      },
+      "license": {
+        "name": "Apache License 2.0",
+        "url": "https://huggingface.co/google/embeddinggemma-2",
+        "attributionRequired": true,
+        "redistribution": "permitted",
+        "note": "Apache-2.0 is a redistribution-permitting, OSI-approved licence, which is why this package's weights layer differs from the Desert Ant packages' source-available weights. The declaration records what the model card states; it was not re-verified against the card on this host."
+      },
+      "note": "All three MOD-02 groups are now measured: the text backbone, the vision encoder and the audio encoder, each with the pinned files and digests above. The remaining unmeasured part is the VIDEO half of the vision group — frame sampling needs a video decoder, which is the recorded third slice of the media work."
+    }
+  }
+}

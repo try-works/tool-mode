@@ -1,0 +1,73 @@
+{
+  "acceptance": "AT-40",
+  "recordedAt": "2026-11-05T14:13:39.586Z",
+  "author": {
+    "id": "@author/at40-add",
+    "version": "1.0.1",
+    "package": "author-at40-add-1.0.1.tgz",
+    "sha256": "46deb37ddf6d6b29431b719580f0af41f4646ad153604c804172612abba36686",
+    "protocolVersion": "1.1.0",
+    "hostApi": "^1.1.0",
+    "execution": "module",
+    "contractId": "@author/at40-add/add"
+  },
+  "environment": {
+    "os": "win32",
+    "arch": "x64",
+    "node": "v24.11.0"
+  },
+  "dsh": {
+    "protocolVersion": "2026-07-28",
+    "host": "@try-works/dsh-tool-mode@0.5.42"
+  },
+  "lifecycle": {
+    "installedInactive": true,
+    "source": "directory",
+    "observedActivation": "active",
+    "toolPublished": "author_add",
+    "toolEnabled": true
+  },
+  "surfaces": {
+    "native": {
+      "invocation": "activateExtension -> createProvider -> invoke",
+      "input": {
+        "a": 2,
+        "b": 3
+      },
+      "output": {
+        "sum": 5
+      }
+    },
+    "mcp": {
+      "toolsList": [
+        "author_add",
+        "tool_mode_run"
+      ],
+      "directCall": {
+        "input": {
+          "a": 2,
+          "b": 3
+        },
+        "output": {
+          "sum": 5
+        }
+      }
+    },
+    "hostedComposition": {
+      "tool": "tool_mode_run",
+      "program": "tools.author_add({a:20,b:22}) + 6*7",
+      "output": {
+        "sum": 42,
+        "computed": 42
+      }
+    }
+  },
+  "schemas": {
+    "input": "schema/input.json",
+    "output": "schema/output.json"
+  },
+  "evidence": {
+    "codemodeLog": "codemode-live.log"
+  },
+  "note": "The extension package was authored outside the workspace, installed into an isolated store, and exercised natively, over direct MCP, and through hosted Code Mode."
+}

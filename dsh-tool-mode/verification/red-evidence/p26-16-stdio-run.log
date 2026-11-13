@@ -1,0 +1,17 @@
+# P26-16 — preapproved headless stdio startup
+
+Date: 2026-11-02
+
+Command (file redirection, no pipes):
+`node packages/dsh-tool-mode/bin/dsh-tool-mode-mcp-stdio.mjs` with
+`DSH_TOOL_MODE_MCP_TOKEN=preapproved-test-token`, empty stdin, invalid endpoint URL,
+stdout/stderr redirected to files.
+
+Observed:
+- exit code: 0
+- stdout bytes: 0
+- stderr: `stdin closed; bridge-owned requests aborted`
+
+A preapproved token lets the headless bridge start and shut down cleanly on EOF; output
+remains protocol-free. The missing-token case (earlier log) exits 2 with guidance. Neither
+case hangs, and no token is printed.

@@ -1,0 +1,14 @@
+# task-24 TDD red — BASE-06 MCP export allowlist
+
+Date: 2026-11-01 (Asia/Shanghai)
+Command: `npx tsx --test packages/dsh-tool-mode/tests/mcp-export-policy.test.ts`
+
+Result (before implementation):
+- tests 1, pass 0, fail 1, exit 1
+- failure: module `../src/mcp/export-policy.ts` does not exist.
+- Test file already pins: undefined preserves surface; [] marks every row denied with a
+  named reason; a list admits exactly the named row; case/prefix/duplicates do not widen.
+
+The production behavior is also statically red: `mcpV3.exportTools` is declared at
+`src/index.ts:403` and in the Config schema at `:682`, but the published surface never
+reads it. An empty allowlist therefore still exports every registered tool.
