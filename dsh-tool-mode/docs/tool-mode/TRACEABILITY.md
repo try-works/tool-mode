@@ -5,7 +5,7 @@ Do not edit by hand: record status in `status.json` and regenerate.
 
 | Specification | SHA-256 |
 | --- | --- |
-| `Tool_Mode_DSH_Implementation_Spec_v1.2.md` | `b98db5026077b47d43cf033bb4026897d7b40797ef4903a2fdbbeb8255bba4bb` |
+| `Tool_Mode_DSH_Implementation_Spec_v1.2.md` | `27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb` |
 | `Tool_Mode_Extension_Protocol_v1.1.md` | `016e6f57ff249cc62662f8ad2fdabfc7de262d3f8fb2af00b69c8e46b3f386f9` |
 | `Tool_Mode_Verification_Checklist_v1.2.md` | `2c34decf01986e0c1a59a293f429415bf45cf96134492dc3bb08a686be5c089d` |
 
@@ -468,3 +468,4 @@ is the honest default rather than an omission.
 | AT-88 | Model/recipe/processor and protocol locks are checked for drift; updates use versioned contracts and immutable generations, pre... | DONE | CLOSED 2026-11-05 (Lead-verified). New scripts/check-release-drift.mjs is a COMBINED gate over 11 manifests, 7 model locks, 36 assets, processor identities, 6 recipe documents and the MCP protocol constant: it requires exact revisions, non-empty engine/tokenizer identities when declared, SHA-256/512 asset digests, sources and semver recipes, and fails with file+field on drift. release-drift.test.ts passes the current repo and proves a bad digest exits 1. Versioned updates/immutable generations/rollback and preservation of disabled choices + borrowed assets remain covered by update-flow.test.ts and migration.test.ts; the gate is wired into verify:verification. |
 | AT-89 | Required quality/runtime/security test skips produce a nonpassing release summary; red→green→refactor evidence and every number... | DONE | CLOSED 2026-11-02 (Lead-verified). Red, green and refactor artifacts now exist as tracked files: verification/red-evidence/index.json (28 real failure logs), verification/tdd/green-records.json (219 records with per-requirement test file paths/test ids), and verification/tdd/refactor-log.json (boundaries and runs). The gate dispositions and traceability mapping are covered by verification-evidence.test.ts; red/green/refactor are linked from TDD-02/TDD-03/TDD-04 requirement records. |
 | AT-90 | Run the full clean-user scenario from published/packed artifacts: prepare defaults, two modern MCP clients, direct and composed... | BLOCKED | BLOCKED 2026-11-02 (external hardware). The packed end-to-end run is single-machine; acceptance asks for a fresh-user MULTI-MACHINE matrix. CONDITION: operator supplies additional fresh machines/profiles for the matrix. |
+
