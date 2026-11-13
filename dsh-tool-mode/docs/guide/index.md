@@ -40,7 +40,7 @@ it never has to pretend a model is a chat endpoint.
 
 | Section | What it covers |
 |---|---|
-| [Getting started](getting-started/installation.md) | Install, first call, upgrade, migration |
+| [Getting started](getting-started/installation.md) | Install, first call, upgrade |
 | [Concepts](concepts/how-tool-mode-works.md) | How tools, models, contracts, routes, and availability fit together |
 | [Guides](guides/settings.md) | Settings, DSH use, MCP, extensions, custom tools, insights, security, Code Mode |
 | [Reference](reference/tools.md) | Tools, models, configuration, MCP protocol, CLI |

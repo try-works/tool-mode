@@ -131,17 +131,6 @@ Two conditions are required:
 A missing, stale, failed, or partial evidence artifact closes the gate. Do not
 bypass it; read the reason and use a normal tool.
 
-## After the rename
-
-If the old package name still appears:
-
-- in `package.json`, replace it with `@try-works/dsh-tool-mode`;
-- in `dsh.profile.bundles`, replace the old entry;
-- in `cordis.patch.yml`, update the row `name`.
-
-Then restart. See
-[Migrating from the old package](../getting-started/migrating-from-dsh-model-as-tool.md).
-
 ## Getting help
 
 Include:

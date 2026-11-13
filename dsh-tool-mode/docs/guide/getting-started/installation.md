@@ -129,5 +129,4 @@ them deliberately.
 ## Next
 
 - [Use your first tool](first-tool.md)
-- [Migrate from the old package name](migrating-from-dsh-model-as-tool.md)
 - [Troubleshooting](../help/troubleshooting.md)

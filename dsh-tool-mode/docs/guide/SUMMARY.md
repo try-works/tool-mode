@@ -6,7 +6,6 @@
 
 - [Installation](getting-started/installation.md)
 - [Use your first tool](getting-started/first-tool.md)
-- [Migrating from the old package](getting-started/migrating-from-dsh-model-as-tool.md)
 
 ## Concepts
 
