@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-13T07:52:30.182Z",
+  "generatedAt": "2026-11-13T09:33:33.686Z",
   "specification": [
     {
       "id": "TM-DSH-001",
@@ -23,7 +23,7 @@
     {
       "id": "BASE-01",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Improve the existing package; do not discard the catalog, adapters, skills, persistence, or platform checks merely to recreate them under new names.",
       "owningModule": "packages/dsh-tool-mode/src/index.ts",
       "testLayer": "unit",
@@ -38,7 +38,7 @@
     {
       "id": "BASE-02",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Introduce tool identity independently from model identity. Two models implementing transcription MUST normally produce one `stt_transcribe` declaration, not one duplicate tool per model. Provider selection is host configuration, with explicit eligible overrides only where documented.",
       "owningModule": "packages/dsh-tool-mode/src/index.ts",
       "testLayer": "unit",
@@ -55,7 +55,7 @@
     {
       "id": "BASE-03",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Preserve `lang_detect`. Make `stt_transcribe` the canonical transcription name. Provide an opt-in deprecated `transcribe_audio` compatibility alias for existing users, retaining its old argument/result contract through a tested adapter. Hide the alias from the default catalog to avoid duplicate choi…",
       "owningModule": "packages/dsh-tool-mode/src/index.ts",
       "testLayer": "unit",
@@ -70,7 +70,7 @@
     {
       "id": "BASE-04",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Replace parameter-order inference with explicit required fields. Replace generic open-object result declarations with useful per-tool schemas. Validate cross-field constraints the DSH schema DSL cannot express. Never silently discard unsupported schema constraints.",
       "owningModule": "packages/dsh-tool-mode/src/index.ts",
       "testLayer": "unit",
@@ -86,7 +86,7 @@
     {
       "id": "BASE-05",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Extend invocation context with trusted caller/scope, filesystem access, authorized destinations, limits, cancellation, and receipt identity. An external request cannot supply or forge these authorities.",
       "owningModule": "packages/dsh-tool-mode/src/index.ts",
       "testLayer": "unit",
@@ -105,7 +105,7 @@
     {
       "id": "BASE-06",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Existing `models: []` semantics may remain for the internal model selection configuration, but an empty **MCP export allowlist MUST export no inference tools**. Do not reuse one field for both meanings.",
       "owningModule": "packages/dsh-tool-mode/src/index.ts",
       "testLayer": "unit",
@@ -120,7 +120,7 @@
     {
       "id": "BASE-07",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Preserve existing management behavior for authorized users. Do not expose `model_tools` mutation actions through MCP or generated-code bindings by default. Split read-only discovery from preparation, installation, enable/disable, and credential changes.",
       "owningModule": "packages/dsh-tool-mode/src/index.ts",
       "testLayer": "unit",
@@ -137,7 +137,7 @@
     {
       "id": "BASE-08",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Legacy CLI and remote bridges remain explicitly configured alternatives, not automatic Windows fallbacks. A local implementation failure MUST NOT cause an unannounced cloud or LAN transfer.",
       "owningModule": "packages/dsh-tool-mode/src/index.ts",
       "testLayer": "unit",
@@ -150,7 +150,7 @@
     {
       "id": "BASE-09",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Extract existing model-specific code/catalog/skills into independently versioned TMX packages. Preserve model IDs, selected providers, prepared-asset mappings and disabled choices through an explicit migration table. Do not keep a private built-in adapter path alongside the public extension API. Exi…",
       "owningModule": "packages/dsh-tool-mode/src/index.ts",
       "testLayer": "unit",
@@ -169,7 +169,7 @@
     {
       "id": "BASE-10",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Migrate legacy tool enable/disable separately from package activation and model preparation. An old `model_tools enable` choice is not consent to install executable third-party code, run npm scripts, widen exports or accept different license obligations. Preserve known disabled states, stage require…",
       "owningModule": "packages/dsh-tool-mode/src/index.ts",
       "testLayer": "unit",
@@ -186,7 +186,7 @@
     {
       "id": "BASE-11",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "On new installations, bind `decision_choose` to the qualified Laya package, not a generic Qwen prompt recipe. Do not silently overwrite an existing operator-pinned implementation. Preserve an already installed Qwen extension as an explicitly selected legacy/third-party alternative until the operator…",
       "owningModule": "packages/dsh-tool-mode/src/index.ts",
       "testLayer": "unit",
@@ -201,7 +201,7 @@
     {
       "id": "BASE-12",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Add EmbeddingGemma 2 under new multimodal contracts. Do not silently replace the existing 384-dimensional `text_embed`/MiniLM embedding space with 768-dimensional vectors. Existing stored vectors, indexes and selections remain pinned; migration to a different embedding space requires re-embedding an…",
       "owningModule": "packages/dsh-tool-mode/src/index.ts",
       "testLayer": "unit",
@@ -219,7 +219,7 @@
     {
       "id": "BASE-13",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Introduce declarative TMX recipes without requiring model weights or executable extension code. Migrate or add `describe_image` and `text_title` as independently versioned first-party recipe packages. A pre-existing title tool must retain its contract or have a tested major-version migration.",
       "owningModule": "packages/dsh-tool-mode/src/index.ts",
       "testLayer": "unit",
@@ -232,7 +232,7 @@
     {
       "id": "BASE-14",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Read the current upstream model/runtime source and pin exact code, artifacts, licenses and tested platform versions before implementation. Model names in this document are recommendations backed by the cited source snapshots, not a guarantee of a particular npm release's behavior. Do not downgrade a…",
       "owningModule": "packages/dsh-tool-mode/src/index.ts",
       "testLayer": "unit",
@@ -245,7 +245,7 @@
     {
       "id": "ARCH-01",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "DSH's tool executor remains the dispatch authority. Neither the MCP adapter nor Code Mode may call a tool's raw `execute` callback to avoid the registry pipeline.",
       "owningModule": "packages/dsh-tool-mode/src/index.ts",
       "testLayer": "unit",
@@ -263,7 +263,7 @@
     {
       "id": "ARCH-02",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Ship one installable Tool Mode host bundle for MCP, DSH integration, composition and extension management. Separately build and version every model/tool extension, including the first-party built-ins, as specified in section 16. They may share a repository/workspace, but not a release-coupled privat…",
       "owningModule": "packages/dsh-tool-mode/src/index.ts",
       "testLayer": "unit",
@@ -278,7 +278,7 @@
     {
       "id": "ARCH-03",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "The host owns MCP listener lifecycle, export policy, external caller contexts, extension installation/activation, model preparation/pool coordination and contribution projection. Extensions own model-specific adapters, assets, recipes and skills. Reuse DSH's registry, policy hooks, managed processes…",
       "owningModule": "packages/dsh-tool-mode/src/index.ts",
       "testLayer": "unit",
@@ -293,7 +293,7 @@
     {
       "id": "ARCH-04",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Reuse compatible registered `speechToText` providers through a documented public bridge when available. A Voz extension running headlessly uses the same safely keyed pool/asset mechanism instead of starting a second Voz instance merely because an MCP client connected. Do not require the microphone/b…",
       "owningModule": "packages/dsh-tool-mode/src/index.ts",
       "testLayer": "unit",
@@ -309,7 +309,7 @@
     {
       "id": "ARCH-05",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Avoid a second generic tool executor. A shared metadata/catalog layer and worker transport are acceptable; a parallel dispatch path with different validation or permissions is not.",
       "owningModule": "packages/dsh-tool-mode/src/index.ts",
       "testLayer": "unit",
@@ -332,7 +332,7 @@
     {
       "id": "ARCH-06",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "No third-party extension receives raw DSH context or registers callbacks directly in DSH/MCP. The host validates declarations and creates its own registry wrappers. Executable extension code implements the public TMX runtime API; the wrapper supplies trusted invocation capabilities and dispatches in…",
       "owningModule": "packages/dsh-tool-mode/src/index.ts",
       "testLayer": "unit",
@@ -350,7 +350,7 @@
     {
       "id": "RUN-01",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Plugin mode.",
       "owningModule": "packages/dsh-tool-mode/src/mcp/http.ts",
       "testLayer": "unit",
@@ -365,7 +365,7 @@
     {
       "id": "RUN-02",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Embedded server.",
       "owningModule": "packages/dsh-tool-mode/src/mcp/http.ts",
       "testLayer": "unit",
@@ -380,7 +380,7 @@
     {
       "id": "RUN-03",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Headless mode.",
       "owningModule": "packages/dsh-tool-mode/src/mcp/http.ts",
       "testLayer": "unit",
@@ -395,7 +395,7 @@
     {
       "id": "RUN-04",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Proposed command contract.",
       "owningModule": "packages/dsh-tool-mode/src/mcp/http.ts",
       "testLayer": "unit",
@@ -410,7 +410,7 @@
     {
       "id": "RUN-05",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Startup may restore explicitly approved active extensions and inspect their configuration/local assets, but must not perform model preparation or package resolution. No extension packages, weights or optional heavy engines download because a client calls `tools/list`, a user opens settings, or a plu…",
       "owningModule": "packages/dsh-tool-mode/src/mcp/http.ts",
       "testLayer": "unit",
@@ -428,7 +428,7 @@
     {
       "id": "RUN-06",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "A listener must not announce readiness before bind and initialization succeed. On port conflict, report an error; do not terminate another process or silently move a configured endpoint. A failed server start must not crash the unrelated DSH host.",
       "owningModule": "packages/dsh-tool-mode/src/mcp/http.ts",
       "testLayer": "unit",
@@ -444,7 +444,7 @@
     {
       "id": "RUN-07",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Shutdown rejects new work, cancels owned foreground invocations, waits for cleanup within a documented grace period, terminates remaining owned processes, removes registrations, closes transports, and releases the port. Never kill a model process serving another still-authorized owner.",
       "owningModule": "packages/dsh-tool-mode/src/mcp/http.ts",
       "testLayer": "unit",
@@ -459,7 +459,7 @@
     {
       "id": "RUN-08",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "The registry tarball ships built JavaScript and declarations. Installation on Windows MUST NOT require a DSH source checkout, `link:dsh`, TypeScript compilation, Python, WSL, Docker, a C++ compiler, or a discrete GPU. Native engine prerequisites must be detected and supplied through a documented app…",
       "owningModule": "packages/dsh-tool-mode/src/mcp/http.ts",
       "testLayer": "unit",
@@ -472,7 +472,7 @@
     {
       "id": "MCP-01",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Implement actual MCP `2026-07-28` using an official SDK version that supports that revision, or a separately reviewed, schema-conformant adaptation where SDK support is incomplete. A legacy SDK with a changed version string does not satisfy this requirement. Pin the SDK and official protocol/schema …",
       "owningModule": "packages/dsh-tool-mode/src/mcp/",
       "testLayer": "integration",
@@ -491,7 +491,7 @@
     {
       "id": "MCP-02",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Primary endpoint: authenticated Streamable HTTP on `127.0.0.1`, with configurable port and `/mcp` path. An illustrative default port is `3765`. LAN/public binding is out of scope for the first release.",
       "owningModule": "packages/dsh-tool-mode/src/mcp/",
       "testLayer": "integration",
@@ -509,7 +509,7 @@
     {
       "id": "MCP-03",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Support at least two simultaneous authorized clients using the same host. Provide the stdio bridge for stdio-only clients. Standard output of the bridge is exclusively MCP traffic; diagnostics go to standard error.",
       "owningModule": "packages/dsh-tool-mode/src/mcp/",
       "testLayer": "integration",
@@ -525,7 +525,7 @@
     {
       "id": "MCP-04",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Record the SDK version and exact protocol/client compatibility matrix. The release MUST pass modern `2026-07-28` requests without an initialize handshake or protocol session. Optional legacy translation must be a separately tested compatibility mode. Bind workspace/tool permissions to authenticated …",
       "owningModule": "packages/dsh-tool-mode/src/mcp/",
       "testLayer": "integration",
@@ -541,7 +541,7 @@
     {
       "id": "MCP-05",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Implement `server/discover`, tool discovery/invocation, authorized catalog subscriptions, normalized errors and transport-specific cancellation under section 20. Expose current input and output schemas. Do not report optional protocol features as supported unless implemented.",
       "owningModule": "packages/dsh-tool-mode/src/mcp/",
       "testLayer": "integration",
@@ -557,7 +557,7 @@
     {
       "id": "MCP-06",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Discovery returns deterministic ordering and the caller's permitted set. Inference leaves must have an active extension and enabled, authorized, prepared/callable implementation, including installed-but-cold models. Unprepared catalog entries may appear in read-only diagnostics with a reason, not as…",
       "owningModule": "packages/dsh-tool-mode/src/mcp/",
       "testLayer": "integration",
@@ -572,7 +572,7 @@
     {
       "id": "MCP-07",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Notify clients of supported catalog changes according to their protocol revision. Revocation must also be checked at execution time; a previously cached tool list never grants continuing authority.",
       "owningModule": "packages/dsh-tool-mode/src/mcp/",
       "testLayer": "integration",
@@ -587,7 +587,7 @@
     {
       "id": "MCP-08",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Resolve one authorized DSH definition, then dispatch via `ctx.tools.execute()` with a server-issued call identity, trusted execution context, and caller-owned abort signal. Do not use `.get(name).execute(...)`. Ensure native input validation still runs. Preserve declared scheduling/exclusivity for e…",
       "owningModule": "packages/dsh-tool-mode/src/mcp/",
       "testLayer": "integration",
@@ -606,7 +606,7 @@
     {
       "id": "MCP-09",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Export the resolved definition's canonical output schema. DSH's model-facing `schemas()` intentionally omits `output`; a schema-only export built from that projection is insufficient. [S5]",
       "owningModule": "packages/dsh-tool-mode/src/mcp/",
       "testLayer": "integration",
@@ -623,7 +623,7 @@
     {
       "id": "MCP-10",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Return the finalized, post-policy canonical value in MCP `structuredContent` and a bounded model-readable content representation. Protocol errors and tool execution errors must use the SDK's correct distinction. Never turn an infrastructure failure into a success-shaped empty result. [S8]",
       "owningModule": "packages/dsh-tool-mode/src/mcp/",
       "testLayer": "integration",
@@ -639,7 +639,7 @@
     {
       "id": "MCP-11",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "A content-only redaction is not a confidentiality control: the original canonical value may still be accessible programmatically. A confidentiality rule must block execution or replace/block the canonical value before MCP or PTC returns it. [S5]",
       "owningModule": "packages/dsh-tool-mode/src/mcp/",
       "testLayer": "integration",
@@ -655,7 +655,7 @@
     {
       "id": "MCP-12",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Host tools using non-JSON callbacks, UI-only APIs, unsupported attachments, or non-exportable policies must be rejected with diagnostic reasons, not partly serialized. Export eligible TMX extension tools through the same mapping as first-party tools; neither installing an extension nor adding anothe…",
       "owningModule": "packages/dsh-tool-mode/src/mcp/",
       "testLayer": "integration",
@@ -673,7 +673,7 @@
     {
       "id": "MCP-13",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Do not re-export imported MCP tools or export the server back into itself by default. Prevent recursion and accidental delegation loops.",
       "owningModule": "packages/dsh-tool-mode/src/mcp/",
       "testLayer": "integration",
@@ -690,7 +690,7 @@
     {
       "id": "SEC-01",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Default export is off until an operator creates a client grant. Use independently revocable credentials per application/workspace. Generate high-entropy credentials; keep raw tokens out of prompts, tool arguments, URLs, receipts, logs, and shared examples. Store secrets using suitable host protectio…",
       "owningModule": "packages/dsh-tool-mode/src/authority.ts",
       "testLayer": "unit",
@@ -708,7 +708,7 @@
     {
       "id": "SEC-02",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Bind loopback; validate Host and Origin, reject unapproved browser origins, limit request sizes, and authenticate requests. CORS is not authentication. Follow the SDK/specification security requirements. [S9]",
       "owningModule": "packages/dsh-tool-mode/src/authority.ts",
       "testLayer": "unit",
@@ -725,7 +725,7 @@
     {
       "id": "SEC-03",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "A client grant specifies allowed tool names, approved filesystem roots, permitted remote destinations, hosted-code permission, allowed harness executor profiles, model capabilities, recording policy, and resource/cost limits. An external `clientInfo.name`, requested tool list, file path, or artifact…",
       "owningModule": "packages/dsh-tool-mode/src/authority.ts",
       "testLayer": "unit",
@@ -746,7 +746,7 @@
     {
       "id": "SEC-04",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "External clients receive isolated DSH execution contexts, never the current interactive user's conversation or unrestricted agent scope. When a tool needs `exec.agent`, create a real server-owned compatible Agent/session context through supported APIs without running its reasoning loop. Do not fabri…",
       "owningModule": "packages/dsh-tool-mode/src/authority.ts",
       "testLayer": "unit",
@@ -764,7 +764,7 @@
     {
       "id": "SEC-05",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Keep MCP's direct-call scope independent of the interactive DSH presentation mode. An internal agent switching between Native and PTC must not break external direct tool calls. Use a native-presentation external scope plus the explicit composition tool, or an equivalent supported host-dispatch integ…",
       "owningModule": "packages/dsh-tool-mode/src/authority.ts",
       "testLayer": "unit",
@@ -777,7 +777,7 @@
     {
       "id": "SEC-06",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "File paths refer to the DSH execution host, not necessarily the client's filesystem. V1 accepts absolute paths under a grant's approved roots. Resolve Windows drive letters, separators, Unicode, junctions and symlinks safely; reject escapes, unsupported UNC/device paths, and unauthorized roots. Avoi…",
       "owningModule": "packages/dsh-tool-mode/src/authority.ts",
       "testLayer": "unit",
@@ -797,7 +797,7 @@
     {
       "id": "SEC-07",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Audio and image bytes must not be interpolated into generated source code or encoded into textual prompts merely for transport. Multimodal inference must nevertheless receive the actual authorized media through its typed processor/provider input; a filename or text placeholder is not image input. Fo…",
       "owningModule": "packages/dsh-tool-mode/src/authority.ts",
       "testLayer": "unit",
@@ -812,7 +812,7 @@
     {
       "id": "SEC-08",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Local inference, no input upload, no telemetry, and no transcript disclosure to an external main model are different claims. Report execution location and provider network requirements honestly. A client can send a returned transcript to its own cloud model; this server cannot guarantee otherwise.",
       "owningModule": "packages/dsh-tool-mode/src/authority.ts",
       "testLayer": "unit",
@@ -825,7 +825,7 @@
     {
       "id": "SEC-09",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Extension installation/activation/update/uninstall, preparation, binary execution paths, model URLs, credentials, provider selection changes, and exports are operator-controlled. Code-installation approval is separate from permission to use an already approved tool. `model_tools` mutation actions re…",
       "owningModule": "packages/dsh-tool-mode/src/authority.ts",
       "testLayer": "unit",
@@ -844,7 +844,7 @@
     {
       "id": "SEC-10",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "No silent local-to-remote fallback. A selected remote provider and each destination require explicit authorization. Treat model outputs, transcripts and fetched documents as data, never trusted executable instructions.",
       "owningModule": "packages/dsh-tool-mode/src/authority.ts",
       "testLayer": "unit",
@@ -859,7 +859,7 @@
     {
       "id": "DECL-01",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Author each tool once as an extension-owned contract or an implementation of a public standard contract: stable name, contract identity/version, input schema, output schema, semantics, examples, implementation bindings, resource limits and policy metadata. Generate DSH registration, MCP projection a…",
       "owningModule": "packages/tool-mode-contracts/src/",
       "testLayer": "unit",
@@ -884,7 +884,7 @@
     {
       "id": "DECL-02",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Publish real requiredness, nesting, nullability, units, and limits. Output roots for the release tools are objects for broad client compatibility. Validate nested values; an unconstrained `{type: object, additionalProperties: true}` is not an adequate implementation of an ordinary leaf tool's contra…",
       "owningModule": "packages/tool-mode-contracts/src/",
       "testLayer": "unit",
@@ -907,7 +907,7 @@
     {
       "id": "DECL-03",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Shared result metadata includes `contractVersion`, `implementationId`, `extension` identity, `executionLocation`, `receiptId`, and `warnings`. The host stamps authoritative extension ID/version/digest/generation; extensions cannot forge another package's provenance. Define this structure once and in…",
       "owningModule": "packages/tool-mode-contracts/src/",
       "testLayer": "unit",
@@ -931,7 +931,7 @@
     {
       "id": "DECL-04",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Do not fabricate probabilities or generic confidence. Distinguish vendor-reported confidence, independently calibrated estimates, ranking logits, and unavailable confidence. A successful call means a valid result was produced, not that the result is correct.",
       "owningModule": "packages/tool-mode-contracts/src/",
       "testLayer": "unit",
@@ -947,7 +947,7 @@
     {
       "id": "DECL-05",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Register concise tool descriptions and packaged DSH skills with Native and Code Mode examples, supported inputs, unsupported cases, data handling and recovery advice. A skill is guidance, not executable registration or a permission grant. [S10]",
       "owningModule": "packages/tool-mode-contracts/src/",
       "testLayer": "unit",
@@ -960,7 +960,7 @@
     {
       "id": "DECL-06",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Update tool visibility and skill catalogs coherently before subsequent model requests. Do not rewrite history, manufacture user tasks, or insert tool results into the composer. A foreground tool returns through its tool-result channel.",
       "owningModule": "packages/tool-mode-contracts/src/",
       "testLayer": "unit",
@@ -973,7 +973,7 @@
     {
       "id": "DECL-07",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Provide these read-only tools to authorized native and external callers:",
       "owningModule": "packages/tool-mode-contracts/src/",
       "testLayer": "unit",
@@ -989,7 +989,7 @@
     {
       "id": "DECL-08",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Tool and skill contributions carry an owning extension, execution kind, recipe digest and activation generation. Host control tools such as discovery and composition remain host-owned, not model packages. Per-package/per-tool revocation must be reflected coherently across every surface; an old gener…",
       "owningModule": "packages/tool-mode-contracts/src/",
       "testLayer": "unit",
@@ -1006,7 +1006,7 @@
     {
       "id": "MODEL-01",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "EmbeddingGemma 2 identity.",
       "owningModule": "packages/tool-mode-contracts/src/",
       "testLayer": "unit",
@@ -1021,7 +1021,7 @@
     {
       "id": "MODEL-02",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Dedicated decisions.",
       "owningModule": "packages/tool-mode-contracts/src/",
       "testLayer": "unit",
@@ -1034,7 +1034,7 @@
     {
       "id": "MODEL-03",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Needle's role.",
       "owningModule": "packages/tool-mode-contracts/src/",
       "testLayer": "unit",
@@ -1047,7 +1047,7 @@
     {
       "id": "MODEL-04",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Prefer Node-compatible execution, not JavaScript-only weights.",
       "owningModule": "packages/tool-mode-contracts/src/",
       "testLayer": "unit",
@@ -1062,7 +1062,7 @@
     {
       "id": "MODEL-05",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Qualify the actual path.",
       "owningModule": "packages/tool-mode-contracts/src/",
       "testLayer": "unit",
@@ -1082,7 +1082,7 @@
     {
       "id": "MODEL-06",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "No hardcoded frontier-model assumptions.",
       "owningModule": "packages/tool-mode-contracts/src/",
       "testLayer": "unit",
@@ -1098,7 +1098,7 @@
     {
       "id": "TOOL-01",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Transcription.",
       "owningModule": "packages/tool-mode-contracts/src/contracts/",
       "testLayer": "unit",
@@ -1114,7 +1114,7 @@
     {
       "id": "TOOL-02",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Decisions.",
       "owningModule": "packages/tool-mode-contracts/src/contracts/",
       "testLayer": "unit",
@@ -1131,7 +1131,7 @@
     {
       "id": "TOOL-03",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Language.",
       "owningModule": "packages/tool-mode-contracts/src/contracts/",
       "testLayer": "unit",
@@ -1147,7 +1147,7 @@
     {
       "id": "TOOL-04",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Legacy text embeddings.",
       "owningModule": "packages/tool-mode-contracts/src/contracts/",
       "testLayer": "unit",
@@ -1162,7 +1162,7 @@
     {
       "id": "TOOL-05",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Cross-encoder reranking.",
       "owningModule": "packages/tool-mode-contracts/src/contracts/",
       "testLayer": "unit",
@@ -1178,7 +1178,7 @@
     {
       "id": "TOOL-06",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Titles.",
       "owningModule": "packages/tool-mode-contracts/src/contracts/",
       "testLayer": "unit",
@@ -1197,7 +1197,7 @@
     {
       "id": "LIC-01",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Track code, engine, model weights, conversion artifacts, and SDK licenses independently in each extension and its resolved installation record; preserve notices and attribution. Packaging a model means packaging an adapter plus licensed assets or acquisition instructions, not automatically granting …",
       "owningModule": "packages/dsh-tool-mode/catalog/desert-ant-models.json",
       "testLayer": "unit",
@@ -1216,7 +1216,7 @@
     {
       "id": "LIC-02",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Desert Ant's license is source-available, not open source. It restricts standalone model/SDK/service distribution, competing-model training, and tampering with specified usage telemetry. Do not assume a generic MCP wrapper, localhost deployment, or user-downloaded weights automatically resolves thos…",
       "owningModule": "packages/dsh-tool-mode/catalog/desert-ant-models.json",
       "testLayer": "unit",
@@ -1232,7 +1232,7 @@
     {
       "id": "LIC-03",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "A responsible human must record the applicable permission basis for native use, external MCP export, distribution, and telemetry. Obtain vendor clarification or qualified review where the product boundary is ambiguous. Unresolved external-export permission blocks that provider's export, not the whol…",
       "owningModule": "packages/dsh-tool-mode/catalog/desert-ant-models.json",
       "testLayer": "unit",
@@ -1248,7 +1248,7 @@
     {
       "id": "LIC-04",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "A strict no-network deployment may only select an implementation whose supported behavior and obligations allow it. Do not secretly suppress required telemetry or describe telemetry-bearing software as entirely network-free. Provide a qualified alternative instead.",
       "owningModule": "packages/dsh-tool-mode/catalog/desert-ant-models.json",
       "testLayer": "unit",
@@ -1267,7 +1267,7 @@
     {
       "id": "CODE-01",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "DSH integration.",
       "owningModule": "packages/dsh-tool-mode/src/ptc-runtime.ts",
       "testLayer": "unit",
@@ -1283,7 +1283,7 @@
     {
       "id": "CODE-02",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "External integration.",
       "owningModule": "packages/dsh-tool-mode/src/ptc-runtime.ts",
       "testLayer": "unit",
@@ -1300,7 +1300,7 @@
     {
       "id": "CODE-03",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Reuse `ctx.ptcRuntime` and a tested backend. Supply only the intersection of requested bindings and currently authorized executable tools; reject unknown or forbidden names instead of silently omitting them. Generate types from exactly that set. [S6]",
       "owningModule": "packages/dsh-tool-mode/src/ptc-runtime.ts",
       "testLayer": "unit",
@@ -1318,7 +1318,7 @@
     {
       "id": "CODE-04",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Bind `input` through a supported structured-data path, not string interpolation into source. Program calls use `await tools.stt_transcribe(...)`, etc. Each binding passes through the same executor, authorization, provider admission, result policy, cancellation and receipt system as a direct call.",
       "owningModule": "packages/dsh-tool-mode/src/ptc-runtime.ts",
       "testLayer": "unit",
@@ -1334,7 +1334,7 @@
     {
       "id": "CODE-05",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Capture tool contracts, selected extension/implementation content identities and a catalog/activation generation for the program. Reject an incompatible replacement; never silently switch the semantics of a binding mid-program. Always honor current package deactivation, per-tool disabling, uninstall…",
       "owningModule": "packages/dsh-tool-mode/src/ptc-runtime.ts",
       "testLayer": "unit",
@@ -1350,7 +1350,7 @@
     {
       "id": "CODE-06",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Tool results stay inside the program unless returned or logged. Model-native and externally supplied programs have the same data rules. Failed tool calls reject; a program can handle errors with `try/catch`. Do not promise access to DSH internal error codes that its PTC error surface does not expose…",
       "owningModule": "packages/dsh-tool-mode/src/ptc-runtime.ts",
       "testLayer": "unit",
@@ -1365,7 +1365,7 @@
     {
       "id": "CODE-07",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Support loops, conditionals, dependent calls, and bounded independent concurrency. Include both specialist tools and authorized harness-backed tools in the generated bindings; the latter remain ordinary leaf tools, not nested agent loops. Provider-level concurrency limits still apply across clients.…",
       "owningModule": "packages/dsh-tool-mode/src/ptc-runtime.ts",
       "testLayer": "unit",
@@ -1382,7 +1382,7 @@
     {
       "id": "CODE-08",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Enforce execution deadlines and cleanup for CPU loops, abandoned promises, nested calls, and spawned work. No detached background process or mutable program globals survive a run. A model worker can persist under the separate provider pool, not under the submitted program's authority.",
       "owningModule": "packages/dsh-tool-mode/src/ptc-runtime.ts",
       "testLayer": "unit",
@@ -1402,7 +1402,7 @@
     {
       "id": "CODE-09",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Security.",
       "owningModule": "packages/dsh-tool-mode/src/ptc-runtime.ts",
       "testLayer": "unit",
@@ -1420,7 +1420,7 @@
     {
       "id": "CODE-10",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Code execution is separate operator consent from ordinary model-tool access. It ships implemented but is disabled for a client until granted. No program can change exports, register tools, install packages, select an unauthorized endpoint, or grant itself a larger budget.",
       "owningModule": "packages/dsh-tool-mode/src/ptc-runtime.ts",
       "testLayer": "unit",
@@ -1438,7 +1438,7 @@
     {
       "id": "CODE-11",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Charge every nested model request, including harness-model recipes, structured-output repair and approved retries, against a root budget as well as the leaf budget. A program cannot reset counters by calling another tool. Reuse of a model instance never means reuse of a caller's conversational state…",
       "owningModule": "packages/dsh-tool-mode/src/ptc-runtime.ts",
       "testLayer": "unit",
@@ -1455,7 +1455,7 @@
     {
       "id": "CODE-12",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Generated code cannot invoke `tools_plan` results implicitly. Executing a proposed call is a separate explicit `tools.<name>(args)` dispatch through current authorization and schema validation. No proposal may install, expose, or authorize a tool. Unselected candidate tools remain hidden.",
       "owningModule": "packages/dsh-tool-mode/src/ptc-runtime.ts",
       "testLayer": "unit",
@@ -1470,7 +1470,7 @@
     {
       "id": "RES-01",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Measure request bytes before accepting oversized bodies. Bound decoding, tokenization, model loading, provider responses, and postprocessing, not only final rendering. Reject over-budget input with actual limits; do not silently truncate source data.",
       "owningModule": "packages/dsh-tool-mode/src/authority.ts",
       "testLayer": "unit",
@@ -1485,7 +1485,7 @@
     {
       "id": "RES-02",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Model preparation is explicit. Pin model revision, engine/SDK version, quantization, tokenizer, preprocessing recipe, asset hashes, source and license metadata. Show download/storage requirements before approval. Prebuilt engine downloads count as executable installation.",
       "owningModule": "packages/dsh-tool-mode/src/authority.ts",
       "testLayer": "unit",
@@ -1504,7 +1504,7 @@
     {
       "id": "RES-03",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Use atomic verified downloads with documented resumability/retry behavior. Share content-addressed or otherwise safely keyed assets with extension/profile ownership records. Package uninstall and asset purge are separate operations; delete only unreferenced host-owned assets. A failed or interrupted…",
       "owningModule": "packages/dsh-tool-mode/src/authority.ts",
       "testLayer": "unit",
@@ -1521,7 +1521,7 @@
     {
       "id": "RES-04",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Separate readiness from residency: unavailable, needs-preparation, preparing, prepared-cold, loading, ready, busy, failed. Do not change agent tool descriptions on every warm/cold transition. Compatibility, authorization, and preparation determine callability; residency determines admission/loading …",
       "owningModule": "packages/dsh-tool-mode/src/authority.ts",
       "testLayer": "unit",
@@ -1537,7 +1537,7 @@
     {
       "id": "RES-05",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "One preparation/load operation per exact provider deployment; concurrent callers join or queue. Reference-count active users, cancel per invocation, and never kill another caller's legitimate work. Unload only idle resources or an explicitly revoked deployment after coordinated cleanup.",
       "owningModule": "packages/dsh-tool-mode/src/authority.ts",
       "testLayer": "unit",
@@ -1553,7 +1553,7 @@
     {
       "id": "RES-06",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Propagate DSH/MCP cancellation into file reads, HTTP, queues, and inference. Where a backend cannot interrupt one inference safely, isolate it in an owned worker or serialize and discard only after it settles. Document actual behavior; do not claim cancellation while uncontrolled work continues inde…",
       "owningModule": "packages/dsh-tool-mode/src/authority.ts",
       "testLayer": "unit",
@@ -1569,7 +1569,7 @@
     {
       "id": "RES-07",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Declare memory admission estimates and measure peak process/worker memory in qualification. A V8 heap cap is not a process-tree/native-memory cap. Report enforced and estimated limits separately; bound the pool and inputs even where OS-level accounting is partial.",
       "owningModule": "packages/dsh-tool-mode/src/authority.ts",
       "testLayer": "unit",
@@ -1584,7 +1584,7 @@
     {
       "id": "RES-08",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Foreground invocations are not persistent jobs. Honor explicit protocol cancellation and server deadlines. Apply section 20: closing a modern request SSE response cancels that request. Do not inherit legacy HTTP session-disconnect semantics. Do not automatically replay completed or uncertain calls a…",
       "owningModule": "packages/dsh-tool-mode/src/authority.ts",
       "testLayer": "unit",
@@ -1599,7 +1599,7 @@
     {
       "id": "RES-09",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Multimodal budgets.",
       "owningModule": "packages/dsh-tool-mode/src/authority.ts",
       "testLayer": "unit",
@@ -1616,7 +1616,7 @@
     {
       "id": "RES-10",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Harness budgets.",
       "owningModule": "packages/dsh-tool-mode/src/authority.ts",
       "testLayer": "unit",
@@ -1636,7 +1636,7 @@
     {
       "id": "OBS-01",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Record lightweight receipts for native, external, auxiliary harness-model and nested calls: receipt/correlation IDs, caller scope, parent composition, tool/contract version, extension ID/version/content digest/activation generation, implementation and artifact revision, policy outcome, queue/load/in…",
       "owningModule": "packages/dsh-tool-mode/src/receipt.ts",
       "testLayer": "unit",
@@ -1653,7 +1653,7 @@
     {
       "id": "OBS-02",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "`ctx.tools.execute()` has observation hooks, but an external call is not automatically a normal agent-loop transcript. Explicitly wire external receipts. Do not duplicate every large result into multiple logs. [S5]",
       "owningModule": "packages/dsh-tool-mode/src/receipt.ts",
       "testLayer": "unit",
@@ -1669,7 +1669,7 @@
     {
       "id": "OBS-03",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Plugin defaults cannot guarantee privacy if another DSH logging plugin captures bodies. Document the full capture path and test a metadata-only headless local-specialist profile. DSH's LLM service requires model-visible inputs to be reconstructable; section 19 specifies a separately authorized auxil…",
       "owningModule": "packages/dsh-tool-mode/src/receipt.ts",
       "testLayer": "unit",
@@ -1685,7 +1685,7 @@
     {
       "id": "OBS-04",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "The settings/diagnostic surface must show MCP on/off and endpoint, authorized clients, exported tools, preparation status, selected implementation, extension installation/activation state, built-in protection and uninstall controls, location/network requirements, Code Mode permission/backend readine…",
       "owningModule": "packages/dsh-tool-mode/src/receipt.ts",
       "testLayer": "unit",
@@ -1702,7 +1702,7 @@
     {
       "id": "OBS-05",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Display actual measured setup and runtime facts separately from vendor claims and estimates. Publish cold load, warm latency, asset size, peak memory, and correctness results with hardware/runtime versions. Do not reuse Apple Neural Engine benchmarks as Windows performance.",
       "owningModule": "packages/dsh-tool-mode/src/receipt.ts",
       "testLayer": "unit",
@@ -1717,7 +1717,7 @@
     {
       "id": "EXT-01",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Host/package separation.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -1730,7 +1730,7 @@
     {
       "id": "EXT-02",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Public contract, not private imports.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -1748,7 +1748,7 @@
     {
       "id": "EXT-03",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Built-ins follow the identical protocol.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -1765,7 +1765,7 @@
     {
       "id": "EXT-04",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "All packages can be deactivated.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -1782,7 +1782,7 @@
     {
       "id": "EXT-05",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "One model or executor can supply several tools.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -1795,7 +1795,7 @@
     {
       "id": "EXT-06",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Required sources.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -1811,7 +1811,7 @@
     {
       "id": "EXT-07",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Install is not activate.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -1830,7 +1830,7 @@
     {
       "id": "EXT-08",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Staged installation.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -1848,7 +1848,7 @@
     {
       "id": "EXT-09",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Dependency isolation.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -1864,7 +1864,7 @@
     {
       "id": "EXT-10",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "No installation scripts.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -1881,7 +1881,7 @@
     {
       "id": "EXT-11",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Archive and source defenses.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -1898,7 +1898,7 @@
     {
       "id": "EXT-12",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Integrity is not trust.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -1917,7 +1917,7 @@
     {
       "id": "EXT-13",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Static discovery.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -1937,7 +1937,7 @@
     {
       "id": "EXT-14",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Manifest fields.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -1955,7 +1955,7 @@
     {
       "id": "EXT-15",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Model asset locks.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -1968,7 +1968,7 @@
     {
       "id": "EXT-16",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Versioning.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -1983,7 +1983,7 @@
     {
       "id": "EXT-17",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Publish the SDK and reference host.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -2005,7 +2005,7 @@
     {
       "id": "EXT-18",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Context contracts.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -2031,7 +2031,7 @@
     {
       "id": "EXT-19",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Import and lifecycle discipline.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -2056,7 +2056,7 @@
     {
       "id": "EXT-20",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Managed worker execution.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -2073,7 +2073,7 @@
     {
       "id": "EXT-21",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Two contribution modes.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -2100,7 +2100,7 @@
     {
       "id": "EXT-22",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Collision and provider selection.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -2120,7 +2120,7 @@
     {
       "id": "EXT-23",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Identity-bound permissions.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -2133,7 +2133,7 @@
     {
       "id": "EXT-24",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Coherent publication.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -2154,7 +2154,7 @@
     {
       "id": "EXT-25",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Persist orthogonal state.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -2170,7 +2170,7 @@
     {
       "id": "EXT-26",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Activate.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -2187,7 +2187,7 @@
     {
       "id": "EXT-27",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Deactivate.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -2203,7 +2203,7 @@
     {
       "id": "EXT-28",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Uninstall third-party packages.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -2219,7 +2219,7 @@
     {
       "id": "EXT-29",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Windows cleanup and shared ownership.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -2235,7 +2235,7 @@
     {
       "id": "EXT-30",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Updates and rollback.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -2259,7 +2259,7 @@
     {
       "id": "EXT-31",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Operator experience.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -2277,7 +2277,7 @@
     {
       "id": "EXT-32",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Discovery and management permissions.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -2294,7 +2294,7 @@
     {
       "id": "EXT-33",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Store layout and immutable lock.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -2309,7 +2309,7 @@
     {
       "id": "EXT-34",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Errors.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -2324,7 +2324,7 @@
     {
       "id": "EXT-35",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Provenance and telemetry.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -2342,7 +2342,7 @@
     {
       "id": "EXT-36",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Author kit and independent proof.",
       "owningModule": "packages/tool-mode-extension-sdk/src/",
       "testLayer": "unit",
@@ -2357,7 +2357,7 @@
     {
       "id": "MOD-01",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Required artifact and runtime.",
       "owningModule": "packages/extension-embeddinggemma/src/",
       "testLayer": "unit",
@@ -2375,7 +2375,7 @@
     {
       "id": "MOD-02",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Encoder preparation and loading.",
       "owningModule": "packages/extension-embeddinggemma/src/",
       "testLayer": "unit",
@@ -2392,7 +2392,7 @@
     {
       "id": "MOD-03",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Operational identity.",
       "owningModule": "packages/extension-embeddinggemma/src/",
       "testLayer": "unit",
@@ -2408,7 +2408,7 @@
     {
       "id": "MOD-04",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Dimension and normalization.",
       "owningModule": "packages/extension-embeddinggemma/src/",
       "testLayer": "unit",
@@ -2425,7 +2425,7 @@
     {
       "id": "MOD-05",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Input/role rules.",
       "owningModule": "packages/extension-embeddinggemma/src/",
       "testLayer": "unit",
@@ -2441,7 +2441,7 @@
     {
       "id": "MOD-06",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Formatting.",
       "owningModule": "packages/extension-embeddinggemma/src/",
       "testLayer": "unit",
@@ -2459,7 +2459,7 @@
     {
       "id": "MOD-07",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Media validation.",
       "owningModule": "packages/extension-embeddinggemma/src/",
       "testLayer": "unit",
@@ -2474,7 +2474,7 @@
     {
       "id": "MOD-08",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Context and sampling honesty.",
       "owningModule": "packages/extension-embeddinggemma/src/",
       "testLayer": "unit",
@@ -2492,7 +2492,7 @@
     {
       "id": "MOD-09",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "`semantic_similarity`.",
       "owningModule": "packages/extension-embeddinggemma/src/",
       "testLayer": "unit",
@@ -2509,7 +2509,7 @@
     {
       "id": "MOD-10",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "`semantic_rank`.",
       "owningModule": "packages/extension-embeddinggemma/src/",
       "testLayer": "unit",
@@ -2527,7 +2527,7 @@
     {
       "id": "MOD-11",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "`semantic_classify`.",
       "owningModule": "packages/extension-embeddinggemma/src/",
       "testLayer": "unit",
@@ -2543,7 +2543,7 @@
     {
       "id": "MOD-12",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "`semantic_deduplicate`.",
       "owningModule": "packages/extension-embeddinggemma/src/",
       "testLayer": "unit",
@@ -2560,7 +2560,7 @@
     {
       "id": "MOD-13",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "`media_find_moments`.",
       "owningModule": "packages/extension-embeddinggemma/src/",
       "testLayer": "unit",
@@ -2576,7 +2576,7 @@
     {
       "id": "MOD-14",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Compatibility and caching.",
       "owningModule": "packages/extension-embeddinggemma/src/",
       "testLayer": "unit",
@@ -2591,7 +2591,7 @@
     {
       "id": "MOD-15",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Tool disabling and sharing.",
       "owningModule": "packages/extension-embeddinggemma/src/",
       "testLayer": "unit",
@@ -2606,7 +2606,7 @@
     {
       "id": "MOD-16",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Golden fixtures.",
       "owningModule": "packages/extension-embeddinggemma/src/",
       "testLayer": "unit",
@@ -2622,7 +2622,7 @@
     {
       "id": "MOD-17",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Cross-modal quality.",
       "owningModule": "packages/extension-embeddinggemma/src/",
       "testLayer": "unit",
@@ -2638,7 +2638,7 @@
     {
       "id": "MOD-18",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Negative-path tests.",
       "owningModule": "packages/extension-embeddinggemma/src/",
       "testLayer": "unit",
@@ -2654,7 +2654,7 @@
     {
       "id": "MOD-19",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Node/Windows proof.",
       "owningModule": "packages/extension-embeddinggemma/src/",
       "testLayer": "unit",
@@ -2674,7 +2674,7 @@
     {
       "id": "MOD-20",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Description discipline.",
       "owningModule": "packages/extension-embeddinggemma/src/",
       "testLayer": "unit",
@@ -2693,7 +2693,7 @@
     {
       "id": "DEC-01",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Fixed initial checkpoint.",
       "owningModule": "packages/extension-laya/src/",
       "testLayer": "unit",
@@ -2706,7 +2706,7 @@
     {
       "id": "DEC-02",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Maintainer export, Node consumer.",
       "owningModule": "packages/extension-laya/src/",
       "testLayer": "unit",
@@ -2719,7 +2719,7 @@
     {
       "id": "DEC-03",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Native typed questions.",
       "owningModule": "packages/extension-laya/src/",
       "testLayer": "unit",
@@ -2732,7 +2732,7 @@
     {
       "id": "DEC-04",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Probabilities and abstention.",
       "owningModule": "packages/extension-laya/src/",
       "testLayer": "unit",
@@ -2745,7 +2745,7 @@
     {
       "id": "DEC-05",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Do not hide truncation.",
       "owningModule": "packages/extension-laya/src/",
       "testLayer": "unit",
@@ -2761,7 +2761,7 @@
     {
       "id": "DEC-06",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Additional dedicated tools.",
       "owningModule": "packages/extension-laya/src/",
       "testLayer": "unit",
@@ -2776,7 +2776,7 @@
     {
       "id": "DEC-07",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Jev remains an optional specialist.",
       "owningModule": "packages/extension-laya/src/",
       "testLayer": "unit",
@@ -2791,7 +2791,7 @@
     {
       "id": "DEC-08",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Quality evaluation.",
       "owningModule": "packages/extension-laya/src/",
       "testLayer": "unit",
@@ -2806,7 +2806,7 @@
     {
       "id": "NDL-01",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Windows/Node runtime.",
       "owningModule": "packages/extension-needle/src/",
       "testLayer": "unit",
@@ -2819,7 +2819,7 @@
     {
       "id": "NDL-02",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Planning contract.",
       "owningModule": "packages/extension-needle/src/",
       "testLayer": "unit",
@@ -2836,7 +2836,7 @@
     {
       "id": "NDL-03",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Never autoexecute.",
       "owningModule": "packages/extension-needle/src/",
       "testLayer": "unit",
@@ -2851,7 +2851,7 @@
     {
       "id": "NDL-04",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Constraint and fidelity checks.",
       "owningModule": "packages/extension-needle/src/",
       "testLayer": "unit",
@@ -2866,7 +2866,7 @@
     {
       "id": "NDL-05",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Isolation and cancellation.",
       "owningModule": "packages/extension-needle/src/",
       "testLayer": "unit",
@@ -2879,7 +2879,7 @@
     {
       "id": "NDL-06",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Telemetry and provenance.",
       "owningModule": "packages/extension-needle/src/",
       "testLayer": "unit",
@@ -2894,7 +2894,7 @@
     {
       "id": "NDL-07",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Optional embeddings.",
       "owningModule": "packages/extension-needle/src/",
       "testLayer": "unit",
@@ -2907,7 +2907,7 @@
     {
       "id": "NDL-08",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Independent extension proof.",
       "owningModule": "packages/extension-needle/src/",
       "testLayer": "unit",
@@ -2923,7 +2923,7 @@
     {
       "id": "HLM-01",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Generic host broker.",
       "owningModule": "packages/dsh-tool-mode/src/harness-serving.ts",
       "testLayer": "unit",
@@ -2943,7 +2943,7 @@
     {
       "id": "HLM-02",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Native selection.",
       "owningModule": "packages/dsh-tool-mode/src/harness-serving.ts",
       "testLayer": "unit",
@@ -2962,7 +2962,7 @@
     {
       "id": "HLM-03",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "External selection.",
       "owningModule": "packages/dsh-tool-mode/src/harness-serving.ts",
       "testLayer": "unit",
@@ -2978,7 +2978,7 @@
     {
       "id": "HLM-04",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Capability qualification.",
       "owningModule": "packages/dsh-tool-mode/src/harness-serving.ts",
       "testLayer": "unit",
@@ -2993,7 +2993,7 @@
     {
       "id": "HLM-05",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Minimal isolated request.",
       "owningModule": "packages/dsh-tool-mode/src/harness-serving.ts",
       "testLayer": "unit",
@@ -3010,7 +3010,7 @@
     {
       "id": "HLM-06",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "No recursive tools.",
       "owningModule": "packages/dsh-tool-mode/src/harness-serving.ts",
       "testLayer": "unit",
@@ -3029,7 +3029,7 @@
     {
       "id": "HLM-07",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Budgets and attempts.",
       "owningModule": "packages/dsh-tool-mode/src/harness-serving.ts",
       "testLayer": "unit",
@@ -3045,7 +3045,7 @@
     {
       "id": "HLM-08",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Credentials and location.",
       "owningModule": "packages/dsh-tool-mode/src/harness-serving.ts",
       "testLayer": "unit",
@@ -3058,7 +3058,7 @@
     {
       "id": "HLM-09",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Auxiliary recording contract.",
       "owningModule": "packages/dsh-tool-mode/src/harness-serving.ts",
       "testLayer": "unit",
@@ -3074,7 +3074,7 @@
     {
       "id": "HLM-10",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Usage and cancellation.",
       "owningModule": "packages/dsh-tool-mode/src/harness-serving.ts",
       "testLayer": "unit",
@@ -3089,7 +3089,7 @@
     {
       "id": "HLM-11",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Real image input.",
       "owningModule": "packages/dsh-tool-mode/src/harness-serving.ts",
       "testLayer": "unit",
@@ -3108,7 +3108,7 @@
     {
       "id": "HLM-12",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Honest description.",
       "owningModule": "packages/dsh-tool-mode/src/harness-serving.ts",
       "testLayer": "unit",
@@ -3124,7 +3124,7 @@
     {
       "id": "HLM-13",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Availability.",
       "owningModule": "packages/dsh-tool-mode/src/harness-serving.ts",
       "testLayer": "unit",
@@ -3137,7 +3137,7 @@
     {
       "id": "HLM-14",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "No hardwired vision model.",
       "owningModule": "packages/dsh-tool-mode/src/harness-serving.ts",
       "testLayer": "unit",
@@ -3150,7 +3150,7 @@
     {
       "id": "RCP-01",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Recipe-only packages.",
       "owningModule": "packages/tool-mode-recipes/src/",
       "testLayer": "unit",
@@ -3172,7 +3172,7 @@
     {
       "id": "RCP-02",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Safe recipe schema.",
       "owningModule": "packages/tool-mode-recipes/src/",
       "testLayer": "unit",
@@ -3196,7 +3196,7 @@
     {
       "id": "RCP-03",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Binding interpretation.",
       "owningModule": "packages/tool-mode-recipes/src/",
       "testLayer": "unit",
@@ -3213,7 +3213,7 @@
     {
       "id": "RCP-04",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Response modes.",
       "owningModule": "packages/tool-mode-recipes/src/",
       "testLayer": "unit",
@@ -3230,7 +3230,7 @@
     {
       "id": "RCP-05",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Static versus per-call authority.",
       "owningModule": "packages/tool-mode-recipes/src/",
       "testLayer": "unit",
@@ -3247,7 +3247,7 @@
     {
       "id": "RCP-06",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Recipe updates and contract identity.",
       "owningModule": "packages/tool-mode-recipes/src/",
       "testLayer": "unit",
@@ -3264,7 +3264,7 @@
     {
       "id": "RCP-07",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Full lifecycle.",
       "owningModule": "packages/tool-mode-recipes/src/",
       "testLayer": "unit",
@@ -3280,7 +3280,7 @@
     {
       "id": "RCP-08",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Authoring tools.",
       "owningModule": "packages/tool-mode-recipes/src/",
       "testLayer": "unit",
@@ -3297,7 +3297,7 @@
     {
       "id": "RCP-09",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Agent-assisted creation.",
       "owningModule": "packages/tool-mode-recipes/src/",
       "testLayer": "unit",
@@ -3312,7 +3312,7 @@
     {
       "id": "RCP-10",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Skill and discovery parity.",
       "owningModule": "packages/tool-mode-recipes/src/",
       "testLayer": "unit",
@@ -3327,7 +3327,7 @@
     {
       "id": "RCP-11",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Error vocabulary.",
       "owningModule": "packages/tool-mode-recipes/src/",
       "testLayer": "unit",
@@ -3344,7 +3344,7 @@
     {
       "id": "RCP-12",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Default text recipe.",
       "owningModule": "packages/tool-mode-recipes/src/",
       "testLayer": "unit",
@@ -3363,7 +3363,7 @@
     {
       "id": "P26-01",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Modern operation.",
       "owningModule": "packages/dsh-tool-mode/src/",
       "testLayer": "integration",
@@ -3376,7 +3376,7 @@
     {
       "id": "P26-02",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Required metadata.",
       "owningModule": "packages/dsh-tool-mode/src/",
       "testLayer": "integration",
@@ -3389,7 +3389,7 @@
     {
       "id": "P26-03",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Version/capability errors.",
       "owningModule": "packages/dsh-tool-mode/src/",
       "testLayer": "integration",
@@ -3402,7 +3402,7 @@
     {
       "id": "P26-04",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Result shape.",
       "owningModule": "packages/dsh-tool-mode/src/",
       "testLayer": "integration",
@@ -3415,7 +3415,7 @@
     {
       "id": "P26-05",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "HTTP binding.",
       "owningModule": "packages/dsh-tool-mode/src/",
       "testLayer": "integration",
@@ -3428,7 +3428,7 @@
     {
       "id": "P26-06",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Response channels and cancellation.",
       "owningModule": "packages/dsh-tool-mode/src/",
       "testLayer": "integration",
@@ -3441,7 +3441,7 @@
     {
       "id": "P26-07",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "No resumable/replayed effects.",
       "owningModule": "packages/dsh-tool-mode/src/",
       "testLayer": "integration",
@@ -3454,7 +3454,7 @@
     {
       "id": "P26-08",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Bridge correctness.",
       "owningModule": "packages/dsh-tool-mode/src/",
       "testLayer": "integration",
@@ -3467,7 +3467,7 @@
     {
       "id": "P26-09",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Subscriptions.",
       "owningModule": "packages/dsh-tool-mode/src/",
       "testLayer": "integration",
@@ -3480,7 +3480,7 @@
     {
       "id": "P26-10",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Channel separation.",
       "owningModule": "packages/dsh-tool-mode/src/",
       "testLayer": "integration",
@@ -3493,7 +3493,7 @@
     {
       "id": "P26-11",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "MRTR rather than server RPC.",
       "owningModule": "packages/dsh-tool-mode/src/",
       "testLayer": "integration",
@@ -3506,7 +3506,7 @@
     {
       "id": "P26-12",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Optional extensions.",
       "owningModule": "packages/dsh-tool-mode/src/",
       "testLayer": "integration",
@@ -3519,7 +3519,7 @@
     {
       "id": "P26-13",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Schemas.",
       "owningModule": "packages/dsh-tool-mode/src/",
       "testLayer": "integration",
@@ -3532,7 +3532,7 @@
     {
       "id": "P26-14",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Discovery caching.",
       "owningModule": "packages/dsh-tool-mode/src/",
       "testLayer": "integration",
@@ -3545,7 +3545,7 @@
     {
       "id": "P26-15",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Auth profile.",
       "owningModule": "packages/dsh-tool-mode/src/",
       "testLayer": "integration",
@@ -3558,7 +3558,7 @@
     {
       "id": "P26-16",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Auth/transport qualification.",
       "owningModule": "packages/dsh-tool-mode/src/",
       "testLayer": "integration",
@@ -3571,7 +3571,7 @@
     {
       "id": "P26-17",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Verification artifacts.",
       "owningModule": "packages/dsh-tool-mode/src/",
       "testLayer": "integration",
@@ -3584,7 +3584,7 @@
     {
       "id": "TDD-01",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Requirement inventory.",
       "owningModule": "scripts/gen-verification.mjs",
       "testLayer": "meta",
@@ -3599,7 +3599,7 @@
     {
       "id": "TDD-02",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Red.",
       "owningModule": "scripts/gen-verification.mjs",
       "testLayer": "meta",
@@ -3612,7 +3612,7 @@
     {
       "id": "TDD-03",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Green.",
       "owningModule": "scripts/gen-verification.mjs",
       "testLayer": "meta",
@@ -3627,7 +3627,7 @@
     {
       "id": "TDD-04",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Refactor.",
       "owningModule": "scripts/gen-verification.mjs",
       "testLayer": "meta",
@@ -3642,7 +3642,7 @@
     {
       "id": "TDD-05",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Verification is independent.",
       "owningModule": "scripts/gen-verification.mjs",
       "testLayer": "meta",
@@ -3655,7 +3655,7 @@
     {
       "id": "TDD-06",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "No false passes.",
       "owningModule": "scripts/gen-verification.mjs",
       "testLayer": "meta",
@@ -3671,7 +3671,7 @@
     {
       "id": "TDD-07",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Tests must not mutate user state.",
       "owningModule": "scripts/gen-verification.mjs",
       "testLayer": "meta",
@@ -3686,7 +3686,7 @@
     {
       "id": "TDD-08",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Reviewed quality gates.",
       "owningModule": "scripts/gen-verification.mjs",
       "testLayer": "meta",
@@ -3699,7 +3699,7 @@
     {
       "id": "TDD-09",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Evidence records.",
       "owningModule": "scripts/gen-verification.mjs",
       "testLayer": "meta",
@@ -3714,7 +3714,7 @@
     {
       "id": "TDD-10",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Release report.",
       "owningModule": "scripts/gen-verification.mjs",
       "testLayer": "meta",
@@ -3729,7 +3729,7 @@
     {
       "id": "AT-01",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Install the built tarball into a clean compatible DSH installation on Windows without source symlinks, TypeScript loaders or compiler toolchains.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -3747,7 +3747,7 @@
     {
       "id": "AT-02",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Start with no optional weights, no cloud credentials and no browser. Diagnostics work; discovery downloads nothing; unavailable tools are not falsely advertised.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -3763,7 +3763,7 @@
     {
       "id": "AT-03",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "The embedded MCP server starts/stops with plugin configuration; port conflict, malformed config and restart behave predictably.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -3778,7 +3778,7 @@
     {
       "id": "AT-04",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "A genuine 2026-07-28 reference client and an independent protocol probe/client both discover and invoke tools using the modern wire contract. Record SDK/client versions; a legacy Inspector alone does not prove modern support.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -3791,7 +3791,7 @@
     {
       "id": "AT-05",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Two simultaneous clients share a model pool but cannot read each other's files, credentials, receipts or execution state.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -3804,7 +3804,7 @@
     {
       "id": "AT-06",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "A stdio-only reference client reaches the same server through the bridge without starting a second inference host; stdout remains protocol-clean.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -3819,7 +3819,7 @@
     {
       "id": "AT-07",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Authorized Native and MCP calls have equivalent semantic values and contract schemas, excluding call IDs/timing.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -3834,7 +3834,7 @@
     {
       "id": "AT-08",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "The unchanged leaf tools work in DSH PTC and return usable structured fields, not prose to be parsed.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -3847,7 +3847,7 @@
     {
       "id": "AT-09",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "External `tool_mode_run` performs the local-only transcription/decision composition with real outputs and zero harness-LLM requests; separately performs the title/image harness composition with explicitly counted and authorized auxiliary requests.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -3860,7 +3860,7 @@
     {
       "id": "AT-10",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Generated loops and branching work; independent calls obey both program and cross-client provider limits.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -3875,7 +3875,7 @@
     {
       "id": "AT-11",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "An injected invalid output and invalid nested field fail validation through every surface; denied/rewritten canonical results cannot leak through `structuredContent` or PTC.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -3891,7 +3891,7 @@
     {
       "id": "AT-12",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Missing/invalid token, hostile Origin/Host, ungranted tool, excessive body and rate-limit tests fail before inference.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -3915,7 +3915,7 @@
     {
       "id": "AT-13",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Windows traversal, absolute-path escape, junction/symlink escape, device/UNC paths and unauthorized artifact/receipt IDs are refused. Include Unicode and space-containing valid paths.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -3930,7 +3930,7 @@
     {
       "id": "AT-14",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Hosted code cannot read forbidden files/environment, open unapproved network destinations, import prohibited modules, spawn unauthorized processes or access management bindings. Test attempts, not only configured flags.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -3943,7 +3943,7 @@
     {
       "id": "AT-15",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Infinite loops, overlong inference, oversized logs/results, too many nested calls and cancellation terminate or settle within declared bounds and leave no uncontrolled child processes.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -3959,7 +3959,7 @@
     {
       "id": "AT-16",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Disabling a tool or revoking a client stops new and queued admissions; subsequent discovery updates. A captured composition binding does not bypass revocation.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -3972,7 +3972,7 @@
     {
       "id": "AT-17",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Changing an interactive agent to PTC does not break MCP direct calls; parallel clients never toggle a global presentation mode.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -3985,7 +3985,7 @@
     {
       "id": "AT-18",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Existing enable/disable state migrates without losing user choices; a failed durable write cannot be reported as successfully persisted. Compatibility aliases preserve their documented legacy contract.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4001,7 +4001,7 @@
     {
       "id": "AT-19",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Real inference on clean Windows CPU: qualified STT, Laya decisions, EmbeddingGemma 2 modalities, Needle planning/extraction, and preserved MiniLM tools. Test harness title/image recipes separately through qualified configured DSH providers, recording whether inference is local or remote.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4014,7 +4014,7 @@
     {
       "id": "AT-20",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Interrupted downloads, corrupted assets, cold starts, concurrent load requests and idle eviction all produce truthful readiness and cleanup.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4029,7 +4029,7 @@
     {
       "id": "AT-21",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Speech tests cover silence, supported language, unsupported requested language, chunk boundaries, duration/byte caps and missing timestamp support.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4045,7 +4045,7 @@
     {
       "id": "AT-22",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Text tests cover semantic relevance ordering, embedding shape/finiteness, invalid decision choices, explicit abstention, title faithfulness evaluation and empty/overlength input.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4058,7 +4058,7 @@
     {
       "id": "AT-23",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Source-available or unqualified providers do not become exportable merely through enable/reset or a config reload. Native, export and distribution decisions remain distinct.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4073,7 +4073,7 @@
     {
       "id": "AT-24",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Metadata-only local-specialist deployment produces bounded receipts without bodies/secrets. Harness execution with a conflicting no-retention policy is denied; an approved auxiliary-journal profile records required inputs separately without exposing parent history or credentials. Account for other D…",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4086,7 +4086,7 @@
     {
       "id": "AT-25",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "The core host installs/starts without model packages or weights. All first-party model implementations are separate buildable/packable packages using TMX; none require a hidden built-in registration path.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4101,7 +4101,7 @@
     {
       "id": "AT-26",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "A clean external author fixture builds using only published SDK/contracts and its declared libraries, without the Tool Mode host or DSH source in its dependency graph.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4116,7 +4116,7 @@
     {
       "id": "AT-27",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "npm exact version, HTTPS archive with pinned integrity and local `.tgz` each install the fixture into inactive inventory. Tags resolve once and remain pinned after restart.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4129,7 +4129,7 @@
     {
       "id": "AT-28",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Root and transitive install/prepare/postinstall sentinel scripts never execute. Static inspection/import counters prove that installation and listing do not load extension code or fetch weights.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4145,7 +4145,7 @@
     {
       "id": "AT-29",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Reject corrupt hashes, malformed manifests, remote schema references, incompatible APIs, undeclared dependencies, unsafe source redirects and archive traversal/symlink/Windows-case collisions. Failed installs leave existing tools usable.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4161,7 +4161,7 @@
     {
       "id": "AT-30",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Activate the external package without editing/rebuilding the host. Its typed tools and applicable skills appear coherently in DSH, MCP and Code Mode; live calls perform real implementation work.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4174,7 +4174,7 @@
     {
       "id": "AT-31",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Deactivate built-in and third-party packages during queued/active calls. Subsequent calls and captured bindings are denied, skills/types update, resources settle, and unrelated clients/extensions remain usable.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4189,7 +4189,7 @@
     {
       "id": "AT-32",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Disable one tool in a multi-tool extension without disabling the others or breaking their shared model worker. Preferences survive host/package updates and restart.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4204,7 +4204,7 @@
     {
       "id": "AT-33",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Uninstall a third-party extension, including explicit deactivate-and-uninstall. Verify code/dependency cleanup, retained-data disclosure and safe asset purging; built-in uninstall returns `BUILTIN_PROTECTED` but deactivate/purge works.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4219,7 +4219,7 @@
     {
       "id": "AT-34",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Two extension packages with incompatible versions of the same library run without dependency leakage. Two implementations of one standard tool do not create duplicate tools or silently change the selected provider.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4234,7 +4234,7 @@
     {
       "id": "AT-35",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "A package cannot steal a tool/skill name, self-mark as built-in, inherit another publisher's grants or gain access by reusing a URL/name/version. Permission/identity changes require approval.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4249,7 +4249,7 @@
     {
       "id": "AT-36",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Failed activation and failed updates roll back catalog publication. Successful side-by-side updates preserve old callers' semantics or fail them explicitly; rollback preserves revocations/disabled state.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4265,7 +4265,7 @@
     {
       "id": "AT-37",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Windows native-worker/file locks, interrupted transactions and crash recovery produce truthful cleanup-pending state and eventual owned cleanup. Shared assets/profiles are not deleted or killed by another owner's uninstall.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4278,7 +4278,7 @@
     {
       "id": "AT-38",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Throwing/hung extension callbacks and malformed worker messages cannot crash the DSH host. Adversarial fixtures test actual confinement guarantees; an explicitly approved trusted-code exception must not claim protection from malicious unconstrained native code or bypass generated-Code-Mode confineme…",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4293,7 +4293,7 @@
     {
       "id": "AT-39",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "An ordinary MCP client/program cannot install, activate, update, remove packages or change exports. Cross-client metadata, secrets and grants remain isolated after catalog changes.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4308,7 +4308,7 @@
     {
       "id": "AT-40",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Run the complete independent-author scenario through Native, MCP and hosted composition. Archive the built package, protocol/schema version, Windows/runtime evidence and lifecycle results as release artifacts.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4321,7 +4321,7 @@
     {
       "id": "AT-41",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "EmbeddingGemma 2 is a separate built-in TMX package and the default multimodal selection, not an old EmbeddingGemma or a hidden host adapter. Its six tools share qualified resources and can be toggled independently.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4334,7 +4334,7 @@
     {
       "id": "AT-42",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Plain built Node code on Windows CPU performs real text, image, audio and video embedding without DOM, browser audio/video APIs, Python, WSL or a compiler.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4347,7 +4347,7 @@
     {
       "id": "AT-43",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Actual golden embeddings have finite values and correct unit norm/shape at 768/512/256/128; the reduced-dimensional route renormalizes after truncation.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4362,7 +4362,7 @@
     {
       "id": "AT-44",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Query/document/task templates, ordered interleaved media and exact processor inputs match pinned reference fixtures. No silent flattening or transcription/captioning substitution occurs.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4375,7 +4375,7 @@
     {
       "id": "AT-45",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Text-only preparation/loading does not download/open unused vision/audio weights. Concurrent text/audio calls share only eligible backbone resources and do not cross-cancel.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4388,7 +4388,7 @@
     {
       "id": "AT-46",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Real cross-modal positive/distractor fixtures exercise text→image/audio/video and image→text ranking, recording failures as well as successes.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4403,7 +4403,7 @@
     {
       "id": "AT-47",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Semantic similarity/ranking preserve IDs, stable ties, roles and score kind; incompatible spaces/dimensions are rejected rather than silently compared.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4416,7 +4416,7 @@
     {
       "id": "AT-48",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Semantic classification returns raw cosine scores and explicit abstention behavior, never fake calibrated probabilities or a mislabeled Laya decision.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4429,7 +4429,7 @@
     {
       "id": "AT-49",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Deduplication uses the declared representative algorithm, including a nontransitive A/B/C fixture, and does not delete/move source files.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4442,7 +4442,7 @@
     {
       "id": "AT-50",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Moment finding returns actual clipped source windows/timestamps and bounded window counts; overlapping/final windows, video sampling and missing audio inclusion are represented honestly.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4455,7 +4455,7 @@
     {
       "id": "AT-51",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Corrupt media, decompression bombs, over-context multimodal input, invalid ranges, excessive frames/windows and decoder cancellation fail safely without hidden downloads.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4468,7 +4468,7 @@
     {
       "id": "AT-52",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Legacy MiniLM vectors/selected indexes retain their embedding space through upgrade; no automatic 384→768 change or incompatible reuse.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4483,7 +4483,7 @@
     {
       "id": "AT-53",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Default `decision_choose` uses a real dedicated Laya checkpoint/head through laya-ts ONNX on Windows CPU, with no Qwen/model-chat fallback.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4498,7 +4498,7 @@
     {
       "id": "AT-54",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Maintainer-export evidence binds Laya source checkpoint, encoder/head/tokenizer/config hashes and numerical parity. The packed consumer requires no Python/export step.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4511,7 +4511,7 @@
     {
       "id": "AT-55",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Choice mapping, probabilities, abstention, boolean questions and ordinal scores preserve their actual model semantics and original IDs.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4524,7 +4524,7 @@
     {
       "id": "AT-56",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Reported truncated state and collapsed options are rejected; empty/too-long choices and order permutations have dedicated regression fixtures.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4539,7 +4539,7 @@
     {
       "id": "AT-57",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Held-out Laya decision metrics and calibration/coverage reports are reproducible, separated from parser/schema tests; optional Jev live status is reported independently.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4552,7 +4552,7 @@
     {
       "id": "AT-58",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Needle 3 performs real Windows/Node planning and extraction using a pinned WASM or executable artifact, without consumer pip/compile requirements.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4565,7 +4565,7 @@
     {
       "id": "AT-59",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "A multi-intent Needle request returns validated proposals; instrumented target tools prove zero actual execution until a separate approved dispatch. Off-topic/no-match behavior is tested.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4580,7 +4580,7 @@
     {
       "id": "AT-60",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Needle receives only the authorized frozen schema subset; malicious names, arguments, unavailable tools and returned management/self-recursive calls are rejected.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4593,7 +4593,7 @@
     {
       "id": "AT-61",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Extraction schema bounds and unsupported grammar constraints are checked; valid JSON with wrong field facts fails the separate quality tests instead of being called correct.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4606,7 +4606,7 @@
     {
       "id": "AT-62",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Needle requests do not retain another caller's prompt/state; native cancellation, overflow and supported telemetry opt-out are checked with process/network observation.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4619,7 +4619,7 @@
     {
       "id": "AT-63",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Built-in `describe_image` is an ordinary declarative extension tool callable through DSH Native, MCP and hosted Code Mode, not special host prompt code.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4634,7 +4634,7 @@
     {
       "id": "AT-64",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "A recording fake provider proves real image content/reference reaches the image request path; passing only filename/FileBlock/text placeholder fails the test.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4649,7 +4649,7 @@
     {
       "id": "AT-65",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Text-only, unknown-capability, inaccessible/offloaded image and unsupported MIME routes fail before a provider request; no silent vision fallback.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4664,7 +4664,7 @@
     {
       "id": "AT-66",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Native caller-model selection captures the actual calling agent's model generation, not the last global model; concurrent model changes cannot alter an in-flight call's destination.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4677,7 +4677,7 @@
     {
       "id": "AT-67",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "MCP harness execution requires its explicit approved profile. No-profile and cross-client profile access fail without using UI conversation/credentials.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4692,7 +4692,7 @@
     {
       "id": "AT-68",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Auxiliary requests contain only recipe instructions and supplied bindings, no parent history/system prompt/tools/skills/secrets; side-call results do not mutate the parent dialogue.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4707,7 +4707,7 @@
     {
       "id": "AT-69",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "A model-emitted tool call fails; no nested agent loop or recursive image/composition/management call runs.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4722,7 +4722,7 @@
     {
       "id": "AT-70",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Refusal, truncation, invalid JSON, missing terminal result, timeout and cancellation remain distinct; approved repair counts against the original attempt/token/deadline budget.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4735,7 +4735,7 @@
     {
       "id": "AT-71",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Actual usage and model/location appear in bounded receipts; unknown usage is not zero cost. Remote vision/data-transfer grants are checked before upload.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4750,7 +4750,7 @@
     {
       "id": "AT-72",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Two independently configured live DSH vision routes can execute the same unchanged recipe; evidence identifies adapters/models and compares known image facts. Missing live access remains BLOCKED.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4763,7 +4763,7 @@
     {
       "id": "AT-73",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "A new external author uses the CLI/template to create a typed harness recipe with schemas/skill/tests, pack it and install it without DSH/host source or custom inference code.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4776,7 +4776,7 @@
     {
       "id": "AT-74",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Recipe npm/HTTPS/local archive paths all remain install-inactive; activation publishes identical tools to DSH/MCP/Code Mode. Disable/deactivate/update/uninstall obey TMX and preserve unrelated packages.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4789,7 +4789,7 @@
     {
       "id": "AT-75",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Malicious executable templates, unbound pointers, hidden prompt/network code, undeclared profiles, schema violations and recipe-generation identity changes fail validation/approval.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4804,7 +4804,7 @@
     {
       "id": "AT-76",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "`text_title` uses the same generic recipe interpreter; no tool-name special case exists. Mixed semantic-rank→describe-image and STT→decision→title programs execute with accurate subcall accounting.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4820,7 +4820,7 @@
     {
       "id": "AT-77",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "A modern `tools/list`/`tools/call` succeeds as the first request without initialize/session; `server/discover` accurately reports the supported revision/features.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4833,7 +4833,7 @@
     {
       "id": "AT-78",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Each request independently validates required metadata and unsupported versions/capabilities; a previous valid call does not authorize malformed following requests.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4848,7 +4848,7 @@
     {
       "id": "AT-79",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Required HTTP headers/body fields and Base64 sentinel names are matched correctly; missing/mismatch/injection cases return the specified error before inference.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4863,7 +4863,7 @@
     {
       "id": "AT-80",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Every modern result has the correct resultType, valid structured content/output schema and final authorized canonical value; JSON-RPC errors and tool failures remain distinct.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4876,7 +4876,7 @@
     {
       "id": "AT-81",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "`subscriptions/listen` acknowledges first, filters requested authorized events and attaches the right subscription ID; interleaved callers/subscriptions do not leak catalog state.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4889,7 +4889,7 @@
     {
       "id": "AT-82",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "HTTP stream closure and stdio cancellation abort only the corresponding request, including nested model work. The bridge stays alive for other calls.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4904,7 +4904,7 @@
     {
       "id": "AT-83",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "No legacy GET stream, protocol session dependency, standalone server RPC, Last-Event-ID replay, or falsely advertised optional sampling/tasks path is used by the modern implementation.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4917,7 +4917,7 @@
     {
       "id": "AT-84",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "JSON Schema 2020-12, offline refs, bounded dynamic schema validation and private catalog-cache behavior pass independent fixtures.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4930,7 +4930,7 @@
     {
       "id": "AT-85",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "OAuth resource-server metadata, challenges, audience/scopes, token expiry/revocation and protected bridge credentials are tested; a custom static-token profile is not counted as OAuth conformance.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4945,7 +4945,7 @@
     {
       "id": "AT-86",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "A modern SDK client and independent raw/schema probe test the packed server, with sanitized wire traces. Legacy compatibility tests, if offered, are separately labeled.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4958,7 +4958,7 @@
     {
       "id": "AT-87",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Module TMX 1.0 packages still normalize/run; TMX 1.1 declarative packages require negotiated features and never import an executable entry during install/discovery.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4971,7 +4971,7 @@
     {
       "id": "AT-88",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Model/recipe/processor and protocol locks are checked for drift; updates use versioned contracts and immutable generations, preserving revocations, old choices and borrowed assets.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4986,7 +4986,7 @@
     {
       "id": "AT-89",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Required quality/runtime/security test skips produce a nonpassing release summary; red→green→refactor evidence and every numbered requirement have direct test links.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
@@ -4999,7 +4999,7 @@
     {
       "id": "AT-90",
       "source": "TM-DSH-001",
-      "sourceDigest": "c2ac4af004223c69d0e7c5bbca255b6eafc1636fbc8ec509d95bf9907e6fabd7",
+      "sourceDigest": "27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb",
       "summary": "Run the full clean-user scenario from published/packed artifacts: prepare defaults, two modern MCP clients, direct and composed tools, custom recipe creation, lifecycle changes, cancellation and complete reproducible evidence.",
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
