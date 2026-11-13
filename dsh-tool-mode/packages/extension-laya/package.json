@@ -26,8 +26,7 @@
     "test": "tsx --test tests/*.test.ts"
   },
   "dependencies": {
-    "onnxruntime-node": "^1.20.0",
-    "@try-works/tool-mode-extension-sdk": "workspace:*"
+    "onnxruntime-node": "^1.20.0"
   },
   "peerDependencies": {
     "@try-works/tool-mode-extension-sdk": "^0.1.0"

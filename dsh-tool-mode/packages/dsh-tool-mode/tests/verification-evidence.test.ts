@@ -199,8 +199,14 @@ describe('TDD-09 — evidence records carry the required identities', () => {
   })
 
   it('ships a CI workflow that uploads the evidence', () => {
-    assert.ok(existsSync('.github/workflows/verify.yml'))
-    const workflow = readFileSync('.github/workflows/verify.yml', 'utf8')
+    // The monorepo now lives one level below the public repository root, where
+    // GitHub requires `.github/workflows`; accept either layout.
+    const workflowPath = [
+      '.github/workflows/verify.yml',
+      '../../.github/workflows/verify.yml',
+    ].find(candidate => existsSync(candidate))
+    assert.ok(workflowPath !== undefined, 'a verify workflow must exist')
+    const workflow = readFileSync(workflowPath, 'utf8')
     assert.match(workflow, /upload-artifact/)
     assert.match(workflow, /verification/)
   })
