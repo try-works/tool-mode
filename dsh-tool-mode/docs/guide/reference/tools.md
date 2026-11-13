@@ -19,6 +19,9 @@ your deployment.
 |---|---|---|---|
 | `decision_choose` | Standard decision.choose: choose one of 2–16 options for a stated decision and return the chosen option as an INDEX plus a confidence bucket and reas… | Laya decision family (Extension) | Requires @try-works/extension-laya to be installed and enabled |
 | `decision_choose_local` | Choose one of the caller's options for a stated prompt, over the pinned Laya checkpoint, using the extension-local result shape (label + per-option p… | Laya decision family (Extension) | Requires @try-works/extension-laya to be installed and enabled |
+| `decision_combine` | Combine code-computed facts and model judgment probabilities through explicit first-match rules. | Host (Host tool) | Built into the host |
+| `decision_evaluate` | Evaluate labeled decision probabilities with accuracy, confusion rates, Brier score and calibration bins. | Host (Host tool) | Built into the host |
+| `decision_route` | Route a judgment probability into accept, reject or the escalate band. | Host (Host tool) | Built into the host |
 | `decision_score` | Score a stated prompt onto one of the caller's ordinal levels over the pinned Laya checkpoint. Bounded by 512 state tokens and a 192-token head budge… | Laya decision family (Extension) | Requires @try-works/extension-laya to be installed and enabled |
 | `decision_score_typed` | Score a state/question onto 2–32 ordered levels over the SAME pinned Laya checkpoint and head as decision_score, preserving the native ORDINAL distri… | Laya decision family (Extension) | Requires @try-works/extension-laya to be installed and enabled |
 | `decision_test` | Answer a stated yes/no question over the pinned Laya checkpoint. Bounded by 512 state tokens and a 192-token head budget; truncated state or collapse… | Laya decision family (Extension) | Requires @try-works/extension-laya to be installed and enabled |

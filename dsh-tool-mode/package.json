@@ -43,7 +43,7 @@
     "verify:architecture": "node scripts/check-architecture.mjs",
     "verify:manifests": "node scripts/check-extension-manifests.mjs",
     "docs:reference": "node scripts/gen-user-docs.mjs",
-    "verify:docs": "node scripts/check-user-docs.mjs",
+    "verify:docs": "node scripts/check-user-docs.mjs && node scripts/check-readme-coverage.mjs",
     "verify:mcp:fixtures": "node scripts/probe-mcp-conformance.mjs",
     "verify:mcp:live": "tsx --test packages/dsh-tool-mode/tests/mcp-live-schema.test.ts",
     "verify:mcp": "npm run verify:mcp:fixtures && npm run verify:mcp:live",

@@ -44,6 +44,25 @@ reported as unavailable together with the concrete reason.
 The table describes the **catalog models**. Extension packages add their own
 models and tools; see [Extensions](../guides/install-extensions.md).
 
+### Extension models
+
+These models are added by first-party extension packages. They are available only
+when the package is installed, its assets are ready, and it is enabled.
+
+| Model | Package | Tools |
+|---|---|---|
+| Declarative harness recipes | `@try-works/extension-declarative-recipes` | — |
+| Desert Ant Tongue language detection | `@try-works/extension-desert-ant-tongue` | `lang_detect` |
+| Desert Ant Voz speech transcription | `@try-works/extension-desert-ant-voz` | `stt_transcribe` |
+| EmbeddingGemma 2 multimodal embeddings | `@try-works/extension-embeddinggemma` | `multimodal_embed`, `semantic_similarity`, `semantic_rank`, `semantic_classify`, `semantic_deduplicate`, `dedupe_and_rank`, `media_find_moments` |
+| Laya decision family | `@try-works/extension-laya` | `decision_choose_local`, `decision_choose`, `decision_test`, `decision_score`, `decision_test_typed`, `decision_score_typed` |
+| MiniLM text_embed | `@try-works/extension-minilm-embed` | — |
+| MiniLM text_rerank | `@try-works/extension-minilm-rerank` | — |
+| Cactus Mirage vision (describe, detect, OCR, forms) | `@try-works/extension-mirage` | `mirage_describe`, `mirage_detect`, `mirage_ocr`, `mirage_extract` |
+| Cactus Needle 3 tool calling and structured extraction | `@try-works/extension-needle` | `tools_plan`, `structured_extract`, `validate_record`, `extract_with_repair` |
+| Harness Vision | `@try-works/harness-vision` | `describe_image` |
+| Harness Text Tools | `@try-works/tool-mode-harness-text` | `text_title` |
+
 ## Catalog details
 
 ### Align

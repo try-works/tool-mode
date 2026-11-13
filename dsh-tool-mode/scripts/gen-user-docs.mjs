@@ -102,6 +102,15 @@ ${rows.map(row => `| ${row} |`).join('\n')}
 The table describes the **catalog models**. Extension packages add their own
 models and tools; see [Extensions](../guides/install-extensions.md).
 
+### Extension models
+
+These models are added by first-party extension packages. They are available only
+when the package is installed, its assets are ready, and it is enabled.
+
+| Model | Package | Tools |
+|---|---|---|
+${extensions.map(extension => `| ${escape(extension.displayName)} | \`${extension.packageName}\` | ${extension.tools.map(tool => `\`${tool.name}\``).join(', ') || '—'} |`).join('\n')}
+
 ## Catalog details
 
 ${catalog.map(model => `### ${model.name}
@@ -175,6 +184,27 @@ function toolsPage() {
       owner: 'MiniLM text_embed',
       ownerKind: 'Standard contract',
       availability: 'Requires the MiniLM text_embed extension and its prepared text backbone',
+    },
+    {
+      name: 'decision_combine',
+      description: 'Combine code-computed facts and model judgment probabilities through explicit first-match rules.',
+      owner: 'Host',
+      ownerKind: 'Host tool',
+      availability: 'Built into the host',
+    },
+    {
+      name: 'decision_evaluate',
+      description: 'Evaluate labeled decision probabilities with accuracy, confusion rates, Brier score and calibration bins.',
+      owner: 'Host',
+      ownerKind: 'Host tool',
+      availability: 'Built into the host',
+    },
+    {
+      name: 'decision_route',
+      description: 'Route a judgment probability into accept, reject or the escalate band.',
+      owner: 'Host',
+      ownerKind: 'Host tool',
+      availability: 'Built into the host',
     },
     {
       name: 'text_rerank',

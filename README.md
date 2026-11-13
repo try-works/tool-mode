@@ -54,20 +54,115 @@ Full instructions, manual installs and upgrade notes are in
 
 ## Models
 
-Tool Mode ships with the **18-model Desert Ant catalog**, plus models added by
-extension packages. Availability depends on the platform, installed runtimes,
-prepared assets and enabled extensions.
+Tool Mode ships with the **18-model Desert Ant catalog**. The first-party
+extensions below add more models and tools; Tongue and Voz appear in both lists
+because they are catalog models with first-party implementations. Availability
+depends on the platform, installed runtimes, prepared assets and enabled
+extensions.
+
+### Desert Ant catalog
 
 | Model | Task | Windows x64 |
 | --- | --- | --- |
+| Align | Audio word alignment | Browser-only SDK |
+| Clear | Speech enhancement | Browser-only SDK |
+| Clips | Video clip selection | Browser-only SDK |
+| Ear | Spoken-language identification | Browser-only SDK |
+| Emo | Emoji suggestion | Browser-only SDK |
+| Eye | Image frame scoring | Closed beta |
+| Face | Face matching | Closed beta |
+| Gist | Topic tagging | Browser-only SDK |
+| Moderator | NSFW detection | Browser-only SDK |
+| Redact | PII redaction | Browser-only SDK |
+| Schemer | Structured extraction | Closed beta |
+| Shapes | Stroke shape recognition | Browser-only SDK |
+| Title | Title generation | Apple only |
 | Tongue | Language detection | **Yes** — pure JavaScript, weights bundled |
+| Toxic | Toxicity detection | Closed beta |
+| Uhm | Filler detection | Apple only |
 | Voz | Speech-to-text | **Yes** — ONNX Runtime, ~367 MB weights on first use |
-| Title / Uhm | Apple-only models | Through an Apple machine or bridge |
-| Most other catalog models | Various | No native Windows build; the reason is reported |
+| Who | Speaker labeling | Closed beta |
 
-Use `tool_mode_list` for the live answer in your process. The complete table and
-the reason for every unavailable model are in
+### Extension models
+
+| Model | Tools | Notes |
+| --- | --- | --- |
+| Laya decision family | `decision_choose`, `decision_choose_local`, `decision_score`, `decision_score_typed`, `decision_test`, `decision_test_typed` | Local decision checkpoint |
+| EmbeddingGemma 2 | `multimodal_embed`, `semantic_similarity`, `semantic_rank`, `semantic_classify`, `semantic_deduplicate`, `dedupe_and_rank`, `media_find_moments` | Text, image and audio embeddings |
+| MiniLM embed | `text_embed` | 384-dimensional compatibility space |
+| MiniLM rerank | `text_rerank` | Cross-encoder ranking |
+| Cactus Needle 3 | `structured_extract`, `extract_with_repair`, `validate_record`, `tools_plan` | Structured extraction and tool planning |
+| Cactus Mirage | `mirage_describe`, `mirage_detect`, `mirage_ocr`, `mirage_extract` | Vision: describe, detect, OCR, forms |
+| Harness Vision | `describe_image` | Image description through an authorized harness model |
+| Harness Text Tools | `text_title` | Title and summary generation |
+| Declarative recipes | Recipe-defined tools | Harness-model-backed recipes |
+
+Use `tool_mode_list` for the live answer in your process. The complete table,
+per-model details and the reason for every unavailable model are in
 [Models](dsh-tool-mode/docs/guide/reference/models.md).
+
+## Tools
+
+The **current tool surface** is grouped below. Exact availability depends on
+installed extensions, enabled models and the caller's grant; use
+`tool_mode_list` for the live list and `tool_mode_describe` for schemas.
+
+### Language, audio and embeddings
+
+| Tool | Backed by |
+| --- | --- |
+| `lang_detect` | Tongue |
+| `stt_transcribe` | Voz |
+| `text_embed` | MiniLM embed |
+| `text_rerank` | MiniLM rerank |
+| `multimodal_embed` | EmbeddingGemma 2 |
+| `semantic_similarity` | EmbeddingGemma 2 |
+| `semantic_rank` | EmbeddingGemma 2 |
+| `semantic_classify` | EmbeddingGemma 2 |
+| `semantic_deduplicate` | EmbeddingGemma 2 |
+| `dedupe_and_rank` | EmbeddingGemma 2 |
+| `media_find_moments` | EmbeddingGemma 2 |
+
+### Vision and structured work
+
+| Tool | Backed by |
+| --- | --- |
+| `describe_image` | Harness Vision |
+| `mirage_describe` | Cactus Mirage |
+| `mirage_detect` | Cactus Mirage |
+| `mirage_ocr` | Cactus Mirage |
+| `mirage_extract` | Cactus Mirage |
+| `structured_extract` | Cactus Needle 3 |
+| `extract_with_repair` | Cactus Needle 3 |
+| `validate_record` | Cactus Needle 3 |
+| `tools_plan` | Cactus Needle 3 |
+| `text_title` | Harness Text Tools |
+
+### Decisions
+
+| Tool | Backed by |
+| --- | --- |
+| `decision_choose` | Laya |
+| `decision_choose_local` | Laya |
+| `decision_score` | Laya |
+| `decision_score_typed` | Laya |
+| `decision_test` | Laya |
+| `decision_test_typed` | Laya |
+| `decision_combine` | Host |
+| `decision_evaluate` | Host |
+| `decision_route` | Host |
+
+### Discovery, management and Code Mode
+
+| Tool | Purpose |
+| --- | --- |
+| `tool_mode_list` | Live tool catalogue, readiness and catalog revision |
+| `tool_mode_describe` | Schemas, semantics, limits and unsupported cases |
+| `model_tools` | Host-local model and extension management view |
+| `tool_mode_run` | Bounded multi-tool program; only when Code Mode is released |
+
+Full descriptions and schemas: [Tool reference](dsh-tool-mode/docs/guide/reference/tools.md).
+
 
 ## Use it from an MCP client
 
