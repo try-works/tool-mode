@@ -72,6 +72,34 @@ registered, and `tool_mode_list` reports why.
 
 A bridge is user-hosted. Tool Mode does not run a model service.
 
+## Jev
+
+Jev is an optional **remote** typed-question API (TypeSafe System One), not a
+local model checkpoint. Enabling it adds two decision tools:
+`decision_choose_jev` and `decision_judgments_jev`.
+
+```yaml
+- id: model-tools
+  config:
+    jev:
+      enabled: true
+      model: jev-1.14
+      apiKeyEnv: TYPESAFE_API_KEY
+```
+
+| Key | Default | Meaning |
+|---|---|---|
+| `jev.enabled` | `false` | Register the Jev decision tools and allow the remote calls. |
+| `jev.apiKey` | unset | Direct API key. Prefer the credential service or environment. |
+| `jev.credentialRef` | `jev/api-key` | DSH credential reference used when `apiKey` is empty. |
+| `jev.apiKeyEnv` | `TYPESAFE_API_KEY` | Environment variable used when neither of the above resolves. |
+| `jev.model` | `jev-1.14` | Jev model id sent with the request. |
+| `jev.baseURL` | `https://api.typesafe.ai` | Compatible endpoint override. |
+
+Key precedence is `jev.apiKey`, then `credentialRef`, then `apiKeyEnv`. A missing
+key fails with `JEV_API_KEY_NOT_CONFIGURED`; there is no local fallback and no
+silent remote failover. Leave `jev.enabled` off for a no-network deployment.
+
 ## MCP
 
 ```yaml

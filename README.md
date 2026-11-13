@@ -29,6 +29,8 @@ every model that cannot run on this machine.
   every call.
 - **Local-first.** Models can run in-process, through the Desert Ant CLI, through
   a user-hosted bridge, or as an installed extension.
+- **Remote Jev when you want it.** The optional Jev typed-question API adds
+  remote decision tools; it is explicitly opt-in and is not a local checkpoint.
 - **One surface for agents and MCP.** The same tools are available to DSH and to
   MCP clients over an authenticated loopback endpoint.
 - **Operable.** Model toggles, extensions, custom tools, usage insights and
@@ -159,6 +161,8 @@ installed extensions, enabled models and the caller's grant; use
 | `decision_combine` | Host |
 | `decision_evaluate` | Host |
 | `decision_route` | Host |
+| `decision_choose_jev` | Remote Jev API (opt-in) |
+| `decision_judgments_jev` | Remote Jev API (opt-in) |
 
 ### Discovery, management and Code Mode
 
@@ -171,6 +175,36 @@ installed extensions, enabled models and the caller's grant; use
 
 Full descriptions and schemas: [Tool reference](dsh-tool-mode/docs/guide/reference/tools.md).
 
+## Remote Jev (optional)
+
+Tool Mode also supports **Jev**, TypeSafe's remote System One typed-question API.
+Jev is not a local model and has no local weights: enabling it adds a deliberate
+network route for decision tasks.
+
+```yaml
+- id: model-tools
+  config:
+    jev:
+      enabled: true
+      model: jev-1.14
+      # apiKey: ...                 # direct operator config
+      # credentialRef: jev/api-key  # DSH credentials service (default)
+      # apiKeyEnv: TYPESAFE_API_KEY # environment fallback
+```
+
+When enabled, it registers:
+
+- `decision_choose_jev` — choose one of 2–16 options through Jev.
+- `decision_judgments_jev` — batch independent yes/no judgments through Jev.
+
+The API key is resolved in this order: `jev.apiKey`, the DSH credential reference
+(default `jev/api-key`), then `apiKeyEnv` (default `TYPESAFE_API_KEY`). A missing
+key produces a named `JEV_API_KEY_NOT_CONFIGURED` diagnostic; there is no fake
+answer and no silent local fallback. Set `baseURL` only if you use a compatible
+endpoint other than the default.
+
+Jev is opt-in and network-bound. Leave it disabled for a no-network deployment.
+See [Configuration: Jev](dsh-tool-mode/docs/guide/reference/configuration.md#jev).
 
 ## Use it from an MCP client
 

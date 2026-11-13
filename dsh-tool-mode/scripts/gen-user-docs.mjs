@@ -186,6 +186,20 @@ function toolsPage() {
       availability: 'Requires the MiniLM text_embed extension and its prepared text backbone',
     },
     {
+      name: 'decision_choose_jev',
+      description: 'Choose one of 2–16 options through the remote Jev (TypeSafe System One) typed-question API.',
+      owner: 'Remote Jev',
+      ownerKind: 'Opt-in remote route',
+      availability: 'Only when jev.enabled is true and a Jev API key is configured',
+    },
+    {
+      name: 'decision_judgments_jev',
+      description: 'Batch independent yes/no judgments through the remote Jev API.',
+      owner: 'Remote Jev',
+      ownerKind: 'Opt-in remote route',
+      availability: 'Only when jev.enabled is true and a Jev API key is configured',
+    },
+    {
       name: 'decision_combine',
       description: 'Combine code-computed facts and model judgment probabilities through explicit first-match rules.',
       owner: 'Host',
