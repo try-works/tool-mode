@@ -82,7 +82,7 @@ A bridge is user-hosted. Tool Mode does not run a model service.
       host: 127.0.0.1
       port: 3765
       path: /mcp
-      tokenFile: C:/Users/you/.dsh/model-as-tool-mcp-token.txt
+      tokenFile: C:/Users/you/.dsh/dsh-tool-mode-mcp-token.txt
       exportTools: ["lang_detect", "stt_transcribe"]
     approvedRoots:
       - "D:/fixtures"
@@ -164,3 +164,4 @@ does not merge; it replaces.
 - [MCP protocol](mcp-protocol.md)
 - [Security and permissions](../guides/security-and-permissions.md)
 - [Models and availability](../concepts/models-and-availability.md)
+

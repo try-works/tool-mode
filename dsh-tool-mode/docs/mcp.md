@@ -39,7 +39,7 @@ instead:
       host: 127.0.0.1
       port: 3765
       path: /mcp
-      tokenFile: "C:/Users/you/.dsh/model-as-tool-mcp-token.txt"
+      tokenFile: "C:/Users/you/.dsh/dsh-tool-mode-mcp-token.txt"
 ```
 
 The plugin logs `model-tools: MCP endpoint http://127.0.0.1:3765/mcp`. The endpoint is closed
@@ -124,3 +124,4 @@ Accept: application/json, text/event-stream
   then run `server/discover`, `tools/list` and a `tools/call` for every listed tool with real
   fixtures. An isolated instance is the only honest environment for that sweep: the main
   host's store is live and its owner pid must not be faked.
+

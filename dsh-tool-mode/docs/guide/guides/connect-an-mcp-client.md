@@ -44,7 +44,7 @@ DSH_TOOL_MODE_MCP_TOKEN=<long-random-value> dsh --profile web
 
 ```yaml
     mcpV3:
-      tokenFile: "C:/Users/you/.dsh/model-as-tool-mcp-token.txt"
+      tokenFile: "C:/Users/you/.dsh/dsh-tool-mode-mcp-token.txt"
 ```
 
 The file contains the trimmed token. The environment variable wins when both are
@@ -126,3 +126,4 @@ A successful response lists the tools this caller may use. Call one with
 - [MCP protocol reference](../reference/mcp-protocol.md)
 - [Security and permissions](security-and-permissions.md)
 - [Troubleshooting](../help/troubleshooting.md)
+
