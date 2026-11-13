@@ -78,14 +78,17 @@
     "test:ext-mirage": "tsx --test packages/extension-mirage/tests/*.test.ts"
   },
   "devDependencies": {
+    "@deepseek-ai/schemastery": "^3.19.0",
     "@desert-ant-labs/tongue": "^3.6.0",
     "@desert-ant-labs/voz": "^3.6.0",
     "@huggingface/transformers": "^4.3.2",
+    "@modelcontextprotocol/node": "^2.1.1",
+    "@modelcontextprotocol/server": "^2.3.1",
     "@types/adm-zip": "^0.5.8",
     "@types/node": "^24.0.0",
     "adm-zip": "^0.5.18",
     "ajv": "^8.20.0",
-    "onnxruntime-node": "^1.20.0",
+    "onnxruntime-node": "^1.30.0",
     "tsx": "^4.20.0",
     "typescript": "^5.9.0"
   }
