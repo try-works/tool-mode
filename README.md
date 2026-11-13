@@ -11,10 +11,6 @@ tools such as `lang_detect`, `stt_transcribe`, `semantic_rank` and
 `structured_extract`, with explicit input/output schemas and an honest answer for
 every model that cannot run on this machine.
 
-<img src="docs/assets/tool-insights.webp" alt="Tool Insights dashboard showing call volume, success rate, latency, model attribution, and the tool performance table" width="1200">
-
-*Tool Insights: usage, latency, success and model attribution for every tool.*
-
 > **New to Tool Mode?** Start with the
 > **[documentation](dsh-tool-mode/docs/guide/index.md)** → installation takes a
 > few minutes.
@@ -33,6 +29,10 @@ every model that cannot run on this machine.
   MCP clients over an authenticated loopback endpoint.
 - **Operable.** Model toggles, extensions, custom tools, usage insights and
   security controls live in DSH settings.
+
+<img src="docs/assets/tool-insights.webp" alt="Tool Insights dashboard showing call volume, success rate, latency, model attribution, and the tool performance table" width="1200">
+
+*Tool Insights: usage, latency, success and model attribution for every tool.*
 
 ## Install
 
