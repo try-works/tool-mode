@@ -2,7 +2,7 @@
   "name": "@try-works/extension-declarative-recipes",
   "version": "0.1.0",
   "description": "A declarative Tool Mode package: ships no code, contributes tools as static recipe files interpreted by the host broker.",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "type": "module",
   "files": [
     "tool-mode.extension.json",

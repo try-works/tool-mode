@@ -2,7 +2,7 @@
   "name": "@try-works/tool-mode-contracts",
   "version": "0.1.1",
   "description": "Model-free standard tool contracts for Tool Mode: identities, schemas, semantics and runtime validation",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "publishConfig": { "access": "public", "registry": "https://registry.npmjs.org/" },
   "repository": {
     "type": "git",

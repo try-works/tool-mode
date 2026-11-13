@@ -3,7 +3,7 @@
 **Give your DSH agent real tools for the models on your machine.**
 
 [![npm](https://img.shields.io/npm/v/@try-works/dsh-tool-mode.svg)](https://www.npmjs.com/package/@try-works/dsh-tool-mode)
-[![license](https://img.shields.io/badge/license-MIT-blue.svg)](#license)
+[![license](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 Tool Mode turns local and on-device models into typed tools that an agent can
 actually call. Instead of pretending a model is a chat endpoint, it registers
@@ -292,5 +292,7 @@ Useful references:
 
 ## License
 
-MIT. Model weights and SDKs keep their own vendor licenses; Tool Mode does not
+Apache License 2.0. See [LICENSE](LICENSE).
+
+Model weights and SDKs keep their own vendor licenses; Tool Mode does not
 redistribute model weights. See the model pages for the applicable terms.

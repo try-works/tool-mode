@@ -4,7 +4,7 @@
   "private": true,
   "description": "Research and DSH plugin for turning Desert Ant Labs on-device models into agent tools",
   "type": "module",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "scripts": {
     "link:dsh": "node scripts/link-dsh.mjs && node scripts/ensure-v2-sdk.mjs",
     "ensure:v2-sdk": "node scripts/ensure-v2-sdk.mjs",

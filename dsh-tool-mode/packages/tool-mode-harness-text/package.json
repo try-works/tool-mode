@@ -2,7 +2,7 @@
   "name": "@try-works/tool-mode-harness-text",
   "version": "0.1.0",
   "description": "The text_title harness-model recipe and its worked examples (RCP-12). Recipes-only: this package ships no executable code.",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "publishConfig": { "access": "public", "registry": "https://registry.npmjs.org/" },
   "repository": {
     "type": "git",

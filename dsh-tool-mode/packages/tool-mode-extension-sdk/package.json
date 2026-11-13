@@ -2,7 +2,7 @@
   "name": "@try-works/tool-mode-extension-sdk",
   "version": "0.1.5",
   "description": "Author-facing SDK for Tool Mode extensions: TMX manifest schema, validation, lifecycle state and management errors",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"

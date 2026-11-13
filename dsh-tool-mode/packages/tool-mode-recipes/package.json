@@ -2,7 +2,7 @@
   "name": "@try-works/tool-mode-recipes",
   "version": "0.1.0",
   "description": "Declarative harness-model recipe format, a provider-neutral LLM broker and the built-in text_title and describe_image recipes",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
