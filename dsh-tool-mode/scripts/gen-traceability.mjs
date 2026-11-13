@@ -24,12 +24,12 @@ const outFile = join(root, 'docs/tool-mode/TRACEABILITY.md')
 const SPECS = [
   {
     file: 'Tool_Mode_DSH_Implementation_Spec_v1.2.md',
-    sha256: 'b98db5026077b47d43cf033bb4026897d7b40797ef4903a2fdbbeb8255bba4bb',
+    sha256: '27c8097b7038bdf17cf29c624185f5033d879f95904f585106c23f19945d04cb',
     label: 'TM-DSH-001 v1.2',
   },
   {
     file: 'Tool_Mode_Extension_Protocol_v1.1.md',
-    sha256: '016e6f57ff249cc62662f8ad2fdabfc7de262d3f8fb2af00b69c8e46b3f386f9',
+    sha256: '03a875e967764b4942982db39e42b6c89ea7ffefa2d0aee21bead7f0f2bc3d49',
     label: 'TMX v1.1',
   },
   {
@@ -280,3 +280,5 @@ function main() {
 }
 
 main()
+
+
