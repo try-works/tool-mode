@@ -11,6 +11,10 @@ tools such as `lang_detect`, `stt_transcribe`, `semantic_rank` and
 `structured_extract`, with explicit input/output schemas and an honest answer for
 every model that cannot run on this machine.
 
+<img src="docs/assets/tool-mode-site.png" alt="Tool Mode landing page: expose on-device AI as callable agent tools, with a Laya decision-family model card and links to install the plugin and read the docs" width="1200">
+
+*Tool Mode: expose on-device AI as callable agent tools.*
+
 > **New to Tool Mode?** Start with the
 > **[documentation](dsh-tool-mode/docs/guide/index.md)** → installation takes a
 > few minutes.
