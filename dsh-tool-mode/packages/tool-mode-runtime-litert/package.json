@@ -1,0 +1,49 @@
+{
+  "name": "@try-works/tool-mode-runtime-litert",
+  "version": "0.1.0",
+  "description": "Socket-free LiteRT.js runtime for Tool Mode: a fetch-interception shim plus an Effect LitertSession that serializes inference",
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/try-works/tool-mode.git",
+    "directory": "packages/tool-mode-runtime-litert"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/**/*.js",
+    "lib/**/*.d.ts",
+    "lib/**/*.d.ts.map"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "tsx --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "@litertjs/core": "2.5.3",
+    "@try-works/tool-mode-extension-sdk": "0.1.0",
+    "@try-works/tool-mode-runtime-core": "0.1.0",
+    "@try-works/tool-mode-runtime-recipes": "0.1.0"
+  },
+  "peerDependencies": {
+    "effect": "4.1.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  }
+}

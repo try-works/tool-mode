@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-13T09:33:33.686Z",
+  "generatedAt": "2026-11-14T08:37:16.818Z",
   "count": 309,
   "records": [
     {
@@ -141,7 +141,8 @@
       "id": "ARCH-02",
       "testLayer": "unit",
       "testIds": [
-        "packages/dsh-tool-mode/tests/architecture.test.ts"
+        "packages/dsh-tool-mode/tests/architecture.test.ts",
+        "packages/dsh-tool-mode/tests/model-runtime-lane.test.ts"
       ],
       "requirementStatus": "DONE"
     },
@@ -1128,7 +1129,8 @@
         "packages/extension-embeddinggemma/tests/extension.test.ts",
         "packages/extension-needle/tests/provider.test.ts",
         "packages/tool-mode-extension-sdk/tests/sdk.test.ts",
-        "packages/tool-mode-extension-sdk/tests/test-host.test.ts"
+        "packages/tool-mode-extension-sdk/tests/test-host.test.ts",
+        "packages/tool-mode-runtime-dsh/tests/provider.test.ts"
       ],
       "requirementStatus": "DONE"
     },
@@ -1147,7 +1149,8 @@
         "packages/extension-needle/tests/extraction-repair.test.ts",
         "packages/extension-needle/tests/process-bridge.test.ts",
         "packages/extension-needle/tests/provider.test.ts",
-        "packages/extension-needle/tests/validate-record.test.ts"
+        "packages/extension-needle/tests/validate-record.test.ts",
+        "packages/tool-mode-runtime-dsh/tests/provider.test.ts"
       ],
       "requirementStatus": "DONE"
     },
@@ -2253,7 +2256,8 @@
       "id": "AT-25",
       "testLayer": "acceptance",
       "testIds": [
-        "packages/dsh-tool-mode/tests/architecture.test.ts"
+        "packages/dsh-tool-mode/tests/architecture.test.ts",
+        "packages/dsh-tool-mode/tests/model-runtime-lane.test.ts"
       ],
       "requirementStatus": "DONE"
     },

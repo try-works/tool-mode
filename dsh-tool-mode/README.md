@@ -116,6 +116,13 @@ The other sixteen are unavailable for concrete reasons: most LiteRT/TFLite model
 `win32-x64` native build, `title` is Apple-only (Core ML / MLX, no JS SDK), and six are
 closed beta with no shipping SDK.
 
+### Runtime-layer tools
+
+The Effect-based runtime layer adds two first-party tools beyond the catalog:
+
+- `redact_text` — PII spans over the pinned Redact LiteRT artifact, with honest coverage when the window cap truncates a long document.
+- `shape_recognize` — single-stroke shape recognition from a declarative, code-free package (manifest + recipe, no extension entry).
+
 ## What is unfinished, and what is actually blocked
 
 Most of what is unstarted is **implementation with a known route**, not a missing artifact:

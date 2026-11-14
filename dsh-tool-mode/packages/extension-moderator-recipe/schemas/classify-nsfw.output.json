@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "classify_nsfw output",
+  "description": "A per-image adult-content decision. Scores are decision scores, not calibrated probabilities. The model is an adult-content classifier only: it makes no claim about minors and no claim about non-adult content.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "isNSFW",
+    "score",
+    "threshold",
+    "policy",
+    "quality",
+    "regions",
+    "crops"
+  ],
+  "properties": {
+    "isNSFW": {
+      "type": "boolean",
+      "description": "True when score >= threshold under the selected policy."
+    },
+    "score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "The maximum score over the heads the policy counts, itself maxed over the scored crops."
+    },
+    "threshold": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "The threshold the decision was made at."
+    },
+    "policy": {
+      "type": "string",
+      "enum": [
+        "standard",
+        "allowTopless"
+      ],
+      "description": "Which heads the decision counted."
+    },
+    "quality": {
+      "type": "string",
+      "enum": [
+        "fast",
+        "balanced",
+        "accurate"
+      ],
+      "description": "The crop set that was scored."
+    },
+    "regions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nipples",
+        "genitals",
+        "buttocks",
+        "nude",
+        "sexAct"
+      ],
+      "description": "Per-region scores in 0..1, each the maximum over the scored crops.",
+      "properties": {
+        "nipples": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "genitals": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "buttocks": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "nude": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "sexAct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "crops": {
+      "type": "integer",
+      "enum": [
+        1,
+        4,
+        8
+      ],
+      "description": "Number of crops scored: 1 for fast, 4 for balanced, 8 for accurate."
+    }
+  }
+}

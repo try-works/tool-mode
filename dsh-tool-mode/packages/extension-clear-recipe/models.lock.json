@@ -1,0 +1,103 @@
+{
+  "lockVersion": 1,
+  "assetSets": {
+    "clear-onnx": {
+      "model": {
+        "provider": "desert-ant-labs",
+        "identity": "desert-ant-labs/clear",
+        "url": "https://huggingface.co/desert-ant-labs/clear",
+        "revision": "b98f790c8a16d572f47bfdebd39964a0cbc987dc",
+        "revisionKind": "the Hugging Face repository commit sha the artifact was fetched at",
+        "modalities": [
+          "audio"
+        ]
+      },
+      "engine": {
+        "kind": "onnxruntime",
+        "version": "onnxruntime-node 1.30.0 (CPUExecutionProvider)"
+      },
+      "tokenizer": {
+        "kind": "none",
+        "identity": "none: clear consumes and returns a waveform, not tokens"
+      },
+      "platforms": [
+        {
+          "os": "win32",
+          "arch": "x64",
+          "accelerator": "cpu"
+        }
+      ],
+      "license": {
+        "name": "Desert Ant Labs Source-Available License 1.0",
+        "url": "https://license.desertant.com/1.0",
+        "attributionRequired": true,
+        "redistribution": "not-permitted"
+      },
+      "assets": [
+        {
+          "id": "clear-onnx-model",
+          "fileName": "clear-studio.onnx",
+          "url": "https://huggingface.co/desert-ant-labs/clear/resolve/b98f790c8a16d572f47bfdebd39964a0cbc987dc/clear-studio.onnx",
+          "bytes": 24801006,
+          "sha256": "4176990296374e972f0c347ddcc7988d216829cafc58e4d54a98dccd715107d9",
+          "role": "the ONNX speech-enhancement artifact (denoise, dereverb and loudness-normalise to 48 kHz mono)",
+          "verified": "sha256 computed first-hand from the 24,801,006 bytes fetched at the pinned revision on 2026-11-14; matches the repository's LFS metadata"
+        }
+      ],
+      "groups": [
+        {
+          "id": "clear-onnx",
+          "enables": [
+            "audio"
+          ],
+          "assets": [
+            {
+              "id": "clear-onnx-model",
+              "file": "clear-studio.onnx",
+              "bytes": 24801006,
+              "source": "https://huggingface.co/desert-ant-labs/clear/resolve/b98f790c8a16d572f47bfdebd39964a0cbc987dc/clear-studio.onnx",
+              "digest": "4176990296374e972f0c347ddcc7988d216829cafc58e4d54a98dccd715107d9",
+              "executable": false
+            }
+          ]
+        }
+      ],
+      "pinning": {
+        "state": "measured",
+        "revision": "b98f790c8a16d572f47bfdebd39964a0cbc987dc",
+        "reason": "The artifact identity and the processor contract are both first-hand. The artifact was fetched and hashed at the pinned revision on 2026-11-14: 24,801,006 bytes, sha256 4176990296374e972f0c347ddcc7988d216829cafc58e4d54a98dccd715107d9, matching the repository's LFS metadata. The DSP contract was read from the primary-source commit named in contractSource (not from a guess), and loading the pinned graph on cpu exposes inputs spec/feat_erb/feat_spec and output spec_enhanced. The gated real run in the runtime-onnx package qualifies execution.",
+        "measuredOn": "2026-11-14",
+        "contractSource": {
+          "repository": "https://github.com/Desert-Ant-Labs/desert-ant-core",
+          "commit": "baf4e6e3b4655c8e54aa8d5a25215b5f35f899a7",
+          "fetched": "2026-11-14",
+          "files": [
+            "Sources/Clear/DSP.swift L31-46, L271-302, L343-476",
+            "Sources/Clear/Features.swift L20-125",
+            "Sources/Clear/Enhancer.swift L55-73, L185-259",
+            "Sources/Clear/Clear.swift L428-434, L478-494, L518-526",
+            "Sources/AudioDSP/Loudness.swift L24-27, L90-244, L264-285",
+            "Sources/AudioDSP/Limiter.swift L28-30, L169-198"
+          ]
+        },
+        "platforms": [
+          {
+            "os": "win32",
+            "arch": "x64",
+            "accelerator": "cpu"
+          }
+        ]
+      },
+      "qualification": {
+        "modelRevision": "b98f790c8a16d572f47bfdebd39964a0cbc987dc",
+        "artifactSha": "sha256:4176990296374e972f0c347ddcc7988d216829cafc58e4d54a98dccd715107d9",
+        "tokenizer": "none: clear consumes and returns a waveform, not tokens",
+        "processor": "clear/stft-v1: 48 kHz in/out (input linearly resampled; stereo averaged to mono); STFT n_fft 960, hop 480, 481 bins, Vorbis window sin(pi/2*sin^2(pi/2*(n+0.5)/480)), 480-sample analysis prepad, forward gain 1/960, unscaled inverse DFT + windowed COLA overlap-add at hop 480, prepad dropped, output truncated to input length; DFN3 features nErb 32 (fixed widths 2*13,5,5,7,7,8,10,12,13,15,18,20,24,28,31,37,42,50,56,67 = 481), nDf 96, convLookahead 2, normAlpha 0.99, ERB dB = 10log10(mean band power + 1e-10) with -60..-90 dB running-mean state ramp /40, unit-norm first 96 complex bins with 1e-3..1e-4 running ramp; model window 200 frames, interleaved [1,1,200,481,2] spec / [1,1,200,32] feat_erb / [1,1,200,96,2] feat_spec -> spec_enhanced; mastering: ITU-R BS.1770-4 integrated LUFS (48 kHz K-weighting, 400 ms blocks/100 ms step, -70/-10 LU gating), target -19 LUFS (Apple Podcasts default), upward gain cap +9 dB, 5 ms look-ahead / 50 ms exponential-release limiter at -1.5 dBTP; input container: WAV/RIFF PCM 16-bit or IEEE float32 only (mono or stereo), other encodings/containers refused by name.",
+        "engineVersion": "onnxruntime-node 1.30.0 (CPUExecutionProvider)",
+        "nodeAbi": "137 (Node 24)",
+        "architecture": "x64",
+        "executionProvider": "cpu (ONNX Runtime CPUExecutionProvider; dml/webgpu are optional negotiation lanes)"
+      }
+    }
+  }
+}

@@ -1,0 +1,145 @@
+{
+  "protocolVersion": "1.1.0",
+  "id": "@try-works/extension-ear-recipe",
+  "version": "0.1.0",
+  "displayName": "Ear spoken language identification (declarative)",
+  "description": "Ships NO CODE. Declares and pins the Desert Ant Labs Ear LiteRT artifact set and serves on-device spoken language identification through the host's model-runtime lane: tool identify_language backed by the ear/mel-v1 processor.",
+  "license": "Apache-2.0",
+  "activation": {
+    "policy": "operator",
+    "deactivatable": true
+  },
+  "runtimeApi": 1,
+  "compatibility": {
+    "hostApi": "^1.1.0",
+    "requiredFeatures": [
+      "declarative-recipes-v1",
+      "verified-assets-v1"
+    ]
+  },
+  "execution": {
+    "kind": "declarative"
+  },
+  "permissions": {
+    "networkOrigins": [],
+    "inputFiles": true,
+    "storage": "none",
+    "secrets": [],
+    "nativeCode": false
+  },
+  "models": [
+    {
+      "id": "ear",
+      "assetSet": "ear-litert",
+      "assetLock": "./models.lock.json",
+      "platforms": [
+        {
+          "os": "win32",
+          "arch": "x64",
+          "accelerator": "cpu"
+        }
+      ]
+    }
+  ],
+  "tools": [
+    {
+      "id": "identify-language",
+      "name": "identify_language",
+      "contractId": "@try-works/extension-ear-recipe/identify_language",
+      "contractVersion": "1.0.0",
+      "description": "Identify the spoken language of an audio recording on device: the most likely language, its confidence, a reliability flag and the top candidates.",
+      "inputSchema": "./schemas/identify-language.input.json",
+      "outputSchema": "./schemas/identify-language.output.json"
+    }
+  ],
+  "implementations": [
+    {
+      "id": "identify-language",
+      "contractId": "@try-works/extension-ear-recipe/identify_language",
+      "contractVersion": "1.0.0",
+      "modelId": "ear",
+      "recipeVersion": "1.0.0"
+    }
+  ],
+  "skills": [
+    {
+      "id": "identify-language",
+      "name": "identify-language",
+      "description": "Use identify_language to identify the spoken language of a user recording on device before routing, translating or tagging it.",
+      "path": "./skills/identify-language/SKILL.md",
+      "requiresTools": [
+        "identify-language"
+      ]
+    }
+  ],
+  "licenses": [
+    {
+      "layer": "code",
+      "name": "Apache License 2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0",
+      "openSource": true,
+      "redistribution": "permitted",
+      "attributionRequired": true,
+      "attributionText": "Copyright the Tool Mode contributors",
+      "obligations": [
+        "preserve the license and NOTICE files"
+      ]
+    },
+    {
+      "layer": "engine",
+      "name": "LiteRT.js (@litertjs/core 2.5.3), Apache-2.0",
+      "url": "https://github.com/google-ai-edge/LiteRT",
+      "openSource": true,
+      "redistribution": "permitted",
+      "attributionRequired": true,
+      "attributionText": "Google LiteRT",
+      "obligations": [
+        "preserve the LiteRT.js license notices"
+      ]
+    },
+    {
+      "layer": "weights",
+      "name": "Desert Ant Labs Source-Available License 1.0",
+      "url": "https://license.desertant.com/1.0",
+      "openSource": false,
+      "redistribution": "not-permitted",
+      "attributionRequired": true,
+      "attributionText": "Powered by Desert Ant Labs",
+      "obligations": [
+        "display the attribution notice with a link to Desert Ant Labs",
+        "a commercial licence is required above the per-platform, per-model active-device threshold",
+        "do not redistribute the model, SDK or a hosted service as a standalone product",
+        "do not use outputs or logs to train a competing on-device model",
+        "do not extract weights or tamper with the usage telemetry"
+      ]
+    },
+    {
+      "layer": "sdk",
+      "name": "not used: the package reads the published artifacts through a generic runtime",
+      "url": "https://license.desertant.com/1.0",
+      "openSource": false,
+      "redistribution": "not-permitted",
+      "attributionRequired": true,
+      "attributionText": "Powered by Desert Ant Labs",
+      "obligations": [
+        "the vendor SDK is neither bundled nor redistributed by this package"
+      ]
+    },
+    {
+      "layer": "conversion-artifacts",
+      "name": "none: the model ships as the vendor published it",
+      "url": "https://huggingface.co/desert-ant-labs/ear",
+      "openSource": false,
+      "redistribution": "permitted",
+      "attributionRequired": false,
+      "obligations": [
+        "no conversion step is performed, so no conversion artifact is distributed"
+      ]
+    }
+  ],
+  "network": {
+    "requiredTelemetry": false,
+    "otherNetworkUse": false,
+    "telemetryContent": []
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "lockVersion": 1,
+  "assetSets": {
+    "moderator-litert": {
+      "model": {
+        "provider": "desert-ant-labs",
+        "identity": "desert-ant-labs/moderator",
+        "url": "https://huggingface.co/desert-ant-labs/moderator",
+        "revision": "263b727eedee2c439b4f35b4491ee80802ea8a6e",
+        "revisionKind": "the Hugging Face repository commit sha the artifact was fetched at",
+        "modalities": [
+          "image"
+        ]
+      },
+      "engine": {
+        "kind": "litert",
+        "version": "@litertjs/core 2.5.3 (WASM/XNNPACK)"
+      },
+      "tokenizer": {
+        "kind": "none",
+        "identity": "none: moderator consumes pixels, not tokens"
+      },
+      "platforms": [
+        {
+          "os": "win32",
+          "arch": "x64",
+          "accelerator": "cpu"
+        }
+      ],
+      "license": {
+        "name": "Desert Ant Labs Source-Available License 1.0",
+        "url": "https://license.desertant.com/1.0",
+        "attributionRequired": true,
+        "redistribution": "not-permitted"
+      },
+      "assets": [
+        {
+          "id": "moderator-tflite",
+          "fileName": "moderator.tflite",
+          "url": "https://huggingface.co/desert-ant-labs/moderator/resolve/263b727eedee2c439b4f35b4491ee80802ea8a6e/moderator.tflite",
+          "bytes": 9618016,
+          "sha256": "925d11966ea9086acbfeaf4d00c1dd30c738c531695f2004b68880d3f121cd89",
+          "role": "the LiteRT NSFW classifier: image [1,384,384,3] float32 raw RGB in, scores [5] out in head order nipples, genitals, buttocks, nude, sexAct",
+          "verified": "sha256 computed first-hand from the 9,618,016 bytes fetched at the pinned revision on 2026-11-14; matches the repository's LFS metadata"
+        }
+      ],
+      "groups": [
+        {
+          "id": "moderator-litert",
+          "enables": [
+            "image"
+          ],
+          "assets": [
+            {
+              "id": "moderator-tflite",
+              "file": "moderator.tflite",
+              "bytes": 9618016,
+              "source": "https://huggingface.co/desert-ant-labs/moderator/resolve/263b727eedee2c439b4f35b4491ee80802ea8a6e/moderator.tflite",
+              "digest": "925d11966ea9086acbfeaf4d00c1dd30c738c531695f2004b68880d3f121cd89",
+              "executable": false
+            }
+          ]
+        }
+      ],
+      "pinning": {
+        "state": "measured",
+        "revision": "263b727eedee2c439b4f35b4491ee80802ea8a6e",
+        "reason": "The artifact was fetched and hashed first-hand at the pinned revision on 2026-11-14: 9,618,016 bytes, sha256 925d11966ea9086acbfeaf4d00c1dd30c738c531695f2004b68880d3f121cd89, matching the repository's LFS metadata. No sidecar assets exist in the pinned repository. The preprocessing and crop contract was read from the primary source files named in contractSource and confirmed by the processor owner (litert-provider, task-21); the gated real run in the runtime-litert package qualifies execution.",
+        "measuredOn": "2026-11-14",
+        "contractSource": {
+          "repository": "https://github.com/Desert-Ant-Labs/desert-ant-core",
+          "commit": "baf4e6e3b4655c8e54aa8d5a25215b5f35f899a7",
+          "fetched": "2026-11-14",
+          "files": [
+            "Sources/Moderator/Preprocess.swift L9-10, L26-27, L32-38, L40-50, L54, L65-94, L96-104, L110, L120-127",
+            "Sources/Moderator/Model.swift L24, L29-30, L30-33, L45-47",
+            "Sources/Moderator/Moderator.swift L49-55, L66-71, L96-101, L113-117"
+          ]
+        },
+        "platforms": [
+          {
+            "os": "win32",
+            "arch": "x64",
+            "accelerator": "cpu"
+          }
+        ]
+      },
+      "qualification": {
+        "modelRevision": "263b727eedee2c439b4f35b4491ee80802ea8a6e",
+        "artifactSha": "sha256:925d11966ea9086acbfeaf4d00c1dd30c738c531695f2004b68880d3f121cd89",
+        "tokenizer": "none: moderator consumes pixels, not tokens",
+        "processor": "moderator/crops-v1: input image [1,384,384,3] float32 RAW 0..255 RGB (normalisation inside the model; alpha dropped); Pillow BILINEAR resampler ported bit-exactly (precisionBits 22, ksize = ceil(max(scale,1))*2+1, fixed-point rounded weights, accumulation starts at half = 1<<(precisionBits-1), clip8 = arithmetic shift >> precisionBits then clamp 0..255, out-of-window pixels read as BLACK); side 384; fast = one center square of the full short side (1 crop), balanced = the letterbox window (-((long-w)/2),-((long-h)/2),long) plus 85/70/55% center squares (4 crops), accurate = those four tiles each followed by its horizontal mirror tile in order [t0,m0,t1,m1,...] (8 crops); per-head max over crops in head order nipples,genitals,buttocks,nude,sexAct; policy standard counts all five heads, allowTopless counts all but nipples; score = max over counted heads; threshold default 0.5; quality default balanced (PHASE4; the upstream SDK defaults accurate); isNSFW = score >= threshold; output scores [5], all finite.",
+        "engineVersion": "@litertjs/core 2.5.3 (WASM, CPU/XNNPACK)",
+        "nodeAbi": "137 (Node 24)",
+        "architecture": "x64",
+        "executionProvider": "cpu (LiteRT.js WASM; no native binding)"
+      }
+    }
+  }
+}

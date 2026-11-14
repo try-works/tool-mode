@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "identify_language output",
+  "description": "A spoken-language identification for the recording. Probabilities are averaged over the listened windows and folded to canonical language codes; they are decision scores, not calibrated probabilities, and the model makes no claim about audio it was not trained on.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "language",
+    "confidence",
+    "isReliable",
+    "candidates",
+    "windows"
+  ],
+  "properties": {
+    "language": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The most likely canonical language code (ISO 639-1/639-3 style, as listed in languages.json). A yue prediction is reported as zh because the two model labels are folded together."
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "The probability of the reported language after averaging across the listened windows and folding aliases; equal to candidates[0].probability."
+    },
+    "isReliable": {
+      "type": "boolean",
+      "description": "True when the top-two margin is at least 0.25 after folding, and the top language is not Norwegian, Swedish or Danish. Those three are always reported as unreliable because the model confuses them."
+    },
+    "candidates": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 5,
+      "description": "Up to five languages, sorted by folded probability descending (ties by language code ascending), the winner first.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "language",
+          "probability"
+        ],
+        "properties": {
+          "language": {
+            "type": "string",
+            "minLength": 1,
+            "description": "A canonical language code."
+          },
+          "probability": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "The folded probability for this language."
+          }
+        }
+      }
+    },
+    "windows": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 16,
+      "description": "The integer number of 30 second windows actually listened to. 1 for recordings of 30 seconds or less (zero padded); otherwise min(requested, available), spread across the recording."
+    }
+  }
+}

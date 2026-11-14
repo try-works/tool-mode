@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "detect_fillers output",
+  "description": "Filler spans in milliseconds, plus honest coverage of the analysed audio.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "fillers",
+    "coverage"
+  ],
+  "properties": {
+    "fillers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "startMs",
+          "endMs",
+          "type",
+          "confidence"
+        ],
+        "properties": {
+          "startMs": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Span start in milliseconds from the beginning of the file."
+          },
+          "endMs": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Span end in milliseconds (exclusive)."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "uh",
+              "um",
+              "hmm",
+              "and",
+              "other"
+            ],
+            "description": "The filler class. 'and' is a filler class but can also be a real word."
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Mean frame probability across the span."
+          }
+        }
+      },
+      "description": "Filler spans in reading order."
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "complete",
+        "processedSeconds",
+        "totalSeconds"
+      ],
+      "properties": {
+        "complete": {
+          "type": "boolean",
+          "description": "False when only part of the audio was analysed."
+        },
+        "processedSeconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "totalSeconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "reason": {
+          "type": "string",
+          "description": "Why processing stopped short, when complete is false."
+        }
+      }
+    }
+  }
+}

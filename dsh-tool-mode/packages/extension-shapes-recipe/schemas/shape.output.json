@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "shape_recognize output",
+  "description": "The recognized shape class and its ranked alternatives. The reject class none means the classifier did not see a geometric shape.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "shape",
+    "confidence",
+    "candidates"
+  ],
+  "properties": {
+    "shape": {
+      "type": "string",
+      "enum": [
+        "none",
+        "line",
+        "arrow",
+        "rectangle",
+        "ellipse",
+        "triangle",
+        "diamond",
+        "pentagon",
+        "hexagon",
+        "star",
+        "heart",
+        "cloud",
+        "scribble"
+      ],
+      "description": "The top class. The enum follows the model's class-index order (none is index 0); do not re-sort it. none and scribble are the reject classes."
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "shape",
+          "confidence"
+        ],
+        "properties": {
+          "shape": {
+            "type": "string",
+            "minLength": 1
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        }
+      },
+      "description": "Runner-up classes, strongest first."
+    },
+    "rejected": {
+      "type": "boolean",
+      "description": "True when the top class is a reject class (none or scribble). The vendor per-class fit gates in shapes_meta.json are not applied."
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "identify_language input",
+  "description": "Absolute path to a WAV recording to identify, plus how many 30 second windows to listen to. v1 decodes RIFF/WAVE only, PCM 16-bit or IEEE float32, mono or stereo; other codecs and non-RIFF containers are refused by name rather than guessed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "audio_path"
+  ],
+  "properties": {
+    "audio_path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "description": "Absolute path to the WAV file. Audio is read from the caller's granted filesystem and never uploaded."
+    },
+    "windows": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 16,
+      "default": 3,
+      "description": "How many 30 second windows to listen to. They are spread across the whole recording (not taken from the front) and ranked by syllabic modulation. Defaults to 3, the model's recommended count; audio of 30 seconds or less is accepted and zero padded to one window."
+    }
+  }
+}

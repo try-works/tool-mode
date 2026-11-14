@@ -1,0 +1,175 @@
+{
+  "lockVersion": 1,
+  "assetSets": {
+    "redact-litert": {
+      "model": {
+        "provider": "desert-ant-labs",
+        "identity": "desert-ant-labs/redact",
+        "url": "https://huggingface.co/desert-ant-labs/redact",
+        "revision": "b368a62f5088802addcdb3d320b27306b6530bd3",
+        "revisionKind": "the Hugging Face repository commit sha the artifacts were fetched at",
+        "modalities": [
+          "text"
+        ]
+      },
+      "engine": {
+        "kind": "litert",
+        "version": "@litertjs/core 2.5.3 (WASM/XNNPACK)"
+      },
+      "tokenizer": {
+        "kind": "bundled",
+        "identity": "redact tokenizer.json (Unigram, 31,475 tokens, <s>/<pad>/</s>/<unk> added tokens)"
+      },
+      "platforms": [
+        {
+          "os": "win32",
+          "arch": "x64",
+          "accelerator": "cpu"
+        }
+      ],
+      "license": {
+        "name": "Desert Ant Labs Source-Available License 1.0",
+        "url": "https://license.desertant.com/1.0",
+        "attributionRequired": true,
+        "redistribution": "not-permitted"
+      },
+      "assets": [
+        {
+          "id": "redact-tflite",
+          "fileName": "redact.tflite",
+          "url": "https://huggingface.co/desert-ant-labs/redact/resolve/b368a62f5088802addcdb3d320b27306b6530bd3/redact.tflite",
+          "bytes": 23929696,
+          "sha256": "2b6237e3a08ee12966929af477fb3723018bacdb74a22f78992b8c0f6b5d545d",
+          "role": "the LiteRT model artifact (BERT token-classification, 256-token windows)",
+          "verified": "sha256 recorded from the bytes fetched by scripts/fetch-redact-assets.mjs on 2026-11-14"
+        },
+        {
+          "id": "redact-tokenizer",
+          "fileName": "tokenizer.json",
+          "url": "https://huggingface.co/desert-ant-labs/redact/resolve/b368a62f5088802addcdb3d320b27306b6530bd3/tokenizer.json",
+          "bytes": 2306637,
+          "sha256": "f2c1a2749a3ec41e56d9b65221918391f62d339869f8ac937fc3c581d99c74ec",
+          "role": "the Unigram tokenizer (special pair <s>...</s> included; <pad> id 1)",
+          "verified": "sha256 recorded from the bytes fetched by scripts/fetch-redact-assets.mjs on 2026-11-14"
+        },
+        {
+          "id": "redact-tokenizer-config",
+          "fileName": "tokenizer_config.json",
+          "url": "https://huggingface.co/desert-ant-labs/redact/resolve/b368a62f5088802addcdb3d320b27306b6530bd3/tokenizer_config.json",
+          "bytes": 312,
+          "sha256": "78c0d7800841fca8598c89a1da2a6175f3c05006f71ac7f21c879fe6d4e1edd7",
+          "role": "tokenizer metadata; not read at runtime, pinned for provenance",
+          "verified": "sha256 recorded from the bytes fetched by scripts/fetch-redact-assets.mjs on 2026-11-14"
+        },
+        {
+          "id": "redact-config",
+          "fileName": "config.json",
+          "url": "https://huggingface.co/desert-ant-labs/redact/resolve/b368a62f5088802addcdb3d320b27306b6530bd3/config.json",
+          "bytes": 4925,
+          "sha256": "637f2a4b8c858991cd8004770da3ae8c5f01b855688c1a9d933c6bd69df4db8b",
+          "role": "model config (BertForTokenClassification, 89 labels); not read at runtime",
+          "verified": "sha256 recorded from the bytes fetched by scripts/fetch-redact-assets.mjs on 2026-11-14"
+        },
+        {
+          "id": "redact-labels",
+          "fileName": "labels.json",
+          "url": "https://huggingface.co/desert-ant-labs/redact/resolve/b368a62f5088802addcdb3d320b27306b6530bd3/labels.json",
+          "bytes": 3842,
+          "sha256": "228835734235f85ec4bf31391a296aa6e8a36684e1171e841ac94f7b3f9b430a",
+          "role": "the id2label BIOES table the classifier head emits (89 labels, index order is the contract)",
+          "verified": "sha256 recorded from the bytes fetched by scripts/fetch-redact-assets.mjs on 2026-11-14"
+        },
+        {
+          "id": "redact-meta",
+          "fileName": "redact_meta.json",
+          "url": "https://huggingface.co/desert-ant-labs/redact/resolve/b368a62f5088802addcdb3d320b27306b6530bd3/redact_meta.json",
+          "bytes": 752,
+          "sha256": "adc5dadf50fca1f757162898930aad7d53a869cec0c246398a53a2a56438e019",
+          "role": "processor policy: public labels, default-disabled ORG, deterministic-only IMEI, recommended window geometry",
+          "verified": "sha256 recorded from the bytes fetched by scripts/fetch-redact-assets.mjs on 2026-11-14"
+        }
+      ],
+      "groups": [
+        {
+          "id": "redact-litert",
+          "enables": [
+            "text"
+          ],
+          "assets": [
+            {
+              "id": "redact-tflite",
+              "file": "redact.tflite",
+              "bytes": 23929696,
+              "source": "https://huggingface.co/desert-ant-labs/redact/resolve/b368a62f5088802addcdb3d320b27306b6530bd3/redact.tflite",
+              "digest": "2b6237e3a08ee12966929af477fb3723018bacdb74a22f78992b8c0f6b5d545d",
+              "executable": false
+            },
+            {
+              "id": "redact-tokenizer",
+              "file": "tokenizer.json",
+              "bytes": 2306637,
+              "source": "https://huggingface.co/desert-ant-labs/redact/resolve/b368a62f5088802addcdb3d320b27306b6530bd3/tokenizer.json",
+              "digest": "f2c1a2749a3ec41e56d9b65221918391f62d339869f8ac937fc3c581d99c74ec",
+              "executable": false
+            },
+            {
+              "id": "redact-tokenizer-config",
+              "file": "tokenizer_config.json",
+              "bytes": 312,
+              "source": "https://huggingface.co/desert-ant-labs/redact/resolve/b368a62f5088802addcdb3d320b27306b6530bd3/tokenizer_config.json",
+              "digest": "78c0d7800841fca8598c89a1da2a6175f3c05006f71ac7f21c879fe6d4e1edd7",
+              "executable": false
+            },
+            {
+              "id": "redact-config",
+              "file": "config.json",
+              "bytes": 4925,
+              "source": "https://huggingface.co/desert-ant-labs/redact/resolve/b368a62f5088802addcdb3d320b27306b6530bd3/config.json",
+              "digest": "637f2a4b8c858991cd8004770da3ae8c5f01b855688c1a9d933c6bd69df4db8b",
+              "executable": false
+            },
+            {
+              "id": "redact-labels",
+              "file": "labels.json",
+              "bytes": 3842,
+              "source": "https://huggingface.co/desert-ant-labs/redact/resolve/b368a62f5088802addcdb3d320b27306b6530bd3/labels.json",
+              "digest": "228835734235f85ec4bf31391a296aa6e8a36684e1171e841ac94f7b3f9b430a",
+              "executable": false
+            },
+            {
+              "id": "redact-meta",
+              "file": "redact_meta.json",
+              "bytes": 752,
+              "source": "https://huggingface.co/desert-ant-labs/redact/resolve/b368a62f5088802addcdb3d320b27306b6530bd3/redact_meta.json",
+              "digest": "adc5dadf50fca1f757162898930aad7d53a869cec0c246398a53a2a56438e019",
+              "executable": false
+            }
+          ]
+        }
+      ],
+      "pinning": {
+        "state": "measured",
+        "revision": "b368a62f5088802addcdb3d320b27306b6530bd3",
+        "reason": "All six files were fetched from the pinned Hugging Face revision, their byte sizes and SHA-256 digests recorded, and redact.tflite was executed through LiteRT.js in Node on this host.",
+        "measuredOn": "2026-11-14",
+        "platforms": [
+          {
+            "os": "win32",
+            "arch": "x64",
+            "accelerator": "cpu"
+          }
+        ]
+      },
+      "qualification": {
+        "modelRevision": "b368a62f5088802addcdb3d320b27306b6530bd3",
+        "artifactSha": "sha256:2b6237e3a08ee12966929af477fb3723018bacdb74a22f78992b8c0f6b5d545d",
+        "tokenizer": "tokenizer.json sha256:f2c1a2749a3ec41e56d9b65221918391f62d339869f8ac937fc3c581d99c74ec",
+        "processor": "redact pipeline v1: 256-token windows at stride 64, BIOES assembly, deterministic PII union, 4-window local cap",
+        "engineVersion": "@litertjs/core 2.5.3 (WASM, CPU/XNNPACK)",
+        "nodeAbi": "137 (Node 24)",
+        "architecture": "x64",
+        "executionProvider": "cpu (LiteRT.js WASM; no native binding)"
+      }
+    }
+  }
+}

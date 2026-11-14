@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "shape_recognize input",
+  "description": "One hand-drawn stroke as ordered points. Unknown keys are refused. When closed is true the processor appends the first point; it then resamples to 128 points along arc length, centres the bounding box on the origin and scales the longer side to 1 before inference. A degenerate stroke (zero length or zero bounding box) is refused.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "points"
+  ],
+  "properties": {
+    "points": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 2,
+        "items": {
+          "type": "number"
+        },
+        "description": "One [x, y] point in canvas coordinates."
+      },
+      "description": "The stroke in drawing order. Only the first stroke of a shape is supported."
+    },
+    "closed": {
+      "type": "boolean",
+      "description": "Whether the stroke was drawn closed; the fitted-geometry gates use it."
+    }
+  }
+}

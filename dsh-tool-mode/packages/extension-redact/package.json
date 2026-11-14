@@ -1,0 +1,52 @@
+{
+  "name": "@try-works/extension-redact",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "First-party Tool Mode extension implementing redaction over the Desert Ant Labs Redact LiteRT artifact",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./tool-mode": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./tool-mode.extension.json": "./tool-mode.extension.json",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "tool-mode.extension.json",
+    "lib",
+    "models.lock.json",
+    "schemas",
+    "skills",
+    "README.md"
+  ],
+  "toolMode": {
+    "manifest": "./tool-mode.extension.json"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "tsx --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "@try-works/tool-mode-extension-sdk": "0.1.0",
+    "@try-works/tool-mode-runtime-core": "0.1.0",
+    "@try-works/tool-mode-runtime-dsh": "0.1.0",
+    "@try-works/tool-mode-runtime-litert": "0.1.0",
+    "@try-works/tool-mode-runtime-processors": "0.1.0",
+    "effect": "4.1.2",
+    "tokenizers": "0.23.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

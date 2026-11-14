@@ -1,6 +1,6 @@
 # Tool Mode release report
 
-Generated 2026-11-13T09:33:33.686Z from commit `0fcb357a4e7322bc634ed6ab97a356058be3ae32` (working tree DIRTY, so this describes a state that exists in no commit).
+Generated 2026-11-14T08:37:16.818Z from commit `836dfb6c82cb6a3a33b30ad19e6916dafb2ba08d` (working tree DIRTY, so this describes a state that exists in no commit).
 
 ## How to reproduce
 

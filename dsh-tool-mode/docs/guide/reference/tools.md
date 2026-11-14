@@ -17,6 +17,7 @@ your deployment.
 
 | Tool | What it does | Backed by | Availability |
 |---|---|---|---|
+| `classify_nsfw` | Check an image for nudity or sexual content on device: per-region scores, an NSFW decision at a threshold, and the policy and quality used. | Moderator NSFW detection (declarative) (Extension) | Requires @try-works/extension-moderator-recipe to be installed and enabled |
 | `decision_choose` | Standard decision.choose: choose one of 2–16 options for a stated decision and return the chosen option as an INDEX plus a confidence bucket and reas… | Laya decision family (Extension) | Requires @try-works/extension-laya to be installed and enabled |
 | `decision_choose_jev` | Choose one of 2–16 options through the remote Jev (TypeSafe System One) typed-question API. | Remote Jev (Opt-in remote route) | Only when jev.enabled is true and a Jev API key is configured |
 | `decision_choose_local` | Choose one of the caller's options for a stated prompt, over the pinned Laya checkpoint, using the extension-local result shape (label + per-option p… | Laya decision family (Extension) | Requires @try-works/extension-laya to be installed and enabled |
@@ -30,7 +31,10 @@ your deployment.
 | `decision_test_typed` | Evaluate a yes/no proposition against a state over the SAME pinned Laya checkpoint and head as decision_test, returning the native P(proposition) exp… | Laya decision family (Extension) | Requires @try-works/extension-laya to be installed and enabled |
 | `dedupe_and_rank` | Group items by near-duplicate representative clustering and rank the group representatives against a query in ONE embedding pass over EmbeddingGemma … | EmbeddingGemma 2 multimodal embeddings (Extension) | Requires @try-works/extension-embeddinggemma to be installed and enabled |
 | `describe_image` | Describe the visible content of an approved image with honest uncertainty. | Harness Vision (Extension) | Requires @try-works/harness-vision to be installed and enabled |
+| `detect_fillers` | Find every uh, um, hmm and filler 'and' in a recording and return the millisecond spans to cut, with honest coverage. | Uhm filler detection (declarative) (Extension) | Requires @try-works/extension-uhm-recipe to be installed and enabled |
+| `enhance_speech` | Denoise and dereverb a speech recording and return the enhanced 48 kHz mono WAV as base64, with honest coverage of the analysed audio. | Clear speech enhancement (declarative) (Extension) | Requires @try-works/extension-clear-recipe to be installed and enabled |
 | `extract_with_repair` | Extract structured data from text into a caller-supplied JSON Schema, and repair ONE rejected attempt. The first answer is re-validated exactly as st… | Cactus Needle 3 tool calling and structured extraction (Extension) | Requires @try-works/extension-needle to be installed and enabled |
+| `identify_language` | Identify the spoken language of an audio recording on device: the most likely language, its confidence, a reliability flag and the top candidates. | Ear spoken language identification (declarative) (Extension) | Requires @try-works/extension-ear-recipe to be installed and enabled |
 | `lang_detect` | Identify the language of a short piece of text with a reliability verdict and ranked alternatives. | Desert Ant Tongue language detection (Extension) | Requires @try-works/extension-desert-ant-tongue to be installed and enabled |
 | `media_find_moments` | Find the source-time windows of one audio item that best match a query by embedding each window and ranking by cosine similarity. Returns window-leve… | EmbeddingGemma 2 multimodal embeddings (Extension) | Requires @try-works/extension-embeddinggemma to be installed and enabled |
 | `mirage_describe` | Describe one image with Mirage: scene, objects, text, relations and a short generated reasoning trace. Sections can be selected. Boxes use the model'… | Cactus Mirage vision (describe, detect, OCR, forms) (Extension) | Requires @try-works/extension-mirage to be installed and enabled |
@@ -38,12 +42,15 @@ your deployment.
 | `mirage_extract` | Fill an ordered, bounded form from one image: enum choices, bounded integers, or short strings, using Mirage's native form decoding. The engine retur… | Cactus Mirage vision (describe, detect, OCR, forms) (Extension) | Requires @try-works/extension-mirage to be installed and enabled |
 | `mirage_ocr` | Read the text Mirage finds in one image: each line's string, box and detection score. This is OCR, not a guarantee of exact transcription; the model'… | Cactus Mirage vision (describe, detect, OCR, forms) (Extension) | Requires @try-works/extension-mirage to be installed and enabled |
 | `multimodal_embed` | Embed one or more items into a shared embedding space over EmbeddingGemma 2. Returns L2-normalized vectors of 768, 512, 256 or 128 dimensions plus a … | EmbeddingGemma 2 multimodal embeddings (Extension) | Requires @try-works/extension-embeddinggemma to be installed and enabled |
+| `redact_text` | Detect PII and secrets in text as labelled UTF-16 spans, with honest coverage when the local window cap truncates a long document. | Redact PII redaction (Extension) | Requires @try-works/extension-redact to be installed and enabled |
 | `semantic_classify` | Classify one item against caller-supplied label descriptions by embedding cosine similarity over EmbeddingGemma 2. Returns the best label with its ra… | EmbeddingGemma 2 multimodal embeddings (Extension) | Requires @try-works/extension-embeddinggemma to be installed and enabled |
 | `semantic_deduplicate` | Group near-duplicate items by greedy representative clustering in input order over EmbeddingGemma 2 cosine similarity: each item joins the FIRST grou… | EmbeddingGemma 2 multimodal embeddings (Extension) | Requires @try-works/extension-embeddinggemma to be installed and enabled |
 | `semantic_rank` | Rank candidate items against a query by embedding cosine similarity over EmbeddingGemma 2, returning the caller's own IDs in stable descending score … | EmbeddingGemma 2 multimodal embeddings (Extension) | Requires @try-works/extension-embeddinggemma to be installed and enabled |
 | `semantic_similarity` | Cosine similarity between two items embedded in one space over EmbeddingGemma 2, supporting text-to-text, text-to-image, text-to-audio and image-to-i… | EmbeddingGemma 2 multimodal embeddings (Extension) | Requires @try-works/extension-embeddinggemma to be installed and enabled |
+| `shape_recognize` | Recognize a single hand-drawn stroke as one of the Shapes classes and return the ranked candidates with confidences. | Shapes stroke recognition (declarative) (Extension) | Requires @try-works/extension-shapes-recipe to be installed and enabled |
 | `structured_extract` | Extract structured data from text into a caller-supplied JSON Schema, over the pinned Cactus Needle 3 native engine. The schema is compiled to a byte… | Cactus Needle 3 tool calling and structured extraction (Extension) | Requires @try-works/extension-needle to be installed and enabled |
 | `stt_transcribe` | On-device speech transcription with honest partial-coverage reporting. | Desert Ant Voz speech transcription (Extension) | Requires @try-works/extension-desert-ant-voz to be installed and enabled |
+| `suggest_emojis` | Suggest emojis for a piece of text on device: the top labels by probability with their confidences. | Emo emoji suggestions (declarative) (Extension) | Requires @try-works/extension-emo-recipe to be installed and enabled |
 | `text_embed` | Embed text into the legacy 384-dimensional MiniLM space. | MiniLM text_embed (Standard contract) | Requires the MiniLM text_embed extension and its prepared text backbone |
 | `text_rerank` | Score query/document pairs with the MiniLM cross-encoder and rank them. | MiniLM text_rerank (Standard contract) | Requires the MiniLM text_rerank extension and its prepared text backbone |
 | `text_title` | Propose a bounded title and one-sentence description for supplied text through an authorized harness model. | Harness Text Tools (Extension) | Requires @try-works/tool-mode-harness-text to be installed and enabled |
@@ -71,15 +78,22 @@ extension packages. Their descriptions and schemas are available through
 
 | Extension | Package | Version | Tools | Activation |
 |---|---|---|---|---|
+| [Clear speech enhancement (declarative)](../guides/install-extensions.md) | `@try-works/extension-clear-recipe` | 0.1.0 | 1 | operator |
 | [Declarative harness recipes](../guides/install-extensions.md) | `@try-works/extension-declarative-recipes` | 0.1.0 | 0 | operator |
 | [Desert Ant Tongue language detection](../guides/install-extensions.md) | `@try-works/extension-desert-ant-tongue` | 0.1.3 | 1 | operator |
 | [Desert Ant Voz speech transcription](../guides/install-extensions.md) | `@try-works/extension-desert-ant-voz` | 0.1.5 | 1 | operator |
+| [Ear spoken language identification (declarative)](../guides/install-extensions.md) | `@try-works/extension-ear-recipe` | 0.1.0 | 1 | operator |
 | [EmbeddingGemma 2 multimodal embeddings](../guides/install-extensions.md) | `@try-works/extension-embeddinggemma` | 0.1.2 | 7 | operator |
+| [Emo emoji suggestions (declarative)](../guides/install-extensions.md) | `@try-works/extension-emo-recipe` | 0.1.0 | 1 | operator |
 | [Laya decision family](../guides/install-extensions.md) | `@try-works/extension-laya` | 1.0.4 | 6 | operator |
 | [MiniLM text_embed](../guides/install-extensions.md) | `@try-works/extension-minilm-embed` | 1.0.0 | 0 | operator |
 | [MiniLM text_rerank](../guides/install-extensions.md) | `@try-works/extension-minilm-rerank` | 1.0.0 | 0 | operator |
 | [Cactus Mirage vision (describe, detect, OCR, forms)](../guides/install-extensions.md) | `@try-works/extension-mirage` | 0.1.2 | 4 | operator |
+| [Moderator NSFW detection (declarative)](../guides/install-extensions.md) | `@try-works/extension-moderator-recipe` | 0.1.0 | 1 | operator |
 | [Cactus Needle 3 tool calling and structured extraction](../guides/install-extensions.md) | `@try-works/extension-needle` | 0.1.3 | 4 | operator |
+| [Redact PII redaction](../guides/install-extensions.md) | `@try-works/extension-redact` | 0.1.0 | 1 | operator |
+| [Shapes stroke recognition (declarative)](../guides/install-extensions.md) | `@try-works/extension-shapes-recipe` | 0.1.0 | 1 | operator |
+| [Uhm filler detection (declarative)](../guides/install-extensions.md) | `@try-works/extension-uhm-recipe` | 0.1.0 | 1 | operator |
 | [Harness Vision](../guides/install-extensions.md) | `@try-works/harness-vision` | 0.1.0 | 1 | operator |
 | [Harness Text Tools](../guides/install-extensions.md) | `@try-works/tool-mode-harness-text` | 0.1.0 | 1 | operator |
 

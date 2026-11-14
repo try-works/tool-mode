@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "detect_fillers input",
+  "description": "Absolute path to a WAV file: PCM 16-bit or float32, mono or stereo (stereo is down-mixed). The provider resolves the path against the caller's grants, decodes it and resamples to 16 kHz.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "audio_path"
+  ],
+  "properties": {
+    "audio_path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "description": "Absolute path to the audio to analyse. Files are read from the caller's granted filesystem, never uploaded."
+    }
+  }
+}

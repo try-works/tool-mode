@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "enhance_speech input",
+  "description": "Absolute path to the speech recording to enhance. WAV/RIFF only: PCM 16-bit or IEEE float32, mono or stereo (stereo is averaged to mono). The provider resolves the path against the caller's grants, decodes it, resamples to 48 kHz and returns the enhanced audio as base64 in the result.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "audio_path"
+  ],
+  "properties": {
+    "audio_path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "description": "Absolute path to the WAV file. Files are read from the caller's granted filesystem, never uploaded."
+    }
+  }
+}

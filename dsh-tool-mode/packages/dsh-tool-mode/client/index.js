@@ -2383,6 +2383,23 @@ function createToolInsights(createElement, reactLib) {
     const EXTENSIONS = /*__EXTENSIONS_JSON__*/
     [
       {
+        "id": "@try-works/extension-clear-recipe",
+        "name": "clear recipe",
+        "package": "@try-works/extension-clear-recipe",
+        "version": "0.1.0",
+        "license": "Apache-2.0",
+        "summary": "Ships NO CODE.",
+        "models": [
+          "clear"
+        ],
+        "tools": [
+          "enhance_speech"
+        ],
+        "contracts": [
+          "@try-works/extension-clear-recipe/enhance_speech"
+        ]
+      },
+      {
         "id": "@try-works/extension-declarative-recipes",
         "name": "declarative recipes",
         "package": "@try-works/extension-declarative-recipes",
@@ -2431,6 +2448,23 @@ function createToolInsights(createElement, reactLib) {
         ]
       },
       {
+        "id": "@try-works/extension-ear-recipe",
+        "name": "ear recipe",
+        "package": "@try-works/extension-ear-recipe",
+        "version": "0.1.0",
+        "license": "Apache-2.0",
+        "summary": "Ships NO CODE.",
+        "models": [
+          "ear"
+        ],
+        "tools": [
+          "identify_language"
+        ],
+        "contracts": [
+          "@try-works/extension-ear-recipe/identify_language"
+        ]
+      },
+      {
         "id": "@try-works/extension-embeddinggemma",
         "name": "EmbeddingGemma 2",
         "package": "@try-works/extension-embeddinggemma",
@@ -2457,6 +2491,23 @@ function createToolInsights(createElement, reactLib) {
           "@try-works/extension-embeddinggemma/semantic_deduplicate",
           "@try-works/extension-embeddinggemma/dedupe_and_rank",
           "@try-works/extension-embeddinggemma/media_find_moments"
+        ]
+      },
+      {
+        "id": "@try-works/extension-emo-recipe",
+        "name": "emo recipe",
+        "package": "@try-works/extension-emo-recipe",
+        "version": "0.1.0",
+        "license": "Apache-2.0",
+        "summary": "Ships NO CODE.",
+        "models": [
+          "emo"
+        ],
+        "tools": [
+          "suggest_emojis"
+        ],
+        "contracts": [
+          "@try-works/extension-emo-recipe/suggest_emojis"
         ]
       },
       {
@@ -2540,6 +2591,23 @@ function createToolInsights(createElement, reactLib) {
         ]
       },
       {
+        "id": "@try-works/extension-moderator-recipe",
+        "name": "moderator recipe",
+        "package": "@try-works/extension-moderator-recipe",
+        "version": "0.1.0",
+        "license": "Apache-2.0",
+        "summary": "Ships NO CODE.",
+        "models": [
+          "moderator"
+        ],
+        "tools": [
+          "classify_nsfw"
+        ],
+        "contracts": [
+          "@try-works/extension-moderator-recipe/classify_nsfw"
+        ]
+      },
+      {
         "id": "@try-works/extension-needle",
         "name": "Needle 3",
         "package": "@try-works/extension-needle",
@@ -2560,6 +2628,57 @@ function createToolInsights(createElement, reactLib) {
           "@try-works/extension-needle/structured_extract",
           "@try-works/extension-needle/validate_record",
           "@try-works/extension-needle/extract_with_repair"
+        ]
+      },
+      {
+        "id": "@try-works/extension-redact",
+        "name": "redact",
+        "package": "@try-works/extension-redact",
+        "version": "0.1.0",
+        "license": "Apache-2.0",
+        "summary": "PII and secret redaction over the Desert Ant Labs Redact LiteRT artifact, exposed as the redact_text tool.",
+        "models": [
+          "redact"
+        ],
+        "tools": [
+          "redact_text"
+        ],
+        "contracts": [
+          "@try-works/extension-redact/redact_text"
+        ]
+      },
+      {
+        "id": "@try-works/extension-shapes-recipe",
+        "name": "shapes recipe",
+        "package": "@try-works/extension-shapes-recipe",
+        "version": "0.1.0",
+        "license": "Apache-2.0",
+        "summary": "Ships NO CODE.",
+        "models": [
+          "shapes"
+        ],
+        "tools": [
+          "shape_recognize"
+        ],
+        "contracts": [
+          "@try-works/extension-shapes-recipe/shape_recognize"
+        ]
+      },
+      {
+        "id": "@try-works/extension-uhm-recipe",
+        "name": "uhm recipe",
+        "package": "@try-works/extension-uhm-recipe",
+        "version": "0.1.0",
+        "license": "Apache-2.0",
+        "summary": "Ships NO CODE.",
+        "models": [
+          "uhm"
+        ],
+        "tools": [
+          "detect_fillers"
+        ],
+        "contracts": [
+          "@try-works/extension-uhm-recipe/detect_fillers"
         ]
       }
     ]

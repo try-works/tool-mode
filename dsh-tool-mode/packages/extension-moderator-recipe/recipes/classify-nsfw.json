@@ -1,0 +1,29 @@
+{
+  "kind": "model-runtime",
+  "schemaVersion": 1,
+  "provider": {
+    "package": "@try-works/tool-mode-runtime-litert",
+    "export": "createProviderFromRecipe",
+    "accelerators": [
+      "cpu"
+    ]
+  },
+  "model": {
+    "assetSet": "moderator-litert",
+    "fileName": "moderator.tflite",
+    "format": "tflite"
+  },
+  "processor": {
+    "id": "moderator/crops-v1"
+  },
+  "limits": {
+    "maxInputBytes": 4194304,
+    "timeoutMs": 120000
+  },
+  "tool": {
+    "name": "classify_nsfw",
+    "description": "Check an image for nudity or sexual content on device: per-region scores, an NSFW decision at a threshold, and the policy and quality used.",
+    "inputSchema": "./schemas/classify-nsfw.input.json",
+    "outputSchema": "./schemas/classify-nsfw.output.json"
+  }
+}

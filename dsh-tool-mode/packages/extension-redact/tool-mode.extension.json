@@ -1,0 +1,146 @@
+{
+  "protocolVersion": "1.1.0",
+  "id": "@try-works/extension-redact",
+  "version": "0.1.0",
+  "displayName": "Redact PII redaction",
+  "description": "PII and secret redaction over the Desert Ant Labs Redact LiteRT artifact, exposed as the redact_text tool.",
+  "license": "Apache-2.0",
+  "activation": {
+    "policy": "operator",
+    "deactivatable": true
+  },
+  "runtimeApi": 1,
+  "compatibility": {
+    "hostApi": "^1.1.0",
+    "requiredFeatures": [
+      "provider-worker-v1"
+    ]
+  },
+  "execution": {
+    "kind": "module",
+    "entry": "./lib/index.js",
+    "isolation": "managed-process"
+  },
+  "permissions": {
+    "networkOrigins": [],
+    "inputFiles": true,
+    "storage": "extension-private",
+    "secrets": [],
+    "nativeCode": true
+  },
+  "models": [
+    {
+      "id": "redact",
+      "assetSet": "redact-litert",
+      "assetLock": "./models.lock.json",
+      "platforms": [
+        {
+          "os": "win32",
+          "arch": "x64",
+          "accelerator": "cpu"
+        }
+      ]
+    }
+  ],
+  "tools": [
+    {
+      "id": "redact-text",
+      "name": "redact_text",
+      "contractId": "@try-works/extension-redact/redact_text",
+      "contractVersion": "1.0.0",
+      "description": "Detect PII and secrets in text as labelled UTF-16 spans, with honest coverage when the local window cap truncates a long document.",
+      "inputSchema": "./schemas/redact-text.input.json",
+      "outputSchema": "./schemas/redact-text.output.json"
+    }
+  ],
+  "implementations": [
+    {
+      "id": "redact-litert-cpu",
+      "contractId": "@try-works/extension-redact/redact_text",
+      "contractVersion": "1.0.0",
+      "modelId": "redact",
+      "recipeVersion": "1.0.0"
+    }
+  ],
+  "skills": [
+    {
+      "id": "redact-text",
+      "name": "redact-text",
+      "description": "Use redact_text before logging, quoting or sending text that may contain personal data; read coverage before claiming a document is clean.",
+      "path": "./skills/redact-text/SKILL.md",
+      "requiresTools": [
+        "redact-text"
+      ]
+    }
+  ],
+  "licenses": [
+    {
+      "layer": "code",
+      "name": "Apache License 2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0",
+      "openSource": true,
+      "redistribution": "permitted",
+      "attributionRequired": true,
+      "attributionText": "Copyright the Tool Mode contributors",
+      "obligations": [
+        "preserve the license and NOTICE files"
+      ]
+    },
+    {
+      "layer": "engine",
+      "name": "LiteRT.js (@litertjs/core 2.5.3) and the tokenizers Node binding, both Apache-2.0",
+      "url": "https://github.com/google-ai-edge/LiteRT",
+      "openSource": true,
+      "redistribution": "permitted",
+      "attributionRequired": true,
+      "attributionText": "Google LiteRT and Hugging Face tokenizers",
+      "obligations": [
+        "preserve the LiteRT.js and tokenizers license notices"
+      ]
+    },
+    {
+      "layer": "weights",
+      "name": "Desert Ant Labs Source-Available License 1.0",
+      "url": "https://license.desertant.com/1.0",
+      "openSource": false,
+      "redistribution": "not-permitted",
+      "attributionRequired": true,
+      "attributionText": "Powered by Desert Ant Labs",
+      "obligations": [
+        "display the attribution notice with a link to Desert Ant Labs",
+        "a commercial licence is required above the per-platform, per-model active-device threshold",
+        "do not redistribute the model, SDK or a hosted service as a standalone product",
+        "do not use outputs or logs to train a competing on-device model",
+        "do not extract weights or tamper with the usage telemetry"
+      ]
+    },
+    {
+      "layer": "sdk",
+      "name": "not used: the extension reads the published artifact directly through generic runtimes",
+      "url": "https://license.desertant.com/1.0",
+      "openSource": false,
+      "redistribution": "not-permitted",
+      "attributionRequired": true,
+      "attributionText": "Powered by Desert Ant Labs",
+      "obligations": [
+        "the vendor SDK is neither bundled nor redistributed by this package"
+      ]
+    },
+    {
+      "layer": "conversion-artifacts",
+      "name": "none: the model ships as the vendor published it",
+      "url": "https://huggingface.co/desert-ant-labs/redact",
+      "openSource": false,
+      "redistribution": "permitted",
+      "attributionRequired": false,
+      "obligations": [
+        "no conversion step is performed, so no conversion artifact is distributed"
+      ]
+    }
+  ],
+  "network": {
+    "requiredTelemetry": false,
+    "otherNetworkUse": false,
+    "telemetryContent": []
+  }
+}

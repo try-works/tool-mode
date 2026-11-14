@@ -1,0 +1,29 @@
+{
+  "kind": "model-runtime",
+  "schemaVersion": 1,
+  "provider": {
+    "package": "@try-works/tool-mode-runtime-onnx",
+    "export": "createProviderFromRecipe",
+    "accelerators": [
+      "cpu"
+    ]
+  },
+  "model": {
+    "assetSet": "uhm-onnx",
+    "fileName": "uhm.onnx",
+    "format": "onnx"
+  },
+  "processor": {
+    "id": "uhm/waveform-v1"
+  },
+  "limits": {
+    "maxInputBytes": 4194304,
+    "timeoutMs": 120000
+  },
+  "tool": {
+    "name": "detect_fillers",
+    "description": "Find every uh, um, hmm and filler 'and' in a recording and return the millisecond spans to cut, with honest coverage.",
+    "inputSchema": "./schemas/detect-fillers.input.json",
+    "outputSchema": "./schemas/detect-fillers.output.json"
+  }
+}

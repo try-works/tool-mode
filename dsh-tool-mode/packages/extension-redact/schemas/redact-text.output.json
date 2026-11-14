@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "redact_text output",
+  "description": "Detected spans in UTF-16 offsets into the input text, plus honest coverage of the processed portion.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "spans",
+    "coverage"
+  ],
+  "properties": {
+    "spans": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "start",
+          "end",
+          "label",
+          "text",
+          "score"
+        ],
+        "properties": {
+          "start": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "end": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "text": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "complete",
+        "processedUnits",
+        "totalUnits"
+      ],
+      "properties": {
+        "complete": {
+          "type": "boolean"
+        },
+        "processedUnits": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "totalUnits": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reason": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

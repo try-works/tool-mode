@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-11-13T09:33:33.686Z",
+  "generatedAt": "2026-11-14T08:37:16.818Z",
   "git": {
-    "commit": "0fcb357a4e7322bc634ed6ab97a356058be3ae32",
+    "commit": "836dfb6c82cb6a3a33b30ad19e6916dafb2ba08d",
     "branch": "main",
     "dirty": true
   },
@@ -66,8 +66,8 @@
     },
     {
       "path": "package-lock.json",
-      "sha256": "107dfb10c6f93fc76ce1961f1747b779c6c9527c091524a7d8ca8cbf8752e56b",
-      "bytes": 80404
+      "sha256": "2cf06927815feac5b1a34f133bddd6010a66da216f3b3bed2d00f863329ef594",
+      "bytes": 85840
     }
   ],
   "packages": [
@@ -373,7 +373,8 @@
       "owningModule": "packages/dsh-tool-mode/src/index.ts",
       "testLayer": "unit",
       "testIds": [
-        "packages/dsh-tool-mode/tests/architecture.test.ts"
+        "packages/dsh-tool-mode/tests/architecture.test.ts",
+        "packages/dsh-tool-mode/tests/model-runtime-lane.test.ts"
       ],
       "requiredPlatform": "any",
       "requirementStatus": "DONE",
@@ -2100,7 +2101,8 @@
         "packages/extension-embeddinggemma/tests/extension.test.ts",
         "packages/extension-needle/tests/provider.test.ts",
         "packages/tool-mode-extension-sdk/tests/sdk.test.ts",
-        "packages/tool-mode-extension-sdk/tests/test-host.test.ts"
+        "packages/tool-mode-extension-sdk/tests/test-host.test.ts",
+        "packages/tool-mode-runtime-dsh/tests/provider.test.ts"
       ],
       "requiredPlatform": "any",
       "requirementStatus": "DONE",
@@ -2126,7 +2128,8 @@
         "packages/extension-needle/tests/extraction-repair.test.ts",
         "packages/extension-needle/tests/process-bridge.test.ts",
         "packages/extension-needle/tests/provider.test.ts",
-        "packages/extension-needle/tests/validate-record.test.ts"
+        "packages/extension-needle/tests/validate-record.test.ts",
+        "packages/tool-mode-runtime-dsh/tests/provider.test.ts"
       ],
       "requiredPlatform": "any",
       "requirementStatus": "DONE",
@@ -4196,7 +4199,8 @@
       "owningModule": "packages/dsh-tool-mode/tests/",
       "testLayer": "acceptance",
       "testIds": [
-        "packages/dsh-tool-mode/tests/architecture.test.ts"
+        "packages/dsh-tool-mode/tests/architecture.test.ts",
+        "packages/dsh-tool-mode/tests/model-runtime-lane.test.ts"
       ],
       "requiredPlatform": "any",
       "requirementStatus": "DONE",

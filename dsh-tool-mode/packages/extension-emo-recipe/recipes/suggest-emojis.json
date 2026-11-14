@@ -1,0 +1,29 @@
+{
+  "kind": "model-runtime",
+  "schemaVersion": 1,
+  "provider": {
+    "package": "@try-works/tool-mode-runtime-litert",
+    "export": "createProviderFromRecipe",
+    "accelerators": [
+      "cpu"
+    ]
+  },
+  "model": {
+    "assetSet": "emo-litert",
+    "fileName": "emo.tflite",
+    "format": "tflite"
+  },
+  "processor": {
+    "id": "emo/text-v1"
+  },
+  "limits": {
+    "maxInputBytes": 4194304,
+    "timeoutMs": 120000
+  },
+  "tool": {
+    "name": "suggest_emojis",
+    "description": "Suggest emojis for a piece of text on device: the top labels by probability with their confidences.",
+    "inputSchema": "./schemas/suggest-emojis.input.json",
+    "outputSchema": "./schemas/suggest-emojis.output.json"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "name": "@try-works/tool-mode-runtime-recipes",
+  "version": "0.1.0",
+  "description": "Declarative model-runtime recipe format: validates a code-free model package's recipe and resolves its provider factory from the extension package directory",
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/try-works/tool-mode.git",
+    "directory": "packages/tool-mode-runtime-recipes"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/**/*.js",
+    "lib/**/*.d.ts",
+    "lib/**/*.d.ts.map",
+    "README.md"
+  ],
+  "dependencies": {
+    "@try-works/tool-mode-extension-sdk": "0.1.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "tsx --test tests/*.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0"
+  }
+}

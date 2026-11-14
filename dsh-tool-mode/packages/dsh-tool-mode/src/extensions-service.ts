@@ -653,6 +653,15 @@ interface ExtensionFacts {
   readonly models: readonly string[]
   /** `module` or `declarative`; undefined when the manifest could not be read. */
   readonly executionKind: string | undefined
+  /**
+   * How many declared implementations are served by a `model-runtime` recipe (PHASE2).
+   *
+   * A model-runtime package ships its OWN engine factory, so it must not be required to have
+   * a harness LlmProvider; a package with any harness recipe still must.
+   */
+  readonly modelRuntimeRecipes: number
+  /** How many implementations the host's harness broker serves. */
+  readonly harnessRecipes: number
   readonly platforms: readonly DeclaredPlatform[]
   readonly dependencies: readonly DeclaredDependency[]
   /** OPTIONAL tool-runtime packages the module's tools load at call time. */
@@ -669,6 +678,8 @@ const EMPTY_FACTS: ExtensionFacts = {
   tools: [],
   models: [],
   executionKind: undefined,
+  modelRuntimeRecipes: 0,
+  harnessRecipes: 0,
   platforms: [],
   dependencies: [],
   optionalDependencies: [],
@@ -702,6 +713,39 @@ function readDeclaredDependencies(
 }
 
 /**
+ * Count the declared implementations by RECIPE KIND (PHASE2 § Host lane).
+ *
+ * The kind is read from the recipe file, because that is what the host branches on: a
+ * `model-runtime` recipe is served by its own factory and needs no harness provider, while a
+ * harness recipe (kind absent or `harness-model`) still does. An UNREADABLE recipe is counted
+ * as harness: demanding a provider the legacy lane will use is the safe direction, and the
+ * legacy lane refuses the unreadable recipe by name anyway.
+ * @param packageDir - the package directory.
+ * @param implementationIds - the manifest's implementations.
+ * @returns how many implementations each lane serves.
+ */
+function readDeclarativeRecipeKinds(
+  packageDir: string,
+  implementationIds: readonly string[],
+): { readonly modelRuntime: number; readonly harness: number } {
+  let modelRuntime = 0
+  let harness = 0
+  for (const id of implementationIds) {
+    try {
+      const parsed: unknown = JSON.parse(readFileSync(join(packageDir, 'recipes', `${id}.json`), 'utf8'))
+      const kind = typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+        ? (parsed as { readonly kind?: unknown }).kind
+        : undefined
+      if (kind === 'model-runtime') modelRuntime += 1
+      else harness += 1
+    } catch {
+      harness += 1
+    }
+  }
+  return { modelRuntime, harness }
+}
+
+/**
  * Read one package directory's declared facts without importing or executing it.
  * @param packageDir - the installed copy or first-party checkout.
  * @returns the facts, with `problem` set (and manifest facts empty) when discovery fails.
@@ -712,6 +756,9 @@ function readExtensionFacts(packageDir: string): ExtensionFacts {
   try {
     const discovery = discoverExtension(packageDir)
     const manifest = discovery.manifest
+    const recipeKinds = manifest.execution.kind === 'declarative'
+      ? readDeclarativeRecipeKinds(packageDir, manifest.implementations.map(implementation => implementation.id))
+      : { modelRuntime: 0, harness: 0 }
     return {
       packageName: discovery.packageName,
       packageVersion: discovery.packageVersion,
@@ -719,6 +766,8 @@ function readExtensionFacts(packageDir: string): ExtensionFacts {
       tools: manifest.tools.map(tool => tool.name),
       models: manifest.models.map(model => model.id),
       executionKind: manifest.execution.kind,
+      modelRuntimeRecipes: recipeKinds.modelRuntime,
+      harnessRecipes: recipeKinds.harness,
       platforms: manifest.models.flatMap(model => model.platforms),
       dependencies,
       optionalDependencies,
@@ -1500,8 +1549,14 @@ export class ExtensionsService implements ModelToolsRemote {
     // extension's tools load and fail at call time — which is not activation.
     requirements.push(this.#runtimeRequirement(input))
 
-    // HARNESS MODEL: only declarative packages are served by the host broker.
-    if (input.facts.executionKind === 'declarative') {
+    // HARNESS MODEL: only declarative packages whose recipes the host BROKER executes.
+    //
+    // A `model-runtime` recipe (PHASE2) is executed by the package's own provider factory, so
+    // requiring a harness LlmProvider for it would refuse a package that needs nothing from
+    // the deployment. The requirement is skipped only when EVERY declared recipe is
+    // model-runtime; a package with no declared recipe keeps the old behavior.
+    const harnessServed = input.facts.harnessRecipes > 0 || input.facts.modelRuntimeRecipes === 0
+    if (input.facts.executionKind === 'declarative' && harnessServed) {
       requirements.push(this.#harnessModelRequirement())
     }
 

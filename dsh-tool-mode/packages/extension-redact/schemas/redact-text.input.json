@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "redact_text input",
+  "description": "Text to scan for personal data. Offsets in the result index this exact string in UTF-16 code units.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "text"
+  ],
+  "properties": {
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100000,
+      "description": "The text to redact. Long documents are processed up to the local window cap; coverage reports truncation."
+    }
+  }
+}

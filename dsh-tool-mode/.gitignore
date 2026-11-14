@@ -37,6 +37,9 @@ verification/ptc-confinement-evidence.json
 
 .tmp-stageshow/
 
+# Runtime asset cache (downloaded model files; never committed)
+/.assets/
+
 
 # Fixture extension entry files are source, not build output.
 !packages/*/tests/fixtures/**/lib/

@@ -1,0 +1,90 @@
+{
+  "lockVersion": 1,
+  "assetSets": {
+    "shapes-litert": {
+      "model": {
+        "provider": "desert-ant-labs",
+        "identity": "desert-ant-labs/shapes",
+        "url": "https://huggingface.co/desert-ant-labs/shapes",
+        "revision": "ee004d08b3e5ed734fdf656277ead56c0225f9c0",
+        "revisionKind": "the Hugging Face repository commit sha the artifact was fetched at",
+        "modalities": [
+          "stroke"
+        ]
+      },
+      "engine": {
+        "kind": "litert",
+        "version": "@litertjs/core 2.5.3 (WASM/XNNPACK)"
+      },
+      "tokenizer": {
+        "kind": "none",
+        "identity": "none: the shapes processor consumes an ordered point list, not tokens"
+      },
+      "platforms": [
+        {
+          "os": "win32",
+          "arch": "x64",
+          "accelerator": "cpu"
+        }
+      ],
+      "license": {
+        "name": "Desert Ant Labs Source-Available License 1.0",
+        "url": "https://license.desertant.com/1.0",
+        "attributionRequired": true,
+        "redistribution": "not-permitted"
+      },
+      "assets": [
+        {
+          "id": "shapes-tflite",
+          "fileName": "shapes.tflite",
+          "url": "https://huggingface.co/desert-ant-labs/shapes/resolve/ee004d08b3e5ed734fdf656277ead56c0225f9c0/shapes.tflite",
+          "bytes": 974896,
+          "sha256": "8274742f91341e54ae64df4c561a19e5fb4cf591d6b305290d129068f56ef6b9",
+          "role": "the LiteRT model artifact (13-class stroke classifier with a 128-point geometry head)",
+          "verified": "sha256 computed from the 974,896 bytes fetched at the pinned revision on 2026-11-14; the file is a TFL3 FlatBuffer"
+        }
+      ],
+      "groups": [
+        {
+          "id": "shapes-litert",
+          "enables": [
+            "stroke"
+          ],
+          "assets": [
+            {
+              "id": "shapes-tflite",
+              "file": "shapes.tflite",
+              "bytes": 974896,
+              "source": "https://huggingface.co/desert-ant-labs/shapes/resolve/ee004d08b3e5ed734fdf656277ead56c0225f9c0/shapes.tflite",
+              "digest": "8274742f91341e54ae64df4c561a19e5fb4cf591d6b305290d129068f56ef6b9",
+              "executable": false
+            }
+          ]
+        }
+      ],
+      "pinning": {
+        "state": "measured",
+        "revision": "ee004d08b3e5ed734fdf656277ead56c0225f9c0",
+        "reason": "The artifact was fetched from the pinned Hugging Face revision and its byte size and SHA-256 were recorded from those bytes. It was then executed through the LiteRT layer on this machine: class-order probes on the pinned artifact gave a horizontal line -> index 1 (0.9505), an axis-aligned rectangle -> index 3 (0.9534), a triangle -> index 5 (0.9528) and a circle -> index 4 (0.9514), confirming the 13-class order recorded in the qualification record.",
+        "measuredOn": "2026-11-14",
+        "platforms": [
+          {
+            "os": "win32",
+            "arch": "x64",
+            "accelerator": "cpu"
+          }
+        ]
+      },
+      "qualification": {
+        "modelRevision": "ee004d08b3e5ed734fdf656277ead56c0225f9c0",
+        "artifactSha": "sha256:8274742f91341e54ae64df4c561a19e5fb4cf591d6b305290d129068f56ef6b9",
+        "tokenizer": "none: shapes consumes an ordered point list, not tokens",
+        "processor": "shapes/points-v1: arc-length resample to 128 points, bounding-box centre to the origin, longer side scaled to 1; 13-class softmax in model class order (none, line, arrow, rectangle, ellipse, triangle, diamond, pentagon, hexagon, star, heart, cloud, scribble) plus a 128-point geometry head",
+        "engineVersion": "@litertjs/core 2.5.3 (WASM, CPU/XNNPACK)",
+        "nodeAbi": "137 (Node 24)",
+        "architecture": "x64",
+        "executionProvider": "cpu (LiteRT.js WASM; no native binding)"
+      }
+    }
+  }
+}

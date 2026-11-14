@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "classify_nsfw input",
+  "description": "Absolute path to a PNG image to check, plus optional decision settings. v1 decodes PNG only (8-bit RGB or RGBA, non-interlaced); JPEG and other formats are refused by name rather than guessed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "image_path"
+  ],
+  "properties": {
+    "image_path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "description": "Absolute path to the PNG file. Files are read from the caller's granted filesystem, never uploaded."
+    },
+    "quality": {
+      "type": "string",
+      "enum": [
+        "fast",
+        "balanced",
+        "accurate"
+      ],
+      "default": "balanced",
+      "description": "How many crops to score: fast = 1 center crop, balanced = 4 crops, accurate = 8 crops. Defaults to balanced."
+    },
+    "threshold": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "default": 0.5,
+      "description": "Decision threshold; isNSFW is true when score >= threshold. Defaults to 0.5."
+    },
+    "policy": {
+      "type": "string",
+      "enum": [
+        "standard",
+        "allowTopless"
+      ],
+      "default": "standard",
+      "description": "standard counts all five heads; allowTopless counts all but nipples. Defaults to standard."
+    }
+  }
+}

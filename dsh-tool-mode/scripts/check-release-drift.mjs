@@ -112,6 +112,19 @@ const recipes = walk(PACKAGES, path => /[\\/]recipes?[\\/].+\.json$/.test(path) 
 for (const path of recipes) {
   const recipe = readJson(path)
   if (recipe === undefined) continue
+  /**
+   * A model-runtime recipe is a DIFFERENT vocabulary from the harness-model recipe:
+   * schemaVersion is the number 1 and there is no recipe version. Its own parser
+   * (@try-works/tool-mode-runtime-recipes) is the validator, so the harness drift
+   * checks below would report a correct recipe as drift.
+   */
+  if (recipe.kind === 'model-runtime') {
+    checked.modelRuntimeRecipes = (checked.modelRuntimeRecipes ?? 0) + 1
+    if (recipe.schemaVersion !== 1) {
+      fail(path, 'schemaVersion', 'a model-runtime recipe must declare schemaVersion 1')
+    }
+    continue
+  }
   checked.recipes += 1
   if (recipe.schemaVersion !== undefined && recipe.schemaVersion !== SCHEMA_VERSION) {
     fail(path, 'schemaVersion', `expected ${SCHEMA_VERSION}, saw ${JSON.stringify(recipe.schemaVersion)}`)

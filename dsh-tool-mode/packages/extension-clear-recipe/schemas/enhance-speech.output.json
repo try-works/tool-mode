@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "enhance_speech output",
+  "description": "The enhanced 48 kHz mono 16-bit PCM WAV as base64, with honest coverage when the caller's result budget capped the returned audio. There is no fixed maximum duration: the cap is derived from the invocation's maxResultBytes at run time, so no maxLength is declared here (a deployment that raises the budget must not be rejected by this schema).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "audio_base64",
+    "sampleRate",
+    "durationSeconds",
+    "coverage"
+  ],
+  "properties": {
+    "audio_base64": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A complete RIFF/WAVE file, 16-bit PCM mono 48 kHz, encoded as standard base64 with no data: prefix. Size is bounded by the invocation's maxResultBytes, not by this schema."
+    },
+    "sampleRate": {
+      "type": "integer",
+      "const": 48000,
+      "description": "Always 48000: the returned audio is resampled to 48 kHz."
+    },
+    "durationSeconds": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Duration of the RETURNED audio (96,000 bytes of PCM per second). When the result budget capped it, this is shorter than the input and coverage.complete is false."
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "complete",
+        "processedSeconds",
+        "totalSeconds"
+      ],
+      "properties": {
+        "complete": {
+          "type": "boolean",
+          "description": "False when the result budget capped the returned audio."
+        },
+        "processedSeconds": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Seconds of audio returned (equal to durationSeconds)."
+        },
+        "totalSeconds": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Duration of the input recording."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Why the audio was capped; present only when complete is false."
+        }
+      }
+    }
+  }
+}

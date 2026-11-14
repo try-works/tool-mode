@@ -147,6 +147,21 @@ const WORKSPACE = {
   '@try-works/extension-minilm-embed': 'packages/extension-minilm-embed',
   '@try-works/extension-minilm-rerank': 'packages/extension-minilm-rerank',
   '@try-works/extension-laya': 'packages/extension-laya',
+  // Runtime layer (Phase 0/1). A package absent from this map cannot be imported
+  // across packages, so the dsh adapter would fail to resolve runtime-core.
+  '@try-works/tool-mode-runtime-core': 'packages/tool-mode-runtime-core',
+  '@try-works/tool-mode-runtime-litert': 'packages/tool-mode-runtime-litert',
+  '@try-works/tool-mode-runtime-processors': 'packages/tool-mode-runtime-processors',
+  '@try-works/tool-mode-runtime-dsh': 'packages/tool-mode-runtime-dsh',
+  '@try-works/tool-mode-runtime-recipes': 'packages/tool-mode-runtime-recipes',
+  '@try-works/extension-redact': 'packages/extension-redact',
+  '@try-works/extension-shapes-recipe': 'packages/extension-shapes-recipe',
+  '@try-works/tool-mode-runtime-onnx': 'packages/tool-mode-runtime-onnx',
+  '@try-works/extension-uhm-recipe': 'packages/extension-uhm-recipe',
+  '@try-works/extension-clear-recipe': 'packages/extension-clear-recipe',
+  '@try-works/extension-moderator-recipe': 'packages/extension-moderator-recipe',
+  '@try-works/extension-ear-recipe': 'packages/extension-ear-recipe',
+  '@try-works/extension-emo-recipe': 'packages/extension-emo-recipe',
 }
 let workspaceLinked = 0
 for (const [specifier, relative] of Object.entries(WORKSPACE)) {

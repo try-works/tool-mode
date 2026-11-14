@@ -76,6 +76,8 @@ import {
 import type { JsonValue } from './adapters/types.ts'
 import { ExtensionStore, ExtensionLifecycle, type LifecycleAuditEvent, type ModelReadiness } from '@try-works/tool-mode-extension-sdk'
 import { authorizeTool, createGrant } from './authority.ts'
+import { isModelRuntimeRecipe, parseModelRuntimeRecipe } from './model-runtime-recipe.ts'
+import { createModelRuntimeTool } from './model-runtime-lane.ts'
 import { ProviderBridge } from './provider-bridge.ts'
 import { createUpdateHostSurface, type UpdateHostSurface } from './update-surface.ts'
 import { SubscriptionRegistry, deliverCatalogChange, MemoryDeliverySink } from './mcp/subscriptions.ts'
@@ -5316,18 +5318,100 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             // catalogue binds it, and there is nothing to register.
             return () => {}
           }
-          if (harnessProvider === undefined && config.harnessProfiles === undefined) {
-            throw new Error(
-              `${contribution.extensionId} is declarative and its recipes resolved, but they cannot be served: `
-              + 'this deployment composes no harness LlmProvider, so a declarative package\'s recipes '
-              + 'cannot be executed. Set config.harnessModel (or supply harnessProvider/harnessProfiles) to serve them.',
-            )
-          }
+          /**
+           * THE RECIPES ARE RESOLVED BEFORE ANY PROVIDER DECISION, because their `kind`
+           * decides which lane serves them (docs/runtime/PHASE2.md).
+           *
+           * The harness lane needs a composed `LlmProvider`; the model-runtime lane must NOT
+           * (its engine is a factory the package ships and the recipe names). Checking for a
+           * harness provider first — which is what this function did before the lane existed —
+           * would refuse a model-runtime package for lacking something it never needs.
+           */
           const resolved = resolveDeclarativeImplementations(record.installPath, manifest.implementations ?? [])
           if (!resolved.ok) {
             throw new Error(
               `${contribution.extensionId} is declarative but its recipe could not be resolved: `
               + `${resolved.id} — ${resolved.detail}`,
+            )
+          }
+          const rawEntry = resolved.resolved.find(entry => entry.id === contribution.name)
+          if (rawEntry === undefined) return () => {}
+
+          /**
+           * THE MODEL-RUNTIME LANE (AT-25, ARCH-02).
+           *
+           * A `kind: "model-runtime"` recipe is served WITHOUT a harness model: the host
+           * parses the recipe, resolves the provider factory FROM THE EXTENSION'S OWN PACKAGE
+           * (never from the host's module graph, which is why the host can declare no engine),
+           * and registers the tool the recipe names with the recipe's schema files.
+           *
+           * Every failure here is a NAMED refusal thrown from registration, so a package that
+           * cannot run is quarantined rather than published as a tool that fails at call time.
+           */
+          if (isModelRuntimeRecipe(rawEntry.recipe)) {
+            const parsedRecipe = parseModelRuntimeRecipe(rawEntry.recipe)
+            if (!parsedRecipe.ok) {
+              throw new Error(
+                `${contribution.extensionId} declares a model-runtime recipe for ${contribution.name} that did not validate: `
+                + `${parsedRecipe.code} — ${parsedRecipe.detail}`,
+              )
+            }
+            /**
+             * The authority is the SAME one the extension-tool path uses, so a model-runtime
+             * provider resolves caller paths through the host's grants rather than opening
+             * whatever it is handed (SEC-06).
+             */
+            const authority = createInvocationAuthority(grant, 'interactive')
+            const lane = createModelRuntimeTool({
+              extensionId: contribution.extensionId,
+              implementationId: contribution.name,
+              installPath: record.installPath,
+              recipe: parsedRecipe.recipe,
+              assets: () => prepareAssetsSurface?.assetMapFor(contribution.extensionId) ?? { assetIds: [], get: () => undefined },
+              invocationContext: exec => ({
+                invocationId: `inv_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e6).toString(36)}`,
+                signal: exec?.signal ?? new AbortController().signal,
+                limits: authority.limits,
+                resolvePath: candidate => authority.resolvePath(candidate),
+              }),
+              onError: message => ctx.logger.warn(`model-tools: ${message}`),
+            })
+            if (!lane.ok) {
+              throw new Error(
+                `${contribution.extensionId} declares a model-runtime recipe for ${contribution.name} that cannot be served: `
+                + `${lane.code} — ${lane.detail}`,
+              )
+            }
+            const disposeTool = ctx.tools.register(defineTool({
+              name: lane.tool.name,
+              description: lane.tool.description,
+              parameters: lane.tool.parameters as unknown as ParameterSchemaSpec,
+              output: {
+                schema: { type: 'json' },
+                render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+              },
+              async execute(args, exec) {
+                return await lane.tool.execute(args, exec) as never
+              },
+            }))
+            exposeExtensionToolToMcp(lane.tool.name, {
+              description: lane.tool.description,
+              inputSchema: lane.tool.inputSchema,
+              outputSchema: lane.tool.outputSchema,
+            })
+            return () => {
+              // Withdraw first so no new call can start, then release the provider.
+              withdrawExtensionToolFromMcp(lane.tool.name)
+              disposeTool()
+              void lane.tool.dispose()
+            }
+          }
+
+          if (harnessProvider === undefined && config.harnessProfiles === undefined) {
+            throw new Error(
+              `${contribution.extensionId} is declarative and its recipes resolved, but they cannot be served: `
+              + 'this deployment composes no harness LlmProvider, so a declarative package\'s recipes '
+              + 'cannot be executed. Set config.harnessModel (or supply harnessProvider/harnessProfiles) to serve them.',
             )
           }
           const served = prepareDeclarative({
@@ -5341,8 +5425,6 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
               + `but they cannot be served: ${served.detail}`,
             )
           }
-          const rawEntry = resolved.resolved.find(entry => entry.id === contribution.name)
-          if (rawEntry === undefined) return () => {}
           const parsed = parseRecipe(rawEntry.recipe)
           if (!parsed.ok) {
             throw new Error(`${contribution.extensionId} declares a recipe that did not validate: ${JSON.stringify(parsed).slice(0, 300)}`)

@@ -1,0 +1,107 @@
+{
+  "lockVersion": 1,
+  "assetSets": {
+    "uhm-onnx": {
+      "model": {
+        "provider": "desert-ant-labs",
+        "identity": "desert-ant-labs/uhm",
+        "url": "https://huggingface.co/desert-ant-labs/uhm",
+        "revision": "a81452eeaa82ba83bdd3682906fe01120b12351a",
+        "revisionKind": "the Hugging Face repository commit sha the artifacts were fetched at",
+        "modalities": [
+          "audio"
+        ]
+      },
+      "engine": {
+        "kind": "onnxruntime",
+        "version": "onnxruntime-node 1.30.0 (CPUExecutionProvider)"
+      },
+      "tokenizer": {
+        "kind": "none",
+        "identity": "none: uhm consumes a 16 kHz waveform, not tokens"
+      },
+      "platforms": [
+        {
+          "os": "win32",
+          "arch": "x64",
+          "accelerator": "cpu"
+        }
+      ],
+      "license": {
+        "name": "Desert Ant Labs Source-Available License 1.0",
+        "url": "https://license.desertant.com/1.0",
+        "attributionRequired": true,
+        "redistribution": "not-permitted"
+      },
+      "assets": [
+        {
+          "id": "uhm-onnx-model",
+          "fileName": "uhm.onnx",
+          "url": "https://huggingface.co/desert-ant-labs/uhm/resolve/a81452eeaa82ba83bdd3682906fe01120b12351a/uhm.onnx",
+          "bytes": 94042570,
+          "sha256": "fbd19765def76893841e0c70e498bf632d6c68175ceae5a2da8fe3bf7d9d0314",
+          "role": "the ONNX fp32 filler classifier: input (1,480000) float32 = 16 kHz mono up to 30 s, output (1,1499,6) one frame every 20 ms",
+          "verified": "sha256 from the Hugging Face LFS metadata at the pinned revision and the byte count checked against the resolve content-length on 2026-11-14"
+        },
+        {
+          "id": "uhm-labels",
+          "fileName": "labels.json",
+          "url": "https://huggingface.co/desert-ant-labs/uhm/resolve/a81452eeaa82ba83bdd3682906fe01120b12351a/labels.json",
+          "bytes": 237,
+          "sha256": "9b3a8579b0185771f137873e5cbcbdd67572c34fdbeeac778580170c9248f9a3",
+          "role": "the six-class id2label order the processor maps frame indices through: 0 not_filler, 1 uh, 2 um, 3 hmm, 4 and, 5 other",
+          "verified": "sha256 computed from the 237 bytes fetched at the pinned revision on 2026-11-14"
+        }
+      ],
+      "groups": [
+        {
+          "id": "uhm-onnx",
+          "enables": [
+            "audio"
+          ],
+          "assets": [
+            {
+              "id": "uhm-onnx-model",
+              "file": "uhm.onnx",
+              "bytes": 94042570,
+              "source": "https://huggingface.co/desert-ant-labs/uhm/resolve/a81452eeaa82ba83bdd3682906fe01120b12351a/uhm.onnx",
+              "digest": "fbd19765def76893841e0c70e498bf632d6c68175ceae5a2da8fe3bf7d9d0314",
+              "executable": false
+            },
+            {
+              "id": "uhm-labels",
+              "file": "labels.json",
+              "bytes": 237,
+              "source": "https://huggingface.co/desert-ant-labs/uhm/resolve/a81452eeaa82ba83bdd3682906fe01120b12351a/labels.json",
+              "digest": "9b3a8579b0185771f137873e5cbcbdd67572c34fdbeeac778580170c9248f9a3",
+              "executable": false
+            }
+          ]
+        }
+      ],
+      "pinning": {
+        "state": "measured",
+        "revision": "a81452eeaa82ba83bdd3682906fe01120b12351a",
+        "reason": "Both artifacts were verified at the pinned Hugging Face revision on 2026-11-14: uhm.onnx against the repository's LFS sha256 plus the resolve content-length, and labels.json by hashing the fetched 237 bytes. Execution qualification is the processor field; the real-inference gate lives in the runtime-onnx package.",
+        "measuredOn": "2026-11-14",
+        "platforms": [
+          {
+            "os": "win32",
+            "arch": "x64",
+            "accelerator": "cpu"
+          }
+        ]
+      },
+      "qualification": {
+        "modelRevision": "a81452eeaa82ba83bdd3682906fe01120b12351a",
+        "artifactSha": "sha256:fbd19765def76893841e0c70e498bf632d6c68175ceae5a2da8fe3bf7d9d0314",
+        "tokenizer": "none: uhm consumes a 16 kHz waveform, not tokens",
+        "processor": "uhm/waveform-v1: WAV decode (PCM 16-bit and float32, mono or stereo down-mix), linear resample to 16 kHz, 480000-sample chunks with 1 s overlap and a zero-padded final chunk; per-frame argmax, filler when class != 0 and probability >= 0.5; classes 0 not_filler, 1 uh, 2 um, 3 hmm, 4 and, 5 other; spans merged across chunks (one-frame gaps tolerated), confidence = mean, clipped to the audio length",
+        "engineVersion": "onnxruntime-node 1.30.0 (CPUExecutionProvider)",
+        "nodeAbi": "137 (Node 24)",
+        "architecture": "x64",
+        "executionProvider": "cpu (ONNX Runtime CPUExecutionProvider; dml/webgpu are optional negotiation lanes)"
+      }
+    }
+  }
+}

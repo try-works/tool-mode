@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "suggest_emojis output",
+  "description": "Emoji suggestions for the text. Confidences are raw softmax probabilities, not calibrated probabilities, and a suggestion is a ranked hint rather than a promise that the emoji fits.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "suggestions",
+    "labels"
+  ],
+  "properties": {
+    "suggestions": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 20,
+      "description": "The top `limit` labels by descending probability, exact ties broken by ascending label index.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "emoji",
+          "confidence"
+        ],
+        "properties": {
+          "emoji": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The emoji string from emo_meta.json labels[index]."
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "The label's raw softmax probability; uncalibrated."
+          }
+        }
+      }
+    },
+    "labels": {
+      "const": 812,
+      "type": "integer",
+      "description": "The model's label-space size (812 emoji labels), not the number of suggestions."
+    }
+  }
+}

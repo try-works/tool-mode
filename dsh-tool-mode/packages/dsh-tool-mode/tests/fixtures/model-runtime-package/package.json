@@ -1,0 +1,10 @@
+{
+  "name": "@try-works/extension-model-runtime-fixture",
+  "version": "0.1.0",
+  "description": "A CODE-FREE declarative package fixture: it declares no extension entry at all, only a manifest, a model-runtime recipe and the tool schemas the recipe names.",
+  "license": "MIT",
+  "type": "module",
+  "toolMode": {
+    "manifest": "./tool-mode.extension.json"
+  }
+}

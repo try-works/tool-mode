@@ -1,0 +1,9 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "text": { "type": "string", "minLength": 1, "description": "Text to classify." },
+    "shape": { "type": "string", "enum": ["circle", "square"], "description": "Expected shape." }
+  },
+  "required": ["text"]
+}

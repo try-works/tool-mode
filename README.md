@@ -106,6 +106,8 @@ extensions.
 | Harness Vision | `describe_image` | Image description through an authorized harness model |
 | Harness Text Tools | `text_title` | Title and summary generation |
 | Declarative recipes | Recipe-defined tools | Harness-model-backed recipes |
+| Redact | `redact_text` | PII spans over the Redact LiteRT artifact (Effect runtime layer) |
+| Shapes (declarative) | `shape_recognize` | Code-free package: manifest + model-runtime recipe |
 
 Use `tool_mode_list` for the live answer in your process. The complete table,
 per-model details and the reason for every unavailable model are in
@@ -172,6 +174,18 @@ installed extensions, enabled models and the caller's grant; use
 | `tool_mode_describe` | Schemas, semantics, limits and unsupported cases |
 | `model_tools` | Host-local model and extension management view |
 | `tool_mode_run` | Bounded multi-tool program; only when Code Mode is released |
+
+### Runtime layer (Effect)
+
+| Tool | Backed by |
+| --- | --- |
+| `redact_text` | Redact LiteRT artifact through the Effect runtime layer |
+| `shape_recognize` | Shapes declarative package (manifest + model-runtime recipe, no code) |
+| `detect_fillers` | Uhm declarative package (ONNX runtime layer) |
+| `enhance_speech` | Clear declarative package (ONNX runtime layer, returns enhanced WAV base64) |
+| `classify_nsfw` | Moderator declarative package (LiteRT runtime layer, PNG input) |
+| `identify_language` | Ear declarative package (LiteRT runtime layer, 16 kHz WAV) |
+| `suggest_emojis` | Emo declarative package (LiteRT runtime layer, text → emoji suggestions) |
 
 Full descriptions and schemas: [Tool reference](dsh-tool-mode/docs/guide/reference/tools.md).
 

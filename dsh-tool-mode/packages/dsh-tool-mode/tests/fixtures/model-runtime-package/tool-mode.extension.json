@@ -1,0 +1,35 @@
+{
+  "protocolVersion": "1.1.0",
+  "id": "@try-works/extension-model-runtime-fixture",
+  "version": "0.1.0",
+  "displayName": "Model runtime fixture",
+  "description": "Ships no extension entry: every tool it contributes is resolved from a model-runtime recipe, and the engine binding is a module the recipe names inside this package.",
+  "license": "MIT",
+  "activation": { "policy": "operator", "deactivatable": true },
+  "runtimeApi": 1,
+  "compatibility": { "hostApi": "^1.1.0", "requiredFeatures": [] },
+  "execution": { "kind": "declarative" },
+  "permissions": { "networkOrigins": [], "inputFiles": false, "storage": "none", "secrets": [], "nativeCode": false },
+  "models": [],
+  "tools": [],
+  "implementations": [
+    {
+      "id": "shapes",
+      "contractId": "image.shapes",
+      "contractVersion": "1.0.0",
+      "recipeVersion": "1.0.0"
+    }
+  ],
+  "skills": [],
+  "licenses": [
+    {
+      "layer": "code",
+      "name": "MIT",
+      "url": "https://opensource.org/license/mit",
+      "openSource": true,
+      "redistribution": "permitted",
+      "attributionRequired": false,
+      "obligations": []
+    }
+  ]
+}

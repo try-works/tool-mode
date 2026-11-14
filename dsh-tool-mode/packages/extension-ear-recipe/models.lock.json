@@ -1,0 +1,155 @@
+{
+  "lockVersion": 1,
+  "assetSets": {
+    "ear-litert": {
+      "model": {
+        "provider": "desert-ant-labs",
+        "identity": "desert-ant-labs/ear",
+        "url": "https://huggingface.co/desert-ant-labs/ear",
+        "revision": "1e2148c0cc46130174ecf564c406e44931fca386",
+        "revisionKind": "the Hugging Face repository commit sha the artifacts were fetched at",
+        "modalities": [
+          "audio"
+        ]
+      },
+      "engine": {
+        "kind": "litert",
+        "version": "@litertjs/core 2.5.3 (WASM/XNNPACK)"
+      },
+      "tokenizer": {
+        "kind": "none",
+        "identity": "none: ear consumes log-mel frames, not tokens"
+      },
+      "platforms": [
+        {
+          "os": "win32",
+          "arch": "x64",
+          "accelerator": "cpu"
+        }
+      ],
+      "license": {
+        "name": "Desert Ant Labs Source-Available License 1.0",
+        "url": "https://license.desertant.com/1.0",
+        "attributionRequired": true,
+        "redistribution": "not-permitted"
+      },
+      "assets": [
+        {
+          "id": "ear-tflite",
+          "fileName": "ear.tflite",
+          "url": "https://huggingface.co/desert-ant-labs/ear/resolve/1e2148c0cc46130174ecf564c406e44931fca386/ear.tflite",
+          "bytes": 10671552,
+          "sha256": "a19b43892abe53afba50122a861b10fd76f312a5027a5c659b0738081135feeb",
+          "role": "the LiteRT language classifier: log-mel [1,80,3000] in, 103 language logits out in languages.json order",
+          "verified": "sha256 from the pinned revision's LFS metadata and confirmed from the fetched 10,671,552 bytes (2026-11-14)"
+        },
+        {
+          "id": "ear-meta",
+          "fileName": "ear_meta.json",
+          "url": "https://huggingface.co/desert-ant-labs/ear/resolve/1e2148c0cc46130174ecf564c406e44931fca386/ear_meta.json",
+          "bytes": 2190,
+          "sha256": "538d66c747024d4ef2ae33aef273817c7baea21171430fef0c2713a66bb6af18",
+          "role": "the model's own front-end and decision metadata: audio geometry, STFT parameters, log-mel affine, output order and decision rule",
+          "verified": "sha256 computed from the fetched 2,190 bytes at the pinned revision (2026-11-14)"
+        },
+        {
+          "id": "ear-languages",
+          "fileName": "languages.json",
+          "url": "https://huggingface.co/desert-ant-labs/ear/resolve/1e2148c0cc46130174ecf564c406e44931fca386/languages.json",
+          "bytes": 628,
+          "sha256": "0a08f30dec26ad25730a1fa9375a5d693f5a159032d0cd7818007b7dbc3eae18",
+          "role": "the language order for the 103 output logits",
+          "verified": "sha256 computed from the fetched 628 bytes at the pinned revision (2026-11-14)"
+        },
+        {
+          "id": "ear-mel-filters",
+          "fileName": "mel_filters.f32",
+          "url": "https://huggingface.co/desert-ant-labs/ear/resolve/1e2148c0cc46130174ecf564c406e44931fca386/mel_filters.f32",
+          "bytes": 64328,
+          "sha256": "a3099fcba1a7f30f229b230011146ea0140db8de4f467b44aaa5de70bcc0f325",
+          "role": "the 80 mel filterbank: uint32 mels, uint32 bins, then mels*bins float32 little-endian, mel-major",
+          "verified": "sha256 computed from the fetched 64,328 bytes at the pinned revision (2026-11-14)"
+        }
+      ],
+      "groups": [
+        {
+          "id": "ear-litert",
+          "enables": [
+            "audio"
+          ],
+          "assets": [
+            {
+              "id": "ear-tflite",
+              "file": "ear.tflite",
+              "bytes": 10671552,
+              "source": "https://huggingface.co/desert-ant-labs/ear/resolve/1e2148c0cc46130174ecf564c406e44931fca386/ear.tflite",
+              "digest": "a19b43892abe53afba50122a861b10fd76f312a5027a5c659b0738081135feeb",
+              "executable": false
+            },
+            {
+              "id": "ear-meta",
+              "file": "ear_meta.json",
+              "bytes": 2190,
+              "source": "https://huggingface.co/desert-ant-labs/ear/resolve/1e2148c0cc46130174ecf564c406e44931fca386/ear_meta.json",
+              "digest": "538d66c747024d4ef2ae33aef273817c7baea21171430fef0c2713a66bb6af18",
+              "executable": false
+            },
+            {
+              "id": "ear-languages",
+              "file": "languages.json",
+              "bytes": 628,
+              "source": "https://huggingface.co/desert-ant-labs/ear/resolve/1e2148c0cc46130174ecf564c406e44931fca386/languages.json",
+              "digest": "0a08f30dec26ad25730a1fa9375a5d693f5a159032d0cd7818007b7dbc3eae18",
+              "executable": false
+            },
+            {
+              "id": "ear-mel-filters",
+              "file": "mel_filters.f32",
+              "bytes": 64328,
+              "source": "https://huggingface.co/desert-ant-labs/ear/resolve/1e2148c0cc46130174ecf564c406e44931fca386/mel_filters.f32",
+              "digest": "a3099fcba1a7f30f229b230011146ea0140db8de4f467b44aaa5de70bcc0f325",
+              "executable": false
+            }
+          ]
+        }
+      ],
+      "pinning": {
+        "state": "measured",
+        "revision": "1e2148c0cc46130174ecf564c406e44931fca386",
+        "reason": "All four artifacts were fetched and hashed first-hand at the pinned revision on 2026-11-14: ear.tflite 10,671,552 B (matches the repository LFS metadata), ear_meta.json 2,190 B, languages.json 628 B and mel_filters.f32 64,328 B. The front-end, geometry, window-selection and decision facts are read from ear_meta.json and the primary source files named in contractSource, and the ear/mel-v1 tool contract was confirmed by the processor owner (litert-provider, task-23) with the Lead's adjudication of the language arithmetic: 103 model labels and logits, 102 canonical languages after the yue->zh fold, the README's '102 languages' being that canonical count. The gated real run in the runtime-litert package qualifies execution.",
+        "measuredOn": "2026-11-14",
+        "platforms": [
+          {
+            "os": "win32",
+            "arch": "x64",
+            "accelerator": "cpu"
+          }
+        ],
+        "contractSource": {
+          "repository": "https://github.com/Desert-Ant-Labs/desert-ant-core",
+          "commit": "baf4e6e3b4655c8e54aa8d5a25215b5f35f899a7",
+          "fetched": "2026-11-14",
+          "files": [
+            "Sources/Ear/Frontend.swift L25-40, L48-63, L65-106, L137-150, L163-221, L223-242",
+            "Sources/Ear/Model.swift L19, L26-47, L49-70, L72-102, L104-114, L119-123",
+            "Sources/Ear/Ear.swift L29-34, L54, L113, L156-165",
+            "Sources/Ear/Languages.swift L4-8, L20, L22-24",
+            "Sources/AudioDSP/STFT.swift L68-106, L109-158",
+            "Sources/AudioDSP/Windowing.swift L21-27, L30-41",
+            "Sources/AudioIO/Resample.swift L25-40"
+          ]
+        }
+      },
+      "qualification": {
+        "modelRevision": "1e2148c0cc46130174ecf564c406e44931fca386",
+        "artifactSha": "sha256:a19b43892abe53afba50122a861b10fd76f312a5027a5c659b0738081135feeb",
+        "tokenizer": "none: ear consumes log-mel frames, not tokens",
+        "processor": "ear/mel-v1 (confirmed by litert-provider, 2026-11-14): 16 kHz mono; 30 s window = 480000 samples, candidate step = window/3 = 160000 samples (~10 s); window selection ranks candidate windows by syllabic modulation (RMS envelope at hop 160 sampling every 4th sample, envelope rate 100 Hz, one-pole coefficients 1-exp(-2*pi*hz/rate) for 8 Hz and 2 Hz, band = lowFast - lowSlow, score = bandSum/totalSum, windows below 2% of the loudest candidate excluded), takes the requested count and sorts selected offsets ascending; samples <= one window -> [0]. STFT n_fft 400, hop 160, Hann periodic, center=true with reflect padding by 200, 201 bins, 3001 computed frames of which the first 3000 are kept, power = re^2+im^2; log-mel from mel_filters.f32 (uint32 LE mels=80, bins=201, then float32 LE mel-major), log10(max(e,1e-10)), floor at peak-8, affine (x+4)/4, output mel-major [80,3000] -> tensor [1,80,3000]. Model: 103 logits in languages.json order (103 labels; 102 distinct canonical codes after the yue->zh fold; the README's '102 languages' is that canonical count, not a contradiction of the artifact). Decision: per-window softmax over the 103 labels, probabilities averaged across the listened windows, mass folded by canonical code (yue->zh; the tl->fil and nb->no aliases are kept but are no-ops because those codes are absent from this label set), sorted descending with ties by code ascending, top 5. Output: language = candidates[0].language, confidence = candidates[0].probability, isReliable = top not in {no,sv,da} AND (top - runnerUp) >= 0.25 evaluated after folding, candidates = up to 5 {language, probability}, windows = the integer count actually listened to. The provider validates the logits and sibling assets and constructs these keys; the host lane is the JSON-schema authority.",
+        "engineVersion": "@litertjs/core 2.5.3 (WASM, CPU/XNNPACK)",
+        "nodeAbi": "137 (Node 24)",
+        "architecture": "x64",
+        "executionProvider": "cpu (LiteRT.js WASM; no native binding)"
+      }
+    }
+  }
+}

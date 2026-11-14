@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "suggest_emojis input",
+  "description": "Text to suggest emojis for, plus how many suggestions to return. The text length bound is counted in Unicode code points; empty or whitespace-only text is refused as invalid input.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "text"
+  ],
+  "properties": {
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "The text to suggest emojis for, counted in Unicode code points ([...text].length), 1..1024. Empty or whitespace-only text is refused."
+    },
+    "limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 20,
+      "default": 5,
+      "description": "How many suggestions to return: the top labels by descending probability. Defaults to 5."
+    }
+  }
+}

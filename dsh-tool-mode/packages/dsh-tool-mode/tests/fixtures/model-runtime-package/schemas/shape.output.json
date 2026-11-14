@@ -1,0 +1,9 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "shapes": { "type": "array", "items": { "type": "string" } },
+    "score": { "type": "number" }
+  },
+  "required": ["shapes", "score"]
+}

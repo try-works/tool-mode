@@ -52,14 +52,21 @@ interface LockAudit {
 
 /** The first-party extensions whose locks are audited. A new package fails the list test. */
 const FIRST_PARTY_EXTENSIONS = [
+  'extension-clear-recipe',
   'extension-desert-ant-tongue',
   'extension-desert-ant-voz',
+  'extension-ear-recipe',
   'extension-embeddinggemma',
+  'extension-emo-recipe',
   'extension-laya',
   'extension-minilm-embed',
   'extension-minilm-rerank',
   'extension-mirage',
+  'extension-moderator-recipe',
   'extension-needle',
+  'extension-redact',
+  'extension-shapes-recipe',
+  'extension-uhm-recipe',
 ] as const
 
 /** The sets that honestly declare no host-fetched assets. */

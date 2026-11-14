@@ -1,0 +1,29 @@
+{
+  "kind": "model-runtime",
+  "schemaVersion": 1,
+  "provider": {
+    "package": "@try-works/tool-mode-runtime-onnx",
+    "export": "createProviderFromRecipe",
+    "accelerators": [
+      "cpu"
+    ]
+  },
+  "model": {
+    "assetSet": "clear-onnx",
+    "fileName": "clear-studio.onnx",
+    "format": "onnx"
+  },
+  "processor": {
+    "id": "clear/stft-v1"
+  },
+  "limits": {
+    "maxInputBytes": 4194304,
+    "timeoutMs": 120000
+  },
+  "tool": {
+    "name": "enhance_speech",
+    "description": "Denoise and dereverb a speech recording and return the enhanced 48 kHz mono WAV as base64, with honest coverage of the analysed audio.",
+    "inputSchema": "./schemas/enhance-speech.input.json",
+    "outputSchema": "./schemas/enhance-speech.output.json"
+  }
+}

@@ -1,0 +1,145 @@
+{
+  "protocolVersion": "1.1.0",
+  "id": "@try-works/extension-uhm-recipe",
+  "version": "0.1.0",
+  "displayName": "Uhm filler detection (declarative)",
+  "description": "Ships NO CODE. Declares the Desert Ant Labs Uhm ONNX artifact and one model-runtime recipe, so the host's declarative lane registers detect_fillers from data alone.",
+  "license": "Apache-2.0",
+  "activation": {
+    "policy": "operator",
+    "deactivatable": true
+  },
+  "runtimeApi": 1,
+  "compatibility": {
+    "hostApi": "^1.1.0",
+    "requiredFeatures": [
+      "declarative-recipes-v1",
+      "verified-assets-v1"
+    ]
+  },
+  "execution": {
+    "kind": "declarative"
+  },
+  "permissions": {
+    "networkOrigins": [],
+    "inputFiles": true,
+    "storage": "none",
+    "secrets": [],
+    "nativeCode": false
+  },
+  "models": [
+    {
+      "id": "uhm",
+      "assetSet": "uhm-onnx",
+      "assetLock": "./models.lock.json",
+      "platforms": [
+        {
+          "os": "win32",
+          "arch": "x64",
+          "accelerator": "cpu"
+        }
+      ]
+    }
+  ],
+  "tools": [
+    {
+      "id": "detect-fillers",
+      "name": "detect_fillers",
+      "contractId": "@try-works/extension-uhm-recipe/detect_fillers",
+      "contractVersion": "1.0.0",
+      "description": "Find every uh, um, hmm and filler 'and' in a recording and return the millisecond spans to cut, with honest coverage.",
+      "inputSchema": "./schemas/detect-fillers.input.json",
+      "outputSchema": "./schemas/detect-fillers.output.json"
+    }
+  ],
+  "implementations": [
+    {
+      "id": "detect-fillers",
+      "contractId": "@try-works/extension-uhm-recipe/detect_fillers",
+      "contractVersion": "1.0.0",
+      "modelId": "uhm",
+      "recipeVersion": "1.0.0"
+    }
+  ],
+  "skills": [
+    {
+      "id": "detect-fillers",
+      "name": "detect-fillers",
+      "description": "Use detect_fillers to find filler words and hesitations in spoken audio before cutting or captioning it.",
+      "path": "./skills/detect-fillers/SKILL.md",
+      "requiresTools": [
+        "detect-fillers"
+      ]
+    }
+  ],
+  "licenses": [
+    {
+      "layer": "code",
+      "name": "Apache License 2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0",
+      "openSource": true,
+      "redistribution": "permitted",
+      "attributionRequired": true,
+      "attributionText": "Copyright the Tool Mode contributors",
+      "obligations": [
+        "preserve the license and NOTICE files"
+      ]
+    },
+    {
+      "layer": "engine",
+      "name": "ONNX Runtime (onnxruntime-node 1.30.0), MIT",
+      "url": "https://github.com/microsoft/onnxruntime",
+      "openSource": true,
+      "redistribution": "permitted",
+      "attributionRequired": true,
+      "attributionText": "Microsoft ONNX Runtime",
+      "obligations": [
+        "preserve the ONNX Runtime license notices"
+      ]
+    },
+    {
+      "layer": "weights",
+      "name": "Desert Ant Labs Source-Available License 1.0",
+      "url": "https://license.desertant.com/1.0",
+      "openSource": false,
+      "redistribution": "not-permitted",
+      "attributionRequired": true,
+      "attributionText": "Powered by Desert Ant Labs",
+      "obligations": [
+        "display the attribution notice with a link to Desert Ant Labs",
+        "a commercial licence is required above the per-platform, per-model active-device threshold",
+        "do not redistribute the model, SDK or a hosted service as a standalone product",
+        "do not use outputs or logs to train a competing on-device model",
+        "do not extract weights or tamper with the usage telemetry"
+      ]
+    },
+    {
+      "layer": "sdk",
+      "name": "not used: the package reads the published artifact through a generic runtime",
+      "url": "https://license.desertant.com/1.0",
+      "openSource": false,
+      "redistribution": "not-permitted",
+      "attributionRequired": true,
+      "attributionText": "Powered by Desert Ant Labs",
+      "obligations": [
+        "the vendor SDK is neither bundled nor redistributed by this package"
+      ]
+    },
+    {
+      "layer": "conversion-artifacts",
+      "name": "none: the model ships as the vendor published it",
+      "url": "https://huggingface.co/desert-ant-labs/uhm",
+      "openSource": false,
+      "redistribution": "permitted",
+      "attributionRequired": false,
+      "obligations": [
+        "no conversion step is performed, so no conversion artifact is distributed"
+      ]
+    }
+  ],
+  "network": {
+    "requiredTelemetry": false,
+    "otherNetworkUse": false,
+    "telemetryContent": []
+  }
+}

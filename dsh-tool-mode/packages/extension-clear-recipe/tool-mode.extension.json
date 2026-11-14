@@ -1,0 +1,145 @@
+{
+  "protocolVersion": "1.1.0",
+  "id": "@try-works/extension-clear-recipe",
+  "version": "0.1.0",
+  "displayName": "Clear speech enhancement (declarative)",
+  "description": "Ships NO CODE. Declares the Desert Ant Labs Clear (clear-studio ONNX) artifact and one model-runtime recipe, so the host's declarative lane registers enhance_speech from data alone.",
+  "license": "Apache-2.0",
+  "activation": {
+    "policy": "operator",
+    "deactivatable": true
+  },
+  "runtimeApi": 1,
+  "compatibility": {
+    "hostApi": "^1.1.0",
+    "requiredFeatures": [
+      "declarative-recipes-v1",
+      "verified-assets-v1"
+    ]
+  },
+  "execution": {
+    "kind": "declarative"
+  },
+  "permissions": {
+    "networkOrigins": [],
+    "inputFiles": true,
+    "storage": "none",
+    "secrets": [],
+    "nativeCode": false
+  },
+  "models": [
+    {
+      "id": "clear",
+      "assetSet": "clear-onnx",
+      "assetLock": "./models.lock.json",
+      "platforms": [
+        {
+          "os": "win32",
+          "arch": "x64",
+          "accelerator": "cpu"
+        }
+      ]
+    }
+  ],
+  "tools": [
+    {
+      "id": "enhance-speech",
+      "name": "enhance_speech",
+      "contractId": "@try-works/extension-clear-recipe/enhance_speech",
+      "contractVersion": "1.0.0",
+      "description": "Denoise and dereverb a speech recording and return the enhanced 48 kHz mono WAV as base64, with honest coverage of the analysed audio.",
+      "inputSchema": "./schemas/enhance-speech.input.json",
+      "outputSchema": "./schemas/enhance-speech.output.json"
+    }
+  ],
+  "implementations": [
+    {
+      "id": "enhance-speech",
+      "contractId": "@try-works/extension-clear-recipe/enhance_speech",
+      "contractVersion": "1.0.0",
+      "modelId": "clear",
+      "recipeVersion": "1.0.0"
+    }
+  ],
+  "skills": [
+    {
+      "id": "enhance-speech",
+      "name": "enhance-speech",
+      "description": "Use enhance_speech to denoise, dereverb and loudness-normalise a speech recording on device before publishing or transcribing it.",
+      "path": "./skills/enhance-speech/SKILL.md",
+      "requiresTools": [
+        "enhance-speech"
+      ]
+    }
+  ],
+  "licenses": [
+    {
+      "layer": "code",
+      "name": "Apache License 2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0",
+      "openSource": true,
+      "redistribution": "permitted",
+      "attributionRequired": true,
+      "attributionText": "Copyright the Tool Mode contributors",
+      "obligations": [
+        "preserve the license and NOTICE files"
+      ]
+    },
+    {
+      "layer": "engine",
+      "name": "ONNX Runtime (onnxruntime-node 1.30.0), MIT",
+      "url": "https://github.com/microsoft/onnxruntime",
+      "openSource": true,
+      "redistribution": "permitted",
+      "attributionRequired": true,
+      "attributionText": "Microsoft ONNX Runtime",
+      "obligations": [
+        "preserve the ONNX Runtime license notices"
+      ]
+    },
+    {
+      "layer": "weights",
+      "name": "Desert Ant Labs Source-Available License 1.0",
+      "url": "https://license.desertant.com/1.0",
+      "openSource": false,
+      "redistribution": "not-permitted",
+      "attributionRequired": true,
+      "attributionText": "Powered by Desert Ant Labs",
+      "obligations": [
+        "display the attribution notice with a link to Desert Ant Labs",
+        "a commercial licence is required above the per-platform, per-model active-device threshold",
+        "do not redistribute the model, SDK or a hosted service as a standalone product",
+        "do not use outputs or logs to train a competing on-device model",
+        "do not extract weights or tamper with the usage telemetry"
+      ]
+    },
+    {
+      "layer": "sdk",
+      "name": "not used: the package reads the published artifact through a generic runtime",
+      "url": "https://license.desertant.com/1.0",
+      "openSource": false,
+      "redistribution": "not-permitted",
+      "attributionRequired": true,
+      "attributionText": "Powered by Desert Ant Labs",
+      "obligations": [
+        "the vendor SDK is neither bundled nor redistributed by this package"
+      ]
+    },
+    {
+      "layer": "conversion-artifacts",
+      "name": "none: the model ships as the vendor published it",
+      "url": "https://huggingface.co/desert-ant-labs/clear",
+      "openSource": false,
+      "redistribution": "permitted",
+      "attributionRequired": false,
+      "obligations": [
+        "no conversion step is performed, so no conversion artifact is distributed"
+      ]
+    }
+  ],
+  "network": {
+    "requiredTelemetry": false,
+    "otherNetworkUse": false,
+    "telemetryContent": []
+  }
+}

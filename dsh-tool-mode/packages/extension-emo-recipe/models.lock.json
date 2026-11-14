@@ -1,0 +1,135 @@
+{
+  "lockVersion": 1,
+  "assetSets": {
+    "emo-litert": {
+      "model": {
+        "provider": "desert-ant-labs",
+        "identity": "desert-ant-labs/emo",
+        "url": "https://huggingface.co/desert-ant-labs/emo",
+        "revision": "7c2e137cb0300ecf8e31b7deab4c4e9734d06b74",
+        "revisionKind": "the Hugging Face repository commit sha the artifacts were fetched at",
+        "modalities": [
+          "text"
+        ]
+      },
+      "engine": {
+        "kind": "litert",
+        "version": "@litertjs/core 2.5.3 (WASM/XNNPACK)"
+      },
+      "tokenizer": {
+        "kind": "emtk",
+        "identity": "EMTK SemTokenizer binary (emo_tokenizer.bin), read by emo/text-v1"
+      },
+      "platforms": [
+        {
+          "os": "win32",
+          "arch": "x64",
+          "accelerator": "cpu"
+        }
+      ],
+      "license": {
+        "name": "Desert Ant Labs Source-Available License 1.0",
+        "url": "https://license.desertant.com/1.0",
+        "attributionRequired": true,
+        "redistribution": "not-permitted"
+      },
+      "assets": [
+        {
+          "id": "emo-tflite",
+          "fileName": "emo.tflite",
+          "url": "https://huggingface.co/desert-ant-labs/emo/resolve/7c2e137cb0300ecf8e31b7deab4c4e9734d06b74/emo.tflite",
+          "bytes": 10222736,
+          "sha256": "2c382e8da94bab64172c0694b0350abb96829bf89eb623008ed0085128621de2",
+          "role": "the LiteRT emoji-suggestion classifier: six n-gram/semantic inputs in, 812 emoji probabilities out",
+          "verified": "sha256 from the pinned revision's LFS metadata and confirmed from the fetched 10,222,736 bytes (2026-11-14)"
+        },
+        {
+          "id": "emo-tokenizer",
+          "fileName": "emo_tokenizer.bin",
+          "url": "https://huggingface.co/desert-ant-labs/emo/resolve/7c2e137cb0300ecf8e31b7deab4c4e9734d06b74/emo_tokenizer.bin",
+          "bytes": 733197,
+          "sha256": "f54462a7a2344f15c9430ed4e399c49444f890dd6094c745a0c5391690bf019d",
+          "role": "the EMTK SemTokenizer binary: magic EMTK, unk id, scores, piece lengths and UTF-8 pieces for the Viterbi segmentation",
+          "verified": "sha256 computed from the fetched 733,197 bytes at the pinned revision (2026-11-14)"
+        },
+        {
+          "id": "emo-meta",
+          "fileName": "emo_meta.json",
+          "url": "https://huggingface.co/desert-ant-labs/emo/resolve/7c2e137cb0300ecf8e31b7deab4c4e9734d06b74/emo_meta.json",
+          "bytes": 6280,
+          "sha256": "a3143258ac4099de65367cd4598073f1f5ce94f0eb505a30331762619967d3f6",
+          "role": "the model's own metadata: the 812 emoji labels in output order and the n-gram/semantic tensor constants",
+          "verified": "sha256 computed from the fetched 6,280 bytes at the pinned revision (2026-11-14)"
+        }
+      ],
+      "groups": [
+        {
+          "id": "emo-litert",
+          "enables": [
+            "text"
+          ],
+          "assets": [
+            {
+              "id": "emo-tflite",
+              "file": "emo.tflite",
+              "bytes": 10222736,
+              "source": "https://huggingface.co/desert-ant-labs/emo/resolve/7c2e137cb0300ecf8e31b7deab4c4e9734d06b74/emo.tflite",
+              "digest": "2c382e8da94bab64172c0694b0350abb96829bf89eb623008ed0085128621de2",
+              "executable": false
+            },
+            {
+              "id": "emo-tokenizer",
+              "file": "emo_tokenizer.bin",
+              "bytes": 733197,
+              "source": "https://huggingface.co/desert-ant-labs/emo/resolve/7c2e137cb0300ecf8e31b7deab4c4e9734d06b74/emo_tokenizer.bin",
+              "digest": "f54462a7a2344f15c9430ed4e399c49444f890dd6094c745a0c5391690bf019d",
+              "executable": false
+            },
+            {
+              "id": "emo-meta",
+              "file": "emo_meta.json",
+              "bytes": 6280,
+              "source": "https://huggingface.co/desert-ant-labs/emo/resolve/7c2e137cb0300ecf8e31b7deab4c4e9734d06b74/emo_meta.json",
+              "digest": "a3143258ac4099de65367cd4598073f1f5ce94f0eb505a30331762619967d3f6",
+              "executable": false
+            }
+          ]
+        }
+      ],
+      "pinning": {
+        "state": "measured",
+        "revision": "7c2e137cb0300ecf8e31b7deab4c4e9734d06b74",
+        "reason": "All three artifacts were fetched and hashed first-hand at the pinned revision on 2026-11-14: emo.tflite 10,222,736 B (matches the repository LFS metadata), emo_tokenizer.bin 733,197 B and emo_meta.json 6,280 B. The label order (812 emojis) and the n-gram/semantic constants come from emo_meta.json; the tokenizer, feature and tensor facts were read from the primary source named in contractSource and confirmed by the processor owner (litert-provider, task-25) under the Lead's binding emo contract decisions. The gated real run in the runtime-litert package qualifies execution.",
+        "measuredOn": "2026-11-14",
+        "platforms": [
+          {
+            "os": "win32",
+            "arch": "x64",
+            "accelerator": "cpu"
+          }
+        ],
+        "contractSource": {
+          "repository": "https://github.com/Desert-Ant-Labs/desert-ant-core",
+          "commit": "baf4e6e3b4655c8e54aa8d5a25215b5f35f899a7",
+          "fetched": "2026-11-14",
+          "files": [
+            "Sources/Emo/Tokenizer.swift L5-43, L45-110, L112-163, L166-203, L205-242, L251-260, L276-366",
+            "Sources/Emo/Model.swift L19-30, L33-79",
+            "Sources/Emo/EmoMeta.swift L7-35",
+            "Sources/Emo/Emo.swift L38-43, L109-120"
+          ]
+        }
+      },
+      "qualification": {
+        "modelRevision": "7c2e137cb0300ecf8e31b7deab4c4e9734d06b74",
+        "artifactSha": "sha256:2c382e8da94bab64172c0694b0350abb96829bf89eb623008ed0085128621de2",
+        "tokenizer": "EMTK SemTokenizer (emo_tokenizer.bin), Viterbi maxLen 24, NFKC lowercase, sem_pad_index 48000",
+        "processor": "emo/text-v1 (contract confirmed 2026-11-14 by the Lead and litert-provider): host-side SemTokenizer parses emo_tokenizer.bin as EMTK (magic EMTK, offset 6, u32 unkID, u32 k, k float32 scores, k uint16 piece lengths, UTF-8 pieces back to back) and runs Viterbi over scalars (maxLen 24) on NFKC-lowercased text prefixed with '▁' with spaces mapped to '▁' and an unknown fallback at the unk score, producing at most smax 64 ids padded with sem_pad_index 48000 and a float32 [1,64] mask; host-side NGram hashing uses FNV-64 with the five bucket seeds and importance seed 0xFF51AFD7ED558CCD over per-script features, fmax 512 features and 3 hashes each, producing ngram_buckets int32 [1,512,3], ngram_signs float32 [1,512,3], ngram_importance int32 [1,512] and ngram_count float32 [1,1]. The six feeds go to emo.tflite; the output is probabilities float32 [812]. Suggestions are the top `limit` labels by descending probability with exact ties broken by ascending label index; confidence is the label's raw softmax probability and is explicitly uncalibrated; emoji strings are read from emo_meta.json labels[index] and never hardcoded; labels.length must be 812 and a provider-side count mismatch (meta labels vs model logits) is RuntimeUnavailable, not a truncation. Input text is counted in Unicode code points ([...text].length) and must be 1..1024; empty or whitespace-only text is refused as InvalidInput (field text). v1 applies no skin-tone variant. Recipe limits are 4194304 bytes / 120000 ms; the tool does not return a language; the model card's '23 languages' claim is card-sourced (Emo.swift L38-43), not measured. The provider constructs exactly {suggestions:[{emoji,confidence}], labels:812}; the host lane owns the JSON-schema check.",
+        "engineVersion": "@litertjs/core 2.5.3 (WASM, CPU/XNNPACK)",
+        "nodeAbi": "137 (Node 24)",
+        "architecture": "x64",
+        "executionProvider": "cpu (LiteRT.js WASM; no native binding)"
+      }
+    }
+  }
+}

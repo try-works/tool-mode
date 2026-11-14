@@ -1,0 +1,18 @@
+{
+  "kind": "model-runtime",
+  "schemaVersion": 1,
+  "provider": {
+    "package": "./runtime/fake-provider.mjs",
+    "export": "createProviderFromRecipe",
+    "accelerators": ["cpu"]
+  },
+  "model": { "assetSet": "shapes-litert", "fileName": "shapes.tflite", "format": "tflite" },
+  "processor": { "id": "shapes/points-v1" },
+  "limits": { "maxInputBytes": 4194304, "timeoutMs": 120000 },
+  "tool": {
+    "name": "shape_recognize",
+    "description": "Recognise simple shapes in typed media through the package's own runtime factory.",
+    "inputSchema": "./schemas/shape.input.json",
+    "outputSchema": "./schemas/shape.output.json"
+  }
+}

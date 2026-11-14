@@ -482,6 +482,7 @@ describe('the audit matrix over every first-party extension', () => {
         id: string
         execution?: { kind?: string }
         models?: unknown[]
+        implementations?: readonly { id: string }[]
       }
       const row = rows.get(manifest.id)
       if (row === undefined) {
@@ -498,10 +499,30 @@ describe('the audit matrix over every first-party extension', () => {
       } else {
         assert.equal(kindOf(row, 'assets').satisfied, true, `${manifest.id}: no model deployment means the assets requirement is satisfied`)
       }
-      // The harness model is a real prerequisite exactly for declarative packages.
+      /**
+       * The harness model is a real prerequisite for a declarative package whose RECIPES the
+       * host broker executes. A `model-runtime` recipe (PHASE2) ships its own provider factory
+       * and needs no composed LlmProvider, so the requirement must be ABSENT for it — checked
+       * from the recipe files, which is the same source the host branches on.
+       */
       const isDeclarative = manifest.execution?.kind === 'declarative'
+      const recipeKinds = (manifest.implementations ?? []).map(implementation => {
+        try {
+          const recipe: unknown = JSON.parse(readFileSync(join(packagesRoot, packageName, 'recipes', `${implementation.id}.json`), 'utf8'))
+          return typeof recipe === 'object' && recipe !== null && !Array.isArray(recipe)
+            ? (recipe as { readonly kind?: unknown }).kind
+            : undefined
+        } catch {
+          return undefined
+        }
+      })
+      const harnessServed = recipeKinds.some(kind => kind !== 'model-runtime')
       const harness = row.requirements.find(candidate => candidate.kind === 'harness-model')
-      assert.equal(harness !== undefined, isDeclarative, `${manifest.id}: harness-model presence must match execution.kind`)
+      assert.equal(
+        harness !== undefined,
+        isDeclarative && harnessServed,
+        `${manifest.id}: harness-model presence must match execution.kind and recipe kinds`,
+      )
       // Every requirement is well formed and explained.
       for (const requirement of row.requirements) {
         assert.ok(REQUIREMENT_KINDS.includes(requirement.kind), `${manifest.id}: unknown requirement kind ${requirement.kind}`)
@@ -522,5 +543,48 @@ describe('the audit matrix over every first-party extension', () => {
     }
     assert.deepEqual(missingRows, [], 'every first-party extension must appear in describe()')
     assert.equal(rows.size >= packages.length, true)
+  })
+})
+
+/**
+ * PHASE2 requirement (4): a `model-runtime` package must NOT be required to have a harness
+ * LlmProvider.
+ *
+ * The package ships its own engine binding (the recipe names it, and the host resolves it
+ * from the package's own directory), so a deployment with no composed chat model is not
+ * missing anything this package needs. Before the lane existed, EVERY declarative package
+ * reported an unmet `harness-model` requirement and `enable` was refused — which is exactly
+ * the block this test pins as gone for the model-runtime lane while the harness lane above
+ * still keeps it.
+ */
+describe('a model-runtime package does not require a harness model', () => {
+  const MODEL_RUNTIME_DIR = join(process.cwd(), 'packages', 'dsh-tool-mode', 'tests', 'fixtures', 'model-runtime-package')
+  const MODEL_RUNTIME_ID = '@try-works/extension-model-runtime-fixture'
+
+  it('reports no harness-model requirement and enables with no harness provider composed', async () => {
+    const storeDir = await installInto(MODEL_RUNTIME_DIR)
+    const lifecycle = fakeLifecycle()
+    const service = createExtensionsService({
+      storeDir,
+      lifecycle: () => lifecycle,
+      // The strongest form of the claim: the deployment EXPLICITLY has no harness model.
+      harnessProviderStatus: (): HarnessProviderStatus => ({
+        available: false,
+        reason: 'this deployment composes no harness LlmProvider',
+        action: 'config',
+      }),
+    })
+
+    const row = (await service.describe()).extensions.find(candidate => candidate.id === MODEL_RUNTIME_ID)
+    assert.ok(row !== undefined, `the fixture must be described; got ${(await service.describe()).extensions.map(entry => entry.id).join(', ')}`)
+    assert.equal(
+      row.requirements.some(requirement => requirement.kind === 'harness-model'),
+      false,
+      `a model-runtime package must not require a harness model; got ${row.requirements.map(requirement => requirement.kind).join(', ')}`,
+    )
+
+    const enabled = await service.enable(MODEL_RUNTIME_ID)
+    assert.equal(enabled.active, true, 'the model-runtime package must enable without a harness provider')
+    assert.equal(lifecycle.calls.activate, 1)
   })
 })
