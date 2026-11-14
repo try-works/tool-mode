@@ -236,6 +236,20 @@ test('the generated bundle inlines the coalescing layer (no chunk fetch)', () =>
   assert.ok(bundle.includes('REMOTE_SNAPSHOT_TTL_MS'), 'the bundle must carry the TTL')
 })
 
+test('a config toggle commits immediately instead of waiting for Save', () => {
+  const template = readFileSync(TEMPLATE, 'utf8')
+  const bundle = readFileSync(BUNDLE, 'utf8')
+  for (const [name, source] of [['template', template], ['bundle', bundle]] as const) {
+    assert.match(source, /const saveToggle = async/, name + ' must carry the immediate toggle commit')
+    assert.match(
+      source,
+      /field\.kind === 'toggle' \? saveToggle : edit/,
+      name + ' must route toggle fields through the immediate commit',
+    )
+    assert.match(source, /await form\.set\(key, next\)/, name + ' must write the toggle value to the host form')
+  }
+})
+
 test('one row’s action does not disable the rest of the extension page', () => {
   const template = readFileSync(TEMPLATE, 'utf8')
   const bundle = readFileSync(BUNDLE, 'utf8')

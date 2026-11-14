@@ -1235,6 +1235,41 @@ window.__ModuleLoader__.load({
 
       const dirty = FIELDS.some(field => draft[field.key] !== undefined) || exclude !== null || disabledExt !== null
 
+      /** Drop one key from the draft after it has been committed (or refused). */
+      const clearDraft = key => setDraft(previous => {
+        if (previous[key] === undefined) return previous
+        const updated = { ...previous }
+        delete updated[key]
+        return updated
+      })
+
+      /**
+       * Commit a TOGGLE immediately.
+       *
+       * A switch reads as an applied setting, not as an edit waiting for a Save two
+       * screens below it: that is why "Managed workers" looked on while the profile
+       * patch still had no managedWorkers value. The switch is committed on click,
+       * the draft is cleared only after the host accepts it, and a refusal or error
+       * clears the optimistic draft so the control shows the host's value again.
+       */
+      const saveToggle = async (key, next) => {
+        edit(key, next)
+        setStatus({ kind: 'busy', text: 'Saving…' })
+        try {
+          const accepted = await form.set(key, next)
+          if (accepted === false) {
+            clearDraft(key)
+            setStatus({ kind: 'error', text: 'Refused by the host — see the dsh logs.' })
+            return
+          }
+          clearDraft(key)
+          setStatus({ kind: 'ok', text: 'Saved. Changes apply to new sessions.' })
+        } catch (error) {
+          clearDraft(key)
+          setStatus({ kind: 'error', text: String((error && error.message) || error) })
+        }
+      }
+
       const save = async () => {
         setStatus({ kind: 'busy', text: 'Saving…' })
         try {
@@ -1520,7 +1555,8 @@ window.__ModuleLoader__.load({
           // controls so the grey off state matches their real state.
           unavailable.map(entry => modelRow(entry, false, true, toggleModel))),
         EXTENSIONS.length === 0 ? null : extensionCard,
-        h('div', { className: 'mtt-card' }, FIELDS.map(field => fieldRow(field, value, draft, edit, disabled))),
+        h('div', { className: 'mtt-card' }, FIELDS.map(field => fieldRow(
+          field, value, draft, field.kind === 'toggle' ? saveToggle : edit, disabled))),
         h('div', { className: 'mtt-actions' },
           h('button', {
             type: 'button', className: 'mtt-button', disabled: disabled || !dirty || status?.kind === 'busy', onClick: save,
