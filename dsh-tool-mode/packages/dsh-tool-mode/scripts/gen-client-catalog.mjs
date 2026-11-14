@@ -48,6 +48,19 @@ const catalog = resolved.map(({ entry, verdict }) => ({
   license: entry.license,
   runnable: verdict.runnable,
   reason: verdict.runnable ? undefined : verdict.reason,
+  // The unified Models list (one row per model) needs the provider route, the
+  // tool it exposes and the platform verdict, not just runnable/reason.
+  tool: entry.tool.name,
+  contract: entry.contract ?? null,
+  provider: entry.provider === null || entry.provider === undefined
+    ? null
+    : { extension: entry.provider.extension, modelId: entry.provider.modelId },
+  npmPackage: entry.npmPackage ?? null,
+  cliVerb: entry.cliVerb ?? null,
+  windowsSupport: entry.windowsSupport,
+  verifiedRunnableOnWindows: entry.verifiedRunnableOnWindows === true,
+  appleOnly: entry.appleOnly === true,
+  closedBeta: entry.closedBeta === true,
 }))
 
 const TOOLVIEW_PLACEHOLDER = '/*__TOOLVIEW_SOURCE__*/'
@@ -95,6 +108,7 @@ const KNOWN_NAMES = {
   'minilm-l6': 'MiniLM-L6',
   'minilm-rerank': 'MiniLM Rerank',
   'embeddinggemma-2': 'EmbeddingGemma 2',
+  mirage: 'Mirage',
 }
 
 /** A short product name for an extension row. */
@@ -130,12 +144,33 @@ if (existsSync(packagesDir)) {
      * so a clean host could not install them from the page at all. The extension card
      * is the install surface; the model row stays the model-binding control.
      */
-    const tools = Array.isArray(manifest.tools) ? manifest.tools.map(tool => tool.name ?? tool.id) : []
+    const manifestTools = Array.isArray(manifest.tools) ? manifest.tools : []
+    const tools = manifestTools.map(tool => tool.name ?? tool.id)
+    const implementations = Array.isArray(manifest.implementations) ? manifest.implementations : []
+    const contracts = implementations.map(impl => impl.contractId ?? impl.contract).filter(Boolean)
+    // Per-model tools: every implementation bound to that model names a
+    // contract, and the tool with the same contract is what the row may expose.
+    // No implementation match falls back to all of the extension's tools.
+    const toolByContract = new Map()
+    for (const tool of manifestTools) {
+      if (typeof tool.contractId === 'string' && typeof tool.name === 'string') {
+        toolByContract.set(tool.contractId, tool.name)
+      }
+    }
+    const unique = values => [...new Set(values.filter(value => typeof value === 'string' && value.length > 0))]
     const models = Array.isArray(manifest.models)
-      ? manifest.models.map(model => typeof model === 'string' ? model : model.id).filter(Boolean)
-      : []
-    const contracts = Array.isArray(manifest.implementations)
-      ? manifest.implementations.map(impl => impl.contractId ?? impl.contract).filter(Boolean)
+      ? manifest.models.map(model => {
+        const id = typeof model === 'string' ? model : model.id
+        const own = implementations.filter(impl => impl.modelId === id)
+        const modelContracts = unique(own.map(impl => impl.contractId ?? impl.contract))
+        const modelTools = unique(modelContracts.map(contract => toolByContract.get(contract)))
+        return {
+          id,
+          name: KNOWN_NAMES[id] ?? id,
+          tools: modelTools.length > 0 ? modelTools : tools,
+          contracts: modelContracts,
+        }
+      }).filter(model => typeof model.id === 'string' && model.id.length > 0)
       : []
     extensions.push({
       id: manifest.id,

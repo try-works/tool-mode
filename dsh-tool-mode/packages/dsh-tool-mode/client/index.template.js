@@ -342,45 +342,6 @@ window.__ModuleLoader__.load({
         h('div', { className: 'mtt-control' }, control))
     }
 
-    /** One model row: identity, package, size and status, with the toggle. */
-    function modelRow(entry, enabled, disabled, onToggle) {
-      // An extension-backed model is provided by another package; only the HOST
-      // can tell whether it is installed, so the row says "extension" instead of
-      // promising it runs here.
-      const badge = entry.extension !== null && entry.extension !== undefined
-        ? h('span', { className: 'mtt-badge' }, 'extension')
-        : entry.runnable === true
-          ? h('span', { className: 'mtt-badge mtt-badge-on' }, 'runnable here')
-          : h('span', { className: 'mtt-badge' }, 'unavailable here')
-      const source = entry.extension ?? (entry.package === null ? 'no package' : entry.package)
-      return h('div', { className: 'mtt-row', key: entry.id },
-        h('div', { className: 'mtt-row-text' },
-          h('span', { className: 'mtt-label' },
-            h('span', { className: 'mtt-name' }, entry.name),
-            badge),
-          h('p', { className: 'mtt-help' }, entry.summary),
-          h('span', { className: 'mtt-meta' },
-            entry.id,
-            ' · ',
-            source,
-            entry.sizeMB === null ? '' : ' · ' + entry.sizeMB + ' MB',
-            ' · ',
-            entry.license,
-            entry.extension !== null && entry.extension !== undefined
-              ? ' · provided by the Tool Mode extension; install and activate it to run'
-              : entry.runnable !== true && entry.reason ? ' · ' + entry.reason : '')),
-        h('div', { className: 'mtt-control' },
-          h('button', {
-            type: 'button',
-            className: 'mtt-toggle',
-            'data-on': enabled ? 'true' : 'false',
-            disabled: disabled,
-            'aria-pressed': enabled,
-            title: enabled ? 'Disable this model' : 'Enable this model',
-            onClick: () => onToggle(entry.id, !enabled),
-          }, h('span', { className: 'mtt-knob' }))))
-    }
-
     /** How an in-flight Install/Enable/Disable is spelled in the card. */
     const EXTENSION_ACTION_LABELS = { install: 'Installing', prepare: 'Preparing', enable: 'Enabling', disable: 'Disabling' }
 
@@ -883,7 +844,9 @@ window.__ModuleLoader__.load({
       const parts = []
       if (entry.tools.length > 0) parts.push('tools: ' + entry.tools.join(', '))
       if (entry.contracts.length > 0) parts.push('contracts: ' + entry.contracts.join(', '))
-      if (entry.models.length > 0) parts.push('models: ' + entry.models.join(', '))
+      if (entry.models.length > 0) {
+        parts.push('models: ' + entry.models.map(model => (typeof model === 'string' ? model : model.id)).join(', '))
+      }
       return parts
     }
 
@@ -975,6 +938,165 @@ window.__ModuleLoader__.load({
         || reason.includes('needs preparation')
         || reason.includes('run prepare for this extension')
         || reason.includes('then prepare again')
+    }
+
+    /** Display labels for the unified Models lifecycle. */
+    const UNIFIED_LIFECYCLE_LABELS = {
+      unavailable: 'unavailable here',
+      'not-installed': 'not installed',
+      installed: 'installed',
+      'needs-preparation': 'needs preparation',
+      active: 'active',
+    }
+
+    /** The provider route of a catalog model that is not supplied by an extension. */
+    function vendorProviderLabel(entry) {
+      if (typeof entry.npmPackage === 'string' && entry.npmPackage.length > 0) return 'npm ' + entry.npmPackage
+      if (typeof entry.cliVerb === 'string' && entry.cliVerb.length > 0) return 'CLI: desertant ' + entry.cliVerb
+      if (entry.appleOnly === true) return 'Apple platforms only (no SDK here)'
+      if (entry.closedBeta === true) return 'closed beta (no SDK)'
+      return 'bridge'
+    }
+
+    /** The extension model record for one model id, or null. */
+    function extensionModelOf(extension, modelId) {
+      if (extension === null || !Array.isArray(extension.models)) return null
+      for (const model of extension.models) {
+        const id = typeof model === 'string' ? model : model.id
+        if (id !== modelId) continue
+        return {
+          id,
+          tools: Array.isArray(model.tools) ? model.tools : [],
+          contracts: Array.isArray(model.contracts) ? model.contracts : [],
+        }
+      }
+      return null
+    }
+
+    /** The lifecycle and the action set of one extension-provided model. */
+    function extensionModelState(state) {
+      const installed = state !== null && state.installed === true
+      if (!installed) {
+        return {
+          lifecycle: 'not-installed',
+          reason: state !== null && typeof state.reason === 'string' && state.reason.length > 0 ? state.reason : null,
+          actions: { install: true, toggle: null },
+        }
+      }
+      if (extensionNeedsPreparation(state)) {
+        return {
+          lifecycle: 'needs-preparation',
+          reason: typeof state.reason === 'string' && state.reason.length > 0
+            ? state.reason
+            : 'The model assets must be prepared before activation.',
+          actions: { prepare: true, toggle: 'enable' },
+        }
+      }
+      if (state.active === true) {
+        return {
+          lifecycle: 'active',
+          reason: typeof state.reason === 'string' && state.reason.length > 0 ? state.reason : null,
+          actions: { toggle: 'disable' },
+        }
+      }
+      return {
+        lifecycle: 'installed',
+        reason: typeof state.reason === 'string' && state.reason.length > 0
+          ? state.reason
+          : state.disabled === true ? 'Disabled in the config list; enable it to activate on the next load.' : null,
+        actions: { toggle: 'enable' },
+      }
+    }
+
+    /**
+     * Build the unified Models rows: one per model, from the catalog plus the
+     * extension model packages, joined to the host's describe() rows.
+     *
+     * A catalog model whose provider is an extension is ONE row (never a model
+     * row plus an extension row); an extension model the catalog does not name is
+     * an additional row; an extension with no models is a tool provider, not a
+     * model row. A vendor/npm/cli model is unavailable unless this host can run
+     * it, and its toggle is the config allowlist, not an extension lifecycle.
+     *
+     * @param catalog - the generated CATALOG entries.
+     * @param extensions - the generated EXTENSIONS entries.
+     * @param states - the host's describe() rows (empty when the Remote is absent).
+     * @param excluded - model ids switched off in the config allowlist.
+     * @returns one row per model, in catalog order then extension-only models.
+     */
+    function buildUnifiedModelRows(catalog, extensions, states, excluded) {
+      const stateList = Array.isArray(states) ? states : []
+      const extensionList = Array.isArray(extensions) ? extensions : []
+      const excludedIds = Array.isArray(excluded) ? excluded : []
+      const catalogList = Array.isArray(catalog) ? catalog : []
+      const findExtension = name => extensionList.find(extension => extension.id === name || extension.package === name) ?? null
+      const rows = []
+      const catalogIds = new Set()
+      for (const entry of catalogList) {
+        catalogIds.add(entry.id)
+        const provider = entry.provider ?? null
+        if (provider === null) {
+          const enabled = !excludedIds.includes(entry.id)
+          rows.push({
+            id: entry.id,
+            name: entry.name,
+            summary: entry.summary,
+            providerLabel: vendorProviderLabel(entry),
+            tools: typeof entry.tool === 'string' && entry.tool.length > 0 ? [entry.tool] : [],
+            lifecycle: entry.runnable === true ? (enabled ? 'active' : 'installed') : 'unavailable',
+            reason: entry.runnable === true
+              ? null
+              : typeof entry.reason === 'string' && entry.reason.length > 0 ? entry.reason : 'Not runnable in this process.',
+            actions: entry.runnable === true ? { toggle: enabled ? 'disable' : 'enable' } : { toggle: null },
+            extensionId: null,
+          })
+          continue
+        }
+        const extension = findExtension(provider.extension)
+        const model = extensionModelOf(extension, provider.modelId)
+        const state = extension === null ? null : findExtensionState(extension, stateList)
+        const lifecycle = extensionModelState(state)
+        rows.push({
+          id: entry.id,
+          name: entry.name,
+          summary: entry.summary,
+          providerLabel: extension === null ? provider.extension : extension.name + ' (' + extension.package + ')',
+          tools: model !== null && model.tools.length > 0
+            ? model.tools
+            : typeof entry.tool === 'string' && entry.tool.length > 0 ? [entry.tool] : [],
+          lifecycle: lifecycle.lifecycle,
+          reason: lifecycle.reason,
+          actions: lifecycle.actions,
+          extensionId: extension === null ? provider.extension : extension.id,
+        })
+      }
+      for (const extension of extensionList) {
+        const models = Array.isArray(extension.models) ? extension.models : []
+        for (const model of models) {
+          const id = typeof model === 'string' ? model : model.id
+          if (typeof id !== 'string' || catalogIds.has(id)) continue
+          catalogIds.add(id)
+          const state = findExtensionState(extension, stateList)
+          const lifecycle = extensionModelState(state)
+          const tools = typeof model === 'string' || !Array.isArray(model.tools) || model.tools.length === 0
+            ? Array.isArray(extension.tools) ? extension.tools : []
+            : model.tools
+          rows.push({
+            id,
+            name: typeof model === 'string' || typeof model.name !== 'string' || model.name.length === 0
+              ? extension.name
+              : model.name,
+            summary: extension.summary,
+            providerLabel: extension.name + ' (' + extension.package + ')',
+            tools,
+            lifecycle: lifecycle.lifecycle,
+            reason: lifecycle.reason,
+            actions: lifecycle.actions,
+            extensionId: extension.id,
+          })
+        }
+      }
+      return rows
     }
 
     /**
@@ -1220,6 +1342,123 @@ window.__ModuleLoader__.load({
             : null))
     }
 
+    /**
+     * One unified Models row: name, lifecycle badge, provider, tools and the
+     * inline Install / Prepare / Enable controls for that row.
+     *
+     * The action set is decided by buildUnifiedModelRows; this function only
+     * renders it and keeps the host's own text (reason, requirement reasons,
+     * action errors, prepare/install notes) visible.
+     *
+     * @param row - one buildUnifiedModelRows row.
+     * @param state - its describe() row, or null.
+     * @param ui - the page's current capabilities and per-row notes.
+     */
+    function unifiedModelRow(row, state, ui) {
+      const installed = state !== null && state.installed === true
+      const active = installed && state.active === true
+      const requirementControls = extensionRequirementControls(state)
+      const pending = ui.pendingAction ?? null
+      const notes = []
+      const addNote = (text, kind) => {
+        if (typeof text === 'string' && text.length > 0) notes.push({ text, kind: kind ?? 'note' })
+      }
+      // The row's own reason is the headline (the host's words, never rewritten).
+      addNote(row.reason, row.lifecycle === 'needs-preparation' || requirementControls.blocked ? 'blocker' : 'note')
+      if (state !== null && Array.isArray(state.requirements)) {
+        for (const requirement of requirementControls.unmet) {
+          if (requirement.reason !== row.reason && requirement.reason !== state.reason) {
+            addNote(requirement.reason, requirementBlocksThisRow(installed, requirement) ? 'blocker' : 'note')
+          }
+          addNote(requirementHint(requirement))
+        }
+      }
+      if (state !== null && state.integrity === 'changed') {
+        addNote('The installed content changed since it was recorded; reinstall before enabling it.')
+      }
+      if (row.extensionId !== null && installed) {
+        if (active && ui.listed) addNote('The config list still names this extension; it will be disabled on restart.')
+        if (!active && !ui.listed) addNote('The config list does not name this extension; it will not block a restore.')
+      }
+      if (row.actions.install === true && ui.ready && !ui.canInstall) {
+        addNote('This host exposes extension state but not the install action; install it through the extension store.')
+      }
+      if (row.extensionId !== null && !ui.ready) addNote(ui.unavailableNote)
+      if (ui.prepareNote !== null && ui.prepareNote !== undefined && ui.prepareNote.id === row.extensionId) {
+        addNote(ui.prepareNote.text)
+      }
+      if (ui.installNote !== null && ui.installNote !== undefined && ui.installNote.id === row.extensionId) {
+        addNote(ui.installNote.text)
+      }
+      if (ui.error !== null && ui.error !== undefined && ui.error.id === row.extensionId) {
+        addNote(ui.error.text, 'error')
+      }
+
+      const toggleOn = row.lifecycle === 'active'
+      const blockedEnable = row.actions.toggle === 'enable' && row.extensionId !== null && requirementControls.enableBlocked
+      const controls = []
+      if (row.actions.install === true) {
+        controls.push(h('button', {
+          type: 'button',
+          className: 'mtt-button mtt-button-small',
+          disabled: ui.readonly || !ui.extWritable || !ui.ready || !ui.canInstall || requirementControls.installBlocked,
+          'aria-busy': pending === 'install',
+          title: !ui.ready
+            ? 'The host does not expose the extension install action to this page'
+            : !ui.canInstall
+              ? 'This host does not expose the extension install action'
+              : requirementControls.installBlocked
+                ? 'Install is blocked by a host requirement; see the row reason'
+                : 'Install the package that provides this model',
+          onClick: () => ui.onAction(row.extensionId, 'install'),
+        }, pending === 'install' ? 'Installing…' : 'Install'))
+      }
+      if (row.actions.prepare === true) {
+        controls.push(h('button', {
+          type: 'button',
+          className: 'mtt-button mtt-button-small',
+          disabled: ui.readonly || !ui.extWritable || !ui.ready,
+          'aria-busy': pending === 'prepare',
+          title: 'Prepare the model assets this extension needs before it can be enabled',
+          onClick: () => ui.onAction(row.extensionId, 'prepare'),
+        }, pending === 'prepare' ? 'Preparing…' : 'Prepare'))
+      }
+      if (row.actions.toggle !== null && row.actions.toggle !== undefined) {
+        controls.push(h('button', {
+          type: 'button',
+          className: 'mtt-toggle',
+          'data-on': toggleOn && !blockedEnable ? 'true' : 'false',
+          disabled: ui.readonly || (row.extensionId !== null && (!ui.extWritable || !ui.ready || blockedEnable)),
+          'aria-pressed': toggleOn,
+          'aria-busy': row.extensionId !== null && pending !== null,
+          title: blockedEnable
+            ? 'Enable is blocked by a host requirement; see the row reason'
+            : toggleOn ? 'Disable this model' : 'Enable this model',
+          onClick: () => row.extensionId !== null
+            ? ui.onAction(row.extensionId, row.actions.toggle)
+            : ui.onVendorToggle(row.id, row.actions.toggle === 'enable'),
+        }, h('span', { className: 'mtt-knob' })))
+      }
+
+      const badgeClass = row.lifecycle === 'active' ? 'mtt-badge mtt-badge-on' : 'mtt-badge'
+      const metaParts = [row.id, row.providerLabel]
+      if (row.tools.length > 0) metaParts.push('tools: ' + row.tools.join(', '))
+      return h('div', { className: 'mtt-row', key: row.id },
+        h('div', { className: 'mtt-row-text' },
+          h('span', { className: 'mtt-label' },
+            h('span', { className: 'mtt-name' }, row.name),
+            h('span', { className: badgeClass }, UNIFIED_LIFECYCLE_LABELS[row.lifecycle] ?? row.lifecycle)),
+          h('p', { className: 'mtt-help' }, row.summary),
+          h('span', { className: 'mtt-meta' }, metaParts.join(' · ')),
+          notes.map((note, index) => h('p', {
+            className: note.kind === 'error'
+              ? 'mtt-row-error'
+              : note.kind === 'blocker' ? 'mtt-row-blocker' : 'mtt-row-note',
+            key: 'unified-note-' + index,
+          }, note.text))),
+        h('div', { className: 'mtt-control' }, controls))
+    }
+
     function ModelToolsSettings({ form, ctx, remoteSlot }) {
       const [snap, setSnap] = React.useState(() => form.getSnapshot())
       const [draft, setDraft] = React.useState({})
@@ -1332,13 +1571,6 @@ window.__ModuleLoader__.load({
 
       const savedExclude = Array.isArray(value.exclude) ? value.exclude : []
       const currentExclude = exclude ?? savedExclude
-      const allowlist = Array.isArray(value.models) ? value.models : []
-
-      /** Whether a model is exposed: not excluded (and inside the allowlist when one is set). */
-      function isEnabled(id) {
-        if (currentExclude.includes(id)) return false
-        return allowlist.length === 0 || allowlist.includes(id)
-      }
 
       const dirty = FIELDS.some(field => draft[field.key] !== undefined) || exclude !== null || disabledExt !== null
 
@@ -1619,9 +1851,6 @@ window.__ModuleLoader__.load({
         }
       }
 
-      const runnable = CATALOG.filter(entry => entry.runnable === true)
-      const unavailable = CATALOG.filter(entry => entry.runnable !== true)
-
       const extPendingIds = Object.keys(extPendingById)
       /** One status line per in-flight row: concurrent preparations stay visible together. */
       const extPendingText = extPendingIds.length === 0
@@ -1630,94 +1859,100 @@ window.__ModuleLoader__.load({
           const entry = EXTENSIONS.find(candidate => candidate.id === id) ?? { name: id }
           return (EXTENSION_ACTION_LABELS[extPendingById[id]] ?? 'Working on') + ' ' + entry.name + '…'
         }).join(' ')
-      const extWritable = extRemote.kind === 'ready' && extRemote.writable === true
-      const extBusy = extPendingIds.length > 0
+      const extReady = extRemote.kind === 'ready'
+      const extWritable = extReady && extRemote.writable === true
+      const extCanInstall = extReady ? extensionInstallMethod(extRemote.namespace) !== null : false
+      const states = extReady ? extRemote.extensions : []
+      // ONE row per model. A catalog model whose provider is an extension is the
+      // model row; an extension model the catalog does not name is an added row;
+      // an extension with no models stays in the Tool providers section.
+      const unifiedRows = buildUnifiedModelRows(CATALOG, EXTENSIONS, states, currentExclude)
+      const toolProviders = EXTENSIONS.filter(entry => !Array.isArray(entry.models) || entry.models.length === 0)
+      const stateForRow = row => row.extensionId === null
+        ? null
+        : findExtensionState({ id: row.extensionId, package: row.extensionId }, states)
+      const unavailableNote = 'The host does not expose its extension state to this page (an older host build, or '
+        + 'the extension Remote is not mounted), so this row cannot be installed or activated from here; the switch '
+        + 'only records a config preference.'
 
-      let extensionCard
-      if (extRemote.kind === 'ready') {
-        const notes = []
+      const storeNotes = []
+      if (extReady) {
         if (extRemote.store === null) {
-          notes.push('No extension store is configured on this host (extensionStore), so an extension cannot be installed or activated here.')
+          storeNotes.push('No extension store is configured on this host (extensionStore), so an extension cannot be installed or activated here.')
         } else if (!extRemote.writable) {
-          notes.push('The host reports its extension store as read-only right now; the extension controls are disabled.')
+          storeNotes.push('The host reports its extension store as read-only right now; the extension controls are disabled.')
         }
-        const canInstall = extensionInstallMethod(extRemote.namespace) !== null
-        extensionCard = h('div', { className: 'mtt-card' },
-          h('p', { className: 'mtt-help' },
-            'Tool Mode extensions shipped with this plugin. The host\'s extension store is the authority: '
-            + 'Install copies a package into the store, then the switch activates it. Installation is not activation.'),
-          notes.map((note, index) => h('p', { className: 'mtt-row-note', key: 'store-note-' + index }, note)),
-          extPendingText === null ? null : h('p', { className: 'mtt-status' }, extPendingText),
-          extConfigNote === null ? null : h('p', { className: 'mtt-row-note' }, extConfigNote),
-          EXTENSIONS.map(entry => extensionRemoteRow(
-            entry,
-            findExtensionState(entry, extRemote.extensions),
-            {
-              writable: extWritable,
-              canInstall,
-              // The SAVED config list, not the fallback draft: the row describes
-              // what a restart will actually read, and the dual-write compares
-              // against the same saved value.
-              listed: savedDisabledExt.includes(entry.id),
-              // ONE ROW'S ACTION IS NOT A PAGE-WIDE LOCK. Only the row whose action
-              // is in flight disables its own controls; every other row stays
-              // operable, and the host's own refusal (e.g. a lifecycle operation in
-              // progress) is shown on that row instead of greying out the page.
-              busy: extPendingById[entry.id] !== undefined,
-              pendingAction: extPendingById[entry.id] ?? null,
-              error: extRowError,
-              prepareNote: extPrepareNote,
-              installNote: extInstallNote,
-              onAction: runExtensionAction,
-            })))
-      } else if (extRemote.kind === 'error') {
-        extensionCard = h('div', { className: 'mtt-card' },
-          h('p', { className: 'mtt-help' },
-            'The host exposes extension controls, but reading their state failed.'),
-          h('p', { className: 'mtt-row-error' }, extRemote.text),
-          h('div', { className: 'mtt-actions' },
-            h('button', {
-              type: 'button',
-              className: 'mtt-button mtt-button-small',
-              onClick: recheckExtensions,
-            }, 'Try again')))
-      } else if (extRemote.kind === 'absent') {
-        extensionCard = h('div', { className: 'mtt-card' },
-          h('p', { className: 'mtt-help' },
-            'Tool Mode extensions shipped with this plugin. The host\'s extension controls are not available to '
-            + 'this page (an older host build, or the extension Remote is not mounted), so this page cannot install, '
-            + 'verify, or observe them.'),
-          h('p', { className: 'mtt-row-note' },
-            'The switches below only record a disabledExtensions preference for the next load: they neither install '
-            + 'nor verify the package.'),
-          EXTENSIONS.map(entry => extensionFallbackRow(entry, isExtensionEnabled(entry.id), disabled, toggleExtension)),
-          h('div', { className: 'mtt-actions' },
-            h('button', {
-              type: 'button',
-              className: 'mtt-button mtt-button-small',
-              onClick: recheckExtensions,
-            }, 'Recheck')))
-      } else {
-        extensionCard = h('div', { className: 'mtt-card' },
-          h('p', { className: 'mtt-help' }, 'Reading the extension state from the host…'))
       }
+
+      const modelsCard = h('div', { className: 'mtt-card' },
+        h('p', { className: 'mtt-help' },
+          'Every model this plugin knows: the Desert Ant catalog plus the Tool Mode extension model packages, one row each. '
+          + 'Install asks the host for the package, Prepare fetches its assets, and the switch activates it; a vendor/npm '
+          + 'model uses the config allowlist instead.'),
+        storeNotes.map((note, index) => h('p', { className: 'mtt-row-note', key: 'store-note-' + index }, note)),
+        extPendingText === null ? null : h('p', { className: 'mtt-status' }, extPendingText),
+        extConfigNote === null ? null : h('p', { className: 'mtt-row-note' }, extConfigNote),
+        extRemote.kind === 'error'
+          ? h('div', null,
+            h('p', { className: 'mtt-help' }, 'The host exposes extension controls, but reading their state failed; the extension rows below stay read-only until it answers.'),
+            h('p', { className: 'mtt-row-error' }, extRemote.text),
+            h('div', { className: 'mtt-actions' },
+              h('button', { type: 'button', className: 'mtt-button mtt-button-small', onClick: recheckExtensions }, 'Try again')))
+          : extRemote.kind === 'absent'
+            ? h('div', null,
+              h('p', { className: 'mtt-help' }, 'The host does not expose its extension controls to this page, so extension-backed rows cannot be installed or activated here.'),
+              h('p', { className: 'mtt-row-note' }, 'Their switches only record a disabledExtensions preference for the next load.'),
+              h('div', { className: 'mtt-actions' },
+                h('button', { type: 'button', className: 'mtt-button mtt-button-small', onClick: recheckExtensions }, 'Recheck')))
+            : extRemote.kind === 'loading'
+              ? h('p', { className: 'mtt-help' }, 'Reading the extension state from the host…')
+              : null,
+        unifiedRows.map(row => unifiedModelRow(row, stateForRow(row), {
+          readonly: disabled,
+          extWritable,
+          ready: extReady,
+          canInstall: extCanInstall,
+          listed: row.extensionId !== null && savedDisabledExt.includes(row.extensionId),
+          pendingAction: row.extensionId === null ? null : extPendingById[row.extensionId] ?? null,
+          error: extRowError,
+          prepareNote: extPrepareNote,
+          installNote: extInstallNote,
+          onAction: runExtensionAction,
+          onVendorToggle: toggleModel,
+          unavailableNote,
+        })))
+
+      const providersCard = toolProviders.length === 0 ? null : h('div', { className: 'mtt-card' },
+        h('p', { className: 'mtt-help' },
+          'Tool providers: extensions that ship tools without a model. They are installed and activated here, not in the '
+          + 'Models list above.'),
+        extReady
+          ? toolProviders.map(entry => extensionRemoteRow(entry, findExtensionState(entry, extRemote.extensions), {
+            writable: extWritable,
+            canInstall: extCanInstall,
+            listed: savedDisabledExt.includes(entry.id),
+            busy: extPendingById[entry.id] !== undefined,
+            pendingAction: extPendingById[entry.id] ?? null,
+            error: extRowError,
+            prepareNote: extPrepareNote,
+            installNote: extInstallNote,
+            onAction: runExtensionAction,
+          }))
+          : extRemote.kind === 'absent'
+            ? toolProviders.map(entry => extensionFallbackRow(entry, isExtensionEnabled(entry.id), disabled, toggleExtension))
+            : h('p', { className: 'mtt-help' }, extRemote.kind === 'error'
+              ? 'Reading their state failed: ' + extRemote.text
+              : 'Reading their state from the host…'))
 
       return h('div', { className: 'mtt-page' },
         h('style', null, CSS),
         h('h2', { className: 'mtt-title' }, 'Model as Tool'),
         h('p', { className: 'mtt-intro' },
           'On-device models from the Desert Ant catalog, exposed as tools and skills. A model becomes a tool only when this '
-          + 'process can actually run it; extension-backed models are listed with the extension that provides them.'),
+          + 'process can actually run it; every model appears once, with the provider that supplies it.'),
         h('p', { className: 'mtt-help mtt-restart-notice', role: 'note' }, 'Model and tool registration changes apply after restart.'),
-        h('div', { className: 'mtt-card' },
-          h('p', { className: 'mtt-help' },
-            runnable.length + ' of ' + CATALOG.length + ' catalog models are runnable in this process. '
-            + 'Unavailable models are listed with the reason they cannot run here.'),
-          runnable.map(entry => modelRow(entry, isEnabled(entry.id), disabled, toggleModel)),
-          // Unavailable rows are not operable switches: render them as disabled
-          // controls so the grey off state matches their real state.
-          unavailable.map(entry => modelRow(entry, false, true, toggleModel))),
-        EXTENSIONS.length === 0 ? null : extensionCard,
+        modelsCard,
+        providersCard,
         h('div', { className: 'mtt-card' }, FIELDS.map(field => fieldRow(
           field, value, draft, field.kind === 'toggle' ? saveToggle : edit, disabled))),
         h('div', { className: 'mtt-actions' },
@@ -1824,6 +2059,7 @@ window.__ModuleLoader__.load({
       NAMESPACES,
       FIELDS,
       CATALOG,
+      EXTENSIONS,
       fieldValue,
       fieldPatch,
       createRemoteSlot,
@@ -1835,6 +2071,9 @@ window.__ModuleLoader__.load({
       describeExtensions,
       invalidateExtensionState,
       REMOTE_SNAPSHOT_TTL_MS,
+      buildUnifiedModelRows,
+      extensionModelState,
+      ModelToolsSettings,
       findExtensionState,
       nextDisabledExtensions,
       extensionRequirements,

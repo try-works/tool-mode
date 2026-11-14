@@ -172,7 +172,7 @@ test('the client half ships both extension flows: host Remote and config-only fa
   // Fallback flow: no Remote -> the disabledExtensions preference, and a note
   // that says exactly what the switch can and cannot do.
   assert.match(source, /kind: 'absent'/, 'the page must keep the absent-Remote fallback branch')
-  assert.match(source, /extension controls are not available/, 'the fallback must say the Remote is unavailable')
+  assert.match(source, /does not expose its extension controls/, 'the fallback must say the Remote is unavailable')
   assert.match(source, /disabledExtensions preference/, 'the fallback must say the switch only records a preference')
   // Only react may be requested from the lazy-CJS module table; the wire chunk
   // travels through require.async, not require().

@@ -21,10 +21,18 @@ import { defineTool, type ParameterSchemaSpec, type ValueSchemaSpec } from '@dee
 import type {} from '@deepseek-ai/dsh-skill'
 import { loadCatalog } from './catalog.ts'
 import { resolveCapability, type ResolvedModel } from './capability.ts'
+import { MODEL_TOOL_STATES, modelSurface } from './model-surface.ts'
+import {
+  FIRST_PARTY_EXTENSIONS,
+  planProvisioning,
+  runProvisioning,
+  type ProvisioningExtensionState,
+  type ProvisioningRequirementKind,
+} from './first-party-provisioning.ts'
 import { createAdapter } from './adapters/index.ts'
 import { registerModelTool } from './registrar.ts'
 import { registerContractTool, registerContractImplementationTool, type ContractBinding, type HostIdentity } from './bindings.ts'
-import { appendFileSync, readFileSync, statSync } from 'node:fs'
+import { appendFileSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { createContributionRegistrar, type RegistrableTool } from './extension-registrar.ts'
 import { createInvocationAuthority } from './authority.ts'
@@ -602,6 +610,16 @@ export interface Config {
   /** Maximum one managed-worker invoke may wait before it is failed and disposed. */
   managedWorkerInvokeTimeoutMs?: number
   /**
+   * Auto-provision the plugin's first-party extensions on boot (DEFAULT false).
+   *
+   * After the restore pass, the host installs every first-party extension that is
+   * available from the configured source directory (or already installed), prepares
+   * the assets the readiness report names as the blocker, and activates it — in the
+   * background, without blocking plugin load and without bypassing an operator
+   * refusal. `disabledExtensions` always wins. Set false to keep provisioning manual.
+   */
+  autoProvisionExtensions?: boolean
+  /**
    * Extension ids the operator switched OFF in Settings.
    *
    * The store still holds them and their desired activation is unchanged; the
@@ -749,6 +767,7 @@ export const Config: z<Config> = z.object({
     model: z.string().default('jev-1.14'),
   }),
   managedWorkers: settingsField(z.boolean().default(false)),
+  autoProvisionExtensions: z.boolean().default(false),
   managedWorkerInvokeTimeoutMs: z.number(),
   workerEnvPassthrough: z.array(z.string()).default([]),
   allowNpm: settingsField(z.boolean().default(true)),
@@ -3032,6 +3051,18 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
                   capability: { type: 'string', required: true },
                   input: { type: 'string', required: true },
                   tool: { type: 'string', required: true },
+                  /**
+                   * The ONE model-tool-readiness state both discovery surfaces publish
+                   * (modelSurface). `toolName` is the catalog's stable tool identity;
+                   * `tool` stays the name actually registered, which can differ under a
+                   * shared contract.
+                   */
+                  state: { type: 'string', required: true, enum: [...MODEL_TOOL_STATES] },
+                  extension: {
+                    required: true,
+                    oneOf: [{ type: 'string' }, { type: 'null' }],
+                  },
+                  toolName: { type: 'string', required: true },
                   skill: { type: 'string', required: true },
                   runnable: { type: 'boolean', required: true },
                   installed: { type: 'boolean', required: true },
@@ -3455,8 +3486,18 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
          */
         const snapshot = async (items: ResolvedModel[]) => Promise.all(items.map(async item => {
           const record = installed.get(item.entry.id)
+          /**
+           * ONE readiness derivation, shared with tool_mode_list: the two discovery
+           * surfaces cannot disagree about whether this model tool is callable.
+           */
+          const surface = modelSurface(item.entry, item.verdict, record !== undefined)
           return {
             ...(describeModels([item])[0] as ModelDescriptor),
+            state: surface.state,
+            /** The package that implements it, or null when no extension does. */
+            extension: item.entry.provider?.extension ?? null,
+            /** The catalog's stable tool identity; `tool` is the NAME actually registered. */
+            toolName: item.entry.tool.name,
             ...record === undefined ? {} : { tool: record.toolName },
             ...await provenanceOf(item.entry),
             installed: record !== undefined,
@@ -4016,9 +4057,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           const descriptor = describeModels([item])[0]!
           const toolName = record?.toolName ?? item.entry.tool?.name ?? item.entry.id
           if (permitted !== undefined && !permitted.has(toolName)) continue
+          // The SAME derivation model_tools uses, so the two surfaces agree.
+          const surface = modelSurface(item.entry, item.verdict, record !== undefined)
           tools.push({
             name: toolName,
             description: descriptor.summary,
+            state: surface.state,
+            toolName: item.entry.tool.name,
             readiness: item.verdict.runnable ? 'callable' : `unavailable: ${descriptor.reason}`,
             model: item.entry.id,
             extension: item.entry.provider?.extension ?? null,
@@ -4057,6 +4102,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           tools.push({
             name: schema.name,
             description: schema.description ?? '',
+            state: 'callable',
+            toolName: schema.name,
             readiness: 'callable',
             model: null,
             extension: null,
@@ -6168,6 +6215,99 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
               // The store may be read-only; the logged failure above remains.
             }
           }
+        }
+      }
+
+      /**
+       * AUTO-PROVISION FIRST-PARTY EXTENSIONS (default on).
+       *
+       * Runs AFTER the restore chain, inside the same settled async task, so it never
+       * races an activation. Only extensions that are already installed OR present in
+       * the configured source directory are attempted, so a production host without a
+       * source directory never reaches for the registry from the load path. The
+       * planner and executor handle ordering, disabled/approval refusals, re-describe
+       * skips and per-extension error isolation; this block only supplies the host
+       * operations and maps the described rows onto the planner's shape.
+       */
+      if (config.extensionStore !== undefined && config.autoProvisionExtensions === true) {
+        try {
+          const disabledExtensions = new Set(config.disabledExtensions ?? [])
+          const describeProvisioning = async (): Promise<readonly ProvisioningExtensionState[]> => {
+            const described = await extensionsService.describeFast()
+            return described.extensions.map(row => ({
+              id: row.id,
+              installed: row.installed,
+              active: row.active,
+              disabled: disabledExtensions.has(row.id),
+              requirements: (row.requirements ?? []).map(requirement => ({
+                /**
+                 * The host's requirement kind is an open string projected from the
+                 * service; the planner's union names the kinds it can act on and only
+                 * ever prepares assets/executable. Carrying an unknown kind as
+                 * "satisfied" keeps it from inventing a preparation step for a
+                 * prerequisite this host cannot clear.
+                 */
+                kind: requirement.kind as ProvisioningRequirementKind,
+                satisfied: requirement.satisfied,
+              })),
+              reason: row.reason,
+            }))
+          }
+          const firstPartyInstalled = new Set(
+            (await describeProvisioning()).filter(row => row.installed).map(row => row.id),
+          )
+          const sourceDir = (config.extensionSourceDir ?? '').trim()
+          const firstPartyInSource = new Set<string>()
+          if (sourceDir.length > 0) {
+            try {
+              const root = resolve(sourceDir)
+              for (const entry of readdirSync(root, { withFileTypes: true })) {
+                if (!entry.isDirectory()) continue
+                const directory = join(root, entry.name)
+                try {
+                  if (!statSync(join(directory, 'tool-mode.extension.json')).isFile()) continue
+                  const manifest = JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8')) as { name?: unknown }
+                  if (typeof manifest.name === 'string') firstPartyInSource.add(manifest.name)
+                } catch {
+                  // An unreadable package is not installable from this source directory.
+                }
+              }
+            } catch {
+              // An unreadable source directory means no source-provisioned installs.
+            }
+          }
+          const shipped = FIRST_PARTY_EXTENSIONS.filter(
+            id => firstPartyInSource.has(id) || firstPartyInstalled.has(id),
+          )
+          const plan = planProvisioning({
+            extensions: await describeProvisioning(),
+            shipped,
+            autoProvision: true,
+          })
+          if (plan.length > 0) {
+            const summary = await runProvisioning({
+              plan,
+              install: async id => { await extensionsService.install(id) },
+              prepare: async id => { await extensionsService.prepare(id) },
+              enable: async id => { await extensionsService.enable(id) },
+              describe: describeProvisioning,
+              log: message => ctx.logger.info(`model-tools: ${message}`),
+            })
+            ctx.logger.info(
+              `model-tools: auto-provisioning planned=${String(plan.length)} installed=${String(summary.installed)} `
+              + `prepared=${String(summary.prepared)} enabled=${String(summary.enabled)} `
+              + `skipped=${String(summary.skipped)} failed=${String(summary.failed.length)}`,
+            )
+            for (const failure of summary.failed) {
+              ctx.logger.warn(
+                `model-tools: auto-provisioning ${failure.id} ${failure.phase} failed: ${failure.reason}`,
+              )
+            }
+          }
+        } catch (error) {
+          ctx.logger.warn(
+            `model-tools: auto-provisioning could not run: ${error instanceof Error ? error.message : String(error)}`,
+          )
         }
       }
     })()

@@ -30,8 +30,11 @@ test('unavailable model switches use a neutral disabled style', () => {
   assert.ok(template.includes('#EDEFF2'), 'disabled switches must have a lighter explicit grey track')
   assert.ok(template.includes(".mtt-toggle[data-on='true']:disabled"), 'a disabled ON switch needs its own grey fill')
   assert.ok(template.includes('background: #FFFFFF'), 'the switch knob stays white on both grey tracks')
-  assert.ok(template.includes('unavailable.map(entry => modelRow(entry, false, true, toggleModel))'),
-    'unavailable models must render as disabled controls')
+  assert.ok(template.includes('buildUnifiedModelRows(CATALOG, EXTENSIONS, states, currentExclude)'),
+    'the Models list must be built by the unified row builder')
+  assert.ok(template.includes('unifiedModelRow(row, stateForRow(row)'),
+    'unavailable models render as badge-only unified rows, never a dead switch')
+  assert.ok(template.includes("unavailable: 'unavailable here'"), 'the unavailable lifecycle label must exist')
 })
 
 test('the template carries the placeholder and registers the page once', () => {
