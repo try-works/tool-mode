@@ -1,6 +1,6 @@
 {
   "name": "@try-works/dsh-tool-mode",
-  "version": "0.5.44",
+  "version": "0.5.45",
   "description": "Install Desert Ant Labs on-device models as DSH tools and skills, with per-platform capability gating",
   "keywords": [
     "dsh",
