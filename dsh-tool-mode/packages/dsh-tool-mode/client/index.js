@@ -3290,15 +3290,17 @@ function createToolInsights(createElement, reactLib) {
     }
 
     /**
-     * How long a normalized describe() snapshot is served without asking the host.
-     *
-     * The settings page is opened and closed repeatedly, and the host store is the
-     * only source of truth but not an inexpensive one. Five minutes of reuse means
-     * reopening Settings shows the last known state immediately; every action,
-     * Recheck and failure re-read still invalidates the snapshot explicitly, and a
-     * stale snapshot is refreshed in the background for the next open.
+     * How long a normalized describe() snapshot is trusted without a background
+     * revalidation. A DAY, because the shipped extension list is a build artifact:
+     * it does not change between sessions, and only an install/update/Recheck can
+     * make it different. The page NEVER waits for a read while a snapshot exists
+     * (memory or storage); after this window it still answers immediately and
+     * revalidates in the background at most once per page load.
      */
-    const REMOTE_SNAPSHOT_TTL_MS = 300000
+    const REMOTE_SNAPSHOT_TTL_MS = 86400000
+
+    /** localStorage key prefix for the persisted extension-state snapshot. */
+    const EXTENSION_STATE_STORAGE_KEY = 'dsh.tool-mode.extension-state.v1'
 
     /**
      * Read state by STABLE namespace identity: one in-flight promise, the last
@@ -3329,12 +3331,72 @@ function createToolInsights(createElement, reactLib) {
       return 'object:' + String(id)
     }
 
+    /** The browser storage the snapshot persists in, or null when unavailable. */
+    function extensionStateStorage() {
+      try {
+        const candidate = typeof window === 'undefined' || window === null ? null : window.localStorage
+        return candidate === null || candidate === undefined ? null : candidate
+      } catch {
+        return null
+      }
+    }
+
+    /** Read the persisted snapshot for one namespace key, or null. */
+    function persistedExtensionState(key) {
+      const storage = extensionStateStorage()
+      if (storage === null) return null
+      try {
+        const raw = storage.getItem(EXTENSION_STATE_STORAGE_KEY + ':' + key)
+        if (typeof raw !== 'string' || raw.length === 0) return null
+        const parsed = JSON.parse(raw)
+        if (parsed === null || typeof parsed !== 'object') return null
+        const snapshot = parsed.snapshot
+        if (snapshot === null || typeof snapshot !== 'object' || !Array.isArray(snapshot.extensions)) return null
+        const at = typeof parsed.at === 'number' && Number.isFinite(parsed.at) ? parsed.at : 0
+        return {
+          snapshot: {
+            store: typeof snapshot.store === 'string' && snapshot.store.length > 0 ? snapshot.store : null,
+            writable: snapshot.writable === true,
+            extensions: snapshot.extensions,
+          },
+          at,
+        }
+      } catch {
+        return null
+      }
+    }
+
+    /** Persist one namespace's snapshot so a page reload renders without a host read. */
+    function storeExtensionState(key, state) {
+      const storage = extensionStateStorage()
+      if (storage === null) return
+      try {
+        storage.setItem(
+          EXTENSION_STATE_STORAGE_KEY + ':' + key,
+          JSON.stringify({ at: state.at, snapshot: state.snapshot }),
+        )
+      } catch {
+        // Quota or a privacy mode: the in-memory cache still serves this page.
+      }
+    }
+
+    /** Drop one namespace's persisted snapshot after an explicit invalidation. */
+    function dropExtensionState(key) {
+      const storage = extensionStateStorage()
+      if (storage === null) return
+      try {
+        storage.removeItem(EXTENSION_STATE_STORAGE_KEY + ':' + key)
+      } catch {
+        // Nothing to clean up when storage is unavailable.
+      }
+    }
+
     /** The read state for one namespace key, created on first use. */
     function extensionReadState(namespace) {
       const key = extensionReadKey(namespace)
       let state = extensionReads.get(key)
       if (state === undefined) {
-        state = { inFlight: null, snapshot: null, at: 0, generation: 0 }
+        state = { inFlight: null, snapshot: null, at: 0, generation: 0, revalidated: false }
         extensionReads.set(key, state)
       }
       return state
@@ -3357,6 +3419,7 @@ function createToolInsights(createElement, reactLib) {
           if (state.generation === generation) {
             state.snapshot = described
             state.at = Date.now()
+            storeExtensionState(extensionReadKey(namespace), state)
           }
           return described
         } finally {
@@ -3380,10 +3443,21 @@ function createToolInsights(createElement, reactLib) {
      */
     function describeExtensions(namespace) {
       const state = extensionReadState(namespace)
+      // A page reload starts with empty memory; the persisted snapshot is the
+      // answer, so the settings page renders the extension list without a read.
+      if (state.snapshot === null) {
+        const persisted = persistedExtensionState(extensionReadKey(namespace))
+        if (persisted !== null) {
+          state.snapshot = persisted.snapshot
+          state.at = persisted.at
+        }
+      }
       if (state.snapshot !== null) {
         const stale = Date.now() - state.at >= REMOTE_SNAPSHOT_TTL_MS
-        if (stale && state.inFlight === null) {
-          // Refresh for the next open; this read still answers from the snapshot.
+        // At most one background revalidation per page load, and never a blocking
+        // read: this call answers from the snapshot immediately either way.
+        if (stale && state.inFlight === null && !state.revalidated) {
+          state.revalidated = true
           startExtensionRead(namespace, state).catch(() => {})
         }
         return Promise.resolve(state.snapshot)
@@ -3404,6 +3478,8 @@ function createToolInsights(createElement, reactLib) {
       state.inFlight = null
       state.snapshot = null
       state.at = 0
+      state.revalidated = false
+      dropExtensionState(extensionReadKey(namespace))
     }
 
     /**

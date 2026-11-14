@@ -73,11 +73,31 @@ function fixedNamespace(snapshot: Snapshot, serviceKey?: string): FakeNamespace 
   return countingNamespace(async () => snapshot, serviceKey)
 }
 
+/** The browser storage surface the bundle uses, backed by a Map. */
+interface StorageStub {
+  getItem(key: string): string | null
+  setItem(key: string, value: string): void
+  removeItem(key: string): void
+}
+
+/** A storage stub that survives "page reloads" (new bundle loads). */
+function memoryStorage(): StorageStub {
+  const data = new Map<string, string>()
+  return {
+    getItem(key) { return data.get(key) ?? null },
+    setItem(key, value) { data.set(key, value) },
+    removeItem(key) { data.delete(key) },
+  }
+}
+
 /** Load the generated bundle the way the web shell does. */
-function loadInternals(): Internals {
+function loadInternals(storage?: StorageStub): Internals {
   const source = readFileSync(BUNDLE, 'utf8')
   let registration: Registration | undefined
-  const window = { __ModuleLoader__: { load(value: Registration) { registration = value } } }
+  const window = {
+    __ModuleLoader__: { load(value: Registration) { registration = value } },
+    ...storage === undefined ? {} : { localStorage: storage },
+  }
   const react: ReactStub = {
     createElement: () => null,
     useState: () => [null, () => {}],
@@ -136,7 +156,7 @@ test('a second read within the TTL is served from the snapshot', async () => {
   assert.deepEqual(await describe(namespace), SNAPSHOT)
   assert.deepEqual(await describe(namespace), SNAPSHOT)
   assert.equal(namespace.calls, 1, 'a fresh snapshot must be reused inside the TTL')
-  assert.equal(internals.REMOTE_SNAPSHOT_TTL_MS, 300000, 'the TTL is the documented five minutes')
+  assert.equal(internals.REMOTE_SNAPSHOT_TTL_MS, 86400000, 'the TTL is a day: the extension list is a build artifact')
 })
 
 test('an explicit invalidation forces the next read to the host', async () => {
@@ -162,6 +182,57 @@ test('a rejection clears the in-flight entry so a retry works', async () => {
   failing = false
   assert.deepEqual(await describe(namespace), SNAPSHOT)
   assert.equal(namespace.calls, 2, 'the failed call must not be cached as an answer')
+})
+
+test('a persisted snapshot survives a page reload without a host call', async () => {
+  const storage = memoryStorage()
+  const first = loadInternals(storage)
+  const firstNamespace = fixedNamespace(SNAPSHOT, 'modelTools')
+  await describeOf(first)(firstNamespace)
+  assert.equal(firstNamespace.calls, 1)
+
+  // A reload constructs a NEW module instance and a NEW namespace proxy; the
+  // persisted snapshot is what the settings page renders from.
+  const second = loadInternals(storage)
+  const secondNamespace = fixedNamespace(SNAPSHOT, 'modelTools')
+  assert.deepEqual(await describeOf(second)(secondNamespace), SNAPSHOT)
+  assert.equal(secondNamespace.calls, 0, 'a reload must not read the host again')
+})
+
+test('an invalidation removes the persisted snapshot too', async () => {
+  const storage = memoryStorage()
+  const first = loadInternals(storage)
+  const namespace = fixedNamespace(SNAPSHOT, 'modelTools')
+  await describeOf(first)(namespace)
+  invalidateOf(first)(namespace)
+
+  const second = loadInternals(storage)
+  const reloaded = fixedNamespace(SNAPSHOT, 'modelTools')
+  await describeOf(second)(reloaded)
+  assert.equal(reloaded.calls, 1, 'after an action/Recheck the host is read again')
+})
+
+test('a persisted snapshot older than the TTL is still served immediately', async () => {
+  const storage = memoryStorage()
+  const realNow = Date.now
+  let now = 1_000
+  Date.now = () => now
+  try {
+    const first = loadInternals(storage)
+    await describeOf(first)(fixedNamespace(SNAPSHOT, 'modelTools'))
+    now += 86400000 + 1
+
+    const second = loadInternals(storage)
+    const namespace = fixedNamespace(SNAPSHOT, 'modelTools')
+    assert.deepEqual(await describeOf(second)(namespace), SNAPSHOT)
+    // The expired snapshot is revalidated once, in the background.
+    await new Promise(resolve => setTimeout(resolve, 20))
+    assert.equal(namespace.calls, 1, 'one background revalidation after the TTL')
+    await describeOf(second)(namespace)
+    assert.equal(namespace.calls, 1, 'the revalidated snapshot is reused')
+  } finally {
+    Date.now = realNow
+  }
 })
 
 test('a snapshot outlives the old five-second window (Settings reopened a minute later)', async () => {
