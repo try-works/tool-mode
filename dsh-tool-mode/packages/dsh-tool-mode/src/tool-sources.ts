@@ -21,8 +21,16 @@ export const UNATTRIBUTED_OWNER = 'unattributed'
 /** The package that provides Tool Mode itself. */
 export const TOOL_MODE_OWNER = '@try-works/dsh-tool-mode'
 
-/** Tool Mode's own tool names (host-local management plus the composition door). */
-export const TOOL_MODE_TOOL_NAMES: readonly string[] = Object.freeze(['model_tools', 'tool_mode_run'])
+/**
+ * Tool Mode's own tool names: the host-local control/discovery surface and the
+ * host-owned decision tools this plugin registers itself. Anything registered by
+ * this plugin that is NOT an extension's declared tool belongs here, or the page
+ * reports the host's own tools as "unattributed".
+ */
+export const TOOL_MODE_TOOL_NAMES: readonly string[] = Object.freeze([
+  'model_tools', 'model_tools_manage', 'tool_mode_run', 'tool_mode_list', 'tool_mode_describe',
+  'decision_combine', 'decision_route', 'decision_evaluate',
+])
 
 /**
  * Pinned first-party tool → npm package.

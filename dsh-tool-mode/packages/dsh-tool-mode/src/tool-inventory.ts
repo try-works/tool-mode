@@ -13,7 +13,9 @@
  * @module @try-works/dsh-tool-mode/tool-inventory
  */
 
-import { resolveToolOwner, type ToolKind, type ToolOrigin } from './tool-sources.ts'
+import {
+  resolveToolOwner, TOOL_MODE_OWNER, TOOL_MODE_TOOL_NAMES, type ToolKind, type ToolOrigin,
+} from './tool-sources.ts'
 
 /** What an inventory row says about availability. */
 export type InventoryState = 'active' | 'prepared-cold' | 'failed'
@@ -63,6 +65,12 @@ export interface InventoryInput {
     readonly id: string
     readonly title: string
   }[]
+  /**
+   * Tool names the HOST PLUGIN itself registered (control, discovery and
+   * host-contract tools). Those have no declaring extension in the store, so the
+   * live resolver alone reports them unattributed; the host is their owner.
+   */
+  readonly pluginOwnedTools?: readonly string[]
 }
 
 /** One inventory row. */
@@ -133,10 +141,14 @@ export function buildToolInventory(input: InventoryInput): readonly ToolInventor
   const exposed = new Set(input.mcpExposed)
   const custom = new Map((input.customTools ?? []).map(tool => [tool.name, tool]))
 
+  const pluginOwned = new Set([...TOOL_MODE_TOOL_NAMES, ...input.pluginOwnedTools ?? []])
   for (const tool of input.registry) {
     const customTool = custom.get(tool.name)
+    const resolved = resolveToolOwner(tool.name, input.extensions)
     const owner = customTool === undefined
-      ? resolveToolOwner(tool.name, input.extensions)
+      ? resolved.kind === 'unknown' && pluginOwned.has(tool.name)
+        ? { owner: TOOL_MODE_OWNER, kind: 'tool-mode' as const, origin: 'tool-mode' as const }
+        : resolved
       : { owner: customTool.id, kind: 'custom' as const, origin: 'custom' as const }
     const extension = owner.kind === 'extension' ? input.extensions.find(candidate => candidate.id === owner.owner) : undefined
     rows.set(tool.name, {

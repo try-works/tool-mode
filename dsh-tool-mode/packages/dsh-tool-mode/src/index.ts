@@ -134,7 +134,7 @@ import type { ModelToolsRemote, McpCallsQuery, ToolSourceRow, UsageReportQuery }
 import { TOOL_USAGE_KEY, toolUsageDayKey, toolUsageProjectionDefinition, type ToolUsageState } from './tool-usage-projection.ts'
 import { buildUsageReport, rangeWindow, type SessionUsageInput, type UsageReport, type UsageRange } from './tool-usage-report.ts'
 import { buildToolInventory } from './tool-inventory.ts'
-import { resolveToolOwner, staticToolOwner } from './tool-sources.ts'
+import { resolveToolOwner, staticToolOwner, TOOL_MODE_OWNER } from './tool-sources.ts'
 import { McpUsageLedger, recordFromAccounting } from './mcp-usage.ts'
 import { buildMcpStatus, type McpStatusView } from './mcp-status.ts'
 import type { BoundEndpoint } from './mcp/http.ts'
@@ -1388,11 +1388,29 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     })
   }
 
+  /**
+   * Tool names THIS PLUGIN registers itself and no extension declares.
+   *
+   * The live resolver attributes a tool to the extension whose manifest declares
+   * it; the host's control/discovery tools and the contract tools the plugin binds
+   * have no declaring extension, so they were reported as "unattributed" in Tool
+   * Insights even though this package owns them.
+   */
+  const pluginOwnedToolNames = (): ReadonlySet<string> => new Set([
+    'model_tools', 'model_tools_manage', 'tool_mode_list', 'tool_mode_describe', 'tool_mode_run',
+    'decision_combine', 'decision_route', 'decision_evaluate',
+    ...[...registeredContracts.values()].map(registered => registered.toolName),
+  ])
+
   /** The registered tools with owner attribution (extension store is live). */
   const readToolSources = async (): Promise<readonly ToolSourceRow[]> => {
     const describe = await extensionsService.describeFast()
+    const owned = pluginOwnedToolNames()
     return ctx.tools.schemas().map((tool) => {
-      const owner = resolveToolOwner(tool.name, describe.extensions)
+      const resolved = resolveToolOwner(tool.name, describe.extensions)
+      const owner = resolved.kind === 'unknown' && owned.has(tool.name)
+        ? { owner: TOOL_MODE_OWNER, kind: 'tool-mode' as const, origin: 'tool-mode' as const }
+        : resolved
       return { name: tool.name, description: tool.description, owner: owner.owner, kind: owner.kind, origin: owner.origin }
     })
   }
@@ -1445,6 +1463,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           extensions: describe.extensions,
           usage: report.tools,
           mcpExposed: mcpHost.listTools().map(tool => tool.name),
+          pluginOwnedTools: [...pluginOwnedToolNames()],
           ...customToolsServiceRef === undefined
             ? {}
             : {

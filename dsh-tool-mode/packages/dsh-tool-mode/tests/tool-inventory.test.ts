@@ -116,6 +116,26 @@ describe('S3 inventory rows', () => {
     assert.equal(rows.find(row => row.name === 'read')?.mcpExposed, true)
   })
 
+  it('attributes host-registered tools the plugin owns to Tool Mode', () => {
+    const rows = buildToolInventory({
+      registry: [
+        ...REGISTRY,
+        { name: 'text_embed', description: 'Embed text', parameters: { type: 'object', properties: {} } },
+        { name: 'tool_mode_list', description: 'List tools', parameters: { type: 'object', properties: {} } },
+      ],
+      extensions: EXTENSIONS,
+      usage: [],
+      mcpExposed: [],
+      pluginOwnedTools: ['text_embed'],
+    })
+    const embed = rows.find(row => row.name === 'text_embed')
+    assert.equal(embed?.owner, '@try-works/dsh-tool-mode')
+    assert.equal(embed?.kind, 'tool-mode')
+    assert.equal(embed?.origin, 'tool-mode')
+    const discovery = rows.find(row => row.name === 'tool_mode_list')
+    assert.equal(discovery?.kind, 'tool-mode', 'the discovery surface is Tool Mode-owned even without the live hint')
+  })
+
   it('labels an unknown owner explicitly instead of guessing', () => {
     const rows = buildToolInventory({ registry: REGISTRY, extensions: EXTENSIONS, usage: [], mcpExposed: [] })
     const custom = rows.find(row => row.name === 'custom_tool')
