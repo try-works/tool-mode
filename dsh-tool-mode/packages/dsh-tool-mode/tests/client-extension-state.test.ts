@@ -259,8 +259,8 @@ test('installing an extension prepares and enables it automatically', () => {
     const start = source.indexOf('const followThroughInstall = async')
     assert.ok(start >= 0)
     const body = source.slice(start, start + 2400)
-    const enableAt = body.indexOf("action: 'enable'")
-    const prepareAt = body.indexOf("action: 'prepare'")
+    const enableAt = body.indexOf("beginPending(id, 'enable')")
+    const prepareAt = body.indexOf("beginPending(id, 'prepare')")
     assert.ok(enableAt >= 0, name + ' must activate the extension')
     assert.ok(prepareAt >= 0, name + ' must prepare its assets when the host says so')
     assert.ok(prepareAt < enableAt, name + ' must prepare before activation')
@@ -271,10 +271,23 @@ test('installing an extension prepares and enables it automatically', () => {
 test('one row’s action does not disable the rest of the extension page', () => {
   const template = readFileSync(TEMPLATE, 'utf8')
   const bundle = readFileSync(BUNDLE, 'utf8')
-  const scoped = /busy: extBusy && extPending !== null && extPending\.id === entry\.id/
+  const scoped = /busy: extPendingById\[entry\.id\] !== undefined/
   for (const [name, source] of [['template', template], ['bundle', bundle]] as const) {
     assert.match(source, scoped, name + ' must scope the busy state to the acting row')
     assert.ok(!/busy: extBusy,/.test(source), name + ' must not disable every row while one action runs')
+  }
+})
+
+test('concurrent preparations keep their own per-row state', () => {
+  const template = readFileSync(TEMPLATE, 'utf8')
+  const bundle = readFileSync(BUNDLE, 'utf8')
+  for (const [name, source] of [['template', template], ['bundle', bundle]] as const) {
+    assert.match(source, /extPendingById/, name + ' must track pending actions per extension id')
+    assert.match(source, /const beginPending = \(id, action\) =>/, name + ' must start one row action without clearing another')
+    assert.match(source, /const endPending = \(id\) =>/, name + ' must finish only the acting row')
+    assert.match(source, /beginPending\(id, action\)/, name + ' must register the action it is running')
+    assert.match(source, /endPending\(id\)/, name + ' must clear only the action it ran')
+    assert.ok(!/setExtPending\(null\)/.test(source), name + ' must not clear every row when one action finishes')
   }
 })
 

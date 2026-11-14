@@ -3689,7 +3689,7 @@ function createToolInsights(createElement, reactLib) {
     function extensionRemoteRow(entry, state, ui) {
       const installed = state !== null && state.installed === true
       const active = installed && state.active === true
-      const pending = ui.pending !== null && ui.pending.id === entry.id ? ui.pending.action : null
+      const pending = ui.pendingAction ?? null
       const requirementControls = extensionRequirementControls(state)
       const needsPreparation = extensionNeedsPreparation(state)
       const parts = extensionParts(entry)
@@ -3835,7 +3835,17 @@ function createToolInsights(createElement, reactLib) {
       // `kind` is loading | ready | absent | error; it starts loading so the card
       // never renders a guessed installed/active state before the first read.
       const [extRemote, setExtRemote] = React.useState({ kind: 'loading' })
-      const [extPending, setExtPending] = React.useState(null)
+      /**
+       * Actions in flight, keyed by extension id.
+       *
+       * ONE slot would make the page look like only one extension can be prepared:
+       * starting a second action replaced the first row's "Preparing…" label (and the
+       * first action's completion then cleared the SECOND row's label), so the
+       * operator saw the first preparation stop even though the host was still
+       * acquiring it. Each row owns its own pending action; concurrent preparations
+       * stay visible and independent.
+       */
+      const [extPendingById, setExtPendingById] = React.useState({})
       const [extRowError, setExtRowError] = React.useState(null)
       // Non-fatal: activation succeeded but the config-list dual-write did not.
       // The action is never rolled back for this; the note tells the operator the
@@ -3848,6 +3858,16 @@ function createToolInsights(createElement, reactLib) {
       // v<resolvedVersion> from npm / from the local package directory"). Null for
       // a legacy host result that carries neither source nor resolvedVersion.
       const [extInstallNote, setExtInstallNote] = React.useState(null)
+
+      /** Mark one row's action as in flight (leaving any other row's action alone). */
+      const beginPending = (id, action) => setExtPendingById(previous => ({ ...previous, [id]: action }))
+      /** Clear one row's in-flight action, never another row's. */
+      const endPending = (id) => setExtPendingById(previous => {
+        if (previous[id] === undefined) return previous
+        const next = { ...previous }
+        delete next[id]
+        return next
+      })
 
       /** This mount's namespace status, or null when the wire chunk is absent. */
       const mounted = () => (remoteSlot === null || remoteSlot === undefined ? null : remoteSlot.get())
@@ -4070,7 +4090,7 @@ function createToolInsights(createElement, reactLib) {
             if (typeof namespace.prepare !== 'function') {
               return 'installed, but this host does not expose the extension prepare action.'
             }
-            setExtPending({ id, action: 'prepare' })
+            beginPending(id, 'prepare')
             const prepared = unwrapRemoteResult(await namespace.prepare(id))
             const described = prepareResultNote(prepared)
             if (typeof described === 'string' && described.length > 0) prepareNote = described
@@ -4082,7 +4102,7 @@ function createToolInsights(createElement, reactLib) {
           return 'installed, but its readiness could not be read: ' + remoteErrorText(error)
         }
         try {
-          setExtPending({ id, action: 'enable' })
+          beginPending(id, 'enable')
           unwrapRemoteResult(await namespace.enable(id))
           await dualWriteDisabledExtensions(id, 'enable')
           return (prepareNote.length > 0 ? prepareNote + ' ' : '') + 'Enabled automatically.'
@@ -4125,7 +4145,7 @@ function createToolInsights(createElement, reactLib) {
         setExtConfigNote(null)
         setExtPrepareNote(null)
         setExtInstallNote(null)
-        setExtPending({ id, action })
+        beginPending(id, action)
         try {
           const namespace = modelToolsRemote(ctx, mounted())
           if (namespace === null) {
@@ -4200,21 +4220,23 @@ function createToolInsights(createElement, reactLib) {
             // snapshot describe() gave us, which is still the last known truth.
           }
         } finally {
-          setExtPending(null)
+          endPending(id)
         }
       }
 
       const runnable = CATALOG.filter(entry => entry.runnable === true)
       const unavailable = CATALOG.filter(entry => entry.runnable !== true)
 
-      const extPendingEntry = extPending === null
+      const extPendingIds = Object.keys(extPendingById)
+      /** One status line per in-flight row: concurrent preparations stay visible together. */
+      const extPendingText = extPendingIds.length === 0
         ? null
-        : EXTENSIONS.find(entry => entry.id === extPending.id) ?? { name: extPending.id }
-      const extPendingText = extPending === null
-        ? null
-        : (EXTENSION_ACTION_LABELS[extPending.action] ?? 'Working on') + ' ' + extPendingEntry.name + '…'
+        : extPendingIds.map(id => {
+          const entry = EXTENSIONS.find(candidate => candidate.id === id) ?? { name: id }
+          return (EXTENSION_ACTION_LABELS[extPendingById[id]] ?? 'Working on') + ' ' + entry.name + '…'
+        }).join(' ')
       const extWritable = extRemote.kind === 'ready' && extRemote.writable === true
-      const extBusy = extPending !== null
+      const extBusy = extPendingIds.length > 0
 
       let extensionCard
       if (extRemote.kind === 'ready') {
@@ -4246,8 +4268,8 @@ function createToolInsights(createElement, reactLib) {
               // is in flight disables its own controls; every other row stays
               // operable, and the host's own refusal (e.g. a lifecycle operation in
               // progress) is shown on that row instead of greying out the page.
-              busy: extBusy && extPending !== null && extPending.id === entry.id,
-              pending: extPending,
+              busy: extPendingById[entry.id] !== undefined,
+              pendingAction: extPendingById[entry.id] ?? null,
               error: extRowError,
               prepareNote: extPrepareNote,
               installNote: extInstallNote,
