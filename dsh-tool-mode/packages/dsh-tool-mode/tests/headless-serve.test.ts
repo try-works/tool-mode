@@ -19,6 +19,7 @@ import { repairCeilingOf } from '../src/index.ts'
 import { runHeadlessServe } from '../src/headless.ts'
 import { mayRepairTitle, recordRepairLineage, titleLimitsFor } from '../src/title-proposal.ts'
 import { PROTOCOL_VERSION, META_KEYS } from '../src/mcp/protocol.ts'
+import { PACKAGE_VERSION } from '../src/version.ts'
 
 const dirs: string[] = []
 after(() => {
@@ -165,6 +166,12 @@ describe('task-74 (A) — the REAL headless serve entry', () => {
     const parsed = JSON.parse(response.body) as { result?: { tools?: { name: string }[] } }
     const names = (parsed.result?.tools ?? []).map(tool => tool.name)
     assert.ok(names.includes('tool_mode_run'), `tools/list must register tool_mode_run; got ${names.join(', ')}`)
+    // The version a client reads must be the SHIPPED version, not a stale constant.
+    const serverInfo = (parsed.result as { _meta?: Record<string, unknown> } | undefined)?._meta?.[META_KEYS.serverInfo] as
+      | { name?: string; version?: string }
+      | undefined
+    assert.equal(serverInfo?.version, PACKAGE_VERSION, 'serve must advertise the shipped package version')
+    assert.equal(serverInfo?.name, '@try-works/dsh-tool-mode')
 
     // Windows cannot deliver POSIX signals to a child: the graceful-shutdown
     // path is pinned in-process below, and the spawned child is terminated.

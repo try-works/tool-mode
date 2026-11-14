@@ -45,6 +45,7 @@ import { createMcpHost, type PublishedTool } from './mcp/host-binding.ts'
 import { ServerLifecycle } from './server-lifecycle.ts'
 import { startHttpServer, type BoundEndpoint } from './mcp/http.ts'
 import { commandExists } from './transport.ts'
+import { PACKAGE_VERSION } from './version.ts'
 
 /** The headless config document (the same Config surface, parsed loosely). */
 interface HeadlessConfig {
@@ -211,7 +212,7 @@ export async function startHeadlessServe(configPath?: string): Promise<HeadlessS
   let receiptCounter = 0
   const host: HostIdentity = {
     extension: '@try-works/dsh-tool-mode',
-    extensionVersion: '0.1.1',
+    extensionVersion: PACKAGE_VERSION,
     activationGeneration: 1,
     nextReceiptId: () => `rcpt_${(++receiptCounter).toString(36).padStart(6, '0')}`,
     grant: createGrant({
@@ -241,7 +242,7 @@ export async function startHeadlessServe(configPath?: string): Promise<HeadlessS
   published.push({ toolName: 'tool_mode_run', contract: TOOL_MODE_RUN_CONTRACT as never })
 
   const mcpHost = createMcpHost({
-    serverInfo: { name: '@try-works/dsh-tool-mode', version: '0.1.1' },
+    serverInfo: { name: '@try-works/dsh-tool-mode', version: PACKAGE_VERSION },
     surface: {
       get published() {
         return published
