@@ -12,7 +12,7 @@
 
 import { after, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { cpSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import {
   ExtensionLifecycle,
@@ -388,6 +388,47 @@ describe('install then enable/disable is a truthful round-trip', () => {
     assert.equal(row.integrity, 'unknown')
     assert.deepEqual([...row.tools], [TOOL_NAME])
     assert.equal(digests, 0, 'the fast path must not digest installed content')
+
+    /**
+     * SKIPPED VERIFICATION IS NOT A FAILED VERIFICATION. The page must not block every
+     * installed row just because this read did not hash multi-GB trees: the digest is
+     * checked when the extension activates (and by the full describe()).
+     */
+    assert.equal(row.blocked, false, 'a skipped digest must not block an installed row')
+    const integrity = row.requirements.find(candidate => candidate.kind === 'integrity')
+    assert.ok(integrity !== undefined, 'the row must carry an integrity requirement')
+    assert.equal(integrity.satisfied, true)
+    assert.match(integrity.reason, /verified when the extension activates/)
+
+    // The FULL read keeps its digest for callers that need it.
+    const full = (await fast.describe()).extensions.find(candidate => candidate.id === EXTENSION_ID)
+    assert.ok(full !== undefined)
+    assert.equal(full.integrity, 'unchanged')
+    assert.equal(full.blocked, false)
+  })
+
+  it('keeps a FAILED digest blocking, with the digest reason', async () => {
+    const storeDir = tempDir()
+    await stagedInstallFromDirectory({ sourceDir: FIXTURE_DIR, storeDir, allowSourceDirectories: true })
+    const record = installedRecord(storeDir)
+    /**
+     * A record whose install path exists but is no longer a directory cannot be
+     * digested. That is the "verification FAILED" case, not "verification skipped":
+     * it stays blocking and keeps its own reason.
+     */
+    rmSync(record.installPath, { recursive: true, force: true })
+    writeFileSync(record.installPath, 'not a directory')
+    const service = createExtensionsService({ storeDir, allowSourceDirectories: true })
+
+    const row = (await service.describe()).extensions.find(candidate => candidate.id === EXTENSION_ID)
+    assert.ok(row !== undefined)
+    assert.equal(row.integrity, 'unknown')
+    assert.equal(row.blocked, true, 'a failed digest must keep the row blocked')
+    assert.match(row.reason ?? '', /could not be digested/)
+    const integrity = row.requirements.find(candidate => candidate.kind === 'integrity')
+    assert.ok(integrity !== undefined)
+    assert.equal(integrity.satisfied, false)
+    assert.match(integrity.reason, /could not be digested/)
   })
 
   it('disables an installed extension that was never activated without inventing a deactivation', async () => {

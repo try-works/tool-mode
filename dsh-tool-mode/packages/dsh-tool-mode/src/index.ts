@@ -1424,7 +1424,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       : join(dirname(resolve(config.stateFile ?? defaultStateFile())), 'custom-tools'),
   )
   const remoteService: ModelToolsRemote = {
-    describe: signal => extensionsService.describe(signal),
+    // The Remote-facing describe is a PAGE read: it must not digest multi-GB installed
+    // trees (EXT-33 verification stays available through the full describe() and runs
+    // when an extension activates). A skipped digest is reported as integrity 'unknown'
+    // and does not block a row.
+    describe: signal => extensionsService.describeFast(signal),
     install: (id, source, signal) => extensionsService.install(id, source, signal),
     enable: (id, signal) => extensionsService.enable(id, signal),
     disable: (id, signal) => extensionsService.disable(id, signal),

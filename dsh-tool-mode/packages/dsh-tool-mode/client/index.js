@@ -3278,9 +3278,72 @@ function createToolInsights(createElement, reactLib) {
       }
     }
 
-    /** Read one extension state snapshot, unwrapping the Remote result. */
-    async function describeExtensions(namespace) {
-      return normalizeDescribe(unwrapRemoteResult(await namespace.describe()))
+    /** How long a normalized describe() snapshot is reused before a real host read. */
+    const REMOTE_SNAPSHOT_TTL_MS = 5000
+
+    /**
+     * Per-namespace read state: one in-flight promise, the last snapshot and when
+     * it was taken. A WeakMap because the namespace object is the mounted Remote;
+     * entries disappear with it.
+     */
+    const extensionReads = new WeakMap()
+
+    /** The read state for one namespace, created on first use. */
+    function extensionReadState(namespace) {
+      let state = extensionReads.get(namespace)
+      if (state === undefined) {
+        state = { inFlight: null, snapshot: null, at: 0, generation: 0 }
+        extensionReads.set(namespace, state)
+      }
+      return state
+    }
+
+    /**
+     * Read one extension state snapshot, coalesced per namespace.
+     *
+     * The page reads from four places (mount, Recheck, the post-action re-read and
+     * its follow-up); each would otherwise pay the host's describe, which can take
+     * minutes on a large store. Concurrent callers share one in-flight promise, a
+     * caller within REMOTE_SNAPSHOT_TTL_MS of the last answer gets that snapshot,
+     * and a rejection is never cached, so a retry reaches the host again.
+     */
+    function describeExtensions(namespace) {
+      const state = extensionReadState(namespace)
+      if (state.inFlight !== null) return state.inFlight
+      if (state.snapshot !== null && Date.now() - state.at < REMOTE_SNAPSHOT_TTL_MS) {
+        return Promise.resolve(state.snapshot)
+      }
+      const generation = state.generation
+      const read = (async () => {
+        try {
+          const described = normalizeDescribe(unwrapRemoteResult(await namespace.describe()))
+          // Publish only an answer the current state still wants: an invalidation
+          // that arrived while this read was in flight must win over it.
+          if (state.generation === generation) {
+            state.snapshot = described
+            state.at = Date.now()
+          }
+          return described
+        } finally {
+          if (state.inFlight === read) state.inFlight = null
+        }
+      })()
+      state.inFlight = read
+      return read
+    }
+
+    /**
+     * Drop the cached and in-flight read state for a namespace.
+     *
+     * Called after install/enable/disable/prepare and by Recheck ("Try again"):
+     * after an action the page must read the host, not a snapshot from before it.
+     */
+    function invalidateExtensionState(namespace) {
+      const state = extensionReadState(namespace)
+      state.generation += 1
+      state.inFlight = null
+      state.snapshot = null
+      state.at = 0
     }
 
     /**
@@ -3895,6 +3958,7 @@ function createToolInsights(createElement, reactLib) {
           setExtRemote({ kind: 'absent' })
           return
         }
+        invalidateExtensionState(namespace)
         try {
           setExtRemote({ kind: 'ready', namespace, ...(await describeExtensions(namespace)) })
         } catch (error) {
@@ -3952,6 +4016,7 @@ function createToolInsights(createElement, reactLib) {
             unwrapRemoteResult(await namespace.disable(id))
             await dualWriteDisabledExtensions(id, 'disable')
           }
+          invalidateExtensionState(namespace)
           setExtRemote({ kind: 'ready', namespace, ...(await describeExtensions(namespace)) })
           // A store write and the following describe can land in either order
           // under load. One bounded re-read after a successful action settles
@@ -3963,6 +4028,7 @@ function createToolInsights(createElement, reactLib) {
               try {
                 const settled = modelToolsRemote(ctx, mounted())
                 if (settled !== null) {
+                  invalidateExtensionState(settled)
                   setExtRemote({ kind: 'ready', namespace: settled, ...(await describeExtensions(settled)) })
                 }
               } catch (settleError) {
@@ -3977,6 +4043,7 @@ function createToolInsights(createElement, reactLib) {
           try {
             const namespace = modelToolsRemote(ctx, mounted())
             if (namespace !== null) {
+              invalidateExtensionState(namespace)
               setExtRemote({ kind: 'ready', namespace, ...(await describeExtensions(namespace)) })
             }
           } catch (readError) {
@@ -4195,6 +4262,8 @@ function createToolInsights(createElement, reactLib) {
       unwrapRemoteResult,
       normalizeDescribe,
       describeExtensions,
+      invalidateExtensionState,
+      REMOTE_SNAPSHOT_TTL_MS,
       findExtensionState,
       nextDisabledExtensions,
       extensionRequirements,

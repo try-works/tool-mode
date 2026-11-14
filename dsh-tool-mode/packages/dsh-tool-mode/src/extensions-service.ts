@@ -1533,10 +1533,22 @@ export class ExtensionsService implements ModelToolsRemote {
     }
 
     // INTEGRITY: the installed bytes must still be the recorded bytes.
+    //
+    // SKIPPED is not FAILED. describeFast() does not digest installed trees (a 4.6 GB
+    // store would stall the page for minutes), so it reports integrity 'unknown' with no
+    // reason. That is absence of evidence, not evidence of tampering: the digest is
+    // verified when the extension activates, and the full describe() still reports it.
+    // Only a real verification verdict — 'changed', or 'unknown' WITH a reason, which is
+    // the digest pass itself failing — may block the row.
     if (!input.installed) {
       requirements.push(requirement('integrity', true, 'the extension is not installed, so there are no installed bytes to verify'))
     } else if (input.integrity === 'unchanged') {
       requirements.push(requirement('integrity', true, 'the installed content matches the recorded digest'))
+    } else if (input.integrity === 'unknown' && input.integrityReason === null) {
+      requirements.push(requirement(
+        'integrity', true,
+        'integrity verification was skipped for this page read; the installed digest is verified when the extension activates',
+      ))
     } else {
       requirements.push(requirement(
         'integrity', false,

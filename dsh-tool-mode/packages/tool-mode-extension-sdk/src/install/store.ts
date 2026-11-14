@@ -22,7 +22,10 @@ import { createHash, randomUUID } from 'node:crypto'
 import {
   existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, statSync, writeFileSync,
 } from 'node:fs'
+import { readFile } from 'node:fs/promises'
+import { cpus } from 'node:os'
 import { dirname, join, relative, resolve, sep } from 'node:path'
+import { Worker } from 'node:worker_threads'
 import { ManagementError } from './../errors.ts'
 import type { ExtensionState } from './../state.ts'
 import {
@@ -196,6 +199,204 @@ export function digestInstalledContent(directory: string): string {
   return hash.digest('hex')
 }
 
+/** One file's content digest, produced inside a worker or on the main thread. */
+interface ContentFileDigest {
+  readonly file: string
+  readonly size: number
+  readonly digest: string
+}
+
+/** A cheap metadata fingerprint of an installed tree (task-28 cache key). */
+export interface InstallFingerprint {
+  /** Content files, excluding the install receipt. */
+  readonly fileCount: number
+  /** Sum of the content files' byte sizes. */
+  readonly totalSize: number
+  /** Newest modification time, in milliseconds since the epoch. */
+  readonly maxMtimeMs: number
+  /**
+   * Newest change time (ctime), in milliseconds since the epoch. This is the fingerprint field
+   * that catches an in-place rewrite whose author restored the modification time: writing the
+   * bytes advances ctime on the supported filesystems.
+   */
+  readonly maxChangeTimeMs: number
+}
+
+/** One verified fingerprint + digest, held in memory by verifyUnchangedAsync. */
+interface VerifiedContentCacheEntry {
+  readonly contentDigest: string
+  readonly fingerprint: InstallFingerprint
+}
+
+/**
+ * The worker source. EVAL keeps the pool self-contained in this module (no separate file and
+ * no build/config coupling); the worker only reads files and returns per-file digests, so the
+ * digest itself is still assembled in ONE deterministic order on the main thread.
+ */
+const DIGEST_WORKER_SOURCE = `
+const { parentPort, workerData } = require('node:worker_threads')
+const { readFileSync } = require('node:fs')
+const { createHash } = require('node:crypto')
+const digests = workerData.files.map((file) => {
+  const bytes = readFileSync(file)
+  return { file, size: bytes.byteLength, digest: createHash('sha256').update(bytes).digest('hex') }
+})
+parentPort.postMessage(digests)
+`
+
+/** The default worker-pool size: min(8, cpus - 1), never less than one. */
+const digestConcurrency = (): number => Math.max(1, Math.min(8, cpus().length - 1))
+
+/**
+ * Walk an installed tree exactly as digestInstalledContent does: sorted-by-name directories,
+ * files collected and then sorted by absolute path. The async digest must not change identity,
+ * so the file list is produced with the same ordering rule.
+ */
+function installedFilesForDigest(directory: string): string[] {
+  const files: string[] = []
+  const walk = (current: string): void => {
+    for (const entry of readdirSync(current, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const absolute = join(current, entry.name)
+      if (entry.isDirectory()) walk(absolute)
+      else if (entry.isFile()) files.push(absolute)
+    }
+  }
+  walk(directory)
+  return files.sort()
+}
+
+/** The digest's relative name for a file: forward slashes on every platform. */
+const relativeContentName = (directory: string, file: string): string => relative(directory, file).split(sep).join('/')
+
+/** Hash files on the main thread with bounded async I/O (the worker-free fallback). */
+async function digestFilesInline(files: readonly string[], concurrency: number): Promise<readonly ContentFileDigest[]> {
+  const results: ContentFileDigest[] = new Array(files.length)
+  let cursor = 0
+  const run = async (): Promise<void> => {
+    for (;;) {
+      const index = cursor
+      cursor += 1
+      const file = files[index]
+      if (file === undefined) return
+      const bytes = await readFile(file)
+      results[index] = { file, size: bytes.byteLength, digest: createHash('sha256').update(bytes).digest('hex') }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, files.length) }, () => run()))
+  return results
+}
+
+/** Hash a chunk of files inside one worker. */
+function digestFilesInWorker(files: readonly string[]): Promise<readonly ContentFileDigest[]> {
+  return new Promise((resolvePromise, reject) => {
+    const worker = new Worker(DIGEST_WORKER_SOURCE, { eval: true, workerData: { files } })
+    let settled = false
+    const fail = (error: unknown): void => {
+      if (settled) return
+      settled = true
+      void worker.terminate()
+      reject(error instanceof Error ? error : new Error(String(error)))
+    }
+    worker.once('message', (value: readonly ContentFileDigest[]) => {
+      if (settled) return
+      settled = true
+      void worker.terminate()
+      resolvePromise(value)
+    })
+    worker.once('error', fail)
+    worker.once('exit', (code) => {
+      if (code !== 0) fail(new Error('the digest worker exited with code ' + String(code)))
+    })
+  })
+}
+
+/**
+ * Digest an installed package with a bounded worker pool (task-28).
+ *
+ * Byte-identical to {@link digestInstalledContent}: the per-file sha256 values are gathered
+ * (in parallel) and then the final sha256 is updated in the same sorted order, with the same
+ * relative name, size and separators. A worker failure falls back to bounded async I/O, which
+ * produces the same values; the parallelism can only change how fast the digest is computed.
+ * @param directory - the installed package directory.
+ * @param options - concurrency override (defaults to min(8, cpus - 1)).
+ * @returns the content digest, lowercase hex.
+ */
+export async function digestInstalledContentAsync(
+  directory: string,
+  options: { readonly concurrency?: number } = {},
+): Promise<string> {
+  const files = installedFilesForDigest(directory)
+  const requested = options.concurrency ?? digestConcurrency()
+  const concurrency = Math.max(1, Math.min(requested, files.length === 0 ? 1 : files.length))
+  let digests: readonly ContentFileDigest[] = []
+  if (files.length > 0) {
+    if (concurrency === 1) {
+      digests = await digestFilesInline(files, 1)
+    } else {
+      const chunks: string[][] = Array.from({ length: concurrency }, () => [])
+      for (let index = 0; index < files.length; index += 1) {
+        const file = files[index]
+        if (file !== undefined) chunks[index % concurrency]?.push(file)
+      }
+      try {
+        const parts = await Promise.all(chunks.filter((chunk) => chunk.length > 0).map((chunk) => digestFilesInWorker(chunk)))
+        digests = parts.flat()
+      } catch {
+        digests = await digestFilesInline(files, concurrency)
+      }
+    }
+  }
+  const byFile = new Map(digests.map((entry) => [entry.file, entry]))
+  const hash = createHash('sha256')
+  for (const file of files) {
+    const name = relativeContentName(directory, file)
+    if (name === '.tool-mode-install.json') continue
+    const entry = byFile.get(file)
+    if (entry === undefined) throw new Error('the async digest did not hash ' + JSON.stringify(name))
+    hash.update(name)
+    hash.update('\0')
+    hash.update(String(entry.size))
+    hash.update('\0')
+    hash.update(Buffer.from(entry.digest, 'hex'))
+    hash.update('\0')
+  }
+  return hash.digest('hex')
+}
+
+/**
+ * The cheap metadata fingerprint verifyUnchangedAsync caches against (task-28).
+ *
+ * It walks the tree (directory reads and stat calls only, never file contents) and records the
+ * content-file count, their total size, the newest modification time and the newest change time.
+ * The install receipt is excluded so rewriting it cannot invalidate an otherwise unchanged tree.
+ * @param directory - the installed package directory.
+ * @returns the fingerprint.
+ */
+export function installContentFingerprint(directory: string): InstallFingerprint {
+  const files = installedFilesForDigest(directory)
+  let fileCount = 0
+  let totalSize = 0
+  let maxMtimeMs = 0
+  let maxChangeTimeMs = 0
+  for (const file of files) {
+    if (relativeContentName(directory, file) === '.tool-mode-install.json') continue
+    const stats = statSync(file)
+    fileCount += 1
+    totalSize += stats.size
+    if (stats.mtimeMs > maxMtimeMs) maxMtimeMs = stats.mtimeMs
+    if (stats.ctimeMs > maxChangeTimeMs) maxChangeTimeMs = stats.ctimeMs
+  }
+  return { fileCount, totalSize, maxMtimeMs, maxChangeTimeMs }
+}
+
+/** Whether two fingerprints describe the same metadata state. */
+function sameFingerprint(left: InstallFingerprint, right: InstallFingerprint): boolean {
+  return left.fileCount === right.fileCount
+    && left.totalSize === right.totalSize
+    && left.maxMtimeMs === right.maxMtimeMs
+    && left.maxChangeTimeMs === right.maxChangeTimeMs
+}
+
 /**
  * Whether a process with this pid exists. `process.kill(pid, 0)` is the probe.
  *
@@ -261,6 +462,13 @@ function readJsonBounded(path: string, maxBytes = 4 * 1024 * 1024): { value?: un
 export class ExtensionStore {
   /** Absolute path of the store root. */
   readonly rootDir: string
+
+  /**
+   * Verified digests per install path (task-28). A process-local performance cache: it may only
+   * short-circuit the full digest when the cheap fingerprint is identical AND the record's
+   * digest equals the digest that was verified for that fingerprint.
+   */
+  readonly #verifiedContent = new Map<string, VerifiedContentCacheEntry>()
 
   constructor(rootDir: string) {
     this.rootDir = resolve(rootDir)
@@ -518,6 +726,53 @@ export class ExtensionStore {
       }
     }
     return { unchanged: true, contentDigest }
+  }
+
+  /**
+   * Async, cached form of {@link verifyUnchanged} (task-28).
+   *
+   * Uses the worker-pool digest so a multi-GB installation does not block the event loop for
+   * minutes, and reuses the last verified answer while the cheap fingerprint and the record's
+   * digest both still match. A stale or forged record is never served from the cache: the
+   * cache entry must carry the SAME recorded digest, and any fingerprint change falls back to a
+   * full digest. A failed check removes the entry, so a tampered tree is re-digested next time.
+   *
+   * Residual limitation: a rewrite that preserved byte size, mtime AND ctime would not change
+   * the cheap fingerprint, so a warm cache could not see it without re-reading the bytes. That
+   * is why the full digest remains the authority on a fresh process and on every fingerprint
+   * change; the ctime component makes ordinary "restore the timestamps" tampering detectable.
+   * @param record - the recorded installation.
+   * @returns whether the content is unchanged, the current digest when computed, and whether
+   * the answer came from the cache.
+   */
+  async verifyUnchangedAsync(
+    record: InstalledRecord,
+  ): Promise<{ unchanged: boolean; contentDigest?: string; diagnostic?: string; cached: boolean }> {
+    if (!existsSync(record.installPath)) {
+      this.#verifiedContent.delete(record.installPath)
+      return { unchanged: false, diagnostic: 'the installation directory is missing', cached: false }
+    }
+    const before = installContentFingerprint(record.installPath)
+    const cached = this.#verifiedContent.get(record.installPath)
+    if (cached !== undefined && cached.contentDigest === record.contentDigest && sameFingerprint(cached.fingerprint, before)) {
+      return { unchanged: true, contentDigest: cached.contentDigest, cached: true }
+    }
+    const contentDigest = await digestInstalledContentAsync(record.installPath)
+    if (contentDigest !== record.contentDigest) {
+      this.#verifiedContent.delete(record.installPath)
+      return {
+        unchanged: false,
+        contentDigest,
+        diagnostic: 'the installed content differs from the recorded digest; the package changed on disk after installation',
+        cached: false,
+      }
+    }
+    // Cache only if the tree did not move while it was being hashed (otherwise the entry would
+    // pair the new digest with the old fingerprint and hide a later change).
+    const after = installContentFingerprint(record.installPath)
+    if (sameFingerprint(before, after)) this.#verifiedContent.set(record.installPath, { contentDigest, fingerprint: after })
+    else this.#verifiedContent.delete(record.installPath)
+    return { unchanged: true, contentDigest, cached: false }
   }
 
   /**
