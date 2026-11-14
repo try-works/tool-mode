@@ -1188,10 +1188,16 @@ function createToolInsights(createElement, reactLib) {
       rows.push(row)
     }
     const page = paginate(rows, options.page, options.pageSize)
-    const order = ['core', 'tool-mode', 'custom', 'other']
-    const groups = order
-      .map(id => ({ origin: id, label: ORIGIN_LABELS[id], rows: page.rows.filter(row => row.origin === id) }))
-      .filter(group => group.rows.length > 0)
+    /**
+     * ONE table. Origin is a COLUMN and a filter, not a section: the split into
+     * "Tool Mode" / "Other plugins" told the user nothing the OWNER and KIND
+     * columns do not already say, and it made the host's own tools look like a
+     * separate product. The single group keeps the render loop and the group
+     * count label working without re-implementing the table per origin.
+     */
+    const groups = page.rows.length === 0
+      ? []
+      : [{ origin: 'all', label: 'All tools', rows: page.rows }]
     return {
       available: true,
       groups,
@@ -1726,8 +1732,9 @@ function createToolInsights(createElement, reactLib) {
         h('div', null,
           h('h2', { className: 'mti-title' }, 'Tool Inventory'),
           h('p', { className: 'mti-sub' },
-            'Every registered tool, grouped by origin. State and provenance come from the host; usage columns join the '
-            + 'same report as the workbench. A tool with no calls is kept and labelled.')),
+            'Every registered tool in one table; origin and kind are columns and filters, not sections. State and '
+            + 'provenance come from the host; usage columns join the same report as the workbench. A tool with no calls '
+            + 'is kept and labelled.')),
         h('div', { className: 'mti-actions' },
           h('button', { type: 'button', className: 'mti-btn', onClick: () => props.onBack() }, 'Back to workbench'))),
       model.available === false ? Banner(model.banner, 'warn') : null,
