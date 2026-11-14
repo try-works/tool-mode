@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-11-14T13:49:06.172Z",
+  "generatedAt": "2026-11-14T13:59:35.217Z",
   "git": {
-    "commit": "59ce929b0573b6486ea78cec296148f9c8502849",
+    "commit": "f2e74c41848447e6aefcebb6e432486de8e9343e",
     "branch": "main",
     "dirty": true
   },
@@ -73,7 +73,7 @@
   "packages": [
     {
       "name": "@try-works/dsh-tool-mode",
-      "version": "0.5.52",
+      "version": "0.5.53",
       "path": "packages/dsh-tool-mode"
     },
     {

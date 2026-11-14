@@ -27,6 +27,8 @@ interface Snapshot {
 interface FakeNamespace {
   describe: () => Promise<Snapshot>
   calls: number
+  /** The stable Remote service key, when the namespace exposes one. */
+  serviceKey?: string
 }
 
 /** The client bundle's require surface: only 'react' is requested. */
@@ -54,20 +56,21 @@ interface Registration {
 }
 
 /** A namespace whose describe() counts host calls and can be gated or failed. */
-function countingNamespace(answer: () => Promise<Snapshot>): FakeNamespace {
+function countingNamespace(answer: () => Promise<Snapshot>, serviceKey?: string): FakeNamespace {
   const namespace: FakeNamespace = {
     calls: 0,
     async describe() {
       namespace.calls += 1
       return answer()
     },
+    ...serviceKey === undefined ? {} : { serviceKey },
   }
   return namespace
 }
 
 /** A namespace that answers one fixed snapshot. */
-function fixedNamespace(snapshot: Snapshot): FakeNamespace {
-  return countingNamespace(async () => snapshot)
+function fixedNamespace(snapshot: Snapshot, serviceKey?: string): FakeNamespace {
+  return countingNamespace(async () => snapshot, serviceKey)
 }
 
 /** Load the generated bundle the way the web shell does. */
@@ -133,7 +136,7 @@ test('a second read within the TTL is served from the snapshot', async () => {
   assert.deepEqual(await describe(namespace), SNAPSHOT)
   assert.deepEqual(await describe(namespace), SNAPSHOT)
   assert.equal(namespace.calls, 1, 'a fresh snapshot must be reused inside the TTL')
-  assert.equal(internals.REMOTE_SNAPSHOT_TTL_MS, 5000, 'the TTL is the documented five seconds')
+  assert.equal(internals.REMOTE_SNAPSHOT_TTL_MS, 300000, 'the TTL is the documented five minutes')
 })
 
 test('an explicit invalidation forces the next read to the host', async () => {
@@ -159,6 +162,59 @@ test('a rejection clears the in-flight entry so a retry works', async () => {
   failing = false
   assert.deepEqual(await describe(namespace), SNAPSHOT)
   assert.equal(namespace.calls, 2, 'the failed call must not be cached as an answer')
+})
+
+test('a snapshot outlives the old five-second window (Settings reopened a minute later)', async () => {
+  const internals = loadInternals()
+  const describe = describeOf(internals)
+  const namespace = fixedNamespace(SNAPSHOT)
+  const realNow = Date.now
+  let now = 1_000
+  Date.now = () => now
+  try {
+    await describe(namespace)
+    now += 60_000
+    assert.deepEqual(await describe(namespace), SNAPSHOT)
+    assert.equal(namespace.calls, 1, 'reopening inside the five-minute window must not read the host again')
+  } finally {
+    Date.now = realNow
+  }
+})
+
+test('a fresh namespace object reuses the snapshot through its service key (remount)', async () => {
+  const internals = loadInternals()
+  const describe = describeOf(internals)
+  const first = fixedNamespace(SNAPSHOT, 'modelTools')
+  const second = fixedNamespace(SNAPSHOT, 'modelTools')
+  await describe(first)
+  await describe(second)
+  assert.equal(first.calls, 1)
+  assert.equal(second.calls, 0, 'the page mounting a fresh proxy must hit the cache, not the host')
+})
+
+test('a stale snapshot is served immediately and refreshed in the background', async () => {
+  const internals = loadInternals()
+  const describe = describeOf(internals)
+  const refreshed: Snapshot = { store: 'store-1', writable: true, extensions: [{ id: 'ext-2' }] }
+  let answer = SNAPSHOT
+  const namespace = countingNamespace(async () => answer)
+  const realNow = Date.now
+  let now = 1_000
+  Date.now = () => now
+  try {
+    await describe(namespace)
+    answer = refreshed
+    now += internals.REMOTE_SNAPSHOT_TTL_MS! + 1
+    // The stale answer comes back without waiting for the host...
+    assert.deepEqual(await describe(namespace), SNAPSHOT)
+    // ...and the background read updates the cache for the next open.
+    await new Promise(resolve => setTimeout(resolve, 20))
+    assert.equal(namespace.calls, 2, 'the stale read must have started one background refresh')
+    assert.deepEqual(await describe(namespace), refreshed)
+    assert.equal(namespace.calls, 2, 'the refreshed snapshot must be served without another host call')
+  } finally {
+    Date.now = realNow
+  }
 })
 
 test('namespaces do not share an in-flight read or a snapshot', async () => {

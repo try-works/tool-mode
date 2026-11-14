@@ -3278,41 +3278,65 @@ function createToolInsights(createElement, reactLib) {
       }
     }
 
-    /** How long a normalized describe() snapshot is reused before a real host read. */
-    const REMOTE_SNAPSHOT_TTL_MS = 5000
+    /**
+     * How long a normalized describe() snapshot is served without asking the host.
+     *
+     * The settings page is opened and closed repeatedly, and the host store is the
+     * only source of truth but not an inexpensive one. Five minutes of reuse means
+     * reopening Settings shows the last known state immediately; every action,
+     * Recheck and failure re-read still invalidates the snapshot explicitly, and a
+     * stale snapshot is refreshed in the background for the next open.
+     */
+    const REMOTE_SNAPSHOT_TTL_MS = 300000
 
     /**
-     * Per-namespace read state: one in-flight promise, the last snapshot and when
-     * it was taken. A WeakMap because the namespace object is the mounted Remote;
-     * entries disappear with it.
+     * Read state by STABLE namespace identity: one in-flight promise, the last
+     * snapshot and when it was taken.
+     *
+     * A WeakMap keyed by the namespace OBJECT would miss whenever the page mounts
+     * with a fresh proxy, which is exactly the "reloaded every time Settings opens"
+     * case. The key is therefore the Remote service key when the namespace exposes
+     * one (stable across mounts), with an object-identity fallback for fakes and
+     * future assemblies that expose no key.
      */
-    const extensionReads = new WeakMap()
+    const extensionReads = new Map()
+    const extensionReadObjectIds = new WeakMap()
+    let extensionReadSequence = 1
 
-    /** The read state for one namespace, created on first use. */
+    /** The cache key for one namespace: a service key when present, else identity. */
+    function extensionReadKey(namespace) {
+      const stable = namespace === null || namespace === undefined
+        ? null
+        : namespace.serviceKey ?? namespace.id ?? namespace.key
+      if (typeof stable === 'string' && stable.length > 0) return 'service:' + stable
+      let id = extensionReadObjectIds.get(namespace)
+      if (id === undefined) {
+        id = extensionReadSequence
+        extensionReadSequence += 1
+        extensionReadObjectIds.set(namespace, id)
+      }
+      return 'object:' + String(id)
+    }
+
+    /** The read state for one namespace key, created on first use. */
     function extensionReadState(namespace) {
-      let state = extensionReads.get(namespace)
+      const key = extensionReadKey(namespace)
+      let state = extensionReads.get(key)
       if (state === undefined) {
         state = { inFlight: null, snapshot: null, at: 0, generation: 0 }
-        extensionReads.set(namespace, state)
+        extensionReads.set(key, state)
       }
       return state
     }
 
     /**
-     * Read one extension state snapshot, coalesced per namespace.
+     * Start one host read and publish it only while the state still wants it.
      *
-     * The page reads from four places (mount, Recheck, the post-action re-read and
-     * its follow-up); each would otherwise pay the host's describe, which can take
-     * minutes on a large store. Concurrent callers share one in-flight promise, a
-     * caller within REMOTE_SNAPSHOT_TTL_MS of the last answer gets that snapshot,
-     * and a rejection is never cached, so a retry reaches the host again.
+     * @param namespace - the Remote namespace whose describe() is the host read.
+     * @param state - the read state that will receive the snapshot.
+     * @returns the normalized snapshot, or a rejection the caller must handle.
      */
-    function describeExtensions(namespace) {
-      const state = extensionReadState(namespace)
-      if (state.inFlight !== null) return state.inFlight
-      if (state.snapshot !== null && Date.now() - state.at < REMOTE_SNAPSHOT_TTL_MS) {
-        return Promise.resolve(state.snapshot)
-      }
+    function startExtensionRead(namespace, state) {
       const generation = state.generation
       const read = (async () => {
         try {
@@ -3330,6 +3354,31 @@ function createToolInsights(createElement, reactLib) {
       })()
       state.inFlight = read
       return read
+    }
+
+    /**
+     * Read one extension state snapshot, cached across Settings opens.
+     *
+     * A snapshot younger than REMOTE_SNAPSHOT_TTL_MS is served without a host call.
+     * A snapshot OLDER than the TTL is still served immediately (stale-while-
+     * revalidate), and a background read refreshes the cache for the next open, so
+     * opening Settings never waits for the store. An explicit invalidation (after
+     * every action, Recheck, or a failed action) clears the snapshot, so the next
+     * read is a real host read. Concurrent callers share one in-flight promise and a
+     * rejection is never cached, so a retry reaches the host again.
+     */
+    function describeExtensions(namespace) {
+      const state = extensionReadState(namespace)
+      if (state.snapshot !== null) {
+        const stale = Date.now() - state.at >= REMOTE_SNAPSHOT_TTL_MS
+        if (stale && state.inFlight === null) {
+          // Refresh for the next open; this read still answers from the snapshot.
+          startExtensionRead(namespace, state).catch(() => {})
+        }
+        return Promise.resolve(state.snapshot)
+      }
+      if (state.inFlight !== null) return state.inFlight
+      return startExtensionRead(namespace, state)
     }
 
     /**
