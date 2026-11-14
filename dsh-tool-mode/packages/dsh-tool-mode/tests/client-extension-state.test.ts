@@ -180,6 +180,16 @@ test('the generated bundle inlines the coalescing layer (no chunk fetch)', () =>
   assert.ok(bundle.includes('REMOTE_SNAPSHOT_TTL_MS'), 'the bundle must carry the TTL')
 })
 
+test('one row’s action does not disable the rest of the extension page', () => {
+  const template = readFileSync(TEMPLATE, 'utf8')
+  const bundle = readFileSync(BUNDLE, 'utf8')
+  const scoped = /busy: extBusy && extPending !== null && extPending\.id === entry\.id/
+  for (const [name, source] of [['template', template], ['bundle', bundle]] as const) {
+    assert.match(source, scoped, name + ' must scope the busy state to the acting row')
+    assert.ok(!/busy: extBusy,/.test(source), name + ' must not disable every row while one action runs')
+  }
+})
+
 test('the template invalidates at every post-action and Recheck re-read', () => {
   const template = readFileSync(TEMPLATE, 'utf8')
   const calls = template.split('invalidateExtensionState(').length - 1

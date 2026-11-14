@@ -4093,7 +4093,11 @@ function createToolInsights(createElement, reactLib) {
               // what a restart will actually read, and the dual-write compares
               // against the same saved value.
               listed: savedDisabledExt.includes(entry.id),
-              busy: extBusy,
+              // ONE ROW'S ACTION IS NOT A PAGE-WIDE LOCK. Only the row whose action
+              // is in flight disables its own controls; every other row stays
+              // operable, and the host's own refusal (e.g. a lifecycle operation in
+              // progress) is shown on that row instead of greying out the page.
+              busy: extBusy && extPending !== null && extPending.id === entry.id,
               pending: extPending,
               error: extRowError,
               prepareNote: extPrepareNote,
