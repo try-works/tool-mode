@@ -2202,6 +2202,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   }>()
   /** DECL-08: sha256 of the installed recipe, keyed by caller-facing tool name. */
   const declarativeRecipeDigests = new Map<string, string>()
+  /** Tool names published by TOOL-MODE extensions: part of the DECL-07 owned surface. */
+  const ownedExtensionToolNames = new Set<string>()
   const exposeExtensionToolToMcp = (
     name: string,
     tool: {
@@ -3994,7 +3996,22 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
          * I call?" got a list that disagreed with the registry.
          */
         const listed = new Set(tools.map(tool => tool.name))
+        /**
+         * Only tools THIS plugin serves: the registry it sees is the whole host
+         * surface (browser, memory, schedule, other plugins), and DECL-07 is about
+         * the Tool Mode surface, not every tool in the process. Standard contracts
+         * the plugin serves, its own control tools, extension tools it published and
+         * declarative recipe tools are the owned set.
+         */
+        const owned = new Set<string>([
+          ...STANDARD_CONTRACTS.map(contract => contract.toolName),
+          'tool_mode_list', 'tool_mode_describe', 'tool_mode_run', 'model_tools', 'model_tools_manage',
+          'decision_combine', 'decision_evaluate', 'decision_route',
+          ...ownedExtensionToolNames,
+          ...declarativeRecipeDigests.keys(),
+        ])
         for (const schema of ctx.tools.schemas()) {
+          if (!owned.has(schema.name)) continue
           if (listed.has(schema.name)) continue
           if (permitted !== undefined && !permitted.has(schema.name)) continue
           tools.push({
@@ -5236,6 +5253,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           // The owner map is maintained at the same boundary that publishes and withdraws
           // the tool, so the planning admission check never consults a stale owner.
           extensionToolOwners.set(tool.name, tool.ownerExtension)
+          ownedExtensionToolNames.add(tool.name)
           exposeExtensionToolToMcp(tool.name, {
             description: declared.description ?? '',
             /**
@@ -5254,6 +5272,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           })
           return () => {
             extensionToolOwners.delete(tool.name)
+          ownedExtensionToolNames.delete(tool.name)
             withdrawExtensionToolFromMcp(tool.name)
             dispose()
           }
@@ -5317,6 +5336,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             },
           )
           extensionToolOwners.set(toolName, contribution.extensionId)
+          ownedExtensionToolNames.add(toolName)
           exposeExtensionToolToMcp(toolName, {
             description: contract.description,
             inputSchema: contract.inputSchema,
@@ -5324,6 +5344,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           })
           return () => {
             extensionToolOwners.delete(toolName)
+          ownedExtensionToolNames.delete(toolName)
             withdrawExtensionToolFromMcp(toolName)
             registered.dispose()
           }
