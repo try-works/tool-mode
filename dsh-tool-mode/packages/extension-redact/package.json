@@ -1,6 +1,6 @@
 {
   "name": "@try-works/extension-redact",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "First-party Tool Mode extension implementing redaction over the Desert Ant Labs Redact LiteRT artifact",
   "license": "Apache-2.0",

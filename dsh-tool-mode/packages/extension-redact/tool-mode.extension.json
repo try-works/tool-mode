@@ -1,7 +1,7 @@
 {
   "protocolVersion": "1.1.0",
   "id": "@try-works/extension-redact",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "displayName": "Redact PII redaction",
   "description": "PII and secret redaction over the Desert Ant Labs Redact LiteRT artifact, exposed as the redact_text tool.",
   "license": "Apache-2.0",

@@ -78,22 +78,22 @@ extension packages. Their descriptions and schemas are available through
 
 | Extension | Package | Version | Tools | Activation |
 |---|---|---|---|---|
-| [Clear speech enhancement (declarative)](../guides/install-extensions.md) | `@try-works/extension-clear-recipe` | 0.1.0 | 1 | operator |
+| [Clear speech enhancement (declarative)](../guides/install-extensions.md) | `@try-works/extension-clear-recipe` | 0.1.1 | 1 | operator |
 | [Declarative harness recipes](../guides/install-extensions.md) | `@try-works/extension-declarative-recipes` | 0.1.0 | 0 | operator |
 | [Desert Ant Tongue language detection](../guides/install-extensions.md) | `@try-works/extension-desert-ant-tongue` | 0.1.3 | 1 | operator |
 | [Desert Ant Voz speech transcription](../guides/install-extensions.md) | `@try-works/extension-desert-ant-voz` | 0.1.5 | 1 | operator |
-| [Ear spoken language identification (declarative)](../guides/install-extensions.md) | `@try-works/extension-ear-recipe` | 0.1.0 | 1 | operator |
+| [Ear spoken language identification (declarative)](../guides/install-extensions.md) | `@try-works/extension-ear-recipe` | 0.1.1 | 1 | operator |
 | [EmbeddingGemma 2 multimodal embeddings](../guides/install-extensions.md) | `@try-works/extension-embeddinggemma` | 0.1.2 | 7 | operator |
-| [Emo emoji suggestions (declarative)](../guides/install-extensions.md) | `@try-works/extension-emo-recipe` | 0.1.0 | 1 | operator |
+| [Emo emoji suggestions (declarative)](../guides/install-extensions.md) | `@try-works/extension-emo-recipe` | 0.1.1 | 1 | operator |
 | [Laya decision family](../guides/install-extensions.md) | `@try-works/extension-laya` | 1.0.4 | 6 | operator |
 | [MiniLM text_embed](../guides/install-extensions.md) | `@try-works/extension-minilm-embed` | 1.0.0 | 0 | operator |
 | [MiniLM text_rerank](../guides/install-extensions.md) | `@try-works/extension-minilm-rerank` | 1.0.0 | 0 | operator |
 | [Cactus Mirage vision (describe, detect, OCR, forms)](../guides/install-extensions.md) | `@try-works/extension-mirage` | 0.1.2 | 4 | operator |
-| [Moderator NSFW detection (declarative)](../guides/install-extensions.md) | `@try-works/extension-moderator-recipe` | 0.1.0 | 1 | operator |
+| [Moderator NSFW detection (declarative)](../guides/install-extensions.md) | `@try-works/extension-moderator-recipe` | 0.1.1 | 1 | operator |
 | [Cactus Needle 3 tool calling and structured extraction](../guides/install-extensions.md) | `@try-works/extension-needle` | 0.1.3 | 4 | operator |
-| [Redact PII redaction](../guides/install-extensions.md) | `@try-works/extension-redact` | 0.1.0 | 1 | operator |
-| [Shapes stroke recognition (declarative)](../guides/install-extensions.md) | `@try-works/extension-shapes-recipe` | 0.1.0 | 1 | operator |
-| [Uhm filler detection (declarative)](../guides/install-extensions.md) | `@try-works/extension-uhm-recipe` | 0.1.0 | 1 | operator |
+| [Redact PII redaction](../guides/install-extensions.md) | `@try-works/extension-redact` | 0.1.1 | 1 | operator |
+| [Shapes stroke recognition (declarative)](../guides/install-extensions.md) | `@try-works/extension-shapes-recipe` | 0.1.1 | 1 | operator |
+| [Uhm filler detection (declarative)](../guides/install-extensions.md) | `@try-works/extension-uhm-recipe` | 0.1.1 | 1 | operator |
 | [Harness Vision](../guides/install-extensions.md) | `@try-works/harness-vision` | 0.1.0 | 1 | operator |
 | [Harness Text Tools](../guides/install-extensions.md) | `@try-works/tool-mode-harness-text` | 0.1.0 | 1 | operator |
 

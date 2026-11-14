@@ -1,7 +1,7 @@
 {
   "protocolVersion": "1.1.0",
   "id": "@try-works/extension-shapes-recipe",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "displayName": "Shapes stroke recognition (declarative)",
   "description": "Ships NO CODE. Declares the Desert Ant Labs Shapes LiteRT artifact and one model-runtime recipe, so the host's declarative lane registers shape_recognize from data alone.",
   "license": "Apache-2.0",

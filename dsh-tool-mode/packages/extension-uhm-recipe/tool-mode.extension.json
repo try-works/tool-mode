@@ -1,7 +1,7 @@
 {
   "protocolVersion": "1.1.0",
   "id": "@try-works/extension-uhm-recipe",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "displayName": "Uhm filler detection (declarative)",
   "description": "Ships NO CODE. Declares the Desert Ant Labs Uhm ONNX artifact and one model-runtime recipe, so the host's declarative lane registers detect_fillers from data alone.",
   "license": "Apache-2.0",

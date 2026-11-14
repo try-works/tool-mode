@@ -1,7 +1,7 @@
 {
   "protocolVersion": "1.1.0",
   "id": "@try-works/extension-ear-recipe",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "displayName": "Ear spoken language identification (declarative)",
   "description": "Ships NO CODE. Declares and pins the Desert Ant Labs Ear LiteRT artifact set and serves on-device spoken language identification through the host's model-runtime lane: tool identify_language backed by the ear/mel-v1 processor.",
   "license": "Apache-2.0",

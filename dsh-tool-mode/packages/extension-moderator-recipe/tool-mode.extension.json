@@ -1,7 +1,7 @@
 {
   "protocolVersion": "1.1.0",
   "id": "@try-works/extension-moderator-recipe",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "displayName": "Moderator NSFW detection (declarative)",
   "description": "Ships NO CODE. Declares the Desert Ant Labs Moderator LiteRT artifact and one model-runtime recipe, so the host's declarative lane registers classify_nsfw from data alone.",
   "license": "Apache-2.0",

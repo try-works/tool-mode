@@ -1,6 +1,6 @@
 # Tool Mode — final report
 
-**Generated** 2026-11-14T14:37:31.889Z from commit `c316ca317544b67749662e3edb501de7b207846d` (branch `main`, working tree DIRTY — this describes a state that exists in no commit).
+**Generated** 2026-11-14T15:04:16.017Z from commit `d65736cdb6e3d9a939b948538d983b37945fedd1` (branch `main`, working tree DIRTY — this describes a state that exists in no commit).
 **Regenerate** with `npm run final-report`; `npm run final-report:check` fails when this file is stale and is wired into `npm run verify`.
 
 ## The headline, before the detail
@@ -29,23 +29,23 @@ Read from every `packages/*/package.json` at generation time (name and version, 
 
 | Package | Version |
 | --- | --- |
-| `@try-works/dsh-tool-mode` | 0.5.55 |
-| `@try-works/extension-clear-recipe` | 0.1.0 |
+| `@try-works/dsh-tool-mode` | 0.5.56 |
+| `@try-works/extension-clear-recipe` | 0.1.1 |
 | `@try-works/extension-declarative-recipes` | 0.1.0 |
 | `@try-works/extension-desert-ant-tongue` | 0.1.3 |
 | `@try-works/extension-desert-ant-voz` | 0.1.5 |
-| `@try-works/extension-ear-recipe` | 0.1.0 |
+| `@try-works/extension-ear-recipe` | 0.1.1 |
 | `@try-works/extension-embeddinggemma` | 0.1.2 |
-| `@try-works/extension-emo-recipe` | 0.1.0 |
+| `@try-works/extension-emo-recipe` | 0.1.1 |
 | `@try-works/extension-laya` | 1.0.4 |
 | `@try-works/extension-minilm-embed` | 1.0.0 |
 | `@try-works/extension-minilm-rerank` | 1.0.0 |
 | `@try-works/extension-mirage` | 0.1.2 |
-| `@try-works/extension-moderator-recipe` | 0.1.0 |
+| `@try-works/extension-moderator-recipe` | 0.1.1 |
 | `@try-works/extension-needle` | 0.1.3 |
-| `@try-works/extension-redact` | 0.1.0 |
-| `@try-works/extension-shapes-recipe` | 0.1.0 |
-| `@try-works/extension-uhm-recipe` | 0.1.0 |
+| `@try-works/extension-redact` | 0.1.1 |
+| `@try-works/extension-shapes-recipe` | 0.1.1 |
+| `@try-works/extension-uhm-recipe` | 0.1.1 |
 | `@try-works/harness-vision` | 0.1.0 |
 | `@try-works/tool-mode-contracts` | 0.1.1 |
 | `@try-works/tool-mode-extension-sdk` | 0.1.5 |
@@ -392,7 +392,7 @@ These are not implementation gaps. There is no artifact to integrate, and no fur
 
 ## What actually runs on this host
 
-RECORDED at the verification run named in the header (2026-11-14T14:37:31.889Z); `npm run verify` re-runs the same check, so this block is a snapshot rather than a standing claim:
+RECORDED at the verification run named in the header (2026-11-14T15:04:16.017Z); `npm run verify` re-runs the same check, so this block is a snapshot rather than a standing claim:
 
 ```
 $ npm run verify:built

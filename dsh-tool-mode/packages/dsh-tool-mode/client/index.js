@@ -2441,7 +2441,7 @@ function createToolInsights(createElement, reactLib) {
         "id": "@try-works/extension-clear-recipe",
         "name": "clear recipe",
         "package": "@try-works/extension-clear-recipe",
-        "version": "0.1.0",
+        "version": "0.1.1",
         "license": "Apache-2.0",
         "summary": "Ships NO CODE.",
         "models": [
@@ -2506,7 +2506,7 @@ function createToolInsights(createElement, reactLib) {
         "id": "@try-works/extension-ear-recipe",
         "name": "ear recipe",
         "package": "@try-works/extension-ear-recipe",
-        "version": "0.1.0",
+        "version": "0.1.1",
         "license": "Apache-2.0",
         "summary": "Ships NO CODE.",
         "models": [
@@ -2552,7 +2552,7 @@ function createToolInsights(createElement, reactLib) {
         "id": "@try-works/extension-emo-recipe",
         "name": "emo recipe",
         "package": "@try-works/extension-emo-recipe",
-        "version": "0.1.0",
+        "version": "0.1.1",
         "license": "Apache-2.0",
         "summary": "Ships NO CODE.",
         "models": [
@@ -2649,7 +2649,7 @@ function createToolInsights(createElement, reactLib) {
         "id": "@try-works/extension-moderator-recipe",
         "name": "moderator recipe",
         "package": "@try-works/extension-moderator-recipe",
-        "version": "0.1.0",
+        "version": "0.1.1",
         "license": "Apache-2.0",
         "summary": "Ships NO CODE.",
         "models": [
@@ -2689,7 +2689,7 @@ function createToolInsights(createElement, reactLib) {
         "id": "@try-works/extension-redact",
         "name": "redact",
         "package": "@try-works/extension-redact",
-        "version": "0.1.0",
+        "version": "0.1.1",
         "license": "Apache-2.0",
         "summary": "PII and secret redaction over the Desert Ant Labs Redact LiteRT artifact, exposed as the redact_text tool.",
         "models": [
@@ -2706,7 +2706,7 @@ function createToolInsights(createElement, reactLib) {
         "id": "@try-works/extension-shapes-recipe",
         "name": "shapes recipe",
         "package": "@try-works/extension-shapes-recipe",
-        "version": "0.1.0",
+        "version": "0.1.1",
         "license": "Apache-2.0",
         "summary": "Ships NO CODE.",
         "models": [
@@ -2723,7 +2723,7 @@ function createToolInsights(createElement, reactLib) {
         "id": "@try-works/extension-uhm-recipe",
         "name": "uhm recipe",
         "package": "@try-works/extension-uhm-recipe",
-        "version": "0.1.0",
+        "version": "0.1.1",
         "license": "Apache-2.0",
         "summary": "Ships NO CODE.",
         "models": [
@@ -2819,26 +2819,36 @@ function createToolInsights(createElement, reactLib) {
   width: 40px;
   height: 22px;
   border-radius: 999px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  background: var(--dsw-alias-bg-layer-1);
+  border: 1px solid #C9CEDA;
+  /* Off is a GREY track: the theme bg-layer token resolves to the page white,
+     which made an off switch look like an empty hole (and indistinguishable from
+     a disabled one). Explicit greys keep off/disabled readable on every theme. */
+  background: #D6DAE2;
   position: relative;
   cursor: pointer;
   padding: 0;
   flex: 0 0 auto;
+  transition: background 120ms ease, border-color 120ms ease;
 }
 .mtt-toggle[data-on='true'] { background: var(--dsw-alias-button-primary-fill); border-color: transparent; }
+.mtt-toggle[data-on='true'] .mtt-knob { background: #FFFFFF; }
 .mtt-toggle:disabled {
   cursor: not-allowed;
-  /* A disabled control must still READ as a control on every host theme.
-     The theme mask variable resolved transparent here; explicit neutral
-     greys keep the switch visible when the model is unavailable. */
+  /* Disabled is a LIGHTER grey than off, never the page white. */
   opacity: 1;
-  background: #E5E7EB;
-  border-color: #C9CEDA;
+  background: #EDEFF2;
+  border-color: #D5D9E0;
+}
+.mtt-toggle[data-on='true']:disabled {
+  background: #B9C0CB;
+  border-color: transparent;
 }
 .mtt-toggle:disabled .mtt-knob {
-  background: #8B93A1;
+  background: #FFFFFF;
   opacity: 1;
+}
+.mtt-toggle[data-on='true']:disabled .mtt-knob {
+  background: #F2F4F7;
 }
 .mtt-knob {
   position: absolute;
@@ -2847,7 +2857,8 @@ function createToolInsights(createElement, reactLib) {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: var(--dsw-alias-label-primary-inverted);
+  background: #FFFFFF;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.25);
   transition: transform 120ms ease;
 }
 .mtt-toggle[data-on='true'] .mtt-knob { transform: translateX(18px); }

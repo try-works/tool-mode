@@ -1,7 +1,7 @@
 {
   "protocolVersion": "1.1.0",
   "id": "@try-works/extension-clear-recipe",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "displayName": "Clear speech enhancement (declarative)",
   "description": "Ships NO CODE. Declares the Desert Ant Labs Clear (clear-studio ONNX) artifact and one model-runtime recipe, so the host's declarative lane registers enhance_speech from data alone.",
   "license": "Apache-2.0",

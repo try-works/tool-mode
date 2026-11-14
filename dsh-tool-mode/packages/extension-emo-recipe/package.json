@@ -1,6 +1,6 @@
 {
   "name": "@try-works/extension-emo-recipe",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A code-free declarative Tool Mode package: the Desert Ant Labs Emo (emo.tflite) emoji-suggestion model, its EMTK tokenizer and metadata declared as data, served by the host's LiteRT model-runtime lane.",
   "license": "Apache-2.0",
   "type": "module",
@@ -20,5 +20,8 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
+  },
+  "dependencies": {
+    "@try-works/tool-mode-runtime-litert": "0.1.0"
   }
 }

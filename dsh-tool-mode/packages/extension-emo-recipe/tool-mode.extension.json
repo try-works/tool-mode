@@ -1,7 +1,7 @@
 {
   "protocolVersion": "1.1.0",
   "id": "@try-works/extension-emo-recipe",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "displayName": "Emo emoji suggestions (declarative)",
   "description": "Ships NO CODE. Declares and pins the Desert Ant Labs Emo LiteRT artifact set and serves on-device emoji suggestions through the host's model-runtime lane: tool suggest_emojis backed by the emo/text-v1 processor.",
   "license": "Apache-2.0",
