@@ -26,8 +26,10 @@ test('the authoring source exists and exposes the factory', () => {
 test('unavailable model switches use a neutral disabled style', () => {
   const template = readFileSync(TEMPLATE, 'utf8')
   assert.ok(template.includes('.mtt-toggle:disabled'))
-  assert.ok(template.includes('#E5E7EB'), 'disabled switches must have an explicit grey track')
-  assert.ok(template.includes('#8B93A1'), 'disabled switches must have an explicit grey knob')
+  assert.ok(template.includes('#D6DAE2'), 'OFF switches must have an explicit grey track')
+  assert.ok(template.includes('#EDEFF2'), 'disabled switches must have a lighter explicit grey track')
+  assert.ok(template.includes(".mtt-toggle[data-on='true']:disabled"), 'a disabled ON switch needs its own grey fill')
+  assert.ok(template.includes('background: #FFFFFF'), 'the switch knob stays white on both grey tracks')
   assert.ok(template.includes('unavailable.map(entry => modelRow(entry, false, true, toggleModel))'),
     'unavailable models must render as disabled controls')
 })

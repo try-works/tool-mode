@@ -5907,6 +5907,37 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       extensionId: string,
     ): Promise<void> => {
       /**
+       * DECLARATIVE PACKAGES HAVE NO PROVIDER TO INSPECT.
+       *
+       * A code-free package declares a model-runtime recipe; the host's declarative
+       * lane serves it, and its readiness is the prepared-assets fact
+       * (`prepared-cold` after prepare, `needs-preparation` before). The provider
+       * bridge inspects a package's `./tool-mode` module, which a code-free package
+       * does not have, so inspecting it marks every deployment `failed` and then
+       * activation refuses with "the model deployment X is in a failed state" —
+       * even though the assets are prepared and the recipe would run. Skip the
+       * inspection for exactly that execution kind and leave the recorded readiness
+       * to the asset surface.
+       */
+      const installedForInspection = installedRecords.find(
+        candidate => candidate.extensionId === extensionId,
+      )
+      if (installedForInspection !== undefined) {
+        try {
+          const kind = discoverExtension(installedForInspection.installPath).manifest.execution.kind
+          if (kind === 'declarative') {
+            ctx.logger.info(
+              `model-tools: ${extensionId} is declared for the declarative lane; provider inspection is skipped `
+              + 'and its readiness stays the prepared-assets verdict',
+            )
+            return
+          }
+        } catch {
+          // An unreadable manifest is not silently assumed declarative: fall through
+          // to inspection, whose failure is the honest answer.
+        }
+      }
+      /**
        * Every inspection is TIME-BOUNDED: the restore chain is sequential, and one
        * extension whose inspect() hangs would stall activation for every later
        * extension indefinitely. The timeout turns a hang into a recorded `failed`
