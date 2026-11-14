@@ -45,6 +45,13 @@ test('DECL-07: tool_mode_list reports permitted tools + the catalog revision', a
   const value = result.value as { catalogRevision: string; tools: Array<{ name: string; readiness: string }> }
   assert.ok(value.catalogRevision.length > 0)
   assert.ok(value.tools.length > 0, 'the model catalog contributes tools')
+  // DECL-07: the registry's own tools are part of the permitted surface. They used
+  // to be absent while tool_mode_describe answered for them.
+  const names = value.tools.map(tool => tool.name)
+  for (const hostTool of ['tool_mode_list', 'tool_mode_describe', 'model_tools', 'tool_mode_run']) {
+    assert.ok(names.includes(hostTool), `tool_mode_list must include ${hostTool}; got ${names.join(', ')}`)
+  }
+  assert.equal(new Set(names).size, names.length, 'tool_mode_list must not duplicate a tool')
   await cleanup()
 })
 

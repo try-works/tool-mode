@@ -3985,6 +3985,29 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             recipeDigest: declarativeRecipeDigests.get(toolName) ?? null,
           })
         }
+        /**
+         * DECL-07: the list is the caller's PERMITTED TOOL SURFACE, not only the
+         * catalog. Host tools (model_tools, tool_mode_run, the discovery pair) and
+         * standard-contract tools registered by the host or an extension are
+         * callable and were missing here: `tool_mode_describe` answered for them
+         * while `tool_mode_list` did not mention them, so a caller asking "what can
+         * I call?" got a list that disagreed with the registry.
+         */
+        const listed = new Set(tools.map(tool => tool.name))
+        for (const schema of ctx.tools.schemas()) {
+          if (listed.has(schema.name)) continue
+          if (permitted !== undefined && !permitted.has(schema.name)) continue
+          tools.push({
+            name: schema.name,
+            description: schema.description ?? '',
+            readiness: 'callable',
+            model: null,
+            extension: null,
+            route: 'host',
+            executionKind: 'host',
+            recipeDigest: null,
+          } as never)
+        }
         return { catalogRevision: catalogRevision(), tools } as never
       },
       presentCall() {

@@ -1,6 +1,6 @@
 # Tool Mode — final report
 
-**Generated** 2026-11-14T10:55:00.672Z from commit `f37642acd07e88675303922c724a23c3577a2ea8` (branch `main`, working tree DIRTY — this describes a state that exists in no commit).
+**Generated** 2026-11-14T11:07:27.951Z from commit `5553dc126fd4c0f7fbaa7180462e295740ba5aa9` (branch `main`, working tree DIRTY — this describes a state that exists in no commit).
 **Regenerate** with `npm run final-report`; `npm run final-report:check` fails when this file is stale and is wired into `npm run verify`.
 
 ## The headline, before the detail
@@ -29,7 +29,7 @@ Read from every `packages/*/package.json` at generation time (name and version, 
 
 | Package | Version |
 | --- | --- |
-| `@try-works/dsh-tool-mode` | 0.5.46 |
+| `@try-works/dsh-tool-mode` | 0.5.47 |
 | `@try-works/extension-clear-recipe` | 0.1.0 |
 | `@try-works/extension-declarative-recipes` | 0.1.0 |
 | `@try-works/extension-desert-ant-tongue` | 0.1.3 |
@@ -392,7 +392,7 @@ These are not implementation gaps. There is no artifact to integrate, and no fur
 
 ## What actually runs on this host
 
-RECORDED at the verification run named in the header (2026-11-14T10:55:00.672Z); `npm run verify` re-runs the same check, so this block is a snapshot rather than a standing claim:
+RECORDED at the verification run named in the header (2026-11-14T11:07:27.951Z); `npm run verify` re-runs the same check, so this block is a snapshot rather than a standing claim:
 
 ```
 $ npm run verify:built
