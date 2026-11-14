@@ -250,6 +250,24 @@ test('a config toggle commits immediately instead of waiting for Save', () => {
   }
 })
 
+test('installing an extension prepares and enables it automatically', () => {
+  const template = readFileSync(TEMPLATE, 'utf8')
+  const bundle = readFileSync(BUNDLE, 'utf8')
+  for (const [name, source] of [['template', template], ['bundle', bundle]] as const) {
+    assert.match(source, /const followThroughInstall = async/, name + ' must carry the install follow-through')
+    assert.match(source, /await followThroughInstall\(namespace, id\)/, name + ' must run it after install')
+    const start = source.indexOf('const followThroughInstall = async')
+    assert.ok(start >= 0)
+    const body = source.slice(start, start + 2400)
+    const enableAt = body.indexOf("action: 'enable'")
+    const prepareAt = body.indexOf("action: 'prepare'")
+    assert.ok(enableAt >= 0, name + ' must activate the extension')
+    assert.ok(prepareAt >= 0, name + ' must prepare its assets when the host says so')
+    assert.ok(prepareAt < enableAt, name + ' must prepare before activation')
+    assert.match(body, /extensionNeedsPreparation\(state\)/, name + ' must prepare only when readiness names it')
+  }
+})
+
 test('one row’s action does not disable the rest of the extension page', () => {
   const template = readFileSync(TEMPLATE, 'utf8')
   const bundle = readFileSync(BUNDLE, 'utf8')

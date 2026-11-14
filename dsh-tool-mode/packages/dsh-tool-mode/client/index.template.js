@@ -1349,6 +1349,57 @@ window.__ModuleLoader__.load({
         }
       }
 
+      /**
+       * Prepare and activate a freshly installed extension.
+       *
+       * A first-party package ships model assets that activation refuses to run
+       * until they are prepared, so "install" only ever reached the middle of the
+       * job: the operator then had to press Prepare and then Enable. The install
+       * click is the operator's request, so the page now performs the same two host
+       * actions it exposes — prepare() and enable() — in order. A refusal (an
+       * executable-approval policy, a missing asset source, activation blocked) is
+       * reported as a NON-FATAL note: the install itself succeeded, and the row's
+       * own controls remain the way to retry.
+       *
+       * @param namespace - the Remote namespace.
+       * @param id - the extension just installed.
+       * @returns the follow-through note, or null when the host has no prepare.
+       */
+      const followThroughInstall = async (namespace, id) => {
+        let prepareNote = ''
+        try {
+          // Read the NEW row first: preparation is only needed when the host names
+          // it as the blocker, and an activation attempt that is known to fail would
+          // only leave a failure record behind.
+          invalidateExtensionState(namespace)
+          const snapshot = await describeExtensions(namespace)
+          const state = findExtensionState({ id }, snapshot.extensions)
+          if (extensionNeedsPreparation(state)) {
+            if (typeof namespace.prepare !== 'function') {
+              return 'installed, but this host does not expose the extension prepare action.'
+            }
+            setExtPending({ id, action: 'prepare' })
+            const prepared = unwrapRemoteResult(await namespace.prepare(id))
+            const described = prepareResultNote(prepared)
+            if (typeof described === 'string' && described.length > 0) prepareNote = described
+            if (prepared === null || typeof prepared !== 'object' || prepared.prepared !== true) {
+              return 'installed, but preparation did not complete: ' + prepareNote
+            }
+          }
+        } catch (error) {
+          return 'installed, but its readiness could not be read: ' + remoteErrorText(error)
+        }
+        try {
+          setExtPending({ id, action: 'enable' })
+          unwrapRemoteResult(await namespace.enable(id))
+          await dualWriteDisabledExtensions(id, 'enable')
+          return (prepareNote.length > 0 ? prepareNote + ' ' : '') + 'Enabled automatically.'
+        } catch (error) {
+          return (prepareNote.length > 0 ? prepareNote + ' ' : '')
+            + 'activation was refused: ' + remoteErrorText(error)
+        }
+      }
+
       /** Read the host state once, after a manual "Try again". */
       const recheckExtensions = async () => {
         setExtRowError(null)
@@ -1402,6 +1453,9 @@ window.__ModuleLoader__.load({
             // result, in which case describe()'s "installed v<version>" stands.
             const note = installResultNote(installed)
             if (note !== null) setExtInstallNote({ id, text: note })
+            // Preparation and activation are part of installing from this page.
+            const followUp = await followThroughInstall(namespace, id)
+            if (followUp !== null) setExtPrepareNote({ id, text: followUp })
           } else if (action === 'prepare') {
             if (typeof namespace.prepare !== 'function') {
               throw new Error('This host does not expose the extension prepare action.')
