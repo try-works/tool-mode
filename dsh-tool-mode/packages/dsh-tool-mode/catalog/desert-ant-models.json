@@ -47,8 +47,8 @@
     "modelSizeMB": null,
     "appleOnly": false,
     "closedBeta": false,
-    "verifiedRunnableOnWindows": false,
-    "windowsSupport": "browser-only",
+    "verifiedRunnableOnWindows": true,
+    "windowsSupport": "onnxruntime-node",
     "npmPackage": "@desert-ant-labs/clear",
     "npmSubpath": "/native",
     "requiresRuntime": [],
@@ -58,17 +58,20 @@
     "hfRepo": "https://huggingface.co/desert-ant-labs/clear",
     "tool": {
       "name": "enhance_speech",
-      "description": "Clean up a recording on device: remove noise and room echo and level the loudness to a podcast-ready 48 kHz.",
+      "description": "Denoise and dereverb a speech recording on device and return the enhanced 48 kHz mono WAV with honest coverage of the analysed audio.",
       "params": {
-        "audio_path": "Absolute path to the input audio or video file.",
-        "output_path": "Absolute path to write the enhanced audio to."
+        "audio_path": "Absolute path to the WAV file. Read from the caller's granted filesystem, never uploaded."
       },
-      "returns": "The path of the enhanced audio file."
+      "returns": "Base64 48 kHz mono WAV, sample rate, duration and coverage."
     },
     "skill": {
       "name": "desert-ant-clear",
       "description": "Enhance noisy speech recordings on device with the Desert Ant Clear model.",
       "whenToUse": "Use when a recording needs denoising, dereverberation or loudness normalization before publication."
+    },
+    "provider": {
+      "extension": "@try-works/extension-clear-recipe",
+      "modelId": "clear"
     }
   },
   {
@@ -119,8 +122,8 @@
     "modelSizeMB": null,
     "appleOnly": false,
     "closedBeta": false,
-    "verifiedRunnableOnWindows": false,
-    "windowsSupport": "browser-only",
+    "verifiedRunnableOnWindows": true,
+    "windowsSupport": "onnxruntime-node",
     "npmPackage": "@desert-ant-labs/ear",
     "npmSubpath": "/native",
     "requiresRuntime": [],
@@ -129,17 +132,25 @@
     "docsUrl": "https://desertant.com/models/ear/",
     "hfRepo": "https://huggingface.co/desert-ant-labs/ear",
     "tool": {
-      "name": "detect_spoken_language",
-      "description": "Identify which language is being spoken in a recording, before transcription starts, across 102 languages.",
+      "name": "identify_language",
+      "description": "Identify the spoken language of an audio recording on device: the most likely language, its confidence, a reliability flag and the top candidates.",
       "params": {
-        "audio_path": "Absolute path to the audio or video file."
+        "audio_path": "Absolute path to the WAV file. Read from the caller's granted filesystem, never uploaded.",
+        "windows": {
+          "description": "How many 30 second windows to listen to, spread across the recording and ranked by syllabic modulation. Defaults to 3.",
+          "type": "integer"
+        }
       },
-      "returns": "The detected spoken language with a confidence and runner-up candidates."
+      "returns": "language, confidence, isReliable, ranked candidates and window timings."
     },
     "skill": {
       "name": "desert-ant-ear",
       "description": "Identify the spoken language of a recording on device with the Desert Ant Ear model.",
       "whenToUse": "Use to pick a transcription language or route audio before running speech recognition."
+    },
+    "provider": {
+      "extension": "@try-works/extension-ear-recipe",
+      "modelId": "ear"
     }
   },
   {
@@ -154,8 +165,8 @@
     "modelSizeMB": 10.2,
     "appleOnly": false,
     "closedBeta": false,
-    "verifiedRunnableOnWindows": false,
-    "windowsSupport": "browser-only",
+    "verifiedRunnableOnWindows": true,
+    "windowsSupport": "onnxruntime-node",
     "npmPackage": "@desert-ant-labs/emo",
     "npmSubpath": "/native",
     "requiresRuntime": [],
@@ -164,21 +175,25 @@
     "docsUrl": "https://desertant.com/models/emo/",
     "hfRepo": "https://huggingface.co/desert-ant-labs/emo",
     "tool": {
-      "name": "suggest_emoji",
-      "description": "Suggest emoji that fit a piece of text, in 22 languages, running entirely on device.",
+      "name": "suggest_emojis",
+      "description": "Suggest emojis for a piece of text on device: the top labels by probability with their confidences.",
       "params": {
-        "text": "The text to suggest emoji for.",
+        "text": "The text to suggest emojis for, counted in Unicode code points, 1..1024. Empty or whitespace-only text is refused.",
         "limit": {
-          "description": "Maximum number of suggestions to return (default 5).",
+          "description": "How many suggestions to return: the top labels by descending probability. Defaults to 5.",
           "type": "integer"
         }
       },
-      "returns": "Ranked emoji suggestions with confidence scores."
+      "returns": "Top emoji labels by probability with confidences."
     },
     "skill": {
       "name": "desert-ant-emo",
       "description": "Suggest fitting emoji for text with the Desert Ant Emo model.",
       "whenToUse": "Use when writing release notes, commit summaries or UI copy that should carry emoji."
+    },
+    "provider": {
+      "extension": "@try-works/extension-emo-recipe",
+      "modelId": "emo"
     }
   },
   {
@@ -313,8 +328,8 @@
     "modelSizeMB": 9.2,
     "appleOnly": false,
     "closedBeta": false,
-    "verifiedRunnableOnWindows": false,
-    "windowsSupport": "browser-only",
+    "verifiedRunnableOnWindows": true,
+    "windowsSupport": "onnxruntime-node",
     "npmPackage": "@desert-ant-labs/moderator",
     "npmSubpath": "/native",
     "requiresRuntime": [],
@@ -323,20 +338,27 @@
     "docsUrl": "https://desertant.com/models/moderator/",
     "hfRepo": "https://huggingface.co/desert-ant-labs/moderator",
     "tool": {
-      "name": "detect_nsfw",
-      "description": "Check images for nudity or sexual content on device before they are uploaded or shown.",
+      "name": "classify_nsfw",
+      "description": "Check an image for nudity or sexual content on device: per-region scores, an NSFW decision at a threshold, and the policy and quality used.",
       "params": {
-        "image_paths": {
-          "description": "Absolute paths of the images to check.",
-          "type": "string[]"
-        }
+        "image_path": "Absolute path to the PNG file. Read from the caller's granted filesystem, never uploaded.",
+        "quality": "How many crops to score: fast = 1 center crop, balanced = 4 crops, accurate = 8 crops. Defaults to balanced.",
+        "threshold": {
+          "description": "Decision threshold; isNSFW is true when score >= threshold. Defaults to 0.5.",
+          "type": "number"
+        },
+        "policy": "standard counts all five heads; allowTopless counts all but nipples. Defaults to standard."
       },
-      "returns": "A per-image NSFW verdict with score and labels."
+      "returns": "isNSFW, score, threshold, policy, quality, per-region scores and crops."
     },
     "skill": {
       "name": "desert-ant-moderator",
       "description": "Screen images for NSFW content on device with the Desert Ant Moderator model.",
       "whenToUse": "Use to gate user-supplied images before storing, publishing or sending them anywhere."
+    },
+    "provider": {
+      "extension": "@try-works/extension-moderator-recipe",
+      "modelId": "moderator"
     }
   },
   {
@@ -351,8 +373,8 @@
     "modelSizeMB": null,
     "appleOnly": false,
     "closedBeta": false,
-    "verifiedRunnableOnWindows": false,
-    "windowsSupport": "browser-only",
+    "verifiedRunnableOnWindows": true,
+    "windowsSupport": "native-node",
     "npmPackage": "@desert-ant-labs/redact",
     "npmSubpath": "/native",
     "requiresRuntime": [],
@@ -361,25 +383,21 @@
     "docsUrl": "https://desertant.com/models/redact/",
     "hfRepo": "https://huggingface.co/desert-ant-labs/redact",
     "tool": {
-      "name": "redact_pii",
-      "description": "Replace personal data (names, emails, phone numbers, addresses, card numbers and more) in text with stable placeholders, on device, before the text reaches any remote service.",
+      "name": "redact_text",
+      "description": "Detect PII and secrets in text as labelled UTF-16 spans, with honest coverage when the local window cap truncates a long document.",
       "params": {
-        "text": "The text to redact.",
-        "labels": {
-          "description": "Optional list of entity labels to restrict redaction to, for example [\"EMAIL\", \"PHONE\"].",
-          "type": "string[]"
-        },
-        "minimum_confidence": {
-          "description": "Optional confidence floor between 0 and 1 (default 0.6).",
-          "type": "number"
-        }
+        "text": "The text to redact. Long documents are processed up to the local window cap; coverage reports truncation."
       },
-      "returns": "The redacted text plus the placeholder map, so originals can be restored after a remote round trip."
+      "returns": "Labelled UTF-16 spans and coverage of the analysed text."
     },
     "skill": {
       "name": "desert-ant-redact",
       "description": "Strip personal data from text on device with the Desert Ant Redact model before sending it to any remote service.",
       "whenToUse": "Use before sending logs, transcripts, tickets or documents containing names, emails or numbers to a remote model or API."
+    },
+    "provider": {
+      "extension": "@try-works/extension-redact",
+      "modelId": "redact"
     }
   },
   {
@@ -430,8 +448,8 @@
     "modelSizeMB": null,
     "appleOnly": false,
     "closedBeta": false,
-    "verifiedRunnableOnWindows": false,
-    "windowsSupport": "browser-only",
+    "verifiedRunnableOnWindows": true,
+    "windowsSupport": "native-node",
     "npmPackage": "@desert-ant-labs/shapes",
     "npmSubpath": "/native",
     "requiresRuntime": [],
@@ -440,18 +458,25 @@
     "docsUrl": "https://desertant.com/models/shapes/",
     "hfRepo": "https://huggingface.co/desert-ant-labs/shapes",
     "tool": {
-      "name": "recognize_shape",
-      "description": "Turn a single hand-drawn stroke into a clean shape: rectangle, ellipse, triangle, star or line.",
+      "name": "shape_recognize",
+      "description": "Recognize a single hand-drawn stroke as one of the Shapes classes and return the ranked candidates with confidences.",
       "params": {
-        "points": "The stroke as an array of [x, y] points in drawing order.",
-        "closed": "Whether the stroke is a closed shape."
+        "points": "The stroke in drawing order as an array of [x, y] points (first stroke only).",
+        "closed": {
+          "description": "Whether the stroke was drawn closed; the fitted-geometry gates use it.",
+          "type": "boolean"
+        }
       },
-      "returns": "The recognized shape with a confidence and runner-up candidates."
+      "returns": "The recognized shape, its confidence, the ranked candidates and rejected labels."
     },
     "skill": {
       "name": "desert-ant-shapes",
       "description": "Recognize hand-drawn strokes as clean shapes with the Desert Ant Shapes model.",
       "whenToUse": "Use in drawing or diagram tooling to snap an ink stroke to a geometric shape."
+    },
+    "provider": {
+      "extension": "@try-works/extension-shapes-recipe",
+      "modelId": "shapes"
     }
   },
   {
@@ -585,10 +610,10 @@
     "output": "[{ start, end, word }] filler spans to cut",
     "languages": null,
     "modelSizeMB": null,
-    "appleOnly": true,
+    "appleOnly": false,
     "closedBeta": false,
-    "verifiedRunnableOnWindows": false,
-    "windowsSupport": "apple-only",
+    "verifiedRunnableOnWindows": true,
+    "windowsSupport": "onnxruntime-node",
     "npmPackage": null,
     "npmSubpath": null,
     "requiresRuntime": [],
@@ -598,16 +623,20 @@
     "hfRepo": "https://huggingface.co/desert-ant-labs/uhm",
     "tool": {
       "name": "detect_fillers",
-      "description": "Find every um, uh and hmm in a recording with the exact span to cut.",
+      "description": "Find every uh, um, hmm and filler \"and\" in a recording on device and return the millisecond spans to cut, with honest coverage.",
       "params": {
-        "audio_path": "Absolute path to the audio or video file."
+        "audio_path": "Absolute path to the audio to analyse. Read from the caller's granted filesystem, never uploaded."
       },
-      "returns": "Filler spans with start and end times in seconds, ready to cut."
+      "returns": "Millisecond filler spans to cut, plus coverage."
     },
     "skill": {
       "name": "desert-ant-uhm",
       "description": "Detect filler words in speech on device with the Desert Ant Uhm model.",
       "whenToUse": "Use when editing spoken audio to remove hesitations and tighten a transcript."
+    },
+    "provider": {
+      "extension": "@try-works/extension-uhm-recipe",
+      "modelId": "uhm"
     }
   },
   {

@@ -95,10 +95,10 @@ describe('dsh-tool-mode', () => {
     assert.ok(value.models.length >= 18, `expected the full catalog, got ${value.models.length}`)
     const tongue = value.models.find(model => model.id === 'tongue')
     assert.equal(tongue?.runnable, true)
-    // A model with no Windows runtime must explain itself rather than vanish.
-    const redact = value.models.find(model => model.id === 'redact')
-    assert.equal(redact?.runnable, false)
-    assert.match(redact?.reason ?? '', /win32|not installed|no prebuilt/i)
+    // A model with no Node runtime must explain itself rather than vanish.
+    const title = value.models.find(model => model.id === 'title')
+    assert.equal(title?.runnable, false)
+    assert.match(title?.reason ?? '', /Apple-only|remote|bridge/i)
   })
 
   it('describe returns one model by id and rejects an unknown one', async () => {

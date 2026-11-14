@@ -14,21 +14,21 @@ reported as unavailable together with the concrete reason.
 | Model | Task | Windows x64 | Apple only | Closed beta | Size | License |
 |---|---|---|---|---|---|---|
 | [Align](https://desertant.com/models/align/) | audio.word-alignment | Browser only | No | No | 0.7 MB | Source-available |
-| [Clear](https://desertant.com/models/clear/) | audio.speech-enhancement | Browser only | No | No | — | Source-available |
+| [Clear](https://desertant.com/models/clear/) | audio.speech-enhancement | Yes | No | No | — | Source-available |
 | [Clips](https://desertant.com/models/clips/) | video.clip-selection | Browser only | No | No | — | Source-available |
-| [Ear](https://desertant.com/models/ear/) | audio.spoken-language-identification | Browser only | No | No | — | Source-available |
-| [Emo](https://desertant.com/models/emo/) | text.emoji-suggestion | Browser only | No | No | 10.2 MB | Source-available |
+| [Ear](https://desertant.com/models/ear/) | audio.spoken-language-identification | Yes | No | No | — | Source-available |
+| [Emo](https://desertant.com/models/emo/) | text.emoji-suggestion | Yes | No | No | 10.2 MB | Source-available |
 | [Eye](https://desertant.com/models/eye/) | image.frame-scoring | Closed beta | No | Yes | — | Source-available |
 | [Face](https://desertant.com/models/face/) | image.face-matching | Closed beta | No | Yes | — | Source-available |
 | [Gist](https://desertant.com/models/gist/) | text.topic-tagging | Browser only | No | No | — | Source-available |
-| [Moderator](https://desertant.com/models/moderator/) | image.nsfw-detection | Browser only | No | No | 9.2 MB | Source-available |
-| [Redact](https://desertant.com/models/redact/) | text.pii-redaction | Browser only | No | No | — | Source-available |
+| [Moderator](https://desertant.com/models/moderator/) | image.nsfw-detection | Yes | No | No | 9.2 MB | Source-available |
+| [Redact](https://desertant.com/models/redact/) | text.pii-redaction | Yes | No | No | — | Source-available |
 | [Schemer](https://desertant.com/models/schemer/) | text.structured-extraction | Closed beta | No | Yes | — | Source-available |
-| [Shapes](https://desertant.com/models/shapes/) | stroke.shape-recognition | Browser only | No | No | — | Source-available |
+| [Shapes](https://desertant.com/models/shapes/) | stroke.shape-recognition | Yes | No | No | — | Source-available |
 | [Title](https://desertant.com/models/title/) | text.title-generation | Apple only | Yes | No | — | Source-available |
 | [Tongue](https://desertant.com/models/tongue/) | text.language-identification | Yes | No | No | 2 MB | Source-available |
 | [Toxic](https://desertant.com/models/toxic/) | text.toxicity-detection | Closed beta | No | Yes | — | Source-available |
-| [Uhm](https://desertant.com/models/uhm/) | audio.filler-detection | Apple only | Yes | No | — | Source-available |
+| [Uhm](https://desertant.com/models/uhm/) | audio.filler-detection | Yes | No | No | — | Source-available |
 | [Voz](https://desertant.com/models/voz/) | audio.speech-recognition | Yes | No | No | 349 MB | Source-available |
 | [Who](https://desertant.com/models/who/) | audio.speaker-labeling | Closed beta | No | Yes | — | Source-available |
 

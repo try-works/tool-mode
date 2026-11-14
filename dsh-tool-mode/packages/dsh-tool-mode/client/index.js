@@ -2233,12 +2233,11 @@ function createToolInsights(createElement, reactLib) {
         "name": "Clear",
         "summary": "On-device speech enhancement: denoise, dereverb and loudness-normalize to 48 kHz.",
         "package": "@desert-ant-labs/clear",
-        "extension": null,
+        "extension": "@try-works/extension-clear-recipe",
         "capability": "audio.speech-enhancement",
         "sizeMB": null,
         "license": "source-available",
-        "runnable": false,
-        "reason": "Clear has no prebuilt native build for win32-x64: @desert-ant-labs/clear/native supports linux-x64, linux-arm64 and darwin-arm64 only."
+        "runnable": true
       },
       {
         "id": "clips",
@@ -2257,24 +2256,22 @@ function createToolInsights(createElement, reactLib) {
         "name": "Ear",
         "summary": "On-device spoken language identification across 102 languages from a short audio stretch.",
         "package": "@desert-ant-labs/ear",
-        "extension": null,
+        "extension": "@try-works/extension-ear-recipe",
         "capability": "audio.spoken-language-identification",
         "sizeMB": null,
         "license": "source-available",
-        "runnable": false,
-        "reason": "Ear has no prebuilt native build for win32-x64: @desert-ant-labs/ear/native supports linux-x64, linux-arm64 and darwin-arm64 only."
+        "runnable": true
       },
       {
         "id": "emo",
         "name": "Emo",
         "summary": "Type a task or message and get the emoji that fit, in 22 languages, on the device.",
         "package": "@desert-ant-labs/emo",
-        "extension": null,
+        "extension": "@try-works/extension-emo-recipe",
         "capability": "text.emoji-suggestion",
         "sizeMB": 10.2,
         "license": "source-available",
-        "runnable": false,
-        "reason": "Emo has no prebuilt native build for win32-x64: @desert-ant-labs/emo/native supports linux-x64, linux-arm64 and darwin-arm64 only."
+        "runnable": true
       },
       {
         "id": "eye",
@@ -2317,24 +2314,22 @@ function createToolInsights(createElement, reactLib) {
         "name": "Moderator",
         "summary": "On-device NSFW detection that flags nudity before upload, trained only on licensed and synthetic data.",
         "package": "@desert-ant-labs/moderator",
-        "extension": null,
+        "extension": "@try-works/extension-moderator-recipe",
         "capability": "image.nsfw-detection",
         "sizeMB": 9.2,
         "license": "source-available",
-        "runnable": false,
-        "reason": "Moderator has no prebuilt native build for win32-x64: @desert-ant-labs/moderator/native supports linux-x64, linux-arm64 and darwin-arm64 only."
+        "runnable": true
       },
       {
         "id": "redact",
         "name": "Redact",
         "summary": "On-device redaction that strips personal data as you type, in 27 languages, with restore support.",
         "package": "@desert-ant-labs/redact",
-        "extension": null,
+        "extension": "@try-works/extension-redact",
         "capability": "text.pii-redaction",
         "sizeMB": null,
         "license": "source-available",
-        "runnable": false,
-        "reason": "Redact has no prebuilt native build for win32-x64: @desert-ant-labs/redact/native supports linux-x64, linux-arm64 and darwin-arm64 only."
+        "runnable": true
       },
       {
         "id": "schemer",
@@ -2353,12 +2348,11 @@ function createToolInsights(createElement, reactLib) {
         "name": "Shapes",
         "summary": "On-device shape recognition that turns one hand-drawn stroke into a rectangle, ellipse, triangle, star or line in under 10ms.",
         "package": "@desert-ant-labs/shapes",
-        "extension": null,
+        "extension": "@try-works/extension-shapes-recipe",
         "capability": "stroke.shape-recognition",
         "sizeMB": null,
         "license": "source-available",
-        "runnable": false,
-        "reason": "Shapes has no prebuilt native build for win32-x64: @desert-ant-labs/shapes/native supports linux-x64, linux-arm64 and darwin-arm64 only."
+        "runnable": true
       },
       {
         "id": "title",
@@ -2400,12 +2394,11 @@ function createToolInsights(createElement, reactLib) {
         "name": "Uhm",
         "summary": "On-device filler detection that marks every um, uh and hmm to within 20ms, an hour of audio in 12s.",
         "package": null,
-        "extension": null,
+        "extension": "@try-works/extension-uhm-recipe",
         "capability": "audio.filler-detection",
         "sizeMB": null,
         "license": "source-available",
-        "runnable": false,
-        "reason": "Uhm is Apple-only (Core ML/MLX through the Swift package); there is no JavaScript SDK, so it cannot run in a Node process. Point `remote.endpoint` at a bridge on an Apple machine to reach it."
+        "runnable": true
       },
       {
         "id": "voz",

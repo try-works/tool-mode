@@ -22,21 +22,21 @@ every model runs in the caller's process.
 | Model | What it does | Input | Languages | Windows x64 Node | Tier |
 | --- | --- | --- | --- | --- | --- |
 | **Align** | Word-timestamp refinement for any transcript, on device, from 0.7MB. | audio | — | no | Prebuilt for linux-x64 / linux-arm64 / darwin-arm64 only |
-| **Clear** | On-device speech enhancement: denoise, dereverb and loudness-normalize to 48 kHz. | audio | — | no | Prebuilt for linux-x64 / linux-arm64 / darwin-arm64 only |
+| **Clear** | On-device speech enhancement: denoise, dereverb and loudness-normalize to 48 kHz. | audio | — | yes | Runs where ONNX Runtime runs |
 | **Clips** | Clip selection that turns a long recording into ranked shorts and highlights from a transcript. | video | — | no | Prebuilt for linux-x64 / linux-arm64 / darwin-arm64 only |
-| **Ear** | On-device spoken language identification across 102 languages from a short audio stretch. | audio | 102 | no | Prebuilt for linux-x64 / linux-arm64 / darwin-arm64 only |
-| **Emo** | Type a task or message and get the emoji that fit, in 22 languages, on the device. | text | 22 | no | Prebuilt for linux-x64 / linux-arm64 / darwin-arm64 only |
+| **Ear** | On-device spoken language identification across 102 languages from a short audio stretch. | audio | 102 | yes | Runs where ONNX Runtime runs |
+| **Emo** | Type a task or message and get the emoji that fit, in 22 languages, on the device. | text | 22 | yes | Runs where ONNX Runtime runs |
 | **Eye** | On-device frame scoring that tells you which shot to keep, what is in it, and which shots repeat. | image | — | no | Closed beta — no SDK ships it |
 | **Face** | On-device face matching that finds the same person across a photo library or through a video. | image | — | no | Closed beta — no SDK ships it |
 | **Gist** | On-device topic tagging across a 36-topic taxonomy, in 101 languages, with no server call. | text | 101 | no | Prebuilt for linux-x64 / linux-arm64 / darwin-arm64 only |
-| **Moderator** | On-device NSFW detection that flags nudity before upload, trained only on licensed and synthetic data. | image | — | no | Prebuilt for linux-x64 / linux-arm64 / darwin-arm64 only |
-| **Redact** | On-device redaction that strips personal data as you type, in 27 languages, with restore support. | text | 27 | no | Prebuilt for linux-x64 / linux-arm64 / darwin-arm64 only |
+| **Moderator** | On-device NSFW detection that flags nudity before upload, trained only on licensed and synthetic data. | image | — | yes | Runs where ONNX Runtime runs |
+| **Redact** | On-device redaction that strips personal data as you type, in 27 languages, with restore support. | text | 27 | yes | Runs in plain Node everywhere |
 | **Schemer** | Extract typed fields from any text against your own schema, on device, with empty fields left empty. | text | — | no | Closed beta — no SDK ships it |
-| **Shapes** | On-device shape recognition that turns one hand-drawn stroke into a rectangle, ellipse, triangle, star or line in under 10ms. | stroke | — | no | Prebuilt for linux-x64 / linux-arm64 / darwin-arm64 only |
+| **Shapes** | On-device shape recognition that turns one hand-drawn stroke into a rectangle, ellipse, triangle, star or line in under 10ms. | stroke | — | yes | Runs in plain Node everywhere |
 | **Title** | On-device titles and descriptions: a short factual title and a one- or two-sentence description for any passage. | text | — | no | Apple platforms only (Core ML / MLX) |
 | **Tongue** | On-device language identification for short text across 84 languages, from just a few words. | text | 84 | yes | Runs in plain Node everywhere |
 | **Toxic** | On-device moderation that flags hateful, abusive and threatening text in 23 European languages. | text | 23 | no | Closed beta — no SDK ships it |
-| **Uhm** | On-device filler detection that marks every um, uh and hmm to within 20ms, an hour of audio in 12s. | audio | — | no | Apple platforms only (Core ML / MLX) |
+| **Uhm** | On-device filler detection that marks every um, uh and hmm to within 20ms, an hour of audio in 12s. | audio | — | yes | Runs where ONNX Runtime runs |
 | **Voz** | Transcribe 10 minutes of audio in 2s on an iPhone, 14x faster than Whisper, with word timestamps. | audio | 25 | yes | Runs where ONNX Runtime runs |
 | **Who** | On-device speaker labeling that turns a recording into per-person turns with face boxes and timestamps. | audio | — | no | Closed beta — no SDK ships it |
 

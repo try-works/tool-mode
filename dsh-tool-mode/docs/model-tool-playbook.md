@@ -10,21 +10,21 @@ skill, from `packages/dsh-tool-mode/catalog/playbooks.json`.
 | Model | Tool | Skill | Windows x64 | Why not, when unavailable |
 | --- | --- | --- | --- | --- |
 | **Align** | `align_transcript` | `desert-ant-align` | no | No win32-x64 prebuild; linux-x64 / linux-arm64 / darwin-arm64 only |
-| **Clear** | `enhance_speech` | `desert-ant-clear` | no | No win32-x64 prebuild; linux-x64 / linux-arm64 / darwin-arm64 only |
+| **Clear** | `enhance_speech` | `desert-ant-clear` | yes | — runs here with onnxruntime-node |
 | **Clips** | `select_clips` | `desert-ant-clips` | no | No win32-x64 prebuild; linux-x64 / linux-arm64 / darwin-arm64 only |
-| **Ear** | `detect_spoken_language` | `desert-ant-ear` | no | No win32-x64 prebuild; linux-x64 / linux-arm64 / darwin-arm64 only |
-| **Emo** | `suggest_emoji` | `desert-ant-emo` | no | No win32-x64 prebuild; linux-x64 / linux-arm64 / darwin-arm64 only |
+| **Ear** | `identify_language` | `desert-ant-ear` | yes | — runs here with onnxruntime-node |
+| **Emo** | `suggest_emojis` | `desert-ant-emo` | yes | — runs here with onnxruntime-node |
 | **Eye** | `score_frames` | `desert-ant-eye` | no | Closed beta; weights published, no shipping SDK |
 | **Face** | `match_faces` | `desert-ant-face` | no | Closed beta; weights published, no shipping SDK |
 | **Gist** | `tag_topics` | `desert-ant-gist` | no | No win32-x64 prebuild; linux-x64 / linux-arm64 / darwin-arm64 only |
-| **Moderator** | `detect_nsfw` | `desert-ant-moderator` | no | No win32-x64 prebuild; linux-x64 / linux-arm64 / darwin-arm64 only |
-| **Redact** | `redact_pii` | `desert-ant-redact` | no | No win32-x64 prebuild; linux-x64 / linux-arm64 / darwin-arm64 only |
+| **Moderator** | `classify_nsfw` | `desert-ant-moderator` | yes | — runs here with onnxruntime-node |
+| **Redact** | `redact_text` | `desert-ant-redact` | yes | — runs here |
 | **Schemer** | `extract_fields` | `desert-ant-schemer` | no | Closed beta; weights published, no shipping SDK |
-| **Shapes** | `recognize_shape` | `desert-ant-shapes` | no | No win32-x64 prebuild; linux-x64 / linux-arm64 / darwin-arm64 only |
+| **Shapes** | `shape_recognize` | `desert-ant-shapes` | yes | — runs here |
 | **Title** | `suggest_title` | `desert-ant-title` | no | Apple-only (Core ML / MLX); no JS or Kotlin SDK |
 | **Tongue** | `lang_detect` | `desert-ant-tongue` | yes | — runs here |
 | **Toxic** | `moderate_text` | `desert-ant-toxic` | no | Closed beta; weights published, no shipping SDK |
-| **Uhm** | `detect_fillers` | `desert-ant-uhm` | no | Apple-only (Core ML / MLX); no JS or Kotlin SDK |
+| **Uhm** | `detect_fillers` | `desert-ant-uhm` | yes | — runs here with onnxruntime-node |
 | **Voz** | `transcribe_audio` | `desert-ant-voz` | yes | — runs here with onnxruntime-node |
 | **Who** | `detect_speakers` | `desert-ant-who` | no | Closed beta; weights published, no shipping SDK |
 
@@ -82,14 +82,13 @@ On-device speech enhancement: denoise, dereverb and loudness-normalize to 48 kHz
 
 - **Capability:** `audio.speech-enhancement`
 - **Input / output:** audio → A cleaned audio file path plus processing metadata
-- **Returns:** The path of the enhanced audio file.
+- **Returns:** Base64 48 kHz mono WAV, sample rate, duration and coverage.
 - **Skill:** `desert-ant-clear`
 - **Docs:** https://desertant.com/models/clear/
 
 **Parameters**
 
 - `audio_path` (string): undefined
-- `output_path` (string): undefined
 
 **Use cases**
 
@@ -174,19 +173,20 @@ Clip selection that turns a long recording into ranked shorts and highlights fro
 - The files this model consumes are documented upstream as not being a stable interface (naming mismatches, int64 versus int32, large memory use); do not depend on their layout.
 - Clip boundaries are model-suggested; check the first and last second of each before publishing.
 
-## Ear — `detect_spoken_language`
+## Ear — `identify_language`
 
 On-device spoken language identification across 102 languages from a short audio stretch.
 
 - **Capability:** `audio.spoken-language-identification`
 - **Input / output:** audio → { language, confidence, candidates: [{ language, probability }] }
-- **Returns:** The detected spoken language with a confidence and runner-up candidates.
+- **Returns:** language, confidence, isReliable, ranked candidates and window timings.
 - **Skill:** `desert-ant-ear`
 - **Docs:** https://desertant.com/models/ear/
 
 **Parameters**
 
 - `audio_path` (string): undefined
+- `windows` (integer): How many 30 second windows to listen to, spread across the recording and ranked by syllabic modulation. Defaults to 3.
 
 **Use cases**
 
@@ -222,20 +222,20 @@ On-device spoken language identification across 102 languages from a short audio
 - Code-switching and heavy accents degrade accuracy.
 - A recording with music or noise before speech can mislead the detector; sample from where speech actually is.
 
-## Emo — `suggest_emoji`
+## Emo — `suggest_emojis`
 
 Type a task or message and get the emoji that fit, in 22 languages, on the device.
 
 - **Capability:** `text.emoji-suggestion`
 - **Input / output:** text → [{ emoji, confidence }] ranked suggestions
-- **Returns:** Ranked emoji suggestions with confidence scores.
+- **Returns:** Top emoji labels by probability with confidences.
 - **Skill:** `desert-ant-emo`
 - **Docs:** https://desertant.com/models/emo/
 
 **Parameters**
 
 - `text` (string): undefined
-- `limit` (integer): Maximum number of suggestions to return (default 5).
+- `limit` (integer): How many suggestions to return: the top labels by descending probability. Defaults to 5.
 
 **Use cases**
 
@@ -416,19 +416,22 @@ On-device topic tagging across a 36-topic taxonomy, in 101 languages, with no se
 - A fixed taxonomy means genuinely novel subjects fall into the nearest existing topic rather than creating a new one.
 - Scores are model confidences, not calibrated probabilities.
 
-## Moderator — `detect_nsfw`
+## Moderator — `classify_nsfw`
 
 On-device NSFW detection that flags nudity before upload, trained only on licensed and synthetic data.
 
 - **Capability:** `image.nsfw-detection`
 - **Input / output:** image → { nsfw, score, labels: [...] }
-- **Returns:** A per-image NSFW verdict with score and labels.
+- **Returns:** isNSFW, score, threshold, policy, quality, per-region scores and crops.
 - **Skill:** `desert-ant-moderator`
 - **Docs:** https://desertant.com/models/moderator/
 
 **Parameters**
 
-- `image_paths` (string[]): Absolute paths of the images to check.
+- `image_path` (string): undefined
+- `quality` (string): undefined
+- `threshold` (number): Decision threshold; isNSFW is true when score >= threshold. Defaults to 0.5.
+- `policy` (string): undefined
 
 **Use cases**
 
@@ -463,21 +466,19 @@ On-device NSFW detection that flags nudity before upload, trained only on licens
 - The model was trained only on licensed and synthetic data, which is what makes it safe to ship commercially — but it also bounds what it has seen.
 - A false negative publishes content; choose the threshold with that asymmetry in mind.
 
-## Redact — `redact_pii`
+## Redact — `redact_text`
 
 On-device redaction that strips personal data as you type, in 27 languages, with restore support.
 
 - **Capability:** `text.pii-redaction`
 - **Input / output:** text → { redactedText, items: [{ label, original, placeholder, confidence }] }
-- **Returns:** The redacted text plus the placeholder map, so originals can be restored after a remote round trip.
+- **Returns:** Labelled UTF-16 spans and coverage of the analysed text.
 - **Skill:** `desert-ant-redact`
 - **Docs:** https://desertant.com/models/redact/
 
 **Parameters**
 
 - `text` (string): undefined
-- `labels` (string[]): Optional list of entity labels to restrict redaction to, for example ["EMAIL", "PHONE"].
-- `minimum_confidence` (number): Optional confidence floor between 0 and 1 (default 0.6).
 
 **Use cases**
 
@@ -565,20 +566,20 @@ Extract typed fields from any text against your own schema, on device, with empt
 - In closed beta: the weights are published but no SDK ships them, so this tool cannot be installed yet.
 - Schema-constrained extraction fails quietly if the schema itself is ambiguous; make field names and descriptions unambiguous.
 
-## Shapes — `recognize_shape`
+## Shapes — `shape_recognize`
 
 On-device shape recognition that turns one hand-drawn stroke into a rectangle, ellipse, triangle, star or line in under 10ms.
 
 - **Capability:** `stroke.shape-recognition`
 - **Input / output:** stroke → { shape, confidence, candidates: [...] }
-- **Returns:** The recognized shape with a confidence and runner-up candidates.
+- **Returns:** The recognized shape, its confidence, the ranked candidates and rejected labels.
 - **Skill:** `desert-ant-shapes`
 - **Docs:** https://desertant.com/models/shapes/
 
 **Parameters**
 
 - `points` (string): undefined
-- `closed` (string): undefined
+- `closed` (boolean): Whether the stroke was drawn closed; the fitted-geometry gates use it.
 
 **Use cases**
 
@@ -766,7 +767,7 @@ On-device filler detection that marks every um, uh and hmm to within 20ms, an ho
 
 - **Capability:** `audio.filler-detection`
 - **Input / output:** audio → [{ start, end, word }] filler spans to cut
-- **Returns:** Filler spans with start and end times in seconds, ready to cut.
+- **Returns:** Millisecond filler spans to cut, plus coverage.
 - **Skill:** `desert-ant-uhm`
 - **Docs:** https://desertant.com/models/uhm/
 

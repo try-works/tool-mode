@@ -2573,13 +2573,6 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
    * lifecycle yet, so their existing capability verdict remains the readiness
    * source.
    */
-  const callableReadiness = new Set<ImplementationCandidate['readiness']>([
-    'prepared-cold',
-    'loading',
-    'ready',
-    'busy',
-  ])
-
   const readinessOf = async (item: ResolvedModel): Promise<ImplementationCandidate['readiness']> => {
     if (item.verdict.route !== 'extension') return 'ready'
     try {
@@ -2652,6 +2645,17 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     if (entry.contract !== null && contractById.has(entry.contract)) {
       const binding = bindings.get(entry.contract)
       if (binding === undefined) {
+        /**
+         * A provider-bound model whose contract has no host binding is still served
+         * by its extension, which owns the tool name. Record it and report success;
+         * only a model with no owner is the "not the selected provider" case.
+         */
+        if (entry.provider !== undefined && extensionOwnsToolName(entry.tool.name)) {
+          catalogueDeferred.add(entry.id)
+          installed.set(entry.id, { entry, toolName: entry.tool.name, dispose: () => {} })
+          notifyCatalogChange()
+          return true
+        }
         // The model implements a contract but lost provider selection, or cannot
         // run. Report rather than register a second tool for the same contract.
         ctx.logger.info(
@@ -2701,7 +2705,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           `model-tools: ${entry.name}'s tool ${entry.tool.name} is owned by an installed extension; `
           + 'the catalogue registration is deferred until the extension releases the name',
         )
-        return false
+        // The extension serves the tool already: enabling the catalogue entry is a
+        // success that records the model, never "cannot be installed here".
+        toolName = entry.tool.name
+        dispose = () => {}
       } else {
         const registered = registerContractTool(
           ctx as unknown as { tools: { register(definition: unknown): () => void } },
@@ -2719,16 +2726,23 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           extensionVersion: host.extensionVersion,
         })
       }
-    } else {
-      if (verdict.route === 'extension') {
-        const readiness = await readinessOf(item)
-        if (!callableReadiness.has(readiness)) {
-          ctx.logger.info(
-            `model-tools: ${entry.name} is active but its provider reports ${readiness}; skipping ${entry.tool.name}`,
-          )
-          return false
-        }
+    } else if (entry.provider !== undefined) {
+      /**
+       * PROVIDER-BOUND: the extension owns the tool name. When it is active the
+       * catalogue joins that tool instead of registering a second one; when it is
+       * not active there is no tool to join, so the entry is skipped rather than
+       * replaced by a provider-bridge tool the MCP surface cannot export.
+       */
+      if (!extensionOwnsToolName(entry.tool.name)) {
+        ctx.logger.info(
+          `model-tools: ${entry.name}'s provider extension is not active; skipping ${entry.tool.name}`,
+        )
+        return false
       }
+      catalogueDeferred.add(entry.id)
+      toolName = entry.tool.name
+      dispose = () => {}
+    } else {
       const adapter = createAdapter(entry, { route: verdict.route, ...transportOptions }, undefined, bridge)
       if (adapter === undefined) {
         // Runnable but no adapter yet: report rather than register a dead tool.
@@ -2848,6 +2862,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       }
       if (extensionOwnsToolName(item.entry.tool.name)) continue
       catalogueDeferred.delete(modelId)
+      // A deferred model was recorded as served by the extension; drop that record
+      // first or install() short-circuits on it and never registers the catalogue tool.
+      if (installed.has(modelId)) uninstall(modelId)
       ctx.logger.info(`model-tools: ${item.entry.name}'s tool ${item.entry.tool.name} is released; restoring the catalogue registration`)
       try {
         await install(item)

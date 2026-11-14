@@ -62,21 +62,32 @@ function text(result: { content: { type: string; text?: string }[] }): string {
 
 describe('transport — argument mapping', () => {
   it('maps a text model to a positional input plus --option flags', () => {
-    const argv = buildArgv(entryOf('redact'), {
-      text: 'Email Anna at anna@example.hu',
-      minimum_confidence: 0.7,
+    const argv = buildArgv(entryOf('emo'), {
+      text: 'Ship it on Friday',
+      limit: 3,
     })
     assert.deepEqual(argv, [
-      'redact',
-      'Email Anna at anna@example.hu',
+      'emo',
+      'Ship it on Friday',
       '--json',
       '--option',
-      'minimum-confidence=0.7',
+      'limit=3',
     ])
   })
 
   it('passes every file path positionally, then the remaining options', () => {
-    const argv = buildArgv(entryOf('moderator'), { image_paths: ['a.jpg', 'b.jpg'] })
+    // The runtime moderator takes one image; the list form is still part of the
+    // CLI contract for the vendor transport, so exercise it with a synthesized
+    // entry rather than reintroducing a catalog parameter the model does not have.
+    const moderator = entryOf('moderator')
+    const withPaths = {
+      ...moderator,
+      tool: {
+        ...moderator.tool,
+        params: { image_paths: { type: 'string[]' as const, description: 'Paths' } },
+      },
+    }
+    const argv = buildArgv(withPaths, { image_paths: ['a.jpg', 'b.jpg'] })
     assert.deepEqual(argv, ['moderator', 'a.jpg', 'b.jpg', '--json'])
   })
 
@@ -240,7 +251,8 @@ describe('capability — transport routes', () => {
   })
 
   it('offers the CLI route for a model whose npm prebuild is missing here', () => {
-    const verdict = resolveCapability(entryOf('redact'), {
+    // Align has no extension binding, so the CLI is still a valid transport.
+    const verdict = resolveCapability(entryOf('align'), {
       platform: 'win32',
       resolve: () => false,
       cliAvailable: true,

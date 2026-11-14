@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import test from 'node:test'
 
-import { callTool, cleanup, mountPlugin, tempDir } from './helpers.ts'
+import { callTool, cleanup, mountPlugin, mountPluginWithTongue, tempDir } from './helpers.ts'
 
 const BIN = join(process.cwd(), 'packages', 'dsh-tool-mode', 'bin', 'dsh-tool-mode.mjs')
 
@@ -97,7 +97,10 @@ test('P26-09: catalog transitions still settle after the notification wiring (em
   // commit/rollback; the delivery posture is recorded in
   // docs/tool-mode/OBS-04-subscriptions.md. This pins that the transitions the
   // hook rides on still succeed end to end.
-  const ctx = await mountPlugin({
+  // The catalogue models are provider-bound: enabling one succeeds only when its
+  // extension is active and owns the tool, so the tongue fixture is the mount that
+  // makes this transition real rather than a package-resolution illusion.
+  const ctx = await mountPluginWithTongue({
     stateFile: join(tempDir(), 'state.json'),
     credentialsFile: join(tempDir(), 'credentials.json'),
   })
@@ -105,7 +108,7 @@ test('P26-09: catalog transitions still settle after the notification wiring (em
   assert.equal(listed.isError, false)
   const models = (listed.value as { models: Array<{ id: string; runnable?: boolean }> }).models
   assert.ok(models.length > 0)
-  const target = models.find(model => model.runnable !== false)?.id ?? models[0]!.id
+  const target = 'tongue'
   const disabled = await callTool(ctx, 'model_tools_manage', { action: 'disable', model: target })
   assert.equal(disabled.isError, false, JSON.stringify(disabled))
   const enabled = await callTool(ctx, 'model_tools_manage', { action: 'enable', model: target })
