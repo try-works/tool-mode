@@ -65,17 +65,31 @@ function createToolviews(createElement) {
      * generic card until its name is added here.
      */
     const TOOL_NAMES = Object.freeze([
-      // The plugin's own control tools.
-      'tool_mode_list', 'tool_mode_describe', 'tool_mode_run',
+      // The plugin's own control and discovery tools.
+      'tool_mode_list', 'tool_mode_describe', 'tool_mode_run', 'model_tools', 'model_tools_manage',
+      // Host-owned decision composition registered by this plugin.
+      'decision_combine', 'decision_evaluate', 'decision_route',
       // embeddinggemma
       'multimodal_embed', 'semantic_similarity', 'semantic_rank', 'semantic_classify',
       'semantic_deduplicate', 'media_find_moments', 'dedupe_and_rank',
       // laya
       'decision_choose', 'decision_test', 'decision_score',
+      'decision_choose_local', 'decision_score_typed', 'decision_test_typed',
       // needle
       'tools_plan', 'structured_extract', 'validate_record', 'extract_with_repair',
-      // tongue, voz, minilm, declarative recipes
+      // tongue, voz, minilm, declarative recipes, harness text/vision
       'lang_detect', 'stt_transcribe', 'text_embed', 'text_rerank', 'text_title', 'describe_image',
+      // mirage
+      'mirage_describe', 'mirage_detect', 'mirage_ocr', 'mirage_extract',
+      // Runtime-layer extensions (LiteRT/ONNX engines and code-free recipes).
+      'redact_text', 'shape_recognize', 'detect_fillers', 'enhance_speech',
+      'classify_nsfw', 'identify_language', 'suggest_emojis',
+      // Vendor catalog tools served through adapters when installed.
+      'align_transcript', 'select_clips', 'detect_spoken_language', 'suggest_emoji', 'score_frames',
+      'match_faces', 'tag_topics', 'detect_nsfw', 'redact_pii', 'extract_fields', 'recognize_shape',
+      'suggest_title', 'moderate_text', 'transcribe_audio', 'detect_speakers',
+      // Remote Jev decisions (opt-in).
+      'decision_choose_jev', 'decision_judgments_jev',
     ])
 
     /** The first text block of a tool result, or null. */
@@ -233,6 +247,54 @@ function createToolviews(createElement) {
         case 'text_rerank':
           lines.push((Array.isArray(payload.ranking) || Array.isArray(payload.results)
             ? (payload.ranking ?? payload.results).length : 0) + ' ranked')
+          break
+        case 'model_tools':
+        case 'model_tools_manage': {
+          if (typeof payload.action === 'string') lines.push('action ' + payload.action)
+          if (typeof payload.installed === 'number') {
+            lines.push('installed ' + String(payload.installed) + ' · runnable ' + String(payload.runnable))
+          }
+          break
+        }
+        case 'redact_text':
+          if (Array.isArray(payload.spans)) lines.push(payload.spans.length + ' span(s)')
+          break
+        case 'shape_recognize':
+          if (typeof payload.shape === 'string') {
+            lines.push('shape ' + payload.shape + ' · confidence ' + (number(payload.confidence) ?? '?'))
+          }
+          break
+        case 'detect_fillers':
+          if (Array.isArray(payload.fillers)) lines.push(payload.fillers.length + ' filler span(s)')
+          break
+        case 'enhance_speech':
+          if (typeof payload.sampleRate === 'number' && typeof payload.durationSeconds === 'number') {
+            lines.push(String(payload.sampleRate) + ' Hz · ' + String(payload.durationSeconds) + ' s')
+          }
+          if (payload.coverage && typeof payload.coverage === 'object') {
+            lines.push('coverage complete ' + String(payload.coverage.complete === true))
+          }
+          break
+        case 'classify_nsfw':
+          if (typeof payload.isNSFW === 'boolean') {
+            lines.push('isNSFW ' + String(payload.isNSFW) + ' · score ' + (number(payload.score) ?? '?'))
+          }
+          break
+        case 'identify_language':
+          if (typeof payload.language === 'string') {
+            lines.push('language ' + payload.language + ' · confidence ' + (number(payload.confidence) ?? '?'))
+          }
+          if (typeof payload.isReliable === 'boolean') lines.push('reliable ' + String(payload.isReliable))
+          break
+        case 'suggest_emojis': {
+          const top = Array.isArray(payload.suggestions) ? payload.suggestions[0] : null
+          if (top && typeof top.emoji === 'string') {
+            lines.push(top.emoji + ' · confidence ' + (number(top.confidence) ?? '?'))
+          }
+          break
+        }
+        case 'decision_combine':
+          if (typeof payload.exit === 'string') lines.push('exit ' + payload.exit)
           break
         default:
           break

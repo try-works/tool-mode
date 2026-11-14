@@ -190,6 +190,43 @@ test('EVERY extension package gets an install card, including catalogue-backed o
   }
 })
 
+test('every tool the plugin can register has a card (no hardcoded drift)', () => {
+  const views = loadToolviews()
+  const names = new Set(views['TOOL_NAMES'] as readonly string[])
+  const expected = new Set([
+    // Host tools and host-owned contracts registered by this package.
+    'tool_mode_list', 'tool_mode_describe', 'tool_mode_run', 'model_tools', 'model_tools_manage',
+    'decision_combine', 'decision_evaluate', 'decision_route',
+  ])
+  const catalog = JSON.parse(
+    readFileSync(join(PACKAGE_DIR, 'catalog', 'desert-ant-models.json'), 'utf8'),
+  ) as Array<{ tool?: { name?: string } }>
+  for (const model of catalog) if (typeof model.tool?.name === 'string') expected.add(model.tool.name)
+  const extensionsDir = join(PACKAGE_DIR, '..')
+  for (const entry of readdirSync(extensionsDir, { withFileTypes: true })) {
+    if (!entry.isDirectory() || !entry.name.startsWith('extension-')) continue
+    const manifestPath = join(extensionsDir, entry.name, 'tool-mode.extension.json')
+    if (!existsSync(manifestPath)) continue
+    const doc = JSON.parse(readFileSync(manifestPath, 'utf8')) as { tools?: Array<{ name?: string }> }
+    for (const tool of doc.tools ?? []) if (typeof tool.name === 'string') expected.add(tool.name)
+  }
+  const missing = [...expected].filter(name => !names.has(name)).sort()
+  assert.deepEqual(missing, [], 'add every missing tool name to TOOL_NAMES so its calls get a card')
+})
+
+test('the card summary covers control and runtime-layer tools', () => {
+  const views = loadToolviews()
+  const summary = views['summaryFor'] as (tool: string, payload: unknown) => string[]
+  const control = summary('model_tools', { action: 'list', installed: 0, runnable: 0 })
+  assert.ok(control.some(line => line.includes('action list')), JSON.stringify(control))
+  const nsfw = summary('classify_nsfw', { isNSFW: false, score: 0.1 })
+  assert.ok(nsfw.some(line => line.includes('isNSFW false')), JSON.stringify(nsfw))
+  const emoji = summary('suggest_emojis', { suggestions: [{ emoji: '💰', confidence: 0.65 }] })
+  assert.ok(emoji.length === 1 && emoji[0]?.includes('💰'), JSON.stringify(emoji))
+  const language = summary('identify_language', { language: 'en', confidence: 0.31, isReliable: false })
+  assert.ok(language.some(line => line.includes('language en')), JSON.stringify(language))
+})
+
 test('the generated bundle carries the cards INLINE and fetches no chunk', () => {
   const bundle = readFileSync(join(PACKAGE_DIR, 'client', 'index.js'), 'utf8')
   assert.ok(bundle.includes('function createToolviews'), 'the cards must be inlined into the bundle')
