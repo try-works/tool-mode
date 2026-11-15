@@ -3664,8 +3664,7 @@ function createToolInsights(createElement, reactLib) {
     }
 
     /** Read the persisted snapshot for one namespace key, or null. */
-    function persistedExtensionState(key) {
-      const storage = extensionStateStorage()
+    function persistedExtensionState(key, storage = extensionStateStorage()) {
       if (storage === null) return null
       try {
         const raw = storage.getItem(EXTENSION_STATE_STORAGE_KEY + ':' + key)
@@ -3697,6 +3696,7 @@ function createToolInsights(createElement, reactLib) {
           EXTENSION_STATE_STORAGE_KEY + ':' + key,
           JSON.stringify({ at: state.at, snapshot: state.snapshot }),
         )
+        storage.setItem(EXTENSION_STATE_STORAGE_KEY + ':last', key)
       } catch {
         // Quota or a privacy mode: the in-memory cache still serves this page.
       }
@@ -3802,6 +3802,98 @@ function createToolInsights(createElement, reactLib) {
       state.at = 0
       state.revalidated = false
       dropExtensionState(extensionReadKey(namespace))
+    }
+
+    /** How long the page waits for the host's extension-state answer before giving up. */
+    const EXTENSION_READ_TIMEOUT_MS = 4000
+
+    /** The neutral copy while the page has no host answer yet. */
+    const CHECKING_EXTENSION_STATE = 'Checking the host for extension state…'
+    /** The copy when the host answered too slowly. */
+    const TIMEOUT_EXTENSION_STATE = 'The host is taking too long to report extension state.'
+
+    /**
+     * The page view derived from one extRemote value.
+     *
+     * A LOADING page is CHECKING, not absent: it must never claim the host does
+     * not expose the Remote while it simply has not answered yet.
+     * @param remote - the extRemote state value.
+     * @returns { checking, note, actionEnabled, canRetry }.
+     */
+    function extensionRemoteView(remote) {
+      const kind = remote === null || remote === undefined ? 'loading' : remote.kind
+      if (kind === 'ready') return { checking: false, note: null, actionEnabled: true, canRetry: false }
+      if (kind === 'loading') {
+        return { checking: true, note: CHECKING_EXTENSION_STATE, actionEnabled: false, canRetry: false }
+      }
+      if (kind === 'absent') {
+        return {
+          checking: false,
+          note: 'The host does not expose its extension controls to this page.',
+          actionEnabled: false,
+          canRetry: true,
+        }
+      }
+      if (kind === 'timeout') return { checking: false, note: TIMEOUT_EXTENSION_STATE, actionEnabled: false, canRetry: true }
+      return {
+        checking: false,
+        note: remote.text || TIMEOUT_EXTENSION_STATE,
+        actionEnabled: false,
+        canRetry: true,
+      }
+    }
+
+    /**
+     * The initial extRemote state, seeded SYNCHRONOUSLY from the persisted snapshot.
+     *
+     * A page with a cached snapshot starts 'ready' and never shows a loading
+     * flash; a fresh page starts 'checking' and is bounded by the read timeout.
+     * @param namespace - the Remote namespace, or null before it mounts.
+     * @returns the initial extRemote value.
+     */
+    function initialExtensionRemote(namespace, storage = extensionStateStorage()) {
+      let key = namespace === null || namespace === undefined ? null : extensionReadKey(namespace)
+      if (key === null && storage !== null) {
+        const last = storage.getItem(EXTENSION_STATE_STORAGE_KEY + ':last')
+        if (last !== null && last.length > 0) key = last
+      }
+      if (key !== null) {
+        const persisted = persistedExtensionState(key, storage)
+        if (persisted !== null) return { kind: 'ready', namespace: namespace ?? null, ...persisted.snapshot }
+      }
+      return { kind: 'loading' }
+    }
+
+    /**
+     * Bound one extension read, resolving a marker instead of hanging forever.
+     *
+     * @param promise - the describeExtensions() promise.
+     * @param timeoutMs - how long to wait before reporting the timeout marker.
+     * @returns { timedOut, value, error? }; it never rejects.
+     */
+    function extensionReadTimeout(promise, timeoutMs) {
+      return new Promise(resolve => {
+        let settled = false
+        const timer = setTimeout(() => {
+          if (settled) return
+          settled = true
+          resolve({ timedOut: true, value: undefined })
+        }, timeoutMs)
+        promise.then(
+          value => {
+            if (settled) return
+            settled = true
+            clearTimeout(timer)
+            resolve({ timedOut: false, value })
+          },
+          error => {
+            if (settled) return
+            settled = true
+            clearTimeout(timer)
+            resolve({ timedOut: false, value: undefined, error })
+          },
+        )
+      })
     }
 
     /**
@@ -4425,7 +4517,8 @@ function createToolInsights(createElement, reactLib) {
       if (row.actions.install === true && ui.ready && !ui.canInstall) {
         addNote('This host exposes extension state but not the install action; install it through the extension store.')
       }
-      if (row.extensionId !== null && !ui.ready) addNote(ui.unavailableNote)
+      if (row.extensionId !== null && ui.checking) addNote(ui.checkingNote)
+      if (row.extensionId !== null && !ui.ready && !ui.checking) addNote(ui.unavailableNote)
       if (ui.prepareNote !== null && ui.prepareNote !== undefined && ui.prepareNote.id === row.extensionId) {
         addNote(ui.prepareNote.text)
       }
@@ -4445,9 +4538,11 @@ function createToolInsights(createElement, reactLib) {
           className: 'mtt-button mtt-button-small',
           disabled: ui.readonly || !ui.extWritable || !ui.ready || !ui.canInstall || requirementControls.installBlocked,
           'aria-busy': pending === 'install',
-          title: !ui.ready
-            ? 'The host does not expose the extension install action to this page'
-            : !ui.canInstall
+          title: ui.checking
+            ? 'Checking the host for extension state…'
+            : !ui.ready
+              ? 'The host does not expose the extension install action to this page'
+              : !ui.canInstall
               ? 'This host does not expose the extension install action'
               : requirementControls.installBlocked
                 ? 'Install is blocked by a host requirement; see the row reason'
@@ -4482,14 +4577,16 @@ function createToolInsights(createElement, reactLib) {
         }, h('span', { className: 'mtt-knob' })))
       }
 
-      const badgeClass = row.lifecycle === 'active' ? 'mtt-badge mtt-badge-on' : 'mtt-badge'
+      const checking = row.extensionId !== null && ui.checking
+      const badgeText = checking ? 'checking…' : UNIFIED_LIFECYCLE_LABELS[row.lifecycle] ?? row.lifecycle
+      const badgeClass = !checking && row.lifecycle === 'active' ? 'mtt-badge mtt-badge-on' : 'mtt-badge'
       const metaParts = [row.id, row.providerLabel]
       if (row.tools.length > 0) metaParts.push('tools: ' + row.tools.join(', '))
       return h('div', { className: 'mtt-row', key: row.id },
         h('div', { className: 'mtt-row-text' },
           h('span', { className: 'mtt-label' },
             h('span', { className: 'mtt-name' }, row.name),
-            h('span', { className: badgeClass }, UNIFIED_LIFECYCLE_LABELS[row.lifecycle] ?? row.lifecycle)),
+            h('span', { className: badgeClass }, badgeText)),
           h('p', { className: 'mtt-help' }, row.summary),
           h('span', { className: 'mtt-meta' }, metaParts.join(' · ')),
           notes.map((note, index) => h('p', {
@@ -4502,15 +4599,18 @@ function createToolInsights(createElement, reactLib) {
     }
 
     function ModelToolsSettings({ form, ctx, remoteSlot }) {
+      /** This mount's namespace status, or null when the wire chunk is absent. */
+      const mounted = () => (remoteSlot === null || remoteSlot === undefined ? null : remoteSlot.get())
       const [snap, setSnap] = React.useState(() => form.getSnapshot())
       const [draft, setDraft] = React.useState({})
       const [exclude, setExclude] = React.useState(null)
       const [disabledExt, setDisabledExt] = React.useState(null)
       const [status, setStatus] = React.useState(null)
       // Extension state is the HOST's answer, read from ctx.remote.modelTools.
-      // `kind` is loading | ready | absent | error; it starts loading so the card
-      // never renders a guessed installed/active state before the first read.
-      const [extRemote, setExtRemote] = React.useState({ kind: 'loading' })
+      // It is seeded SYNCHRONOUSLY from the persisted snapshot, so a page with a
+      // cache starts 'ready' (stale-while-revalidate). Without one it starts
+      // 'loading' and the page renders its STATIC inventory while CHECKING.
+      const [extRemote, setExtRemote] = React.useState(() => initialExtensionRemote(modelToolsRemote(ctx, mounted())))
       /**
        * Actions in flight, keyed by extension id.
        *
@@ -4545,9 +4645,6 @@ function createToolInsights(createElement, reactLib) {
         return next
       })
 
-      /** This mount's namespace status, or null when the wire chunk is absent. */
-      const mounted = () => (remoteSlot === null || remoteSlot === undefined ? null : remoteSlot.get())
-
       React.useEffect(() => form.subscribe(() => setSnap(form.getSnapshot())), [form])
 
       // Read the extension state on mount. The namespace may arrive after this
@@ -4559,10 +4656,17 @@ function createToolInsights(createElement, reactLib) {
         let timer = null
         let attempts = 0
         const adopt = namespace => {
-          describeExtensions(namespace).then(described => {
-            if (alive) setExtRemote({ kind: 'ready', namespace, ...described })
-          }, error => {
-            if (alive) setExtRemote({ kind: 'error', text: remoteErrorText(error) })
+          extensionReadTimeout(describeExtensions(namespace), EXTENSION_READ_TIMEOUT_MS).then(outcome => {
+            if (!alive) return
+            if (outcome.timedOut) {
+              setExtRemote({ kind: 'timeout', text: TIMEOUT_EXTENSION_STATE })
+              return
+            }
+            if (outcome.error !== undefined) {
+              setExtRemote({ kind: 'error', text: remoteErrorText(outcome.error) })
+              return
+            }
+            setExtRemote({ kind: 'ready', namespace, ...outcome.value })
           })
         }
         const read = () => {
@@ -4794,11 +4898,16 @@ function createToolInsights(createElement, reactLib) {
           return
         }
         invalidateExtensionState(namespace)
-        try {
-          setExtRemote({ kind: 'ready', namespace, ...(await describeExtensions(namespace)) })
-        } catch (error) {
-          setExtRemote({ kind: 'error', text: remoteErrorText(error) })
+        const outcome = await extensionReadTimeout(describeExtensions(namespace), EXTENSION_READ_TIMEOUT_MS)
+        if (outcome.timedOut) {
+          setExtRemote({ kind: 'timeout', text: TIMEOUT_EXTENSION_STATE })
+          return
         }
+        if (outcome.error !== undefined) {
+          setExtRemote({ kind: 'error', text: remoteErrorText(outcome.error) })
+          return
+        }
+        setExtRemote({ kind: 'ready', namespace, ...outcome.value })
       }
 
       /**
@@ -4946,9 +5055,14 @@ function createToolInsights(createElement, reactLib) {
               h('p', { className: 'mtt-row-note' }, 'Their switches only record a disabledExtensions preference for the next load.'),
               h('div', { className: 'mtt-actions' },
                 h('button', { type: 'button', className: 'mtt-button mtt-button-small', onClick: recheckExtensions }, 'Recheck')))
-            : extRemote.kind === 'loading'
-              ? h('p', { className: 'mtt-help' }, 'Reading the extension state from the host…')
-              : null,
+            : extRemote.kind === 'timeout'
+              ? h('div', null,
+                h('p', { className: 'mtt-row-error' }, TIMEOUT_EXTENSION_STATE),
+                h('div', { className: 'mtt-actions' },
+                  h('button', { type: 'button', className: 'mtt-button mtt-button-small', onClick: recheckExtensions }, 'Try again')))
+              : extRemote.kind === 'loading'
+                ? h('p', { className: 'mtt-help' }, 'Checking the host for extension state… the model list and config below are ready to use.')
+                : null,
         unifiedRows.map(row => unifiedModelRow(row, stateForRow(row), {
           readonly: disabled,
           extWritable,
@@ -4962,6 +5076,8 @@ function createToolInsights(createElement, reactLib) {
           onAction: runExtensionAction,
           onVendorToggle: toggleModel,
           unavailableNote,
+          checking: extensionRemoteView(extRemote).checking,
+          checkingNote: CHECKING_EXTENSION_STATE,
         })))
 
       const providersCard = toolProviders.length === 0 ? null : h('div', { className: 'mtt-card' },
@@ -4980,11 +5096,15 @@ function createToolInsights(createElement, reactLib) {
             installNote: extInstallNote,
             onAction: runExtensionAction,
           }))
-          : extRemote.kind === 'absent'
-            ? toolProviders.map(entry => extensionFallbackRow(entry, isExtensionEnabled(entry.id), disabled, toggleExtension))
-            : h('p', { className: 'mtt-help' }, extRemote.kind === 'error'
+          : h('div', null,
+            h('p', { className: 'mtt-help' }, extRemote.kind === 'error'
               ? 'Reading their state failed: ' + extRemote.text
-              : 'Reading their state from the host…'))
+              : extRemote.kind === 'timeout'
+                ? TIMEOUT_EXTENSION_STATE
+                : extRemote.kind === 'absent'
+                  ? 'The host does not expose its extension controls to this page, so these switches only record a disabledExtensions preference for the next load.'
+                  : 'Checking the host for extension state… their switches only record a disabledExtensions preference either way.'),
+            toolProviders.map(entry => extensionFallbackRow(entry, isExtensionEnabled(entry.id), disabled, toggleExtension))))
 
       return h('div', { className: 'mtt-page' },
         h('style', null, CSS),
@@ -5116,6 +5236,12 @@ function createToolInsights(createElement, reactLib) {
       REMOTE_SNAPSHOT_TTL_MS,
       buildUnifiedModelRows,
       extensionModelState,
+      extensionRemoteView,
+      initialExtensionRemote,
+      extensionReadTimeout,
+      EXTENSION_READ_TIMEOUT_MS,
+      CHECKING_EXTENSION_STATE,
+      TIMEOUT_EXTENSION_STATE,
       ModelToolsSettings,
       findExtensionState,
       nextDisabledExtensions,
