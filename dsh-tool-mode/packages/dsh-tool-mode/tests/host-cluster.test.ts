@@ -42,7 +42,10 @@ test('DECL-07: tool_mode_list reports permitted tools + the catalog revision', a
   })
   const result = await callTool(ctx, 'tool_mode_list', {})
   assert.equal(result.isError, false, JSON.stringify(result))
-  const value = result.value as { catalogRevision: string; tools: Array<{ name: string; readiness: string }> }
+  const value = result.value as {
+    catalogRevision: string
+    tools: Array<{ name: string; readiness: string; bindable?: boolean; contractVersion?: string | null }>
+  }
   assert.ok(value.catalogRevision.length > 0)
   assert.ok(value.tools.length > 0, 'the model catalog contributes tools')
   // DECL-07: the registry's own tools are part of the permitted surface. They used
@@ -52,6 +55,13 @@ test('DECL-07: tool_mode_list reports permitted tools + the catalog revision', a
     assert.ok(names.includes(hostTool), `tool_mode_list must include ${hostTool}; got ${names.join(', ')}`)
   }
   assert.equal(new Set(names).size, names.length, 'tool_mode_list must not duplicate a tool')
+  // PREFLIGHT (probe E): callable is not bindable. The control tools are listed because
+  // they can be called, but a program can never bind them (CODE-07).
+  const control = value.tools.find(tool => tool.name === 'tool_mode_run')
+  assert.equal(control?.bindable, false, 'a control tool must be marked not bindable')
+  const ordinary = value.tools.find(tool => tool.name === 'lang_detect')
+  if (ordinary !== undefined) assert.equal(ordinary.bindable, true, 'a catalog tool must be marked bindable')
+  assert.ok(value.tools.every(tool => typeof tool.bindable === 'boolean'), 'every row carries the preflight bit')
   await cleanup()
 })
 
@@ -62,9 +72,20 @@ test('DECL-07: tool_mode_describe returns schemas for a requested tool + refuses
   })
   const result = await callTool(ctx, 'tool_mode_describe', { tools: ['tool_mode_list'] })
   assert.equal(result.isError, false, JSON.stringify(result))
-  const described = (result.value as { tools: Array<{ name: string; description: string }> }).tools[0]!
+  const described = (result.value as {
+    tools: Array<{ name: string; description: string; contract?: string | null; contractVersion?: string | null; bindable?: boolean }>
+  }).tools[0]!
   assert.equal(described.name, 'tool_mode_list')
   assert.ok(described.description.length > 0)
+  // Probe E gap: describe must publish the contract it describes, and the preflight bit.
+  assert.equal(described.contract, 'host.tool_mode_list')
+  assert.equal(described.contractVersion, '1.1.0')
+  assert.equal(described.bindable, false, 'tool_mode_list is a control tool and is not program-bindable')
+  const run = await callTool(ctx, 'tool_mode_describe', { tools: ['tool_mode_run'] })
+  assert.equal(run.isError, false, JSON.stringify(run))
+  const runRow = (run.value as { tools: Array<{ bindable?: boolean; contractVersion?: string | null }> }).tools[0]!
+  assert.equal(runRow.bindable, false)
+  assert.equal(runRow.contractVersion, '1.0.0')
   const unknown = await callTool(ctx, 'tool_mode_describe', { tools: ['no_such_tool_xyz'] })
   assert.equal(unknown.isError, true)
   await cleanup()

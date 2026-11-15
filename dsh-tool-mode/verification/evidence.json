@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-11-15T17:57:52.868Z",
+  "generatedAt": "2026-11-15T18:18:21.833Z",
   "git": {
-    "commit": "ca95edd2dbb9fcba39b83d07168a2a25d79b56af",
+    "commit": "0e3ceae4162261da17f0f78dd8ee8c15d6196dc5",
     "branch": "main",
     "dirty": true
   },
@@ -73,7 +73,7 @@
   "packages": [
     {
       "name": "@try-works/dsh-tool-mode",
-      "version": "0.5.75",
+      "version": "0.5.76",
       "path": "packages/dsh-tool-mode"
     },
     {
@@ -1476,6 +1476,7 @@
       "owningModule": "packages/dsh-tool-mode/src/ptc-runtime.ts",
       "testLayer": "unit",
       "testIds": [
+        "packages/dsh-tool-mode/tests/host-cluster.test.ts",
         "packages/dsh-tool-mode/tests/ptc-authority.test.ts",
         "packages/dsh-tool-mode/tests/ptc-composition.test.ts",
         "packages/dsh-tool-mode/tests/receipt-enrichment.test.ts",

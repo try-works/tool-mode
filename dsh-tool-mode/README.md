@@ -195,6 +195,11 @@ Saving and defining are allowed while the gate is closed; running is not. State 
 one JSON document under the plugin state directory (`agentAuthoringFile` overrides it);
 `allowAgentAuthoring: false` disables the whole surface.
 
+The program binding surface is fixed when a run starts. A tool defined with
+`tool_mode_tools` is registered immediately and appears in discovery, but a program cannot
+bind a name it defines in that same run: define the tool first, then compose it in a later
+program (or call it directly).
+
 ## Code Mode gate
 
 **Release checklist:** before publishing, run

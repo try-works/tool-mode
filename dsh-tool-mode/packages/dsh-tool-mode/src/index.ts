@@ -33,6 +33,7 @@ import { createAdapter } from './adapters/index.ts'
 import { registerModelTool, shouldDeferHeavySchema, toolSchemaBytes } from './registrar.ts'
 import { registerContractTool, registerContractImplementationTool, type ContractBinding, type HostIdentity } from './bindings.ts'
 import { contractToolDescription, extensionToolDescription } from './tool-description.ts'
+import { EXCLUDED_BINDINGS } from './ptc-authority.ts'
 import { appendFileSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, resolve, sep } from 'node:path'
 import { createContributionRegistrar, type RegistrableTool } from './extension-registrar.ts'
@@ -202,11 +203,11 @@ const DSH_PARAMETER_KEYWORDS = new Set([
 const TOOL_MODE_PROMPT_SECTION = `## Tool Mode
 On-device model tools run beside your other tools.
 
-- **callable vs unavailable.** \`tool_mode_list\` returns \`tools\` (names you can call now) and \`unavailable\` (catalogued models you cannot call here, each with \`state\` and \`reason\`). Only names in \`tools\` may be bound in a \`tool_mode_run\` program; binding an \`unavailable\` name refuses the whole request.
-- **list and describe first in Code Mode.** Call \`tool_mode_list\`, then \`tool_mode_describe\` for the exact input/output schema. Describing a non-callable name answers \`callable: false\` with the reason and the action that would clear it, not a schema.
-- **prepared-cold loads on the first call.** A \`prepared-cold\` model starts its engine when you first call it, so that call is slower and may exceed the advertised timeout; retry once before concluding it is unavailable.
-- **per-call receipts.** Every invocation records a receipt (model, extension, outcome, elapsed). Read them with \`model_tools\` action \`receipts\` instead of re-running a call to see what happened.
-- **author your own.** \`tool_mode_workflows\` saves and re-runs programs by name; \`tool_mode_tools\` defines persistent \`agent_*\` tools. Running is gated.`
+- **callable vs unavailable.** \`tool_mode_list\` splits callable tools (\`tools\`) from catalogued-but-unavailable models (\`unavailable\`, with state and reason). A program may bind only rows with \`bindable: true\`; control tools are callable but not bindable.
+- **list and describe first in Code Mode.** Call \`tool_mode_list\`, then \`tool_mode_describe\` for schemas. A non-callable name returns \`callable: false\` with the reason and clearing action.
+- **prepared-cold loads on the first call.** A \`prepared-cold\` model starts its engine on its first call, which is slower and may exceed the timeout; retry once.
+- **per-call receipts.** Every invocation records a receipt; read them with \`model_tools\` action \`receipts\` instead of re-running a call.
+- **author your own.** \`tool_mode_workflows\` saves/re-runs programs; \`tool_mode_tools\` defines persistent \`agent_*\` tools (callable after the defining run; a program's bindings are fixed at start). Running is gated.`
 
 /** Plugin configuration. */
 export interface Config {
@@ -4278,6 +4279,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       const output = ctx.tools.get(name)?.output.schema
       return Object.keys(parameters ?? {}).length > 0 || Object.keys(output ?? {}).length > 0
     }
+    /**
+     * PREFLIGHT (probe E): callable and bindable are different facts. A control tool is
+     * callable directly but never bindable in a program (CODE-07), and a confidential
+     * tool's value cannot cross the program boundary (MCP-11). Both discovery surfaces
+     * publish this bit so an agent can tell the difference WITHOUT provoking a refusal.
+     */
+    const bindableName = (name: string): boolean =>
+      !EXCLUDED_BINDINGS.includes(name) && !confidentialTools.has(name)
     const describeOne = async (name: string) => {
       const registrySchema = ctx.tools.schemas().find(schema => schema.name === name)
       const definition = ctx.tools.get(name)
@@ -4298,6 +4307,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         return {
           name,
           callable: false as const,
+          bindable: false as const,
+          ...contractFactsFor(name),
           state: surface.state,
           reason: descriptor.reason,
           action: clearingActionFor(surface.state, modelItem.entry.provider?.extension),
@@ -4321,6 +4332,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       return {
         name,
         callable: true as const,
+        bindable: bindableName(name),
+        ...contractFactsFor(name),
         description: registrySchema?.description ?? descriptor?.summary ?? '',
         parameters: inputSchema,
         outputSchema,
@@ -4363,11 +4376,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     ctx.tools.register(defineTool({
       name: 'tool_mode_list',
       description:
-        'List the tools this caller may use. `tools` are the names that can be BOUND in a program and called '
-        + 'now; `unavailable` lists catalogued models that cannot be called here, each with its readiness state '
-        + 'and the reason. Only `tools` may be bound in a program: binding an `unavailable` name refuses the '
-        + 'whole request, and the Tool Mode control tools are callable directly but excluded from programs (CODE-07). '
-        + 'See the **Tool Mode** system-prompt section for the callable/unavailable contract. '
+        'List the tools this caller may use. `tools` are the names that can be CALLED now; each row carries '
+        + '`bindable`, true when a program may bind it (false for CODE-07 control tools and MCP-11 confidential '
+        + 'tools), so a caller can tell callable from bindable without provoking a refusal. `unavailable` lists '
+        + 'catalogued models that cannot be called here with its readiness state and reason. '
         + 'Read-only discovery (DECL-07): it never installs, prepares, activates or changes anything.',
       parameters: {},
       output: {
@@ -4435,6 +4447,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             recipeDigest: declarativeRecipeDigests.get(toolName) ?? null,
             ...contractFactsFor(toolName),
             schemaAvailable: schemaAvailableFor(toolName),
+            bindable: bindableName(toolName),
           })
         }
         /**
@@ -4479,6 +4492,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             recipeDigest: null,
             ...contractFactsFor(schema.name),
             schemaAvailable: schemaAvailableFor(schema.name),
+            bindable: bindableName(schema.name),
           } as never)
         }
         return { catalogRevision: catalogRevision(), tools, unavailable } as never
@@ -4490,9 +4504,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     ctx.tools.register(defineTool({
       name: 'tool_mode_describe',
       description:
-        'Describe one or more tools by name: the selected input/output schemas, the resolved model, limits and '
-        + 'the catalog revision. A catalog name that cannot be called is explained with its readiness state, the '
-        + 'reason and the action that would clear it, instead of a schema. '
+        'Describe one or more tools by name: the selected input/output schemas, the resolved model, limits, '
+        + '`contract`/`contractVersion` and `bindable` (whether a program may bind it, without provoking a '
+        + 'refusal), plus the catalog revision. A catalog name that cannot be called is explained with its '
+        + 'readiness state, the reason and the action that would clear it, instead of a schema. '
         + 'Read-only discovery (DECL-07): it never installs, prepares, activates or changes anything.',
       parameters: {
         tools: {
@@ -4732,8 +4747,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         'Run a program that calls Tool Mode tools (CODE-02). The requested `tools` list is '
         + 'a binding subset, not a grant: only names the host itself has granted are bound, '
         + 'and the whole request is refused when any name is unattainable. `tools` may be '
-        + 'empty for a pure transform that computes only from `input`. The report\'s meta.calls carries '
-        + 'the bounded trace and meta.dataFlow the observed output-to-argument edges.',
+        + 'empty for a pure transform that computes only from `input`. Bindings are fixed when the run '
+        + 'starts, so a tool defined during this run is available only to later runs. The report\'s '
+        + 'meta.calls carries the bounded trace and meta.dataFlow the observed output-to-argument edges.',
       parameters: {
         // Advisory only, and optional: the program's code is what runs, and the
         // literal CODE-02 payload `{ code, tools }` must be callable as advertised.
@@ -5111,7 +5127,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         + 'schema). WHEN TO USE: define a tool once so it is registered for every later call; '
         + 'list or get definitions; delete one. The stored program runs through the same confined '
         + 'runner as tool_mode_run, its tools list is a binding subset (never a grant), and '
-        + 'execution is refused until the operator opens the hosted-code gate.',
+        + 'execution is refused until the operator opens the hosted-code gate. Defining registers '
+        + 'the tool immediately for direct calls and later programs; a program already running keeps '
+        + 'the bindings it started with, so it cannot call a tool defined in that same run.',
       parameters: {
         action: {
           type: 'string',

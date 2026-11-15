@@ -48,6 +48,8 @@ const discoveryOutputSchema: Record<string, unknown> = {
           contract: { type: ['string', 'null'] },
           contractVersion: { type: ['string', 'null'] },
           schemaAvailable: { type: 'boolean' },
+          /** PREFLIGHT: true when a program may bind it (callable is not enough). */
+          bindable: { type: 'boolean' },
         },
       },
     },
@@ -89,6 +91,11 @@ const describeOutputSchema: Record<string, unknown> = {
         additionalProperties: true,
         properties: {
           name: { type: 'string' },
+          /** The contract this tool publishes, and its version (null when none). */
+          contract: { type: ['string', 'null'] },
+          contractVersion: { type: ['string', 'null'] },
+          /** PREFLIGHT: false for control tools (CODE-07) and confidential tools. */
+          bindable: { type: 'boolean' },
           semantics: { type: 'object', additionalProperties: true },
           unsupported: { type: 'array', items: { type: 'string' }, maxItems: 64 },
         },
@@ -100,14 +107,13 @@ const describeOutputSchema: Record<string, unknown> = {
 /** `tool_mode_list` — permitted tools, readiness and catalog revision. */
 export const TOOL_MODE_LIST_CONTRACT: ToolContract = {
   contract: 'host.tool_mode_list',
-  version: '1.0.0',
+  version: '1.1.0',
   toolName: 'tool_mode_list',
   description:
-    'List the tools this caller may use. `tools` are the names that can be BOUND in a program and called '
-    + 'now; `unavailable` lists catalogued models that cannot be called here, each with its readiness state '
-    + 'and the reason. Only `tools` may be bound in a program. See the **Tool Mode** system-prompt section '
-    + 'for the callable/unavailable contract. Read-only discovery (DECL-07): it never installs, prepares, '
-    + 'activates or changes anything.',
+    'List the tools this caller may use. `tools` are the names that can be CALLED now; each row carries '
+    + '`bindable`, true when a program may bind it (false for CODE-07 control tools and MCP-11 confidential '
+    + 'tools). `unavailable` lists catalogued models that cannot be called here with its readiness state and '
+    + 'reason. Read-only discovery (DECL-07): it never installs, prepares, activates or changes anything.',
   inputSchema: {
     type: 'object',
     additionalProperties: false,
@@ -123,13 +129,14 @@ export const TOOL_MODE_LIST_CONTRACT: ToolContract = {
 /** `tool_mode_describe` — schemas, model facts, limits and catalog revision. */
 export const TOOL_MODE_DESCRIBE_CONTRACT: ToolContract = {
   contract: 'host.tool_mode_describe',
-  version: '1.0.0',
+  version: '1.1.0',
   toolName: 'tool_mode_describe',
   description:
-    'Describe one or more tools by name: the selected input/output schemas, the resolved model, limits and '
-    + 'the catalog revision. A catalog name that cannot be called is explained with its readiness state, the '
-    + 'reason and the action that would clear it, instead of a schema. Read-only discovery (DECL-07): it never '
-    + 'installs, prepares, activates or changes anything.',
+    'Describe one or more tools by name: the selected input/output schemas, the resolved model, limits, '
+    + '`contract`/`contractVersion` and `bindable` (whether a program may bind it, without provoking a '
+    + 'refusal), plus the catalog revision. A catalog name that cannot be called is explained with its '
+    + 'readiness state, the reason and the action that would clear it, instead of a schema. Read-only '
+    + 'discovery (DECL-07): it never installs, prepares, activates or changes anything.',
   inputSchema: {
     type: 'object',
     additionalProperties: false,

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-15T17:57:52.868Z",
+  "generatedAt": "2026-11-15T18:18:21.833Z",
   "specification": [
     {
       "id": "TM-DSH-001",
@@ -1371,6 +1371,7 @@
       "owningModule": "packages/dsh-tool-mode/src/ptc-runtime.ts",
       "testLayer": "unit",
       "testIds": [
+        "packages/dsh-tool-mode/tests/host-cluster.test.ts",
         "packages/dsh-tool-mode/tests/ptc-authority.test.ts",
         "packages/dsh-tool-mode/tests/ptc-composition.test.ts",
         "packages/dsh-tool-mode/tests/receipt-enrichment.test.ts",
