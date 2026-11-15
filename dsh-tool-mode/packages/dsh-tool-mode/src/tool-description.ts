@@ -47,6 +47,8 @@ export interface ToolDescriptionInput {
 
 /** The declaration an extension/recipe tool supplies to the composer. */
 export interface ExtensionToolDescriptionInput {
+  /** The caller-facing tool name, used to look up reviewed disambiguation guidance. */
+  readonly toolName?: string | undefined
   /** The description the manifest or recipe declares, when it declares one. */
   readonly description?: string | undefined
   /** The owner sentence used when no description is declared. */
@@ -70,9 +72,11 @@ export interface ExtensionToolDescriptionInput {
  */
 export function extensionToolDescription(input: ExtensionToolDescriptionInput): string {
   const declared = (input.description ?? '').trim()
+  const guidance = input.toolName === undefined ? undefined : EXTENSION_TOOL_DISAMBIGUATION[input.toolName]
   return composeToolDescription({
     purpose: declared.length > 0 ? declared : input.fallback.trim(),
-    whenToUse: input.skill?.description,
+    whenToUse: guidance?.whenToUse ?? input.skill?.description,
+    whenNotToUse: guidance?.whenNotToUse,
     skill: input.skill === undefined ? undefined : { name: input.skill.name },
   })
 }
@@ -120,30 +124,50 @@ function limitText(text: string): string {
     : text.slice(0, TOOL_DESCRIPTION_MAX_CHARS - 1).trimEnd() + '…'
 }
 
+/** Bound the purpose to at most the given number of characters. */
+function boundPurpose(text: string, cap: number): string {
+  return text.length <= cap ? text : text.slice(0, Math.max(1, cap - 1)).trimEnd() + '…'
+}
+
 /**
- * Fit the blocks into the character budget, for ANY input.
+ * Fit the description into the character budget, DECISION-FIRST.
  *
- * The purpose is kept first but never occupies more than a bounded share of the
- * budget (40%); every remaining section is truncated to an equal share of what is
- * left, so the result is deterministic and always within the budget.
+ * The purpose is bounded (at most 40% of the budget) and the when-to-use and
+ * when-not-to-use sections — the text that actually decides WHICH tool to call —
+ * are preserved in full before anything else. Inputs/outputs, limits, example and
+ * the skill pointer are added only while they fit, in section order; they are the
+ * first things dropped. Only if the decision sections alone exceed the budget are
+ * the decision bullets themselves shortened (deterministically).
  */
-function bounded(blocks: readonly string[]): string {
-  const joined = blocks.join('\n\n')
-  if (joined.length <= TOOL_DESCRIPTION_MAX_CHARS) return joined
-  const purpose = blocks[0] ?? ''
-  const rest = blocks.slice(1)
-  const headBudget = Math.max(1, Math.floor(TOOL_DESCRIPTION_MAX_CHARS * 0.4))
-  const head = purpose.length <= headBudget
-    ? purpose
-    : purpose.slice(0, headBudget - 1).trimEnd() + '…'
-  if (rest.length === 0) return limitText(head)
-  const available = TOOL_DESCRIPTION_MAX_CHARS - head.length - (rest.length - 1) * 2
-  const share = Math.max(1, Math.floor(available / rest.length))
-  const kept = [head]
-  for (const block of rest) {
-    kept.push(block.length <= share ? block : block.slice(0, Math.max(1, share - 1)).trimEnd() + '…')
+function bounded(
+  purposeText: string,
+  decisionBlocks: readonly string[],
+  lowerBlocks: readonly string[],
+): string {
+  const decisions = decisionBlocks.join('\n\n')
+  const separator = decisionBlocks.length > 0 ? 2 : 0
+  const cap = Math.max(
+    1,
+    Math.min(
+      Math.floor(TOOL_DESCRIPTION_MAX_CHARS * 0.4),
+      TOOL_DESCRIPTION_MAX_CHARS - decisions.length - separator,
+    ),
+  )
+  const purpose = boundPurpose(purposeText, cap)
+  const decisionText = [purpose, ...decisionBlocks].join('\n\n')
+  if (decisionText.length > TOOL_DESCRIPTION_MAX_CHARS) {
+    const available = Math.max(1, TOOL_DESCRIPTION_MAX_CHARS - purpose.length - decisionBlocks.length * 2)
+    const share = Math.max(1, Math.floor(available / Math.max(1, decisionBlocks.length)))
+    const shrunk = decisionBlocks.map(block => block.length <= share
+      ? block
+      : block.slice(0, Math.max(1, share - 1)).trimEnd() + '…')
+    return limitText([purpose, ...shrunk].join('\n\n'))
   }
-  return limitText(kept.join('\n\n'))
+  let text = decisionText
+  for (const block of lowerBlocks) {
+    if (text.length + 2 + block.length <= TOOL_DESCRIPTION_MAX_CHARS) text += '\n\n' + block
+  }
+  return limitText(text)
 }
 
 /**
@@ -160,16 +184,18 @@ export function composeToolDescription(input: ToolDescriptionInput): string {
   if (input.outputs !== undefined && input.outputs.trim().length > 0) io.push('Outputs: ' + input.outputs.trim())
   const example = bullets(input.example)[0] ?? null
   const whenToUse = bullets(input.whenToUse ?? input.skill?.whenToUse)
-  const blocks = [
-    purpose,
+  // The DECISION sections go first and are preserved; everything else is optional.
+  const decisionBlocks = [
     section('When to use:', whenToUse),
     section('When not to use:', bullets(input.whenNotToUse)),
+  ].filter((block): block is string => block !== null)
+  const lowerBlocks = [
     section('Inputs and outputs:', io),
     section('Limits:', bullets(input.limits)),
     example === null ? null : 'Example:\n' + example,
     input.skill === undefined ? null : 'Skill: see the ' + input.skill.name + ' skill for the full workflow.',
   ].filter((block): block is string => block !== null)
-  return bounded(blocks)
+  return bounded(purpose, decisionBlocks, lowerBlocks)
 }
 
 /** One parameter's type as the caller sees it. */
@@ -205,6 +231,148 @@ function propertyNames(schema: JsonSchemaObject): readonly string[] {
   return schema.properties === undefined ? [] : Object.keys(schema.properties)
 }
 
+/** One reviewed disambiguation row for a standard-contract tool. */
+export interface ContractGuidance {
+  /** When to choose THIS tool, in one sentence naming its distinguishing input/operation. */
+  readonly whenToUse: readonly string[]
+  /** Which sibling to choose instead, when this tool would be the wrong family member. */
+  readonly whenNotToUse: readonly string[]
+}
+
+/** The reviewed disambiguation table, keyed by caller-facing contract tool name. */
+export interface ContractDisambiguationTable {
+  readonly [toolName: string]: ContractGuidance
+}
+
+/**
+ * The reviewed host-side disambiguation for the embedding/ranking family (P6).
+ *
+ * These tools are STANDARD CONTRACTS: their name, description, schemas and limits
+ * come from the contracts package, which carries no when-to-use metadata. Changing
+ * that package is a separate release, so the distinguishing guidance lives here,
+ * reviewed like the golden list, and is composed into the same section order.
+ * Keys are the CALLER-FACING contract tool names (not the contract ids).
+ */
+export const CONTRACT_DISAMBIGUATION: ContractDisambiguationTable = {
+  text_embed: {
+    whenToUse: ['Use when you need reusable 384-dimensional text vectors for an index, search or clustering.'],
+    whenNotToUse: [
+      'Use text_rerank when you need cross-encoder relevance logits rather than vectors.',
+      'Use multimodal_embed when the input includes an image or audio.',
+      'Use semantic_rank to order existing candidates instead of producing embeddings.',
+    ],
+  },
+  text_rerank: {
+    whenToUse: ['Use when a known list of documents must be reordered by cross-encoder relevance logits.'],
+    whenNotToUse: [
+      'Use text_embed when the vectors are reused across queries.',
+      'Use semantic_rank when embedding cosine ranking is enough.',
+    ],
+  },
+  text_title: {
+    whenToUse: ['Use to propose a bounded title and one-sentence description for a text document.'],
+    whenNotToUse: [
+      'Use describe_image for an image, not a text document.',
+      'Use tools_plan to propose tool calls rather than a title.',
+    ],
+  },
+  describe_image: {
+    whenToUse: ['Use to describe the visible content of one approved image, with honest uncertainty.'],
+    whenNotToUse: [
+      'Use text_title for written text.',
+      'Use semantic_classify to place an image description into a fixed label set.',
+      'No OCR contract exists; this is image description, not transcription.',
+    ],
+  },
+  multimodal_embed: {
+    whenToUse: ['Use when an image or audio input, or mixed text and media, must share one vector space.'],
+    whenNotToUse: [
+      'Use text_embed for text-only 384-dimensional MiniLM vectors.',
+      'Use media_find_moments to locate windows inside existing media.',
+      'Use semantic_similarity to compare two items rather than embed a batch.',
+    ],
+  },
+  semantic_similarity: {
+    whenToUse: ['Use to compare exactly two texts and read their 0-1 embedding cosine.'],
+    whenNotToUse: [
+      'Use semantic_rank to order many candidates against one query.',
+      'Use text_embed when the vectors must persist for future comparisons.',
+      'Use semantic_classify to pick a label rather than a score.',
+    ],
+  },
+  semantic_rank: {
+    whenToUse: ['Use to order many candidates by embedding cosine similarity to one query.'],
+    whenNotToUse: [
+      'Use text_rerank when relevance must come from a cross-encoder.',
+      'Use semantic_similarity for a single pair.',
+      'Use semantic_classify when each candidate must land in a label.',
+    ],
+  },
+  semantic_classify: {
+    whenToUse: ['Use to assign one of a bounded label set to an item, with abstention allowed.'],
+    whenNotToUse: [
+      'Use semantic_rank when the candidates are free text, not a fixed label set.',
+      'Use decision_choose for a stated decision over options.',
+    ],
+  },
+  semantic_deduplicate: {
+    whenToUse: ['Use to group near-duplicate texts into greedy clusters around representatives.'],
+    whenNotToUse: [
+      'Use semantic_rank to order items rather than group them.',
+      'Use media_find_moments for media windows instead of text duplicates.',
+    ],
+  },
+  media_find_moments: {
+    whenToUse: ['Use to find the timestamped windows of approved media most relevant to a query.'],
+    whenNotToUse: [
+      'Use multimodal_embed to embed a whole media item.',
+      'Use text_embed for text-only similarity.',
+      'Use text_rerank for text documents rather than media windows.',
+    ],
+  },
+  decision_choose: {
+    whenToUse: ['Use to pick one option from a bounded set for a stated decision.'],
+    whenNotToUse: [
+      'Use decision_test for a yes/no predicate.',
+      'Use decision_score to rate each option rather than choose one.',
+      'Use tools_plan to propose tool calls instead of choosing an option.',
+    ],
+  },
+  decision_test: {
+    whenToUse: ['Use to test one binary predicate against supplied text and report the verdict.'],
+    whenNotToUse: [
+      'Use decision_choose to select among options.',
+      'Use decision_score to grade options on a scale.',
+    ],
+  },
+  decision_score: {
+    whenToUse: ['Use to score options on the declared 0-10 scale for one criterion.'],
+    whenNotToUse: [
+      'Use decision_choose to return a single option.',
+      'Use decision_test for a boolean verdict.',
+    ],
+  },
+  tools_plan: {
+    whenToUse: ['Use to propose a read-only tool plan for an objective against the host snapshot.'],
+    whenNotToUse: [
+      'Use decision_choose to choose one option, not to propose tool calls.',
+      'Use text_title to propose a title instead of a plan.',
+    ],
+  },
+}
+
+/** The reviewed guidance for extension-manifest/recipe tools, keyed by caller-facing tool name. */
+export const EXTENSION_TOOL_DISAMBIGUATION: ContractDisambiguationTable = {
+  dedupe_and_rank: {
+    whenToUse: ['Use when you need near-duplicate clusters AND how those clusters rank against a query, in one call.'],
+    whenNotToUse: [
+      'Use semantic_deduplicate when only the clusters are needed, with no query ranking.',
+      'Use semantic_rank when every item is ranked individually and duplicates are not grouped.',
+      'Use text_embed when you need the vectors themselves rather than clusters or ranks.',
+    ],
+  },
+}
+
 /** The composed description for one standard contract's tool. */
 export function contractToolDescription(contract: ToolContract): string {
   const limits = Object.entries(contract.limits).map(([name, value]) => name + ': ' + value)
@@ -213,9 +381,11 @@ export function contractToolDescription(contract: ToolContract): string {
   const inputs = propertyNames(contract.inputSchema as JsonSchemaObject)
   // SAFETY: ToolContract.outputSchema is validated JSON Schema; only its property names are read.
   const outputs = propertyNames(contract.outputSchema as JsonSchemaObject)
+  const guidance = CONTRACT_DISAMBIGUATION[contract.toolName]
   return composeToolDescription({
     purpose: firstSentence(contract.description),
-    whenNotToUse: contract.unsupported,
+    whenToUse: guidance?.whenToUse,
+    whenNotToUse: [...guidance?.whenNotToUse ?? [], ...contract.unsupported],
     inputs: inputs.join(', '),
     outputs: outputs.join(', '),
     limits,

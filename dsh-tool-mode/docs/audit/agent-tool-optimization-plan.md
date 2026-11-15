@@ -1,7 +1,7 @@
 # Agent tool-selection optimization plan
 
-Status: **in progress**. P1 + P2 shipped in `@try-works/dsh-tool-mode@0.5.63`.
-Related: [inventory-audit.md](./inventory-audit.md), [tool-mode-agent-flow.md](./tool-mode-agent-flow.md), [verification-p1-p2.md](./verification-p1-p2.md).
+Status: **in progress**. P1 + P2 shipped in `@try-works/dsh-tool-mode@0.5.63`; P3 (opt-in) + P6 in `0.5.64`.
+Related: [inventory-audit.md](./inventory-audit.md), [tool-mode-agent-flow.md](./tool-mode-agent-flow.md), [verification-p1-p2.md](./verification-p1-p2.md), [deferred-loading.md](./deferred-loading.md).
 
 ## Progress
 
@@ -9,10 +9,10 @@ Related: [inventory-audit.md](./inventory-audit.md), [tool-mode-agent-flow.md](.
 | --- | --- | --- |
 | P1 description composer | **done** (0.5.63) | `src/tool-description.ts`, 700-char absolute budget, golden 33 tools; P1b added extension/recipe + MCP composition, P1c fixed skill-ID resolution; verifier closed all findings |
 | P2 extension manifest skills | **done** (0.5.63) | `registerSkill` in `src/index.ts`; 6 tests; verifier PASS |
-| P3 deferred loading | next | — |
+| P3 deferred loading | **done** (P3 + P3b, default **off**) | `src/registrar.ts` selection; [deferred-loading.md](./deferred-loading.md); 18 tests across the registrar/bindings and both recipe lanes |
 | P4 discovery split | pending | — |
 | P5 prompt section | pending | — |
-| P6 family disambiguation | pending | — |
+| P6 family disambiguation | **done** (0.5.64) | decision-first budget keeps every when-not bullet; dedupe_and_rank covered via extension guidance; [tool-description-families.md](../packages/dsh-tool-mode/docs/audit/tool-description-families.md) |
 | P7 MCP parity/usage | partial (MCP description parity in P1b) | — |
 | P8 restart boundary | pending | — |
 
@@ -147,14 +147,18 @@ DeepSeek serializes `defer_loading`; the plugin uses neither.
   registration; document the DSH developer-message activation path the model must use.
 - Keep the catalog and `tool_mode_list` as the on-demand index so a deferred tool is
   still discoverable.
+- Operator-facing semantics, selected ids and the activation caveat:
+  [deferred-loading.md](./deferred-loading.md). The flag is read at registration time and is
+  default OFF; enable it only once the DSH activation path is wired.
 
 **TDD**
 
 - `tests/defer-loading.test.ts`: chosen schemas carry `deferLoading`; non-chosen do not;
   deferred schemas still carry name/description/parameters; the plugin's MCP surface is
   unchanged (MCP is contract-based, not deferral-based).
-- Harness-level: assert the DeepSeek serializer emits `defer_loading` for a deferred
-  schema (existing DSH test surface or a small integration probe).
+- Harness-level: the DeepSeek serializer assertion is **DSH-owned** (the package is not a
+  dependency of this repo); this plugin asserts the marker survives to
+  `ctx.tools.schemas()`. DSH covers `defer_loading` in its own test suite.
 - Measure schema bytes before/after in the test and assert the expected reduction.
 
 **Gates:** `tsc`; new test; control-surface/discovery; full host suite; `verify:mcp`;
@@ -322,7 +326,7 @@ cleanly, P3 is behind a default-off flag, P4 keeps `tools` compatible by adding
 | --- | --- |
 | P1 | 100% of registered tools have when-to-use + limits; ≤ 700 chars; golden reviewed |
 | P2 | all manifest skills of installed extensions in the session catalog; withheld tools excluded |
-| P3 | selected schemas carry `deferLoading`; measured schema-byte reduction; default off |
+| P3 | selected schemas carry `deferLoading` on every registration path; measured deferrable declaration payload (a provider hint, NOT a local byte reduction); default off; activation caveat documented in [deferred-loading.md](./deferred-loading.md) |
 | P4 | `tools` = registered only; every catalog model once in `tools` ∪ `unavailable` |
 | P5 | one bounded Tool Mode prompt section; references discovery |
 | P6 | family disambiguation assertions per tool |

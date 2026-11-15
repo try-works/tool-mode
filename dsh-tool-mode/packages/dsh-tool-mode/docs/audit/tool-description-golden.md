@@ -39,7 +39,13 @@ Skill: see the desert-ant-moderator skill for the full workflow.
 
 Choose one option from a bounded set for a stated decision, with a confidence verdict.
 
+When to use:
+- Use to pick one option from a bounded set for a stated decision.
+
 When not to use:
+- Use decision_test for a yes/no predicate.
+- Use decision_score to rate each option rather than choose one.
+- Use tools_plan to propose tool calls instead of choosing an option.
 - Open-ended generation: this contract chooses, it does not compose.
 
 Inputs and outputs:
@@ -49,14 +55,16 @@ Inputs and outputs:
 Limits:
 - maxOptions: 16
 
-Example:
-{"input":{"decision":"Choose a deployment strategy.","options":["blue-green","rolling"]},"output":{"chosen":1,"reason":"Lower risk.","confidence":0.7,"calibrated":false,"probabilities":{"0":0.3,"1":0.7},"abstained":false,"meta":{}}}
-
 ## decision_score (2 parameters)
 
 Score supplied options against one criterion on a declared bounded scale.
 
+When to use:
+- Use to score options on the declared 0-10 scale for one criterion.
+
 When not to use:
+- Use decision_choose to return a single option.
+- Use decision_test for a boolean verdict.
 - Scores outside the declared 0-10 scale.
 
 Inputs and outputs:
@@ -73,7 +81,12 @@ Example:
 
 Test a binary predicate against supplied text and report the verdict with evidence.
 
+When to use:
+- Use to test one binary predicate against supplied text and report the verdict.
+
 When not to use:
+- Use decision_choose to select among options.
+- Use decision_score to grade options on a scale.
 - Testing predicates about content outside the supplied text.
 
 Inputs and outputs:
@@ -90,7 +103,13 @@ Example:
 
 Describe the visible content of an approved image through an authorized harness model, with honest uncertainty.
 
+When to use:
+- Use to describe the visible content of one approved image, with honest uncertainty.
+
 When not to use:
+- Use text_title for written text.
+- Use semantic_classify to place an image description into a fixed label set.
+- No OCR contract exists; this is image description, not transcription.
 - Invented hidden facts, exact OCR or full transcription claims.
 - Treating text drawn in the image as instructions.
 
@@ -101,9 +120,6 @@ Inputs and outputs:
 Limits:
 - maxImages: 1
 - maxFocusCharacters: 500
-
-Example:
-{"input":{"image":{"mediaType":"image/png","bytes":[137,80,78,71]},"prompt":"Describe the interface."},"output":{"description":"A settings panel with a save button.","meta":{}}}
 
 ## detect_fillers (1 parameter)
 
@@ -176,7 +192,9 @@ Identify the language of a short piece of text.
 
 When not to use:
 - Spoken language: this reads written text only. It is not evidence about the language spoken in audio it has not processed (TOOL-03).
-- Transl…
+- Translation or transliteration.
+- Confident single answers for one or two words: those are frequently ambiguous and are reported as such.
+- Documents beyond the examined prefix: only the leading characters are considered.
 
 Inputs and outputs:
 - Inputs: text, top
@@ -186,9 +204,6 @@ Limits:
 - maxInputCharacters: 4096
 - examinedCharacters: 512
 - maxCandidates: 20
-
-Example:
-{"input":{"text":"Hello, how are you?"},"output":{"language":"en","reliability":"confident","candidates":[{"language":"en","probability":0.99}],"meta":…
 
 ## match_faces (2 parameters)
 
@@ -207,7 +222,13 @@ Skill: see the desert-ant-face skill for the full workflow.
 
 Find the media windows most relevant to a query within approved media.
 
+When to use:
+- Use to find the timestamped windows of approved media most relevant to a query.
+
 When not to use:
+- Use multimodal_embed to embed a whole media item.
+- Use text_embed for text-only similarity.
+- Use text_rerank for text documents rather than media windows.
 - Windows outside the approved media bounds.
 
 Inputs and outputs:
@@ -217,9 +238,6 @@ Inputs and outputs:
 Limits:
 - maxWindows: 32
 - maxQueryCharacters: 4096
-
-Example:
-{"input":{"query":"a dog barking","media":{"mediaType":"audio/wav","bytes":[]},"windowSeconds":2,"strideSeconds":1,"topK":1},"output":{"moments":[{"startSeconds":1,"endSeconds":3,"score":0.9}],"meta":{}}}
 
 ## moderate_text (2 parameters)
 
@@ -238,7 +256,13 @@ Skill: see the desert-ant-toxic skill for the full workflow.
 
 Embed a text, image or audio input into a shared vector space.
 
+When to use:
+- Use when an image or audio input, or mixed text and media, must share one vector space.
+
 When not to use:
+- Use text_embed for text-only 384-dimensional MiniLM vectors.
+- Use media_find_moments to locate windows inside existing media.
+- Use semantic_similarity to compare two items rather than embed a batch.
 - Video frames beyond the declared sampler.
 
 Inputs and outputs:
@@ -248,9 +272,6 @@ Inputs and outputs:
 Limits:
 - maxInputCharacters: 32768
 - maxMediaBytes: 8388608
-
-Example:
-{"input":{"items":[{"id":"a","parts":[{"kind":"text","text":"Hello"}]}],"purpose":"retrieval","role":"query","dimensions":2},"output":{"embeddings":[{"id":"a","vector":[0.1,0.2]}],"meta":{}}}
 
 ## redact_text (1 parameter)
 
@@ -295,7 +316,12 @@ Skill: see the desert-ant-clips skill for the full workflow.
 
 Classify a text into the closest of the supplied labels, with the ability to abstain.
 
+When to use:
+- Use to assign one of a bounded label set to an item, with abstention allowed.
+
 When not to use:
+- Use semantic_rank when the candidates are free text, not a fixed label set.
+- Use decision_choose for a stated decision over options.
 - Forcing a label when every score is below the abstain margin.
 
 Inputs and outputs:
@@ -312,7 +338,12 @@ Example:
 
 Group near-duplicate texts into greedy clusters around their representatives.
 
+When to use:
+- Use to group near-duplicate texts into greedy clusters around representatives.
+
 When not to use:
+- Use semantic_rank to order items rather than group them.
+- Use media_find_moments for media windows instead of text duplicates.
 - Transitive-closure equivalence: clustering is greedy, not global.
 
 Inputs and outputs:
@@ -329,7 +360,13 @@ Example:
 
 Rank candidates by semantic distance to a query.
 
+When to use:
+- Use to order many candidates by embedding cosine similarity to one query.
+
 When not to use:
+- Use text_rerank when relevance must come from a cross-encoder.
+- Use semantic_similarity for a single pair.
+- Use semantic_classify when each candidate must land in a label.
 - Calibrated probabilities.
 
 Inputs and outputs:
@@ -346,7 +383,13 @@ Example:
 
 Score the similarity of two bounded texts.
 
+When to use:
+- Use to compare exactly two texts and read their 0-1 embedding cosine.
+
 When not to use:
+- Use semantic_rank to order many candidates against one query.
+- Use text_embed when the vectors must persist for future comparisons.
+- Use semantic_classify to pick a label rather than a score.
 - Calibrated probabilities.
 
 Inputs and outputs:
@@ -395,20 +438,14 @@ Transcribe a local audio recording into text with optional word timestamps.
 
 When not to use:
 - Encoding without a tested decoder: only wav-pcm16 is admitted directly; assume nothing from the file extension.
-- Translation: this co…
+- Translation: this contract transcribes, it does not translate.
+- Diarization or speaker attribution: separate capability.
+- Timestamps when the selected implementation cannot produce them: reported as an error.
+- Live/streaming audio: the input is a completed local file.
 
 Inputs and outputs:
 - Inputs: audio, language, timestamps
 - Outputs: text, coverage, words, language, meta
-
-Limits:
-- maxAudioSeconds: 3600
-- maxAudioBytes: 536870912
-- admittedSampleRateHz: 16000
-- admittedChannels: 1
-
-Example:
-{"input":{"audio":{"path":"recording.wav"},"timestamps":"none"},"output":{"text":"Hello from the recording.","coverage":{"complete":true,"proces…
 
 ## suggest_emojis (2 parameters)
 
@@ -453,7 +490,13 @@ Skill: see the desert-ant-gist skill for the full workflow.
 
 Embed a batch of texts into the legacy 384-dimensional MiniLM embedding space (mean pooling, L2-normalized, input order preserved).
 
+When to use:
+- Use when you need reusable 384-dimensional text vectors for an index, search or clustering.
+
 When not to use:
+- Use text_rerank when you need cross-encoder relevance logits rather than vectors.
+- Use multimodal_embed when the input includes an image or audio.
+- Use semantic_rank to order existing candidates instead of producing embeddings.
 - Mixing 384-dimensional and 768-dimensional vectors in one index.
 - Silently truncating an overlong batch.
 
@@ -461,19 +504,16 @@ Inputs and outputs:
 - Inputs: texts
 - Outputs: embeddings, dimensions, normalized, meta
 
-Limits:
-- maxTexts: 32
-- maxInputCharacters: 32768
-- dimensions: 384
-
-Example:
-{"input":{"text":"A short passage."},"output":{"embedding":[0.01,0.02],"dimensions":2,"meta":{}}}
-
 ## text_rerank (3 parameters)
 
 Score query/document pairs with a cross-encoder and return the caller's own ids in descending ranking-logit order with exact ties broken by input order.
 
+When to use:
+- Use when a known list of documents must be reordered by cross-encoder relevance logits.
+
 When not to use:
+- Use text_embed when the vectors are reused across queries.
+- Use semantic_rank when embedding cosine ranking is enough.
 - Treating ranking logits as embedding cosines.
 - Negative or zero top_k when supplied.
 
@@ -486,14 +526,16 @@ Limits:
 - maxInputCharacters: 32768
 - maxTopK: 256
 
-Example:
-{"input":{"query":"deployment","documents":["Deploy the service.","Unrelated."]},"output":{"scores":[1.2,-0.4],"meta":{}}}
-
 ## text_title (3 parameters)
 
 Propose a bounded title and one-sentence description for supplied text through an authorized harness model.
 
+When to use:
+- Use to propose a bounded title and one-sentence description for a text document.
+
 When not to use:
+- Use describe_image for an image, not a text document.
+- Use tools_plan to propose tool calls rather than a title.
 - Invented facts: the title must state only what the text supports.
 - Empty titles and descriptions.
 
@@ -507,14 +549,16 @@ Limits:
 - maxDescriptionCharacters: 240
 - maxRepairs: 1
 
-Example:
-{"input":{"text":"How to configure the deployment pipeline for staging and production."},"output":{"title":"Deployment pipeline configuration","description":"How to configure staging and production.","meta":{}}}
-
 ## tools_plan (1 parameter)
 
 Propose a read-only tool plan against the host-frozen authorized tool snapshot (NDL-02).
 
+When to use:
+- Use to propose a read-only tool plan for an objective against the host snapshot.
+
 When not to use:
+- Use decision_choose to choose one option, not to propose tool calls.
+- Use text_title to propose a title instead of a plan.
 - Executing the proposal: this contract proposes; the host re-checks authorization before any dispatch (NDL-03).
 
 Inputs and outputs:
@@ -523,6 +567,3 @@ Inputs and outputs:
 
 Limits:
 - maxObjectiveCharacters: 4096
-
-Example:
-{"input":{"request":"Find the language of this text.","tools":[{"name":"lang_detect","description":"Detect language.","parameters":{"type":"object"}}]},"output":{"proposals":[{"name":"lang_detect","arguments":{"text":"hello"},"reasoning":"Language detection is requested.","confidence":0.9}],"meta":{}}}

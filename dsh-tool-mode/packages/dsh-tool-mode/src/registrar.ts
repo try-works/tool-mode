@@ -10,10 +10,74 @@
  * @module @try-works/dsh-tool-mode/registrar
  */
 
-import { defineTool, type ParameterPropertySpec, type ParameterSchemaSpec } from '@deepseek-ai/dsh-tools'
+import {
+  defineTool,
+  parameterSchemaSpecToJsonSchema,
+  type ParameterPropertySpec,
+  type ParameterSchemaSpec,
+} from '@deepseek-ai/dsh-tools'
 import type { ModelCatalogEntry, ModelParamType } from './types.ts'
 import type { ModelAdapter } from './adapters/index.ts'
 import { catalogToolDescription } from './tool-description.ts'
+
+/**
+ * P3 of the agent tool-selection plan: the ids whose model-facing schemas are known to be
+ * worth deferring regardless of their measured size, plus the size threshold for everything
+ * else. `semantic_*` is a prefix pattern (the four semantic contracts at this revision).
+ */
+export const DEFER_HEAVY_SCHEMA_TOOL_IDS: readonly string[] = Object.freeze([
+  'multimodal_embed',
+  'media_find_moments',
+  'extract_with_repair',
+  'structured_extract',
+  'tools_plan',
+  'semantic_*',
+])
+
+/** Defer when a declaration EXCEEDS this many UTF-8 bytes (default 1 KiB). */
+export const DEFER_HEAVY_SCHEMA_THRESHOLD_BYTES = 1024
+
+/** The registration-time switch: `config.deferHeavySchemas` (default off). */
+export interface DeferLoadingOptions {
+  readonly deferHeavySchemas?: boolean
+}
+
+/** The declaration fields the size decision is made over. */
+export interface ModelFacingDeclaration {
+  readonly name: string
+  readonly description: string
+  readonly parameters: unknown
+}
+
+/** UTF-8 bytes of the model-facing declaration (name + description + parameters). */
+export function toolSchemaBytes(declaration: ModelFacingDeclaration): number {
+  return Buffer.byteLength(JSON.stringify(declaration), 'utf8')
+}
+
+/** Whether one id matches the explicit list (exact, or a trailing-`*` prefix). */
+function matchesExplicitId(toolName: string, ids: readonly string[]): boolean {
+  return ids.some(id => id === toolName || (id.endsWith('*') && toolName.startsWith(id.slice(0, -1))))
+}
+
+/**
+ * Decide whether one tool's declaration should be deferred (pure).
+ *
+ * A disabled switch selects nothing. Otherwise an explicit id wins regardless of size, and
+ * any other declaration is selected only when it EXCEEDS the threshold (equal stays eager).
+ * @param input - tool name, measured bytes, the config switch and optional overrides.
+ * @returns whether the definition should carry `deferLoading: true`.
+ */
+export function shouldDeferHeavySchema(input: {
+  readonly toolName: string
+  readonly schemaBytes: number
+  readonly enabled: boolean
+  readonly explicitIds?: readonly string[]
+  readonly thresholdBytes?: number
+}): boolean {
+  if (!input.enabled) return false
+  if (matchesExplicitId(input.toolName, input.explicitIds ?? DEFER_HEAVY_SCHEMA_TOOL_IDS)) return true
+  return input.schemaBytes > (input.thresholdBytes ?? DEFER_HEAVY_SCHEMA_THRESHOLD_BYTES)
+}
 
 /** The tool spec a catalog entry declares, resolved into a registration. */
 export interface RegisteredModelTool {
@@ -143,17 +207,32 @@ function outputSchemaFor(entry: ModelCatalogEntry): {
  * @param ctx - the context whose tool registry receives the definition; its scope decides visibility.
  * @param entry - the catalog entry to expose.
  * @param adapter - the adapter that invokes the model.
+ * @param options - the deferral switch, from `config.deferHeavySchemas` (default off).
  * @returns the model id, the tool name, and the disposer returned by the registry.
  */
 export function registerModelTool(
   ctx: { tools: { register(definition: unknown): () => void } },
   entry: ModelCatalogEntry,
   adapter: ModelAdapter,
+  options: DeferLoadingOptions = {},
 ): RegisteredModelTool {
+  const description = catalogToolDescription(entry)
+  const parameters = buildParameters(entry)
+  const deferLoading = shouldDeferHeavySchema({
+    toolName: entry.tool.name,
+    schemaBytes: toolSchemaBytes({
+      name: entry.tool.name,
+      description,
+      parameters: parameterSchemaSpecToJsonSchema(parameters),
+    }),
+    enabled: options.deferHeavySchemas === true,
+  })
+  const deferMarker = deferLoading ? { deferLoading: true as const } : {}
   const definition = defineTool({
     name: entry.tool.name,
-    description: catalogToolDescription(entry),
-    parameters: buildParameters(entry),
+    description,
+    parameters,
+    ...deferMarker,
     output: {
       schema: outputSchemaFor(entry),
       render: (_args, value) => renderResult(entry, value as Record<string, unknown>),

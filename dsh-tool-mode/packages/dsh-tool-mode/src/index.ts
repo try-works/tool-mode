@@ -30,7 +30,7 @@ import {
   type ProvisioningRequirementKind,
 } from './first-party-provisioning.ts'
 import { createAdapter } from './adapters/index.ts'
-import { registerModelTool } from './registrar.ts'
+import { registerModelTool, shouldDeferHeavySchema, toolSchemaBytes } from './registrar.ts'
 import { registerContractTool, registerContractImplementationTool, type ContractBinding, type HostIdentity } from './bindings.ts'
 import { contractToolDescription, extensionToolDescription } from './tool-description.ts'
 import { appendFileSync, readFileSync, readdirSync, statSync } from 'node:fs'
@@ -630,6 +630,27 @@ export interface Config {
    */
   autoProvisionExtensions?: boolean
   /**
+   * P3 of the agent tool-selection plan: request DEFERRED LOADING for heavy schemas
+   * (DEFAULT false).
+   *
+   * When true, the model-facing declaration of a selected tool carries
+   * `deferLoading: true`. The selection is the pure helper in the registrar: the six explicit
+   * ids (`multimodal_embed`, `media_find_moments`, `extract_with_repair`,
+   * `structured_extract`, `tools_plan`, `semantic_*`) plus any declaration whose serialized
+   * name+description+parameters exceed 1024 bytes. The catalog and `tool_mode_list` stay the
+   * on-demand index, so a deferred tool remains discoverable, and the MCP surface is
+   * unchanged (contract-based exports never carry the marker).
+   *
+   * DSH CAVEAT, so this is not sold as a byte win it may not be: the DeepSeek serializer
+   * still writes name/description/input_schema for a deferred tool and appends
+   * `defer_loading`; activation needs a `developer/message` `tool-addition`, which the harness
+   * emits when the tool LIST changes. With a stable first-party tool list no tool-addition is
+   * emitted, so the flag is a provider loading hint and NOT a local request-byte reduction.
+   * Default off keeps every existing probe unchanged until the activation path is wired.
+   * See docs/audit/deferred-loading.md for the operator-facing semantics and the selected ids.
+   */
+  deferHeavySchemas?: boolean
+  /**
    * Extension ids the operator switched OFF in Settings.
    *
    * The store still holds them and their desired activation is unchanged; the
@@ -778,6 +799,16 @@ export const Config: z<Config> = z.object({
   }),
   managedWorkers: settingsField(z.boolean().default(false)),
   autoProvisionExtensions: z.boolean().default(false),
+  deferHeavySchemas: z.boolean().default(false).description(
+    'Request deferred loading (defer_loading) for heavy tool schemas. DEFAULT: false. '
+    + 'Selects the six explicit ids (multimodal_embed, media_find_moments, extract_with_repair, '
+    + 'structured_extract, tools_plan, semantic_*) plus declarations over 1024 bytes. '
+    + 'Honest limit: DSH still writes the full schema on the wire, so this is a provider loading '
+    + 'hint, not a local byte reduction. Activation needs a developer/message tool-addition, which '
+    + 'DSH emits only when the tool list changes, so a stable first-party list may leave selected '
+    + 'tools unactivated; enable only when the activation path is wired. '
+    + 'See docs/audit/deferred-loading.md.',
+  ),
   managedWorkerInvokeTimeoutMs: z.number(),
   workerEnvPassthrough: z.array(z.string()).default([]),
   allowNpm: settingsField(z.boolean().default(true)),
@@ -2767,6 +2798,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           ctx as unknown as { tools: { register(definition: unknown): () => void } },
           binding,
           host,
+          { deferHeavySchemas: config.deferHeavySchemas === true },
         )
         registeredContracts.set(entry.contract, registered)
         toolName = registered.toolName
@@ -2808,6 +2840,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         ctx as unknown as { tools: { register(definition: unknown): () => void } },
         entry,
         adapter,
+        { deferHeavySchemas: config.deferHeavySchemas === true },
       )
       toolName = registration.toolName
       dispose = registration.dispose
@@ -2839,6 +2872,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           ctx as unknown as { tools: { register(definition: unknown): () => void } },
           entry,
           aliasAdapter,
+          { deferHeavySchemas: config.deferHeavySchemas === true },
         )
         record.disposeAlias = alias.dispose
         ctx.logger.info(`model-tools: registered deprecated alias ${alias.toolName} (BASE-03)`)
@@ -5132,6 +5166,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
            * surfaces cannot disagree about what the tool is or when to use it.
            */
           const toolDescription = extensionToolDescription({
+            toolName: tool.name,
             description: declared.description,
             fallback: `Provided by ${tool.ownerExtension}.`,
             skill: extensionSkillGuidance(tool.ownerExtension, tool.name),
@@ -5248,10 +5283,17 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
               : 'its extension no longer admits it (deactivated or quarantined)'
           }
 
+          const deferLoading = shouldDeferHeavySchema({
+            toolName: tool.name,
+            schemaBytes: toolSchemaBytes({ name: tool.name, description: toolDescription, parameters: inputProjection }),
+            enabled: config.deferHeavySchemas === true,
+          })
+          const deferMarker = deferLoading ? { deferLoading: true as const } : {}
           const dispose = ctx.tools.register(defineTool({
             name: tool.name,
             description: toolDescription,
             parameters: inputProjection as unknown as ParameterSchemaSpec,
+            ...deferMarker,
             output: {
               schema: outputProjection as unknown as ValueSchemaSpec,
               render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
@@ -5480,6 +5522,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
               extensionId: contribution.extensionId,
               modelId: manifestImplementation?.modelId ?? contribution.implementationId,
             },
+            { deferHeavySchemas: config.deferHeavySchemas === true },
           )
           extensionToolOwners.set(toolName, contribution.extensionId)
           ownedExtensionToolNames.add(toolName)
@@ -5654,14 +5697,26 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
               )
             }
             const laneDescription = extensionToolDescription({
+              toolName: lane.tool.name,
               description: lane.tool.description,
               fallback: `Provided by ${contribution.extensionId}.`,
               skill: extensionSkillGuidance(contribution.extensionId, lane.tool.name),
             })
+            const laneDeferral = shouldDeferHeavySchema({
+              toolName: lane.tool.name,
+              schemaBytes: toolSchemaBytes({
+                name: lane.tool.name,
+                description: laneDescription,
+                parameters: lane.tool.parameters,
+              }),
+              enabled: config.deferHeavySchemas === true,
+            })
+            const laneDeferMarker = laneDeferral ? { deferLoading: true as const } : {}
             const disposeTool = ctx.tools.register(defineTool({
               name: lane.tool.name,
               description: laneDescription,
               parameters: lane.tool.parameters as unknown as ParameterSchemaSpec,
+              ...laneDeferMarker,
               output: {
                 schema: { type: 'json' },
                 render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
@@ -5754,14 +5809,22 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             required: requiredNames,
           })
           const recipeDescription = extensionToolDescription({
+            toolName: recipe.tool.name,
             description: recipe.description,
             fallback: `Provided by ${contribution.extensionId}.`,
             skill: extensionSkillGuidance(contribution.extensionId, recipe.tool.name),
           })
+          const recipeDeferral = shouldDeferHeavySchema({
+            toolName: recipe.tool.name,
+            schemaBytes: toolSchemaBytes({ name: recipe.tool.name, description: recipeDescription, parameters: dsl }),
+            enabled: config.deferHeavySchemas === true,
+          })
+          const recipeDeferMarker = recipeDeferral ? { deferLoading: true as const } : {}
           const disposeTool = ctx.tools.register(defineTool({
             name: recipe.tool.name,
             description: recipeDescription,
             parameters: dsl as unknown as ParameterSchemaSpec,
+            ...recipeDeferMarker,
             output: recipe.response === undefined
               ? {
                   schema: { type: 'string' },

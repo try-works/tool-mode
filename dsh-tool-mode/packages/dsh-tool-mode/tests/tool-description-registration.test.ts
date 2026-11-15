@@ -155,8 +155,13 @@ describe('the contract registration uses the composer too', () => {
     assert.ok(definition.description.includes('When not to use:'), 'unsupported cases feed when-not-to-use')
     assert.ok(definition.description.includes('Inputs and outputs:'))
     assert.ok(definition.description.includes('Limits:'))
-    assert.ok(definition.description.includes('Example:'))
+    // P6b makes the budget DECISION-FIRST: the example and inputs/limits are dropped
+    // before any when-not-to-use bullet, so a contract whose unsupported cases fill the
+    // budget may legitimately compose without an Example section.
     assert.ok(definition.description.length <= TOOL_DESCRIPTION_MAX_CHARS)
+    for (const unsupported of contract.unsupported) {
+      assert.ok(definition.description.includes(unsupported), 'a when-not-to-use bullet was dropped: ' + unsupported)
+    }
   })
 })
 

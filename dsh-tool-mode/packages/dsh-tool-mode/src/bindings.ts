@@ -36,6 +36,7 @@ import {
 } from './authority.ts'
 import type { ModelAdapter } from './adapters/index.ts'
 import { contractToolDescription } from './tool-description.ts'
+import { shouldDeferHeavySchema, toolSchemaBytes, type DeferLoadingOptions } from './registrar.ts'
 
 /** Host identity stamped into every result. */
 export interface HostIdentity {
@@ -182,12 +183,14 @@ export function buildReceipt(
  * @param ctx - the context whose tool registry receives the definition.
  * @param binding - the contract and the implementation chosen for it.
  * @param host - host identity to stamp into results.
+ * @param options - the deferral switch, from `config.deferHeavySchemas` (default off).
  * @returns the registered tool name and the registry disposer.
  */
 export function registerContractTool(
   ctx: { tools: { register(definition: unknown): () => void } },
   binding: ContractBinding,
   host: HostIdentity,
+  options: DeferLoadingOptions = {},
 ): { toolName: string; dispose: () => void } {
   const { contract, adapter, implementation } = binding
   // Registration and argument validation must agree, so the contract is checked
@@ -195,14 +198,24 @@ export function registerContractTool(
   // fail only when a caller happened to hit the broken branch.
   assertValidContract(contract)
   const rules = crossFieldRules(contract)
+  const description = contractToolDescription(contract)
+  // SAFETY: `toDshParameters` returns the projected JSON-Schema subset, while the registry's
+  // DSL type is structurally narrower. `assertValidContract` above already refused any keyword
+  // the DSL cannot express (`ProjectionError`), so the assertion narrows a representation the
+  // contract validated and cannot widen what a caller may send.
+  const parameters = toDshParameters(contract) as unknown as ParameterSchemaSpec
+  const deferLoading = shouldDeferHeavySchema({
+    toolName: contract.toolName,
+    schemaBytes: toolSchemaBytes({ name: contract.toolName, description, parameters }),
+    enabled: options.deferHeavySchemas === true,
+  })
 
+  const deferMarker = deferLoading ? { deferLoading: true as const } : {}
   const definition = defineTool({
     name: contract.toolName,
-    description: contractToolDescription(contract),
-    // `toDshParameters` returns the projected JSON-Schema subset; the registry's
-    // DSL type is structurally narrower, and `ProjectionError` has already
-    // refused any keyword the DSL cannot express.
-    parameters: toDshParameters(contract) as unknown as ParameterSchemaSpec,
+    description,
+    parameters,
+    ...deferMarker,
     output: {
       /**
        * The PROJECTED output schema, closing the DECL-02 advertisement gap.
@@ -305,6 +318,8 @@ export function registerContractTool(
  * @param contract - the standard contract definition.
  * @param host - host identity to stamp into results.
  * @param dispatch - executes through the extension implementation.
+ * @param implementation - the extension implementation behind the contract.
+ * @param options - the deferral switch, from `config.deferHeavySchemas` (default off).
  * @returns the registered tool name and the registry disposer.
  */
 export function registerContractImplementationTool(
@@ -313,6 +328,7 @@ export function registerContractImplementationTool(
   host: HostIdentity,
   dispatch: (args: Record<string, unknown>, signal: AbortSignal) => Promise<Record<string, unknown>>,
   implementation: { readonly id: string; readonly extensionId: string; readonly modelId: string },
+  options: DeferLoadingOptions = {},
 ): { toolName: string; dispose: () => void } {
   assertValidContract(contract)
   const rules = crossFieldRules(contract)
@@ -327,10 +343,19 @@ export function registerContractImplementationTool(
     route: 'extension',
   } as unknown as Pick<ContractBinding, 'contract' | 'implementation' | 'route'>
 
+  const description = contractToolDescription(contract)
+  const parameters = toDshParameters(contract) as unknown as ParameterSchemaSpec
+  const deferLoading = shouldDeferHeavySchema({
+    toolName: contract.toolName,
+    schemaBytes: toolSchemaBytes({ name: contract.toolName, description, parameters }),
+    enabled: options.deferHeavySchemas === true,
+  })
+  const deferMarker = deferLoading ? { deferLoading: true as const } : {}
   const definition = defineTool({
     name: contract.toolName,
-    description: contractToolDescription(contract),
-    parameters: toDshParameters(contract) as unknown as ParameterSchemaSpec,
+    description,
+    parameters,
+    ...deferMarker,
     output: {
       schema: {
         type: 'object',

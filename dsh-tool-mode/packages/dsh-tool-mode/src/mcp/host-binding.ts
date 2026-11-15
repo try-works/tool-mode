@@ -81,6 +81,22 @@ export function derivePayloadSchema(
   return clone
 }
 
+/**
+ * The model-facing description to advertise for one published tool.
+ *
+ * The host records the COMPOSED description at the publication boundary for
+ * extension tools (and, from P6, for contract tools too), so this returns that
+ * text verbatim. A surface built by a test or a host tool may carry only the
+ * canonical contract fields; such a descriptor keeps its raw description rather
+ * than failing on the contract-only fields (limits/unsupported/examples).
+ */
+function descriptionFor(published: PublishedTool): string {
+  if (published.description !== undefined) return published.description
+  const contract = published.contract
+  if (!Array.isArray(contract.unsupported) || contract.limits === undefined) return contract.description
+  return contractToolDescription(contract)
+}
+
 /** One published tool as the host knows it. */
 export interface PublishedTool {
   /** The tool name a caller uses. */
@@ -255,7 +271,7 @@ export function createMcpHost(options: {
         }
         out.push({
           name: published.toolName,
-          description: published.description ?? contractToolDescription(published.contract),
+          description: descriptionFor(published),
           // Both schemas come from the CONTRACT. `schemas()` omits output, so using
           // it here would publish a tool with no declared result shape (MCP-09).
           inputSchema: published.contract.inputSchema,
