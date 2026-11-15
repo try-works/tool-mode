@@ -35,6 +35,7 @@ import {
   type ToolGrant,
 } from './authority.ts'
 import type { ModelAdapter } from './adapters/index.ts'
+import { contractToolDescription } from './tool-description.ts'
 
 /** Host identity stamped into every result. */
 export interface HostIdentity {
@@ -197,7 +198,7 @@ export function registerContractTool(
 
   const definition = defineTool({
     name: contract.toolName,
-    description: contract.description,
+    description: contractToolDescription(contract),
     // `toDshParameters` returns the projected JSON-Schema subset; the registry's
     // DSL type is structurally narrower, and `ProjectionError` has already
     // refused any keyword the DSL cannot express.
@@ -328,7 +329,7 @@ export function registerContractImplementationTool(
 
   const definition = defineTool({
     name: contract.toolName,
-    description: contract.description,
+    description: contractToolDescription(contract),
     parameters: toDshParameters(contract) as unknown as ParameterSchemaSpec,
     output: {
       schema: {

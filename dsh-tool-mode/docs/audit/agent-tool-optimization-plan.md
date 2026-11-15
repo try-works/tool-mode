@@ -1,7 +1,20 @@
 # Agent tool-selection optimization plan
 
-Status: **plan only** — no behavior changed by this document.
-Related: [inventory-audit.md](./inventory-audit.md), [tool-mode-agent-flow.md](./tool-mode-agent-flow.md).
+Status: **in progress**. P1 + P2 shipped in `@try-works/dsh-tool-mode@0.5.63`.
+Related: [inventory-audit.md](./inventory-audit.md), [tool-mode-agent-flow.md](./tool-mode-agent-flow.md), [verification-p1-p2.md](./verification-p1-p2.md).
+
+## Progress
+
+| Phase | State | Evidence |
+| --- | --- | --- |
+| P1 description composer | **done** (0.5.63) | `src/tool-description.ts`, 700-char absolute budget, golden 33 tools; P1b added extension/recipe + MCP composition, P1c fixed skill-ID resolution; verifier closed all findings |
+| P2 extension manifest skills | **done** (0.5.63) | `registerSkill` in `src/index.ts`; 6 tests; verifier PASS |
+| P3 deferred loading | next | — |
+| P4 discovery split | pending | — |
+| P5 prompt section | pending | — |
+| P6 family disambiguation | pending | — |
+| P7 MCP parity/usage | partial (MCP description parity in P1b) | — |
+| P8 restart boundary | pending | — |
 
 ## 0. Goal, non-goals, principles
 

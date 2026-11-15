@@ -55,6 +55,14 @@ export interface ModelToolSpec {
   readonly params: Readonly<Record<string, ModelParam>>
   /** What the tool returns. */
   readonly returns: string
+  /** Optional model-facing "when to use" guidance; falls back to the skill's guidance. */
+  readonly whenToUse?: string
+  /** Optional model-facing "when not to use" guidance. */
+  readonly whenNotToUse?: string
+  /** Optional limits the caller should plan around (size, units, latency class). */
+  readonly limits?: string
+  /** Optional one short worked example. */
+  readonly example?: string
 }
 
 /** The skill a catalog entry publishes alongside its tool. */

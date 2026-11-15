@@ -12,6 +12,25 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import type { ModelCatalogEntry, ModelInput, ModelParam, ModelParamType, WindowsSupport } from './types.ts'
 
+/** The tool spec while its optional guidance is added field by field. */
+interface MutableToolSpec {
+  name: string
+  description: string
+  params: Record<string, ModelParam>
+  returns: string
+  whenToUse?: string
+  whenNotToUse?: string
+  limits?: string
+  example?: string
+}
+
+/** The skill spec while its optional guidance is added field by field. */
+interface MutableSkillSpec {
+  name: string
+  description: string
+  whenToUse?: string
+}
+
 /** Absolute path of the catalog document shipped with this package. */
 export const DEFAULT_CATALOG_FILE = fileURLToPath(
   new URL('../catalog/desert-ant-models.json', import.meta.url),
@@ -198,6 +217,39 @@ export function parseCatalogEntry(raw: unknown, source: string, index: number): 
     }
     return value as string[]
   }
+  /**
+   * An optional non-empty guidance string on the TOOL declaration.
+   *
+   * The String tag is checked rather than a typeof narrowing: the field comes
+   * from untrusted JSON, so the boundary is parsed here and only a real string
+   * proceeds.
+   */
+  const optionalToolText = (key: string): string | undefined => {
+    const value = toolSpec[key]
+    if (value === undefined) return undefined
+    if (Object.prototype.toString.call(value) !== '[object String]') {
+      fail(source, `${scope} tool.${key} must be a non-empty string when present`)
+    }
+    const text = String(value).trim()
+    if (text.length === 0) fail(source, `${scope} tool.${key} must be a non-empty string when present`)
+    return text
+  }
+  /** The same boundary check for the SKILL declaration's optional guidance. */
+  const optionalSkillText = (key: string): string | undefined => {
+    const value = skillSpec[key]
+    if (value === undefined) return undefined
+    if (Object.prototype.toString.call(value) !== '[object String]') {
+      fail(source, `${scope} skill.${key} must be a string when present`)
+    }
+    const text = String(value).trim()
+    if (text.length === 0) fail(source, `${scope} skill.${key} must be a non-empty string when present`)
+    return text
+  }
+  const toolWhenToUse = optionalToolText('whenToUse')
+  const toolWhenNotToUse = optionalToolText('whenNotToUse')
+  const toolLimits = optionalToolText('limits')
+  const toolExample = optionalToolText('example')
+  const skillWhenToUse = optionalSkillText('whenToUse')
 
   const toolName = requireString(toolSpec, 'name', source)
   if (!/^[a-z][a-z0-9_]*$/.test(toolName)) {
@@ -207,6 +259,27 @@ export function parseCatalogEntry(raw: unknown, source: string, index: number): 
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(skillName)) {
     fail(source, `${scope} skill.name ${JSON.stringify(skillName)} must be kebab-case`)
   }
+
+  const toolOut: MutableToolSpec = {
+    name: toolName,
+    description: requireString(toolSpec, 'description', source),
+    params: Object.fromEntries(
+      Object.entries(params as Record<string, unknown>).map(([key, value]) => [
+        key,
+        parseParam(value, scope, key),
+      ]),
+    ),
+    returns: requireString(toolSpec, 'returns', source),
+  }
+  if (toolWhenToUse !== undefined) toolOut.whenToUse = toolWhenToUse
+  if (toolWhenNotToUse !== undefined) toolOut.whenNotToUse = toolWhenNotToUse
+  if (toolLimits !== undefined) toolOut.limits = toolLimits
+  if (toolExample !== undefined) toolOut.example = toolExample
+  const skillOut: MutableSkillSpec = {
+    name: skillName,
+    description: requireString(skillSpec, 'description', source),
+  }
+  if (skillWhenToUse !== undefined) skillOut.whenToUse = skillWhenToUse
 
   return {
     id,
@@ -230,22 +303,8 @@ export function parseCatalogEntry(raw: unknown, source: string, index: number): 
     license: requireString(entry, 'license', source),
     docsUrl: requireString(entry, 'docsUrl', source),
     hfRepo: requireString(entry, 'hfRepo', source),
-    tool: {
-      name: toolName,
-      description: requireString(toolSpec, 'description', source),
-      params: Object.fromEntries(
-        Object.entries(params as Record<string, unknown>).map(([key, value]) => [
-          key,
-          parseParam(value, scope, key),
-        ]),
-      ),
-      returns: requireString(toolSpec, 'returns', source),
-    },
-    skill: {
-      name: skillName,
-      description: requireString(skillSpec, 'description', source),
-      ...typeof skillSpec.whenToUse === 'string' ? { whenToUse: skillSpec.whenToUse } : {},
-    },
+    tool: toolOut,
+    skill: skillOut,
   }
 }
 

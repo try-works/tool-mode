@@ -13,6 +13,7 @@
 import { defineTool, type ParameterPropertySpec, type ParameterSchemaSpec } from '@deepseek-ai/dsh-tools'
 import type { ModelCatalogEntry, ModelParamType } from './types.ts'
 import type { ModelAdapter } from './adapters/index.ts'
+import { catalogToolDescription } from './tool-description.ts'
 
 /** The tool spec a catalog entry declares, resolved into a registration. */
 export interface RegisteredModelTool {
@@ -151,7 +152,7 @@ export function registerModelTool(
 ): RegisteredModelTool {
   const definition = defineTool({
     name: entry.tool.name,
-    description: entry.tool.description,
+    description: catalogToolDescription(entry),
     parameters: buildParameters(entry),
     output: {
       schema: outputSchemaFor(entry),

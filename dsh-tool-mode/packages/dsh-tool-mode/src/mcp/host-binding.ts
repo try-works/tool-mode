@@ -28,6 +28,7 @@ import Ajv2020 from 'ajv/dist/2020.js'
 import type { ToolContract } from '@try-works/tool-mode-contracts'
 import { redactText } from './../receipt.ts'
 import { normalizeCachePolicy } from './protocol.ts'
+import { contractToolDescription } from '../tool-description.ts'
 import type { ExternalCaller } from './client-grant.ts'
 import type { McpHost, McpToolDefinition, ToolInvocationOutcome } from './server.ts'
 import {
@@ -95,6 +96,14 @@ export interface PublishedTool {
    * caller whose call fails in a way nobody can explain.
    */
   readonly notExportableReason?: string
+  /**
+   * The composed description this tool's owner declared, when the host recorded one.
+   *
+   * Extension-published tools carry their composed text here; contract tools omit
+   * it and the binding composes their contract description. The MCP advertisement
+   * is therefore the SAME text the DSH registry shows.
+   */
+  readonly description?: string
 }
 
 /** Render Ajv errors as bounded, path-qualified text. */
@@ -246,7 +255,7 @@ export function createMcpHost(options: {
         }
         out.push({
           name: published.toolName,
-          description: published.contract.description,
+          description: published.description ?? contractToolDescription(published.contract),
           // Both schemas come from the CONTRACT. `schemas()` omits output, so using
           // it here would publish a tool with no declared result shape (MCP-09).
           inputSchema: published.contract.inputSchema,

@@ -32,8 +32,9 @@ import {
 import { createAdapter } from './adapters/index.ts'
 import { registerModelTool } from './registrar.ts'
 import { registerContractTool, registerContractImplementationTool, type ContractBinding, type HostIdentity } from './bindings.ts'
+import { contractToolDescription, extensionToolDescription } from './tool-description.ts'
 import { appendFileSync, readFileSync, readdirSync, statSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join, resolve, sep } from 'node:path'
 import { createContributionRegistrar, type RegistrableTool } from './extension-registrar.ts'
 import { createInvocationAuthority } from './authority.ts'
 import { createExternalGrantContext, createProgramRunner, externalRefusal, serveProgram, TOOL_MODE_RUN_CONTRACT, PTC_SERVICE } from './tool-mode-run.ts'
@@ -162,6 +163,15 @@ const HOST_VERSION = PACKAGE_VERSION
 
 /** Largest extension tool schema read at registration, in bytes. */
 const MAX_SCHEMA_BYTES = 512 * 1024
+
+/**
+ * Largest extension SKILL body loaded into the prompt, in bytes.
+ *
+ * A manifest skill is markdown guidance that rides the context; a package must not be
+ * able to put unbounded bytes there. The body is refused (and the activation kept) over
+ * this cap, which is the same size class as the tool-schema cap above.
+ */
+const MAX_SKILL_BYTES = 512 * 1024
 
 /** The DSH value-schema keywords a recipe input may advertise (mirrors contracts/dsh.ts's DSH_SUPPORTED). */
 const DSH_PARAMETER_KEYWORDS = new Set([
@@ -2314,9 +2324,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             ? {
                 toolName,
                 contract,
+                description: tool.description,
                 notExportableReason: 'the extension declares no output schema, so MCP cannot advertise a result shape',
               }
-            : { toolName, contract })
+            : { toolName, contract, description: tool.description })
         }
         // DECL-07: read-only discovery is available to native AND external callers.
         // These are host-owned contracts, not model-package contributions.
@@ -5058,6 +5069,44 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     for (const entry of store.readProfileState('default').value) {
       if (entry.desiredActivation === 'active') activatedExtensions.add(entry.extensionId)
     }
+    /**
+     * P1b: the declared skill guidance that applies to one contributed tool.
+     *
+     * A manifest skill names the tools it needs; the matching skill's description is
+     * the when-to-use line for that tool's composed description. Absent guidance is
+     * not an error: the manifest tool description then stands alone.
+     */
+    const extensionSkillGuidance = (
+      extensionId: string,
+      toolName: string,
+    ): { readonly name: string; readonly description: string } | undefined => {
+      let manifest
+      try {
+        const record = selectedInstalled(extensionId)
+        if (record === undefined) return undefined
+        manifest = discoverExtension(record.installPath).manifest
+      } catch {
+        return undefined
+      }
+      const skills = manifest.skills
+      if (!Array.isArray(skills)) return undefined
+      const skill = skills.find(candidate => {
+        const required = candidate.requiresTools
+        // An absent or empty requirement list is setup guidance: no restriction.
+        if (required === undefined || required.length === 0) return true
+        /**
+         * requiresTools holds MANIFEST TOOL IDS, not caller-facing names. The SDK
+         * lifecycle resolves each id through manifest.tools before gating; resolve
+         * them the same way here, and fall back to the raw id when it is unknown.
+         */
+        return required.some((id: string) => {
+          const declared = manifest.tools.find(tool => tool.id === id)
+          return (declared?.name ?? id) === toolName
+        })
+      })
+      return skill === undefined ? undefined : { name: skill.name, description: skill.description }
+    }
+
     const registrar = createContributionRegistrar({
       activated: activatedExtensions,
       registry: {
@@ -5077,6 +5126,16 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           // and open output would leave. Files are bounded and the manifest already
           // validated they exist inside the package.
           const declared = readDeclaredToolSchemas(tool)
+          /**
+           * P1b: the model-facing description is COMPOSED once here, and the SAME
+           * string goes to the DSH registry and the MCP publication, so the two
+           * surfaces cannot disagree about what the tool is or when to use it.
+           */
+          const toolDescription = extensionToolDescription({
+            description: declared.description,
+            fallback: `Provided by ${tool.ownerExtension}.`,
+            skill: extensionSkillGuidance(tool.ownerExtension, tool.name),
+          })
 
           /**
            * THE PLANNING CONTRACT IS RECOGNIZED BY NAME PLUS SHAPE (NDL-02).
@@ -5191,7 +5250,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
 
           const dispose = ctx.tools.register(defineTool({
             name: tool.name,
-            description: declared.description ?? `Provided by ${tool.ownerExtension}.`,
+            description: toolDescription,
             parameters: inputProjection as unknown as ParameterSchemaSpec,
             output: {
               schema: outputProjection as unknown as ValueSchemaSpec,
@@ -5342,7 +5401,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           extensionToolOwners.set(tool.name, tool.ownerExtension)
           ownedExtensionToolNames.add(tool.name)
           exposeExtensionToolToMcp(tool.name, {
-            description: declared.description ?? '',
+            description: toolDescription,
             /**
              * `tools_plan` is served through the HOST's planning contract, whose `tools`
              * are tool NAMES (strings) that the host snapshots into the planner's offered
@@ -5425,7 +5484,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           extensionToolOwners.set(toolName, contribution.extensionId)
           ownedExtensionToolNames.add(toolName)
           exposeExtensionToolToMcp(toolName, {
-            description: contract.description,
+            description: contractToolDescription(contract),
             inputSchema: contract.inputSchema,
             outputSchema: contract.outputSchema,
           })
@@ -5434,6 +5493,87 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           ownedExtensionToolNames.delete(toolName)
             withdrawExtensionToolFromMcp(toolName)
             registered.dispose()
+          }
+        },
+        /**
+         * P2 of the agent tool-selection plan: a manifest skill becomes a runtime skill.
+         *
+         * The lifecycle already publishes `kind: 'skill'` contributions (gated by the
+         * manifest's `requiresTools` against the tools actually visible), but the wire only
+         * carries the NAME. So the host re-reads the installed package's manifest here,
+         * finds the declared skill, and loads its body from the declared package-relative
+         * path. Every failure is REPORTED and skipped rather than thrown: a skill the host
+         * cannot load must never fail the activation that publishes the extension's tools.
+         */
+        registerSkill: (skill): (() => void) => {
+          if (!registerSkills) return () => {}
+          const record = selectedInstalled(skill.ownerExtension)
+          if (record === undefined) {
+            ctx.logger.warn(
+              `model-tools: ${skill.ownerExtension}'s skill ${skill.name} was dropped: the extension is not installed`,
+            )
+            return () => {}
+          }
+          let discovery: ReturnType<typeof discoverExtension>
+          try {
+            discovery = discoverExtension(record.installPath)
+          } catch (error) {
+            ctx.logger.warn(
+              `model-tools: ${skill.ownerExtension}'s skill ${skill.name} was dropped: `
+              + `the package cannot be read: ${error instanceof Error ? error.message : String(error)}`,
+            )
+            return () => {}
+          }
+          const declared = discovery.manifest.skills.find(candidate => candidate.name === skill.name)
+          if (declared === undefined) {
+            ctx.logger.warn(`model-tools: ${skill.ownerExtension} declares no skill named ${skill.name}`)
+            return () => {}
+          }
+          const skills = ctx.get('skills')
+          if (skills === undefined) {
+            ctx.logger.warn(
+              `model-tools: ${skill.ownerExtension}'s skill ${skill.name} was dropped: no skill registry is mounted`,
+            )
+            return () => {}
+          }
+          let content: string
+          let path: string
+          try {
+            // Package-relative by manifest validation; the containment check is defense in
+            // depth, so a `./../` path can never read outside the installed package.
+            const root = resolve(record.installPath)
+            path = resolve(root, declared.path)
+            if (path !== root && !path.startsWith(root + sep)) {
+              throw new Error(`the declared path "${declared.path}" escapes the installed package`)
+            }
+            const size = statSync(path).size
+            if (size > MAX_SKILL_BYTES) {
+              throw new Error(`the skill body is ${size} bytes, over the ${MAX_SKILL_BYTES} cap`)
+            }
+            content = readFileSync(path, 'utf8')
+          } catch (error) {
+            ctx.logger.warn(
+              `model-tools: ${skill.ownerExtension}'s skill ${skill.name} was dropped: `
+              + `${error instanceof Error ? error.message : String(error)}`,
+            )
+            return () => {}
+          }
+          try {
+            return skills.register({
+              name: declared.name,
+              description: declared.description,
+              content,
+              // The concrete file is the resource base: relative links in the body resolve
+              // against the installed package, not the host process's cwd.
+              path,
+              source: 'extension',
+            })
+          } catch (error) {
+            ctx.logger.warn(
+              `model-tools: ${skill.ownerExtension}'s skill ${skill.name} was dropped: `
+              + `${error instanceof Error ? error.message : String(error)}`,
+            )
+            return () => {}
           }
         },
         registerDeclarative: (contribution): (() => void) => {
@@ -5513,9 +5653,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
                 + `${lane.code} — ${lane.detail}`,
               )
             }
+            const laneDescription = extensionToolDescription({
+              description: lane.tool.description,
+              fallback: `Provided by ${contribution.extensionId}.`,
+              skill: extensionSkillGuidance(contribution.extensionId, lane.tool.name),
+            })
             const disposeTool = ctx.tools.register(defineTool({
               name: lane.tool.name,
-              description: lane.tool.description,
+              description: laneDescription,
               parameters: lane.tool.parameters as unknown as ParameterSchemaSpec,
               output: {
                 schema: { type: 'json' },
@@ -5526,7 +5671,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
               },
             }))
             exposeExtensionToolToMcp(lane.tool.name, {
-              description: lane.tool.description,
+              description: laneDescription,
               inputSchema: lane.tool.inputSchema,
               outputSchema: lane.tool.outputSchema,
             })
@@ -5608,9 +5753,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             properties,
             required: requiredNames,
           })
+          const recipeDescription = extensionToolDescription({
+            description: recipe.description,
+            fallback: `Provided by ${contribution.extensionId}.`,
+            skill: extensionSkillGuidance(contribution.extensionId, recipe.tool.name),
+          })
           const disposeTool = ctx.tools.register(defineTool({
             name: recipe.tool.name,
-            description: recipe.description,
+            description: recipeDescription,
             parameters: dsl as unknown as ParameterSchemaSpec,
             output: recipe.response === undefined
               ? {
@@ -5702,7 +5852,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             },
           }))
           exposeExtensionToolToMcp(recipe.tool.name, {
-            description: recipe.description,
+            description: recipeDescription,
             inputSchema: {
               type: 'object',
               additionalProperties: false,
