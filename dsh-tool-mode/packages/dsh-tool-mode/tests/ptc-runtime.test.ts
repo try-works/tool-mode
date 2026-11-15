@@ -41,6 +41,8 @@ process.env['DSH_PTC_CONFINEMENT_EVIDENCE'] = join(tmpdir(), 'dsh-test-no-confin
 // the gate and these CLOSED-gate cases would assert the opposite of the release path. Disable
 // the shipped candidate for this file; the release path itself is covered in
 // ptc-confinement-bundled.test.ts.
+// task-56: the cache-reset seam is guarded like its sibling, so the marker is armed here.
+process.env['DSH_PTC_CONFINEMENT_SEAM'] = 'open-for-acceptance-test'
 resetConfinementEvidenceCacheForTest({ bundledPath: null })
 
 /** A host context that records what was mounted. */

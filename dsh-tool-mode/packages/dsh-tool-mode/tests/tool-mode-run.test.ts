@@ -31,6 +31,8 @@ import { callTool, cleanup, mountPlugin, tempDir } from './helpers.ts'
 process.env['DSH_PTC_CONFINEMENT_EVIDENCE'] = join(tmpdir(), 'dsh-test-no-confinement-evidence.json')
 // task-50: the packaged artifact would otherwise open the gate; these cases assert the CLOSED
 // gate, and the shipped-artifact path is covered in ptc-confinement-bundled.test.ts.
+// task-56: the cache-reset seam is guarded like its sibling, so the marker is armed here.
+process.env['DSH_PTC_CONFINEMENT_SEAM'] = 'open-for-acceptance-test'
 resetConfinementEvidenceCacheForTest({ bundledPath: null })
 
 after(async () => { await cleanup() })

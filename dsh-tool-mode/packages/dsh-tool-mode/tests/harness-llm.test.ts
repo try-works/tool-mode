@@ -265,8 +265,12 @@ describe('HLM-01 — the host pipeline serves declarative recipes through a scri
       arguments: { text: 'A guide to automating the configuration of a deployment pipeline.' },
     })
     assert.equal(result.isError, false, `the title run must complete: ${JSON.stringify(result)}`)
-    const parsed = JSON.parse(result.value as string) as { title?: string }
+    // task-54: the served result is the CONTRACT object (text.title uses withMeta), not the
+    // provider's raw JSON text; the host stamps the envelope.
+    const parsed = result.value as { title?: string; meta?: { contract?: string; receiptId?: string } }
     assert.equal(parsed.title, 'Deployment pipeline configuration', 'the completion must carry the scripted title')
+    assert.equal(parsed.meta?.contract, 'text.title', 'the result must carry the contract envelope')
+    assert.ok((parsed.meta?.receiptId ?? '').length > 0, 'the envelope carries a host receipt id')
 
     // HLM-11: no attachment service was provided, so the image-capable descriptor is
     // honestly 'unknown' and the broker refuses — never a silent drop.
@@ -360,7 +364,8 @@ describe('HLM-01 — the host pipeline serves declarative recipes through a scri
       arguments: { text: 'A guide to automating the configuration of a deployment pipeline.' },
     })
     assert.equal(result.isError, false, JSON.stringify(result))
-    assert.equal(JSON.parse(result.value as string).title, 'Deployment pipeline configuration', 'the AUTO provider serves a real recipe call')
+    // task-54: a contract object, never the provider's JSON text.
+    assert.equal((result.value as { title?: string }).title, 'Deployment pipeline configuration', 'the AUTO provider serves a real recipe call')
   })
 
   it('explicit config wins over the AUTO discovery', async () => {
@@ -410,7 +415,8 @@ describe('HLM-01 — the host pipeline serves declarative recipes through a scri
       arguments: { text: 'A guide to automating the configuration of a deployment pipeline.' },
     })
     assert.equal(result.isError, false, JSON.stringify(result))
-    assert.equal(JSON.parse(result.value as string).title, 'Deployment pipeline configuration')
+    // task-54: a contract object, never the provider's JSON text.
+    assert.equal((result.value as { title?: string }).title, 'Deployment pipeline configuration')
   })
 
   it('task-96 regression: a PARTIAL harnessModel (only provider) also falls through to AUTO', async () => {
@@ -577,7 +583,8 @@ describe('task-98 — the runtime-aware resolution maps the configured provider 
       arguments: { text: 'A guide to automating the configuration of a deployment pipeline.' },
     })
     assert.equal(result.isError, false, JSON.stringify(result))
-    assert.equal(JSON.parse(result.value as string).title, 'Deployment pipeline configuration')
+    // task-54: a contract object, never the provider's JSON text.
+    assert.equal((result.value as { title?: string }).title, 'Deployment pipeline configuration')
   })
 })
 

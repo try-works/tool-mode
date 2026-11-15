@@ -20,13 +20,22 @@
  */
 /* oxlint-disable anti-slop/no-unknown-parameters, anti-slop/no-runtime-typeof, anti-slop/no-unsafe-dictionary-type, anti-slop/require-safety-comment-for-type-assertion */
 
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { randomBytes } from 'node:crypto'
 import { dirname } from 'node:path'
 import { MAX_RETAINED_RECEIPTS, type InvocationReceipt } from './receipt.ts'
 
-/** The on-disk document version, so a future shape can refuse incompatible files. */
-export const RECEIPT_STORE_VERSION = 1
+/** The on-disk document version (v2 added the required runId/at on every receipt). */
+export const RECEIPT_STORE_VERSION = 2
+
+/**
+ * The legacy document version this build MIGRATES instead of quarantining.
+ *
+ * A 0.5.69 store carried no runId/at; treating it as malformed moved a perfectly good
+ * history aside. The migration rule is: runId = receiptId, at = the row's persisted
+ * timestamp when it has one, otherwise the store file's mtime.
+ */
+export const MIGRATABLE_RECEIPT_STORE_VERSION = 1
 
 /** Where the receipt store lives for a given state file. */
 export function receiptStorePathFor(stateFile: string): string {
@@ -84,8 +93,40 @@ function isReceipt(value: unknown): value is InvocationReceipt {
     && Array.isArray(record['warnings'])
 }
 
-/** Parse one document, distinguishing "absent" from "malformed". */
-function parseDocument(text: string): { readonly ok: true; readonly receipts: readonly InvocationReceipt[] } | { readonly ok: false; readonly reason: string } {
+/** The v1 shape: every required field EXCEPT the runId/at enrichment. */
+function isLegacyReceipt(value: unknown): value is Record<string, unknown> {
+  if (typeof value !== 'object' || value === null) return false
+  const record = value as Record<string, unknown>
+  return typeof record['receiptId'] === 'string'
+    && record['receiptId'].length > 0
+    && typeof record['contract'] === 'string'
+    && typeof record['implementationId'] === 'string'
+    && typeof record['extension'] === 'string'
+    && typeof record['modelIdentity'] === 'string'
+    && typeof record['activationGeneration'] === 'number'
+    && Array.isArray(record['warnings'])
+}
+
+/**
+ * Migrate one v1 row: runId = receiptId and at = the persisted timestamp or the file mtime.
+ * A row that keeps its own runId/at (a hand-written v1 row may) is preserved.
+ */
+function migrateLegacyReceipt(value: unknown, fallbackAt: string): InvocationReceipt | undefined {
+  if (!isLegacyReceipt(value)) return undefined
+  const record = value as Record<string, unknown>
+  const persistedAt = typeof record['at'] === 'string' && record['at'].length > 0 ? record['at'] : fallbackAt
+  const runId = typeof record['runId'] === 'string' && record['runId'].length > 0
+    ? record['runId']
+    : record['receiptId'] as string
+  // SAFETY: the legacy shape check above established every v2 field except runId/at, which
+  // are supplied here from the row itself or the migration fallback. The cast is the one
+  // boundary conversion v1 -> v2, and the parser above is what earns it.
+  // oxlint-disable-next-line anti-slop/no-chained-type-assertions
+  return { ...record as unknown as InvocationReceipt, runId, at: persistedAt }
+}
+
+/** Parse one document, distinguishing "absent" from "malformed" and "migratable". */
+function parseDocument(text: string, fallbackAt: string): { readonly ok: true; readonly receipts: readonly InvocationReceipt[]; readonly migrated: boolean } | { readonly ok: false; readonly reason: string } {
   let parsed: unknown
   try {
     parsed = JSON.parse(text)
@@ -94,13 +135,22 @@ function parseDocument(text: string): { readonly ok: true; readonly receipts: re
   }
   if (typeof parsed !== 'object' || parsed === null) return { ok: false, reason: 'the document is not a JSON object' }
   const document = parsed as Partial<StoreDocument>
+  if (!Array.isArray(document.receipts)) return { ok: false, reason: 'receipts is not an array' }
+  if (document.version === MIGRATABLE_RECEIPT_STORE_VERSION) {
+    const migrated: InvocationReceipt[] = []
+    for (const receipt of document.receipts) {
+      const row = migrateLegacyReceipt(receipt, fallbackAt)
+      if (row === undefined) return { ok: false, reason: 'the store contains a malformed receipt' }
+      migrated.push(row)
+    }
+    return { ok: true, receipts: migrated, migrated: true }
+  }
   if (document.version !== RECEIPT_STORE_VERSION) {
     return { ok: false, reason: `unsupported receipt store version ${String(document.version)}` }
   }
-  if (!Array.isArray(document.receipts)) return { ok: false, reason: 'receipts is not an array' }
   const invalid = document.receipts.find(receipt => !isReceipt(receipt))
   if (invalid !== undefined) return { ok: false, reason: 'the store contains a malformed receipt' }
-  return { ok: true, receipts: document.receipts }
+  return { ok: true, receipts: document.receipts, migrated: false }
 }
 
 /** Keep the newest `limit` receipts, never exceeding it. */
@@ -114,11 +164,29 @@ export function createFileReceiptStore(path: string, options: ReceiptStoreOption
   let records: InvocationReceipt[] = []
   let quarantinePath: string | undefined
 
+  const persist = (): void => {
+    mkdirSync(dirname(path), { recursive: true })
+    const temporary = `${path}.tmp-${process.pid.toString(36)}-${randomBytes(6).toString('hex')}`
+    writeFileSync(temporary, `${JSON.stringify({ version: RECEIPT_STORE_VERSION, receipts: records }, null, 2)}\n`, { mode: 0o600 })
+    renameSync(temporary, path)
+  }
+
   if (existsSync(path)) {
     const text = readFileSync(path, 'utf8')
-    const parsed = parseDocument(text)
+    // A v1 row with no persisted timestamp takes the FILE's mtime: the closest honest
+    // approximation of when the call happened. If the stat itself fails, epoch is the
+    // documented fallback rather than "now", which would claim the call just happened.
+    let fallbackAt = new Date(0).toISOString()
+    try {
+      fallbackAt = statSync(path).mtime.toISOString()
+    } catch {
+      // The documented fallback stands.
+    }
+    const parsed = parseDocument(text, fallbackAt)
     if (parsed.ok) {
       records = bounded([...parsed.receipts], limit)
+      // Persist the upgrade so the next load is a plain v2 read.
+      if (parsed.migrated) persist()
     } else {
       // QUARANTINE, never "start empty": overwriting the bytes would destroy the
       // only evidence of what the store used to hold.
@@ -126,13 +194,6 @@ export function createFileReceiptStore(path: string, options: ReceiptStoreOption
       renameSync(path, quarantinePath)
       options.onQuarantine?.({ quarantinePath, reason: parsed.reason })
     }
-  }
-
-  const persist = (): void => {
-    mkdirSync(dirname(path), { recursive: true })
-    const temporary = `${path}.tmp-${process.pid.toString(36)}-${randomBytes(6).toString('hex')}`
-    writeFileSync(temporary, `${JSON.stringify({ version: RECEIPT_STORE_VERSION, receipts: records }, null, 2)}\n`, { mode: 0o600 })
-    renameSync(temporary, path)
   }
 
   return {

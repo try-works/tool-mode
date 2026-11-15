@@ -158,7 +158,10 @@ export function combineDecision(
 /** The MCP contract for the pure combiner. */
 export const DECISION_COMBINE_CONTRACT = {
   contract: 'decision.combine',
-  version: '1.0.0',
+  // 1.1.0: the result now carries the host-authored `meta` envelope (task-54). Adding a
+  // required field is a backward-compatible MINOR change; leaving 1.0.0 would have let a
+  // consumer pin a shape the host no longer serves.
+  version: '1.1.0',
   toolName: 'decision_combine',
   description: 'Combine code-computed facts and atomic model judgment probabilities through explicit first-match rules; returns the exit and full trace.',
   inputSchema: {
@@ -175,11 +178,12 @@ export const DECISION_COMBINE_CONTRACT = {
   outputSchema: {
     type: 'object',
     additionalProperties: false,
-    required: ['exit', 'fallback', 'trace'],
+    required: ['exit', 'fallback', 'trace', 'meta'],
     properties: {
       exit: { type: 'string' },
       fallback: { type: 'boolean' },
       trace: { type: 'array', items: { type: 'object', additionalProperties: true } },
+      meta: { type: 'object', additionalProperties: true },
     },
   },
   semantics: { deterministic: true, readsInputs: true },

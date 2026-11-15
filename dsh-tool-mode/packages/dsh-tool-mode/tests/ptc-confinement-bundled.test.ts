@@ -34,6 +34,10 @@ afterEach(() => {
   delete process.env[CONFINEMENT_EVIDENCE_ENV]
   resetConfinementEvidenceCacheForTest()
 })
+// The seam is inert without the operator marker; set it once for this process so
+// resetConfinementEvidenceCacheForTest (now guarded like its sibling) can run.
+process.env['DSH_PTC_CONFINEMENT_SEAM'] = 'open-for-acceptance-test'
+
 process.on('exit', () => { void cleanup() })
 
 /** The fields a case may override; a precise shape, not a dictionary. */

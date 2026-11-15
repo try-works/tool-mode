@@ -268,18 +268,25 @@ export function evaluateDecisions(
 
 /** The MCP contract for confidence routing. */
 export const DECISION_ROUTE_CONTRACT = {
-  contract: 'decision.route', version: '1.0.0', toolName: 'decision_route',
+  // 1.1.0: host-authored `meta` added to the result (task-54).
+  contract: 'decision.route', version: '1.1.0', toolName: 'decision_route',
   description: 'Route a primary judgment probability into accept, reject or the escalate band.',
   inputSchema: { type: 'object', additionalProperties: false, required: ['probability'], properties: { probability: { type: 'number' }, acceptAt: { type: 'number' }, rejectAt: { type: 'number' } } },
-  outputSchema: { type: 'object', additionalProperties: false, required: ['route', 'decision', 'band', 'reason'], properties: { route: { type: 'string' }, decision: { type: ['boolean', 'null'] }, band: { type: 'string' }, reason: { type: 'string' } } },
+  outputSchema: { type: 'object', additionalProperties: false, required: ['route', 'decision', 'band', 'reason', 'meta'], properties: { route: { type: 'string' }, decision: { type: ['boolean', 'null'] }, band: { type: 'string' }, reason: { type: 'string' }, meta: { type: 'object', additionalProperties: true } } },
   semantics: { deterministic: true, readsInputs: true }, limits: {},
 } as const
 
 /** The MCP contract for decision evaluation. */
 export const DECISION_EVALUATE_CONTRACT = {
-  contract: 'decision.evaluate', version: '1.0.0', toolName: 'decision_evaluate',
+  // 1.1.0: host-authored `meta` added to the result (task-54).
+  contract: 'decision.evaluate', version: '1.1.0', toolName: 'decision_evaluate',
   description: 'Evaluate labeled decision probabilities: accuracy, FPR/FNR, Brier, calibration and an optional escalation arm.',
   inputSchema: { type: 'object', additionalProperties: false, required: ['cases'], properties: { cases: { type: 'array' }, threshold: { type: 'number' }, escalation: { type: 'object' } } },
-  outputSchema: { type: 'object', additionalProperties: true },
+  outputSchema: {
+    type: 'object',
+    additionalProperties: true,
+    required: ['meta'],
+    properties: { meta: { type: 'object', additionalProperties: true } },
+  },
   semantics: { deterministic: true, readsInputs: true }, limits: {},
 } as const

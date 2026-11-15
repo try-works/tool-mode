@@ -25,7 +25,7 @@
 
 import { after, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
 import { Context } from '@deepseek-ai/cordis'
@@ -168,17 +168,29 @@ describe('agent-authoring store', () => {
     assert.equal(store.listWorkflows().length, 0)
   })
 
-  it('tolerates a corrupt file without crashing and keeps serving', () => {
+  it('QUARANTINES a corrupt file instead of silently overwriting it, and keeps serving', () => {
     const file = authoringFile()
     writeFileSync(file, '{ not json', 'utf8')
     const store = createAgentAuthoringStore({ file })
     assert.equal(store.listWorkflows().length, 0)
     assert.match(store.issue ?? '', /not valid JSON/)
+    // The corrupt bytes are MOVED ASIDE, never destroyed: the next save writes a fresh store.
+    assert.ok(store.quarantinePath, 'a corrupt document must be quarantined')
+    assert.equal(existsSync(file), false, 'the original path is freed for a fresh store')
+    assert.equal(readFileSync(store.quarantinePath!, 'utf8'), '{ not json')
     // A save repairs the file atomically; the next instance reads it cleanly.
     store.saveWorkflow({ name: 'repaired', program: 'return 1', tools: [] })
     const reopened = createAgentAuthoringStore({ file })
     assert.equal(reopened.issue, undefined)
+    assert.equal(reopened.quarantinePath, undefined)
     assert.equal(reopened.getWorkflow('repaired')?.name, 'repaired')
+  })
+
+  it('writes the store with owner-only permissions on POSIX', { skip: process.platform === 'win32' ? 'POSIX permission bits are not meaningful on win32' : false }, () => {
+    const file = authoringFile()
+    const store = createAgentAuthoringStore({ file })
+    store.saveWorkflow({ name: 'private-flow', program: 'return 1', tools: [] })
+    assert.equal(statSync(file).mode & 0o777, 0o600)
   })
 
   it('validates names and refuses reserved or malformed ones', () => {

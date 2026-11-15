@@ -127,7 +127,7 @@ import { normalizeCachePolicy } from './mcp/protocol.ts'
 import { applyMcpExportPolicy } from './mcp/export-policy.ts'
 import type { ClientGrantConfig } from './mcp/client-grant.ts'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
-import { STANDARD_CONTRACTS, assertAgainstSchema, compileSchema, projectSchemaToDsh, toDshParameters, type ToolContract } from '@try-works/tool-mode-contracts'
+import { STANDARD_CONTRACTS, assertAgainstSchema, assertValidContract, assertValidOutput, compileSchema, projectSchemaToDsh, toDshParameters, type ToolContract, type ToolMeta } from '@try-works/tool-mode-contracts'
 import { describeDataHandling, renderSkillBody } from './skills.ts'
 import { loadPlaybooks } from './playbook.ts'
 import { commandExists, DEFAULT_CLI_COMMAND } from './transport.ts'
@@ -1060,6 +1060,21 @@ function absorbVolatileConfig(config: Config): void {
   for (const key of VOLATILE_CONFIG_KEYS) {
     if (key in writable) writable[key] = unwrapVolatile(writable[key])
   }
+}
+
+/**
+ * Which discovery bucket a catalog row belongs to (task-57).
+ *
+ * The split is STRUCTURAL: the SHARED readiness state decides, never the registry set.
+ * `callable` already implies "registered" (task-52 made the registry fact an input to the
+ * derivation), so testing the state covers both and cannot drift from `model_tools`; a
+ * registry-only test would put a REGISTERED but non-callable row into `tools`, promising
+ * more than the host will serve.
+ * @param state - the shared model-tool readiness state.
+ * @returns the bucket the row is published in.
+ */
+export function discoveryBucket(state: string): 'tools' | 'unavailable' {
+  return state === 'callable' ? 'tools' : 'unavailable'
 }
 
 export async function apply(ctx: Context, config: Config = {}): Promise<void> {
@@ -3289,6 +3304,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
                     required: true,
                     oneOf: [{ type: 'string' }, { type: 'null' }],
                   },
+                  /** task-57: the bounded warning a failed composition carries. */
+                  warnings: { type: 'array', items: { type: 'string' }, required: true },
                   outcome: {
                     required: true,
                     oneOf: [{ type: 'string' }, { type: 'null' }],
@@ -3670,6 +3687,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           // Exposed as null when the lane genuinely cannot know: the schema declares the
           // field, so an absent value is visible rather than silently missing.
           outcome: receipt.outcome ?? null,
+          // task-57: a failed composition's bounded warning is part of the provenance a
+          // caller/operator needs; a receipt nobody can read cannot explain the failure.
+          warnings: [...receipt.warnings],
           ...receipt.usage === undefined ? {} : { usage: receipt.usage },
           ...receipt.cost === undefined ? {} : { cost: receipt.cost },
         }))
@@ -4315,7 +4335,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           if (permitted !== undefined && !permitted.has(toolName)) continue
           // The SAME derivation model_tools uses, so the two surfaces agree.
           const surface = modelSurface(item.entry, item.verdict, record !== undefined, registered.has(toolName))
-          if (!registered.has(toolName)) {
+          /**
+           * THE SPLIT IS STRUCTURAL (task-57): the SHARED readiness state decides, not the
+           * registry set. `callable` already implies "registered" (task-52 made the registry
+           * fact an input), so testing the state covers both and cannot drift from
+           * `model_tools`; the previous set test could put a REGISTERED but non-callable row
+           * into `tools`, which promises more than the host will serve.
+           */
+          if (discoveryBucket(surface.state) === 'unavailable') {
             unavailable.push({
               name: toolName,
               model: item.entry.id,
@@ -4598,6 +4625,36 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
    * host that hides model_tools unregister the tool while MCP still advertised it, so
    * every external call failed "unknown tool".
    */
+  /**
+   * Record a FAILED composition receipt (task-57).
+   *
+   * A composition that THREW before returning used to leave no trace at all: the success
+   * receipt was recorded after `serveProgram` resolved, so the caller got an error and the
+   * receipts surface got nothing — the one case an operator most wants to audit. The record
+   * is self-contained: `runId` is the receipt itself (`parentReceiptId: null`, a direct
+   * composition), `at` is the builder's ISO timestamp, and the warning is a FIXED bounded
+   * sentence — never the error text — so no caller content or program source can leak.
+   * @param receiptId - the identity reserved for this run.
+   * @param revision - the live catalog revision.
+   * @param contract - the composition's contract id (`tool_mode_run` or the authored tool name).
+   */
+  const recordFailedComposition = (receiptId: string, revision: string, contract: string): void => {
+    host.recordReceipt?.(buildInvocationReceipt({
+      receiptId,
+      contract,
+      contractVersion: HOST_VERSION,
+      implementationId: 'hosted-composition',
+      extension: host.extension,
+      extensionVersion: host.extensionVersion,
+      activationGeneration: Number(revision),
+      executionLocation: 'host',
+      modelIdentity: 'none',
+      runId: receiptId,
+      parentReceiptId: null,
+      outcome: 'failed',
+      warnings: ['the composition failed before returning a result'],
+    }))
+  }
   ctx.tools.register(defineTool({
       name: 'tool_mode_run',
       description:
@@ -4662,10 +4719,16 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         // back to the host activation generation otherwise.
         const revision = String(extensionLifecycle?.generation ?? host.activationGeneration)
         const receiptId = host.nextReceiptId()
-        const report = await serveProgram(args as Record<string, unknown>, programRunner, {
-          receiptId,
-          catalogRevision: revision,
-        })
+        let report: Awaited<ReturnType<typeof serveProgram>>
+        try {
+          report = await serveProgram(args as Record<string, unknown>, programRunner, {
+            receiptId,
+            catalogRevision: revision,
+          })
+        } catch (error) {
+          recordFailedComposition(receiptId, revision, 'tool_mode_run')
+          throw error
+        }
         // OBS-01: EVERY nested call gets its own provenance receipt, parented to the
         // program's composition receipt. The trace is the host's own observation.
         for (const call of report.meta.calls) {
@@ -4823,20 +4886,31 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             assertAgainstSchema(definition.name, validateInput, args)
             const receiptId = host.nextReceiptId()
             const revision = authoringRevision()
-            const report = await runAuthoredProgram({
-              program: definition.program,
-              tools: definition.tools,
-              input: args as JsonValue,
-              runner: programRunner,
-              receiptId,
-              catalogRevision: revision,
-            })
+            let report: RunReport
+            try {
+              report = await runAuthoredProgram({
+                program: definition.program,
+                tools: definition.tools,
+                input: args as JsonValue,
+                runner: programRunner,
+                receiptId,
+                catalogRevision: revision,
+              })
+            } catch (error) {
+              recordFailedComposition(receiptId, revision, definition.name)
+              throw error
+            }
             recordAuthoredRun(receiptId, revision, definition.name, report)
             // The stored program's value, as JSON text: a caller parses one document.
             return JSON.stringify(report.result ?? null) as never
           },
         }))
         authoredToolNames.add(definition.name)
+        // task-57: an authored tool publishes through the SAME discovery map, so a consumer
+        // can pin `agent.<name>`@1.0.0 exactly as it pins a contract-backed tool. Both the
+        // define path and the boot re-registration go through this helper, so they cannot
+        // report different contracts for the same tool.
+        toolContracts.set(definition.name, { contract: `agent.${definition.name}`, contractVersion: '1.0.0' })
         authoredDisposers.set(definition.name, dispose)
         return true
       } catch (error) {
@@ -4854,6 +4928,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       dispose()
       authoredDisposers.delete(name)
       authoredToolNames.delete(name)
+      toolContracts.delete(name)
       return true
     }
     // BOOT: every stored authored tool is registered again, after the built-in tools, so a
@@ -5035,6 +5110,29 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
    * explicit first-match rules and returns the full evaluated trace. It calls no
    * model; an agent uses it after asking one judgment per model question.
    */
+  /**
+   * THE HOST-AUTHORED ENVELOPE for a pure host tool (task-54).
+   *
+   * `decision_*` are model-facing: an agent reads their result directly, so it needs the same
+   * provenance a contract-backed tool carries. The fields are the ones `buildMeta` stamps,
+   * with `implementationId: 'host'` because the host IS the implementation here — no model,
+   * no extension. This is a HOST tool's provenance, never provider output (EXT-17).
+   * @param contract - the contract id this tool implements.
+   * @param contractVersion - the contract's semantic version.
+   * @returns the envelope.
+   */
+  const hostCreatedMeta = (contract: string, contractVersion: string): ToolMeta => ({
+    contract,
+    contractVersion,
+    implementationId: 'host',
+    extension: host.extension,
+    extensionVersion: host.extensionVersion,
+    activationGeneration: host.activationGeneration,
+    executionLocation: 'host',
+    receiptId: host.nextReceiptId(),
+    warnings: [],
+  })
+
   ctx.tools.register(defineTool({
     name: 'decision_combine',
     description:
@@ -5055,6 +5153,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           exit: { type: 'string' },
           fallback: { type: 'boolean' },
           trace: { type: 'array' },
+          meta: { type: 'json', required: true },
         },
       } as unknown as ValueSchemaSpec,
       render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
@@ -5062,7 +5161,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     async execute(args) {
       const input = args as { facts?: unknown; judgments?: unknown; rules?: unknown; fallback?: unknown }
       const result = combineDecision(input.facts, input.judgments, input.rules, typeof input.fallback === 'string' ? input.fallback : '')
-      return result as never
+      return { ...result, meta: hostCreatedMeta('decision.combine', DECISION_COMBINE_CONTRACT.version) } as never
     },
   }))
 
@@ -5092,6 +5191,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           decision: { type: 'json' },
           band: { type: 'string', enum: ['high', 'middle', 'low'] },
           reason: { type: 'string' },
+          meta: { type: 'json', required: true },
         },
       } as unknown as ValueSchemaSpec,
       render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
@@ -5103,7 +5203,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         typeof input.acceptAt === 'number' ? input.acceptAt : undefined,
         typeof input.rejectAt === 'number' ? input.rejectAt : undefined,
       )
-      return result as never
+      return { ...result, meta: hostCreatedMeta('decision.route', DECISION_ROUTE_CONTRACT.version) } as never
     },
   }))
 
@@ -5118,7 +5218,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       escalation: { type: 'json', description: 'Optional {rejectAt, acceptAt} hybrid band.' },
     } as unknown as ParameterSchemaSpec,
     output: {
-      schema: { type: 'json' } as unknown as ValueSchemaSpec,
+      schema: {
+        type: 'object',
+        additionalProperties: true,
+        properties: { meta: { type: 'json', required: true } },
+      } as unknown as ValueSchemaSpec,
       render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
     },
     async execute(args) {
@@ -5126,7 +5230,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       const escalation = typeof input.escalation === 'object' && input.escalation !== null
         ? input.escalation as { rejectAt: number; acceptAt: number }
         : undefined
-      return evaluateDecisions(input.cases, typeof input.threshold === 'number' ? input.threshold : 0.5, escalation) as never
+      const result = evaluateDecisions(input.cases, typeof input.threshold === 'number' ? input.threshold : 0.5, escalation)
+      return { ...result, meta: hostCreatedMeta('decision.evaluate', DECISION_EVALUATE_CONTRACT.version) } as never
     },
   }))
 
@@ -6369,6 +6474,19 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           const recipe = parsed.recipe as RecipeManifest
           const servedRecipe = served.served.find(entry => entry.implementationId === contribution.name)
           if (servedRecipe === undefined) return () => {}
+          /**
+           * THE CONTRACT A RECIPE IMPLEMENTS (task-54).
+           *
+           * A recipe's model replies with TEXT; the tool's CONTRACT declares an OBJECT with a
+           * `meta` envelope. Serving the raw string (the pre-task behaviour) meant `text_title`
+           * returned '{"title":…}' as a string with no provenance, while its contract advertised
+           * `withMeta({title, description})`. The contract is the authority: when one exists the
+           * reply is parsed into it, stamped and VALIDATED before it reaches a caller.
+           */
+          const recipeContract = STANDARD_CONTRACTS.find(candidate => candidate.contract === servedRecipe.contractId)
+          // Registration-time contract check, exactly as the catalogue/extension lanes do:
+          // the compiled validator it installs is what `assertValidOutput` later uses.
+          if (recipeContract !== undefined) assertValidContract(recipeContract)
           // The ADVERTISEMENT comes from the RECIPE's declared inputs (AT-63: the built-in's
           // input schema comes from the recipe, never a host guess). The recipe format is
           // JSON-Schema-flavoured (per-property `required` flags, minLength/maxLength), which
@@ -6431,13 +6549,23 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             description: recipeDescription,
             parameters: dsl as unknown as ParameterSchemaSpec,
             ...recipeDeferMarker,
-            output: recipe.response === undefined
-              ? {
-                  schema: { type: 'string' },
-                  render: (_args, value) => [{ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value) }],
-                }
+            output: recipeContract === undefined
+              ? recipe.response === undefined
+                ? {
+                    schema: { type: 'string' },
+                    render: (_args, value) => [{ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value) }],
+                  }
+                : {
+                    schema: { type: 'json' },
+                    render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+                  }
               : {
-                  schema: { type: 'json' },
+                  // DECL-02: the CONTRACT's output, not the recipe's raw text shape.
+                  schema: {
+                    type: 'object',
+                    properties: projectSchemaToDsh(recipeContract.outputSchema).parameters,
+                    additionalProperties: false,
+                  } as unknown as ValueSchemaSpec,
                   render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
                 },
             async execute(args, exec) {
@@ -6516,8 +6644,43 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
               if (!interpreted.ok) {
                 throw new Error(`${recipe.tool.name}: ${interpreted.code}: ${interpreted.reason}`)
               }
-              admitSerialized('result', interpreted.value, grant.limits.maxResultBytes)
-              return interpreted.value as never
+              /**
+               * CONTRACT-SHAPED, OR REFUSED (task-54). A recipe with no `response` block keeps
+               * the provider's raw text, which is only correct when the tool has NO contract.
+               * With a contract, the text must parse to the contract's object; anything else
+               * fails HERE rather than reaching a caller as an undocumented string.
+               */
+              let value: unknown = interpreted.value
+              if (recipeContract !== undefined) {
+                if (typeof value === 'string') {
+                  try {
+                    value = JSON.parse(value) as unknown
+                  } catch {
+                    throw new Error(`${recipe.tool.name}: the provider returned text that is not the ${recipeContract.contract} JSON object`)
+                  }
+                }
+                if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+                  throw new Error(`${recipe.tool.name}: the provider returned ${typeof value}, not a ${recipeContract.contract} object`)
+                }
+                const meta: ToolMeta = {
+                  contract: recipeContract.contract,
+                  contractVersion: recipeContract.version,
+                  implementationId: contribution.name,
+                  extension: contribution.extensionId,
+                  extensionVersion: selectedInstalled(contribution.extensionId)?.version ?? '0.0.0',
+                  activationGeneration: extensionLifecycle?.generation ?? host.activationGeneration,
+                  executionLocation: 'host',
+                  receiptId: host.nextReceiptId(),
+                  warnings: [],
+                }
+                // SAFETY: the value was proven to be a non-null, non-array object immediately
+                // above, and `assertValidOutput` enforces the full contract below.
+                const stamped = { ...(value as Record<string, unknown>), meta }
+                assertValidOutput(recipeContract, stamped)
+                value = stamped
+              }
+              admitSerialized('result', value, grant.limits.maxResultBytes)
+              return value as never
             },
           }))
           exposeExtensionToolToMcp(recipe.tool.name, {
@@ -6528,7 +6691,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
               properties,
               required: requiredNames,
             },
-            outputSchema: recipe.response === undefined ? { type: 'string' } : { type: 'json' },
+            // DECL-02 parity: the advertised schema is the contract's when one applies.
+            outputSchema: recipeContract !== undefined
+              ? recipeContract.outputSchema
+              : recipe.response === undefined ? { type: 'string' } : { type: 'json' },
           })
           if (servedRecipe.recipeDigest !== undefined) {
             declarativeRecipeDigests.set(recipe.tool.name, servedRecipe.recipeDigest)

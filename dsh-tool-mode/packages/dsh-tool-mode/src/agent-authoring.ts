@@ -25,8 +25,8 @@
 /* oxlint-disable anti-slop/no-runtime-typeof -- SAFETY: this module IS the JSON boundary for an untrusted on-disk file; `typeof` is the parse for an untyped JSON value, and every branch either validates one field or refuses the entry. */
 /* oxlint-disable anti-slop/no-known-value-widening -- the document version is a literal schema marker, carried as `typeof AUTHORING_SCHEMA_VERSION`. */
 
-import { randomUUID } from 'node:crypto'
-import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { randomBytes, randomUUID } from 'node:crypto'
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 
 import { compileSchema, type ToolContract } from '@try-works/tool-mode-contracts'
@@ -149,6 +149,8 @@ export interface AgentAuthoringStore {
   readonly file: string
   /** A load-time problem, reported rather than fatal. */
   readonly issue: string | undefined
+  /** Where a corrupt document was moved, when this instance quarantined one. */
+  readonly quarantinePath?: string | undefined
   listWorkflows(): AgentWorkflowSummary[]
   getWorkflow(nameOrId: string): AgentWorkflow | undefined
   workflowEntries(): readonly AgentWorkflow[]
@@ -352,21 +354,28 @@ function parseToolEntry(raw: JsonValue): AgentToolDefinition | undefined {
 }
 
 /** Read and validate the document, reporting (never throwing) a corrupt file. */
-function readDocument(file: string): { readonly document: AuthoringDocument; readonly issue: string | undefined } {
+function readDocument(file: string): {
+  readonly document: AuthoringDocument
+  readonly issue: string | undefined
+  /** True only when the BYTES are unusable and must be preserved under a quarantine name. */
+  readonly corrupt: boolean
+} {
   let text: string
   try {
     text = readFileSync(file, 'utf8')
   } catch (error) {
     if (typeof error === 'object' && error !== null && 'code' in error && error['code'] === 'ENOENT') {
-      return { document: { version: AUTHORING_SCHEMA_VERSION, workflows: [], tools: [] }, issue: undefined }
+      return { document: { version: AUTHORING_SCHEMA_VERSION, workflows: [], tools: [] }, issue: undefined, corrupt: false }
     }
+    // Unreadable is not necessarily corrupt: the bytes may be fine and the permissions not.
     return {
       document: { version: AUTHORING_SCHEMA_VERSION, workflows: [], tools: [] },
       issue: `the authoring file cannot be read: ${error instanceof Error ? error.message : String(error)}`,
+      corrupt: false,
     }
   }
   if (text.trim().length === 0) {
-    return { document: { version: AUTHORING_SCHEMA_VERSION, workflows: [], tools: [] }, issue: undefined }
+    return { document: { version: AUTHORING_SCHEMA_VERSION, workflows: [], tools: [] }, issue: undefined, corrupt: false }
   }
   let parsed: JsonValue
   try {
@@ -376,15 +385,17 @@ function readDocument(file: string): { readonly document: AuthoringDocument; rea
     return {
       document: { version: AUTHORING_SCHEMA_VERSION, workflows: [], tools: [] },
       issue: `the authoring file is not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+      corrupt: true,
     }
   }
   if (!isRecord(parsed)) {
-    return { document: { version: AUTHORING_SCHEMA_VERSION, workflows: [], tools: [] }, issue: 'the authoring file is not a JSON object' }
+    return { document: { version: AUTHORING_SCHEMA_VERSION, workflows: [], tools: [] }, issue: 'the authoring file is not a JSON object', corrupt: true }
   }
   if (parsed['version'] !== AUTHORING_SCHEMA_VERSION) {
     return {
       document: { version: AUTHORING_SCHEMA_VERSION, workflows: [], tools: [] },
       issue: `the authoring file has unsupported schema version ${String(parsed['version'])}`,
+      corrupt: true,
     }
   }
   const workflows = (Array.isArray(parsed['workflows']) ? parsed['workflows'] : [])
@@ -399,6 +410,7 @@ function readDocument(file: string): { readonly document: AuthoringDocument; rea
   return {
     document: { version: AUTHORING_SCHEMA_VERSION, workflows, tools },
     issue: kept === declared ? undefined : `ignored ${declared - kept} invalid entr${declared - kept === 1 ? 'y' : 'ies'} in the authoring file`,
+    corrupt: false,
   }
 }
 
@@ -407,7 +419,8 @@ function writeDocument(file: string, document: AuthoringDocument): void {
   try {
     mkdirSync(dirname(file), { recursive: true })
     const temporary = `${file}.tmp-${process.pid.toString(36)}-${Date.now().toString(36)}`
-    writeFileSync(temporary, `${JSON.stringify(document, null, 2)}\n`, 'utf8')
+    // Owner-only, like the receipt store: authored programs can embed prompts and URLs.
+    writeFileSync(temporary, `${JSON.stringify(document, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 })
     try {
       renameSync(temporary, file)
     } catch (error) {
@@ -454,6 +467,19 @@ export function createAgentAuthoringStore(options: { readonly file: string }): A
   const loaded = readDocument(options.file)
   document = loaded.document
   const issue = loaded.issue
+  // A CORRUPT document is moved aside before anything can overwrite it. Best effort: if
+  // the rename fails, the bytes stay in place (still corrupt, still preserved) and the
+  // issue explains what was wrong.
+  let quarantinePath: string | undefined
+  if (loaded.corrupt && existsSync(options.file)) {
+    const target = `${options.file}.quarantined-${Date.now().toString(36)}-${randomBytes(4).toString('hex')}`
+    try {
+      renameSync(options.file, target)
+      quarantinePath = target
+    } catch {
+      // The original bytes remain where they were; nothing was destroyed.
+    }
+  }
 
   const persist = (next: AuthoringDocument): void => {
     writeDocument(options.file, next)
@@ -463,6 +489,7 @@ export function createAgentAuthoringStore(options: { readonly file: string }): A
   return {
     file: options.file,
     issue,
+    quarantinePath,
     listWorkflows: () => document.workflows.map(summarizeWorkflow),
     getWorkflow: key => byNameOrId(document.workflows, key),
     workflowEntries: () => document.workflows,

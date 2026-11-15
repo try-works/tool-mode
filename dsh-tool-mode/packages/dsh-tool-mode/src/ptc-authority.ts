@@ -186,7 +186,15 @@ const RESERVED_BINDING_GLOBALS = new Set([
  * reference — can add or remove a name at runtime and silently desynchronize the two
  * surfaces that depend on it.
  */
-export const EXCLUDED_BINDINGS: readonly string[] = Object.freeze(['tool_mode_run', 'model_tools', 'model_tools_manage', 'tool_mode_list', 'tool_mode_describe'] as const)
+export const EXCLUDED_BINDINGS: readonly string[] = Object.freeze([
+  'tool_mode_run',
+  'tool_mode_workflows',
+  'tool_mode_tools',
+  'model_tools',
+  'model_tools_manage',
+  'tool_mode_list',
+  'tool_mode_describe',
+] as const)
 
 /**
  * Build the bindings a program may call (CODE-03, SEC-03).

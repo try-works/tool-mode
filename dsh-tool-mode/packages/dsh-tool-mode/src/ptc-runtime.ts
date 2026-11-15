@@ -238,12 +238,26 @@ function artifactOutcome(): { readonly ok: boolean; readonly reason: string } {
 /**
  * Drop the cached artifact reading (tests change the environment between cases).
  *
+ * TEST SEAM: inert without the `DSH_PTC_CONFINEMENT_SEAM` operator marker, exactly like
+ * `setConfinementDemonstratedForTest`. Moving the bundled candidate arbitrarily could
+ * otherwise open the release gate by import alone.
+ *
  * @param options - `bundledPath: null` simulates a package with no shipped artifact, so the
  * "gate is closed" cases stay executable; omitted restores the real bundled path.
  */
 export function resetConfinementEvidenceCacheForTest(
   options: { readonly bundledPath?: string | null } = {},
 ): void {
+  // GUARDED LIKE ITS SIBLING. This hook can point the bundled candidate at an arbitrary
+  // path, so it must not be usable by code that merely imports the built artifact: without
+  // the operator's marker it refuses WITHOUT moving anything, leaving the gate as closed as
+  // it found it.
+  if (process.env[CONFINEMENT_SEAM_ENV] !== CONFINEMENT_SEAM_TOKEN) {
+    throw new Error(
+      'the confinement evidence is a release gate; the cache-reset test seam is closed '
+      + 'in this process because the operator marker is absent',
+    )
+  }
   artifactCheck = undefined
   if (options.bundledPath === null) bundledEvidencePath = null
   else if (options.bundledPath !== undefined) bundledEvidencePath = options.bundledPath

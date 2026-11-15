@@ -84,7 +84,7 @@ describe('CODE-03 — the bindable set is the INTERSECTION of grant and visibili
 })
 
 describe('CODE-07 — composition and management bindings are never exposed to a program', () => {
-  for (const excluded of ['tool_mode_run', 'model_tools', 'tool_mode_list', 'tool_mode_describe']) {
+  for (const excluded of ['tool_mode_run', 'model_tools', 'model_tools_manage', 'tool_mode_list', 'tool_mode_describe', 'tool_mode_workflows', 'tool_mode_tools']) {
     it(`refuses ${excluded} even when granted and visible`, () => {
       const { resolve } = resolverFor([excluded])
       const decision = authorizeProgramTools(

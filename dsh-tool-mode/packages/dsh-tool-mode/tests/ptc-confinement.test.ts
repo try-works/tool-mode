@@ -31,7 +31,33 @@ afterEach(() => {
   delete process.env[CONFINEMENT_EVIDENCE_ENV]
   resetConfinementEvidenceCacheForTest()
 })
+// The seam is inert without the operator marker; set it once for this process so
+// resetConfinementEvidenceCacheForTest (now guarded like its sibling) can run.
+process.env['DSH_PTC_CONFINEMENT_SEAM'] = 'open-for-acceptance-test'
+
 process.on('exit', () => { void cleanup() })
+
+describe('CODE-09 — the cache-reset seam is guarded like its sibling', () => {
+  it('refuses to move the bundled candidate without the operator marker, and leaves the gate closed', () => {
+    // Pin the evidence env to a missing file so the gate is CLOSED before the attempt,
+    // regardless of the artifact this package ships.
+    process.env[CONFINEMENT_EVIDENCE_ENV] = join(tempDir(), 'absent-evidence.json')
+    resetConfinementEvidenceCacheForTest({ bundledPath: null })
+    assert.equal(confinementDemonstrated(), false, 'precondition: the gate is closed')
+    const marker = process.env['DSH_PTC_CONFINEMENT_SEAM']
+    delete process.env['DSH_PTC_CONFINEMENT_SEAM']
+    try {
+      assert.throws(
+        () => resetConfinementEvidenceCacheForTest({ bundledPath: join(tempDir(), 'crafted-evidence.json') }),
+        /release gate|marker is absent/,
+      )
+      // The refusal must leave the gate exactly where it was: closed.
+      assert.equal(confinementDemonstrated(), false)
+    } finally {
+      if (marker !== undefined) process.env['DSH_PTC_CONFINEMENT_SEAM'] = marker
+    }
+  })
+})
 
 /** Write an artifact and return its path. */
 function artifact(overrides: Record<string, unknown> = {}): string {

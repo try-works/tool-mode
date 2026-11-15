@@ -8,12 +8,13 @@
 
 import { after, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import {
   createFileReceiptStore,
+  RECEIPT_STORE_VERSION,
   receiptCounterFloor,
   receiptStorePathFor,
 } from '../src/receipt-store.ts'
@@ -59,6 +60,91 @@ function receiptsOf(result: { readonly value?: unknown }): Array<{ readonly rece
   const value = result.value as { readonly receipts?: Array<{ readonly receiptId: string }> }
   return value.receipts ?? []
 }
+
+/** The receipt shape a fixture writes (a v1 row is this minus runId/at). */
+interface ReceiptFixture {
+  readonly receiptId: string
+  readonly contract: string
+  readonly contractVersion: string
+  readonly implementationId: string
+  readonly extension: string
+  readonly extensionVersion: string
+  readonly extensionContentDigest: null
+  readonly dependencyLockDigest: null
+  readonly modelIdentity: string
+  readonly recipeVersion: null
+  readonly activationGeneration: number
+  readonly executionLocation: string
+  readonly warnings: readonly string[]
+  at?: string
+}
+
+/** A pre-enrichment (v1) receipt row: no runId, no at unless the case supplies one. */
+function legacyRow(receiptId: string, at?: string): ReceiptFixture {
+  const row: ReceiptFixture = {
+    receiptId,
+    contract: 'text.language_detect',
+    contractVersion: '1.0.0',
+    implementationId: 'tongue',
+    extension: '@try-works/extension-desert-ant-tongue',
+    extensionVersion: '0.0.1',
+    extensionContentDigest: null,
+    dependencyLockDigest: null,
+    modelIdentity: 'tongue',
+    recipeVersion: null,
+    activationGeneration: 1,
+    executionLocation: 'host',
+    warnings: [],
+  }
+  if (at !== undefined) row.at = at
+  return row
+}
+
+describe('receipt store migration (task-56)', () => {
+  it('MIGRATES a v1 document instead of quarantining the whole history', () => {
+    const path = receiptStorePathFor(join(dir(), 'state.json'))
+    writeFileSync(path, JSON.stringify({
+      version: 1,
+      receipts: [legacyRow('rcpt_00000a'), legacyRow('rcpt_00000b', '2020-01-02T03:04:05.000Z')],
+    }))
+    const mtime = statSync(path).mtime.toISOString()
+    const store = createFileReceiptStore(path)
+
+    assert.equal(store.quarantinePath, undefined, 'v1 is migratable, never malformed')
+    assert.equal(store.records.length, 2, 'both legacy rows are kept')
+    assert.equal(store.records[0]?.runId, 'rcpt_00000a', 'runId defaults to receiptId')
+    assert.equal(store.records[0]?.at, mtime, 'a row with no persisted timestamp takes the file mtime')
+    assert.equal(store.records[1]?.runId, 'rcpt_00000b')
+    assert.equal(store.records[1]?.at, '2020-01-02T03:04:05.000Z', 'a persisted timestamp is preserved')
+    // The migration is DURABLE: the file was rewritten as v2.
+    // SAFETY: the store itself wrote this JSON; only the version field is read.
+    const upgraded = JSON.parse(readFileSync(path, 'utf8')) as { version: number }
+    assert.equal(upgraded.version, RECEIPT_STORE_VERSION)
+    assert.equal(RECEIPT_STORE_VERSION, 2)
+  })
+
+  it('still QUARANTINES a malformed v2 row, with the reason', () => {
+    const path = receiptStorePathFor(join(dir(), 'state.json'))
+    writeFileSync(path, JSON.stringify({ version: 2, receipts: [{ receiptId: 'rcpt_bad', contract: 'x' }] }))
+    const reasons: string[] = []
+    const store = createFileReceiptStore(path, { onQuarantine: diagnostic => reasons.push(diagnostic.reason) })
+    assert.ok(store.quarantinePath, 'a malformed v2 document is moved aside')
+    assert.equal(store.records.length, 0)
+    assert.match(reasons[0] ?? '', /malformed receipt/)
+  })
+
+  it('round-trips a v2 document unchanged', () => {
+    const path = receiptStorePathFor(join(dir(), 'state.json'))
+    const first = createFileReceiptStore(path)
+    first.append({ ...receiptFor('rcpt_00000c'), at: '2021-05-06T07:08:09.000Z', runId: 'rcpt_00000c' })
+    const second = createFileReceiptStore(path)
+    assert.equal(second.records.length, 1)
+    assert.equal(second.records[0]?.receiptId, 'rcpt_00000c')
+    assert.equal(second.records[0]?.runId, 'rcpt_00000c')
+    assert.equal(second.records[0]?.at, '2021-05-06T07:08:09.000Z')
+    assert.equal(JSON.parse(readFileSync(path, 'utf8')).version, 2)
+  })
+})
 
 describe('durable receipt store', () => {
   it('survives a new store instance at the same path', () => {
