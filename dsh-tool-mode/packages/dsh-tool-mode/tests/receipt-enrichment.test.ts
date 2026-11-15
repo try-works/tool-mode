@@ -211,12 +211,12 @@ describe('task-53 — a composed run is recoverable from data alone', () => {
 })
 
 describe('task-53 — a bare-string-output authored tool still records a receipt', () => {
-  it('records an enriched receipt for a tool whose value is JSON text, not an envelope', async () => {
+  it('records an enriched receipt for a tool whose value is a bare string, not an envelope', async () => {
     const ctx = await mountComposed()
     const defined = await call(ctx, 'tool_mode_tools', {
       action: 'define',
       name: 'agent_echo_text',
-      description: 'Return the input value as JSON text.',
+      description: 'Return the input value as-is.',
       inputSchema: { type: 'object', properties: { value: { type: 'string' } }, required: ['value'] },
       program: 'return input.value',
       tools: [],
@@ -225,7 +225,7 @@ describe('task-53 — a bare-string-output authored tool still records a receipt
 
     const executed = await call(ctx, 'agent_echo_text', { value: 'plain string' })
     assert.equal(executed.isError, false, JSON.stringify(executed))
-    assert.equal(executed.value, '"plain string"', 'the authored tool returns bare JSON text')
+    assert.equal(executed.value, 'plain string', 'the authored tool returns its value, not JSON text')
 
     const rows = await receiptsOf(ctx)
     const receipt = rows.find(row => row.contract === 'agent_echo_text')

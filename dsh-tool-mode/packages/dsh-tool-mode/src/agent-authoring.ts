@@ -192,7 +192,10 @@ export function agentToolContract(entry: Pick<AgentToolDefinition, 'name' | 'des
     toolName: entry.name,
     description: entry.description,
     inputSchema: entry.inputSchema,
-    outputSchema: {},
+    // A program's value is arbitrary JSON. Declaring every JSON root (rather than
+    // opaque text or an object-only shape) lets a caller see a real interface while
+    // still allowing a program to return a bare string, number or array.
+    outputSchema: { type: ['object', 'array', 'string', 'number', 'boolean', 'null'] },
     semantics: { authored: true },
     limits: {},
     unsupported: [],

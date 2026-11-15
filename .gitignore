@@ -1,2 +1,6 @@
 verify-relocated*.log
 
+
+# transient PTC confinement evidence temp
+dsh-tool-mode/.dsh-confinement-tmp/
+.dsh-confinement-tmp/

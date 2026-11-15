@@ -4629,10 +4629,12 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
      * the external caller's own grant when the run happens inside an external call,
      * the host's own grant otherwise. Never a caller's claim about what it may use.
      */
-    // The host grant plus the authored tools THIS instance registered: an authored
-    // workflow may bind another authored tool, while an EXTERNAL caller keeps its own
-    // transport-derived grant (SEC-04) and never inherits the operator's additions.
-    grant: () => externalGrantContext.current() ?? [...grant.allowedTools, ...authoredToolNames],
+    // The host's OWN registered surface: the static grant plus every tool in the live
+    // registry, so a host program can bind catalog/model tools as well as authored ones.
+    // An EXTERNAL caller keeps its transport-derived grant (SEC-04) and never inherits
+    // this.
+    grant: () => externalGrantContext.current()
+      ?? [...grant.allowedTools, ...ctx.tools.schemas().map(schema => schema.name), ...authoredToolNames],
     // Read at RUN time, not once: extension restore registers tools after this closure
     // is created, and a program must see the live registry, not a stale snapshot.
     visible: () => ctx.tools.schemas().map(schema => schema.name),
@@ -4924,7 +4926,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           description: definition.description,
           parameters,
           output: {
-            schema: { type: 'string' } as unknown as ValueSchemaSpec,
+            // The authored contract accepts any JSON root: a program returns its value
+            // (object, string, number, array), never a serialized document, so a
+            // composed step receives it directly instead of parsing it back out of text.
+            schema: { type: 'json' } as unknown as ValueSchemaSpec,
             render: (_args: Record<string, unknown>, value: unknown) => [
               { type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value) },
             ],
@@ -4951,8 +4956,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
               throw error
             }
             recordAuthoredRun(receiptId, revision, definition.name, report)
-            // The stored program's value, as JSON text: a caller parses one document.
-            return JSON.stringify(report.result ?? null) as never
+            // The stored program's value, STRUCTURED: a composed step can read its
+            // fields without parsing a JSON document first.
+            return (report.result ?? null) as never
           },
         }))
         authoredToolNames.add(definition.name)

@@ -43,6 +43,7 @@ import {
   WORKFLOW_NAME_PATTERN,
   createAgentAuthoringStore,
   defaultAgentAuthoringFile,
+  agentToolContract,
   runAuthoredProgram,
 } from '../src/agent-authoring.ts'
 import { cleanup, tempDir } from './helpers.ts'
@@ -377,8 +378,8 @@ describe('tool_mode_tools', () => {
     assert.ok(ctx.tools.schemas().some(schema => schema.name === 'agent_double'), 'define must register the tool immediately')
 
     const executed = await callOk(ctx, 'agent_double', { value: 7 })
-    assert.equal(typeof executed, 'string', 'an authored tool returns JSON text')
-    assert.deepEqual(JSON.parse(executed as string), { doubled: 14 })
+    assert.equal(typeof executed, 'object', 'an authored tool returns its value, not JSON text')
+    assert.deepEqual(executed, { doubled: 14 })
 
     const listed = await callOk(ctx, 'tool_mode_tools', { action: 'list' }) as { tools: { name: string; program?: string }[] }
     assert.deepEqual(listed.tools.map(tool => tool.name), ['agent_double'])
@@ -397,7 +398,52 @@ describe('tool_mode_tools', () => {
     const second = await mountHost({ agentAuthoringFile: file }, { gateOpen: true })
     assert.ok(second.tools.schemas().some(schema => schema.name === 'agent_persist'), 'a remount must register the stored tool')
     const executed = await callOk(second, 'agent_persist', { value: 4 })
-    assert.deepEqual(JSON.parse(executed as string), { doubled: 8 })
+    assert.deepEqual(executed, { doubled: 8 })
+  })
+
+  it('declares a JSON output interface instead of opaque text', async () => {
+    const contract = agentToolContract({
+      name: 'agent_double',
+      description: 'Double.',
+      inputSchema: SCHEMA,
+    })
+    assert.deepEqual(contract.outputSchema, { type: ['object', 'array', 'string', 'number', 'boolean', 'null'] })
+  })
+
+  it('lets a host program bind a registered catalog tool, not just authored tools', async () => {
+    const ctx = await mountHost({}, { gateOpen: true })
+    ctx.tools.register(defineTool({
+      name: 'fixture_extra',
+      description: 'A host-registered non-authored tool.',
+      parameters: {},
+      output: { schema: { type: 'object', additionalProperties: true }, render: () => [{ type: 'text', text: 'ok' }] },
+      async execute() { return { extra: true } as never },
+    }))
+    await callOk(ctx, 'tool_mode_tools', {
+      action: 'define',
+      name: 'agent_use_extra',
+      description: 'Compose the host tool.',
+      inputSchema: { type: 'object', properties: {} },
+      program: 'const r = await tools.fixture_extra({}); return { extra: r.extra, kind: typeof r }',
+      tools: ['fixture_extra'],
+    })
+    const executed = await callOk(ctx, 'agent_use_extra', {})
+    assert.deepEqual(executed, { extra: true, kind: 'object' })
+  })
+
+  it('passes an authored tool result straight through to a composing program', async () => {
+    const ctx = await mountHost({}, { gateOpen: true })
+    await callOk(ctx, 'tool_mode_tools', {
+      action: 'define', name: 'agent_inner', description: 'Inner.', inputSchema: SCHEMA,
+      program: 'return { doubled: input.value * 2 }', tools: [],
+    })
+    await callOk(ctx, 'tool_mode_tools', {
+      action: 'define', name: 'agent_outer', description: 'Outer.', inputSchema: SCHEMA,
+      program: 'const r = await tools.agent_inner({ value: input.value }); return { doubled: r.doubled, kind: typeof r }',
+      tools: ['agent_inner'],
+    })
+    const executed = await callOk(ctx, 'agent_outer', { value: 3 })
+    assert.deepEqual(executed, { doubled: 6, kind: 'object' })
   })
 
   it('refuses a name that collides with a registered tool', async () => {
