@@ -9,7 +9,15 @@
 
 import type { ToolContract } from '@try-works/tool-mode-contracts'
 
-/** The result shape both discovery tools return. */
+/**
+ * The `tool_mode_list` result shape.
+ *
+ * P4 split the surface in two: `tools` is what a program may bind, and `unavailable`
+ * explains every catalogued model that cannot be called here. `unavailable` is declared
+ * (and left optional, so a caller that validates an older payload is not broken) because
+ * this schema is the MCP-advertised one — an undeclared field fails the external
+ * validation with "must NOT have additional properties".
+ */
 const discoveryOutputSchema: Record<string, unknown> = {
   type: 'object',
   additionalProperties: false,
@@ -21,6 +29,21 @@ const discoveryOutputSchema: Record<string, unknown> = {
       items: {
         type: 'object',
         additionalProperties: true,
+      },
+    },
+    unavailable: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['name', 'model', 'extension', 'state', 'reason'],
+        properties: {
+          name: { type: 'string' },
+          model: { type: 'string' },
+          extension: { type: ['string', 'null'] },
+          state: { type: 'string', enum: ['callable', 'not-installed', 'unavailable'] },
+          reason: { type: 'string' },
+        },
       },
     },
   },
@@ -60,8 +83,10 @@ export const TOOL_MODE_LIST_CONTRACT: ToolContract = {
   version: '1.0.0',
   toolName: 'tool_mode_list',
   description:
-    'List the tools this caller is permitted to use, with readiness summaries and the current catalog '
-    + 'revision. Read-only discovery (DECL-07): it never installs, prepares, activates or changes anything.',
+    'List the tools this caller may use. `tools` are the names that can be BOUND in a program and called '
+    + 'now; `unavailable` lists catalogued models that cannot be called here, each with its readiness state '
+    + 'and the reason. Only `tools` may be bound in a program. Read-only discovery (DECL-07): it never '
+    + 'installs, prepares, activates or changes anything.',
   inputSchema: {
     type: 'object',
     additionalProperties: false,
@@ -81,7 +106,9 @@ export const TOOL_MODE_DESCRIBE_CONTRACT: ToolContract = {
   toolName: 'tool_mode_describe',
   description:
     'Describe one or more tools by name: the selected input/output schemas, the resolved model, limits and '
-    + 'the catalog revision. Read-only discovery (DECL-07): it never installs, prepares, activates or changes anything.',
+    + 'the catalog revision. A catalog name that cannot be called is explained with its readiness state, the '
+    + 'reason and the action that would clear it, instead of a schema. Read-only discovery (DECL-07): it never '
+    + 'installs, prepares, activates or changes anything.',
   inputSchema: {
     type: 'object',
     additionalProperties: false,

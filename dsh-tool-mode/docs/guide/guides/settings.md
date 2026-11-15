@@ -24,6 +24,8 @@ Disabling a model removes its tool from the agent's next turn. Enabling a model
 that cannot run fails with the resolver's reason and writes nothing; silently
 recording a failed enable would install a broken tool on the next restart.
 
+Model and tool registration changes apply on the next host load; install, prepare, enable and disable do not mutate the pinned list mid-session.
+
 A deployment config can set the default selection with `models` and `exclude`.
 The Settings choice is layered on top:
 

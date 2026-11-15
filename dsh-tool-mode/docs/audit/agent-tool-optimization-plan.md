@@ -1,6 +1,6 @@
 # Agent tool-selection optimization plan
 
-Status: **in progress**. P1 + P2 shipped in `@try-works/dsh-tool-mode@0.5.63`; P3 (opt-in) + P6 in `0.5.64`.
+Status: **in progress**. P1 + P2 shipped in `@try-works/dsh-tool-mode@0.5.63`; P3 (opt-in) + P6 in `0.5.64`; P4 + P8 in `0.5.65`.
 Related: [inventory-audit.md](./inventory-audit.md), [tool-mode-agent-flow.md](./tool-mode-agent-flow.md), [verification-p1-p2.md](./verification-p1-p2.md), [deferred-loading.md](./deferred-loading.md).
 
 ## Progress
@@ -10,11 +10,11 @@ Related: [inventory-audit.md](./inventory-audit.md), [tool-mode-agent-flow.md](.
 | P1 description composer | **done** (0.5.63) | `src/tool-description.ts`, 700-char absolute budget, golden 33 tools; P1b added extension/recipe + MCP composition, P1c fixed skill-ID resolution; verifier closed all findings |
 | P2 extension manifest skills | **done** (0.5.63) | `registerSkill` in `src/index.ts`; 6 tests; verifier PASS |
 | P3 deferred loading | **done** (P3 + P3b, default **off**) | `src/registrar.ts` selection; [deferred-loading.md](./deferred-loading.md); 18 tests across the registrar/bindings and both recipe lanes |
-| P4 discovery split | pending | — |
+| P4 discovery split | **done** (0.5.65) | `tool_mode_list` now splits into registered `tools` + `unavailable[]` with the same state/reason; `tool_mode_describe` explains a non-callable name; MCP schema updated |
 | P5 prompt section | pending | — |
 | P6 family disambiguation | **done** (0.5.64) | decision-first budget keeps every when-not bullet; dedupe_and_rank covered via extension guidance; [tool-description-families.md](../packages/dsh-tool-mode/docs/audit/tool-description-families.md) |
 | P7 MCP parity/usage | partial (MCP description parity in P1b) | — |
-| P8 restart boundary | pending | — |
+| P8 restart boundary | **done** (0.5.65) | explicit sentence in Settings, README and two guide pages, pinned by `restart-boundary.test.ts` |
 
 ## 0. Goal, non-goals, principles
 

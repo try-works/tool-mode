@@ -1950,7 +1950,8 @@ window.__ModuleLoader__.load({
         h('p', { className: 'mtt-intro' },
           'On-device models from the Desert Ant catalog, exposed as tools and skills. A model becomes a tool only when this '
           + 'process can actually run it; every model appears once, with the provider that supplies it.'),
-        h('p', { className: 'mtt-help mtt-restart-notice', role: 'note' }, 'Model and tool registration changes apply after restart.'),
+        h('p', { className: 'mtt-help mtt-restart-notice', role: 'note' },
+          'Model and tool registration changes apply on the next host load; install, prepare, enable and disable do not mutate the pinned list mid-session.'),
         modelsCard,
         providersCard,
         h('div', { className: 'mtt-card' }, FIELDS.map(field => fieldRow(

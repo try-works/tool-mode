@@ -4024,11 +4024,63 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
      * management aliases; these two are READ-ONLY and never mutate.
      */
     const catalogRevision = () => String(extensionLifecycle?.generation ?? host.activationGeneration)
+    /**
+     * THE ACTION THAT WOULD MAKE A CATALOG NAME CALLABLE (P4).
+     *
+     * Discovery used to answer a non-callable name with an empty schema, which reads as
+     * "this tool has no arguments" rather than "this tool cannot run". The action names the
+     * one operator move that changes the state, and says so plainly when nothing can.
+     * @param state - the shared readiness state for the model.
+     * @param extension - the implementing package, when the catalog binds one.
+     * @returns a sentence naming the clearing action, or why none exists.
+     */
+    const clearingActionFor = (state: string, extension: string | undefined): string => {
+      if (state === 'unavailable') {
+        return 'none: no route on this host can serve this model, so installing it would not help; '
+          + 'use a different model or a remote bridge'
+      }
+      if (state === 'not-installed') {
+        return extension === undefined
+          ? 'install the implementing extension, then enable the model tool with model_tools_manage (action "enable")'
+          : `install ${extension}, then enable its model tool with model_tools_manage (action "enable")`
+      }
+      return extension === undefined
+        ? 'enable the model tool with model_tools_manage (action "enable"); it can run on this host and is not enabled in this profile'
+        : `enable the ${extension} model tool with model_tools_manage (action "enable"); it can run on this host and is not enabled in this profile`
+    }
     const describeOne = async (name: string) => {
       const registrySchema = ctx.tools.schemas().find(schema => schema.name === name)
       const definition = ctx.tools.get(name)
       const modelItem = resolved.find(item => (installed.get(item.entry.id)?.toolName ?? item.entry.tool?.name ?? '') === name)
       const descriptor = modelItem === undefined ? undefined : describeModels([modelItem])[0]
+      /**
+       * A CATALOG NAME THE REGISTRY DOES NOT SERVE IS EXPLAINED, NOT DESCRIBED (P4).
+       *
+       * The old path fell through to an empty parameter object and an empty output schema,
+       * which a caller reads as a real tool with no arguments. The honest answer is the
+       * shared readiness state, the verdict's own reason, and the action that would clear
+       * it — no schema, because there is nothing to call.
+       */
+      if (registrySchema === undefined && modelItem !== undefined && descriptor !== undefined) {
+        const record = installed.get(modelItem.entry.id)
+        const surface = modelSurface(modelItem.entry, modelItem.verdict, record !== undefined)
+        return {
+          name,
+          callable: false as const,
+          state: surface.state,
+          reason: descriptor.reason,
+          action: clearingActionFor(surface.state, modelItem.entry.provider?.extension),
+          model: {
+            id: descriptor.id,
+            capability: descriptor.capability,
+            runnable: descriptor.runnable,
+            reason: descriptor.reason,
+            route: descriptor.route,
+            extension: modelItem.entry.provider?.extension ?? null,
+          },
+          catalogRevision: catalogRevision(),
+        }
+      }
       const owner = undefined
       const inputSchema = registrySchema?.parameters ?? {}
       const outputSchema = definition?.output.schema ?? {}
@@ -4037,6 +4089,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         ?? [TOOL_MODE_LIST_CONTRACT, TOOL_MODE_DESCRIBE_CONTRACT].find(candidate => candidate.toolName === name)
       return {
         name,
+        callable: true as const,
         description: registrySchema?.description ?? descriptor?.summary ?? '',
         parameters: inputSchema,
         outputSchema,
@@ -4079,8 +4132,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     ctx.tools.register(defineTool({
       name: 'tool_mode_list',
       description:
-        'List the tools this caller is permitted to use, with readiness summaries and the current catalog '
-        + 'revision. Read-only discovery (DECL-07): it never installs, prepares, activates or changes anything.',
+        'List the tools this caller may use. `tools` are the names that can be BOUND in a program and called '
+        + 'now; `unavailable` lists catalogued models that cannot be called here, each with its readiness state '
+        + 'and the reason. Only `tools` may be bound in a program: binding an `unavailable` name refuses the '
+        + 'whole request, and the Tool Mode control tools are callable directly but excluded from programs (CODE-07). '
+        + 'Read-only discovery (DECL-07): it never installs, prepares, activates or changes anything.',
       parameters: {},
       output: {
         schema: {
@@ -4089,6 +4145,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           properties: {
             catalogRevision: { type: 'string' },
             tools: { type: 'array' },
+            unavailable: { type: 'array' },
           },
         },
         render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
@@ -4096,7 +4153,18 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       async execute() {
         const callerGrant = externalGrantContext.current()
         const permitted = callerGrant === undefined ? undefined : new Set(callerGrant)
+        /**
+         * P4: THE REGISTRY, NOT THE CATALOG, DECIDES WHAT \`tools\` MAY CONTAIN.
+         *
+         * A catalog row whose tool is not registered cannot be bound: \
+         * \`buildToolBindings\` refuses the WHOLE program when any requested name is
+         * unattainable, so advertising one turned discovery into a trap. Registered rows are
+         * \`tools\`; every other catalog row is explained in \`unavailable\` with the same
+         * state and reason \`model_tools\` publishes.
+         */
+        const registered = new Set(ctx.tools.schemas().map(schema => schema.name))
         const tools = []
+        const unavailable = []
         for (const item of resolved) {
           const record = installed.get(item.entry.id)
           const descriptor = describeModels([item])[0]!
@@ -4104,6 +4172,17 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           if (permitted !== undefined && !permitted.has(toolName)) continue
           // The SAME derivation model_tools uses, so the two surfaces agree.
           const surface = modelSurface(item.entry, item.verdict, record !== undefined)
+          if (!registered.has(toolName)) {
+            unavailable.push({
+              name: toolName,
+              model: item.entry.id,
+              extension: item.entry.provider?.extension ?? null,
+              state: surface.state,
+              // The verdict's own wording, carried verbatim: one reason, never re-written.
+              reason: descriptor.reason,
+            })
+            continue
+          }
           tools.push({
             name: toolName,
             description: descriptor.summary,
@@ -4157,7 +4236,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             recipeDigest: null,
           } as never)
         }
-        return { catalogRevision: catalogRevision(), tools } as never
+        return { catalogRevision: catalogRevision(), tools, unavailable } as never
       },
       presentCall() {
         return { card: 'generic', title: 'Tool mode list', kind: 'read', rawInput: '' }
@@ -4167,7 +4246,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       name: 'tool_mode_describe',
       description:
         'Describe one or more tools by name: the selected input/output schemas, the resolved model, limits and '
-        + 'the catalog revision. Read-only discovery (DECL-07): it never installs, prepares, activates or changes anything.',
+        + 'the catalog revision. A catalog name that cannot be called is explained with its readiness state, the '
+        + 'reason and the action that would clear it, instead of a schema. '
+        + 'Read-only discovery (DECL-07): it never installs, prepares, activates or changes anything.',
       parameters: {
         tools: {
           type: 'array',
@@ -4211,6 +4292,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             throw new Error(`tool ${JSON.stringify(name)} is forbidden for this caller (EXT-32)`)
           }
           const described = await describeOne(name)
+          // A KNOWN catalog name that cannot be called is EXPLAINED, not refused (P4).
+          if (described.callable === false) {
+            entries.push(described)
+            continue
+          }
           // describeOne returns an EMPTY description + empty parameters + no
           // model for an unknown name; a real tool always has at least one.
           if (described.description.length === 0

@@ -310,7 +310,7 @@ test('the Model as Tool settings pane names the restart boundary for captured se
    * and the displayed value but not the registered tools. The pane must therefore say
    * so, deterministically, instead of implying the new values are already live.
    */
-  const notice = 'Model and tool registration changes apply after restart.'
+  const notice = 'Model and tool registration changes apply on the next host load; install, prepare, enable and disable do not mutate the pinned list mid-session.'
   const template = readFileSync(join(PACKAGE_DIR, 'client', 'index.template.js'), 'utf8')
   const paneStart = template.indexOf('function ModelToolsSettings(')
   assert.notEqual(paneStart, -1, 'the settings pane component must exist in the template')
@@ -319,10 +319,12 @@ test('the Model as Tool settings pane names the restart boundary for captured se
 
   const pane = template.slice(paneStart, paneEnd)
   // Rendered copy, not a comment: the literal sits inside the pane's element tree.
+  // The template wraps the element over two lines, so assert the parts rather than one line.
   assert.ok(
-    pane.includes(`h('p', { className: 'mtt-help mtt-restart-notice', role: 'note' }, '${notice}')`),
-    'the settings pane must render the restart notice as a literal note',
+    pane.includes("className: 'mtt-help mtt-restart-notice'") && pane.includes("role: 'note'"),
+    'the settings pane must render the restart notice as a note element',
   )
+  assert.ok(pane.includes(`'${notice}'`), 'the settings pane must render the restart copy')
   // Deterministic across renders: one immutable literal, no condition around it.
   assert.equal(pane.split(notice).length - 1, 1, 'the notice must appear exactly once in the pane')
   assert.equal(/restart notice/.test(pane), false, 'the literal must be the copy, not a comment')

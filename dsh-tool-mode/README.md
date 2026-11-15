@@ -123,6 +123,8 @@ The Effect-based runtime layer adds two first-party tools beyond the catalog:
 - `redact_text` — PII spans over the pinned Redact LiteRT artifact, with honest coverage when the window cap truncates a long document.
 - `shape_recognize` — single-stroke shape recognition from a declarative, code-free package (manifest + recipe, no extension entry).
 
+Model and tool registration changes apply on the next host load; install, prepare, enable and disable do not mutate the pinned list mid-session.
+
 ## What is unfinished, and what is actually blocked
 
 Most of what is unstarted is **implementation with a known route**, not a missing artifact:

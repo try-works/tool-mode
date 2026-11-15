@@ -33,6 +33,8 @@ reasons:
 The generated table records those reasons. Do not infer availability from the
 vendor's marketing page; the model must have a route that this process can use.
 
+Model and tool registration changes apply on the next host load; install, prepare, enable and disable do not mutate the pinned list mid-session.
+
 ## Extension models
 
 Extension packages add tools and models beyond the 18-model catalog. Examples
