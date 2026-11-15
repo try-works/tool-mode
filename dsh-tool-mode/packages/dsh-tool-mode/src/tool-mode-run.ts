@@ -36,7 +36,7 @@ import {
 import type { ToolBinding } from './ptc-authority.ts'
 import { generateProgramTypes } from './ptc-authority.ts'
 import { AsyncLocalStorage } from 'node:async_hooks'
-import { createDataFlowTracker, type DataFlowEdge } from './data-flow.ts'
+import { createDataFlowTracker, dataFlowCoverage, type DataFlowCoverage, type DataFlowEdge } from './data-flow.ts'
 
 /** The runtime surface this module needs, narrowed so it is testable. */
 export interface ProgramRuntime {
@@ -155,6 +155,8 @@ export type ProgramOutcome =
     readonly calls: readonly ProgramCall[]
     /** Observed value edges between calls (identity and exact equality). */
     readonly dataFlow: readonly DataFlowEdge[]
+    /** How much of the trace the value graph explains; never claimed to be complete. */
+    readonly dataFlowCoverage: DataFlowCoverage
   }
   | { readonly ok: false; readonly code: 'unavailable' | 'unauthorized' | 'cancelled' | 'failed'; readonly message: string }
 
@@ -435,7 +437,8 @@ export function createProgramRunner(environment: RunnerEnvironment): ProgramRunn
           }
         }
         const dataFlow = calls.flatMap(call => call.input ?? [])
-        return { ok: true, value: result.value, logs: result.logs ?? [], toolCalls, calls, dataFlow }
+        const coverage = dataFlowCoverage(calls)
+        return { ok: true, value: result.value, logs: result.logs ?? [], toolCalls, calls, dataFlow, dataFlowCoverage: coverage }
       } catch (error) {
         return {
           ok: false,
@@ -475,6 +478,8 @@ export interface RunReport {
     readonly calls: readonly ProgramCall[]
     /** Observed value edges between the traced calls, referencing their `callId`s. */
     readonly dataFlow: readonly DataFlowEdge[]
+    /** Coverage: `complete: false` and the unresolved consumer call ids. */
+    readonly dataFlowCoverage: DataFlowCoverage
     readonly catalogRevision: string
     readonly warnings: readonly string[]
     /** TypeScript bindings for exactly the authorized tool set (CODE-03). */
@@ -535,6 +540,8 @@ export const TOOL_MODE_RUN_CONTRACT = {
           calls: { type: 'array', items: { type: 'object', additionalProperties: true } },
           /** Data-flow edges between calls: which result reached which argument. */
           dataFlow: { type: 'array', items: { type: 'object', additionalProperties: true } },
+          /** Coverage: value-equality only, never complete. */
+          dataFlowCoverage: { type: 'object', additionalProperties: true },
         },
       },
     },
@@ -616,6 +623,7 @@ export async function serveProgram(
       toolCalls: outcome.toolCalls,
       calls: outcome.calls,
       dataFlow: outcome.dataFlow,
+      dataFlowCoverage: outcome.dataFlowCoverage,
       catalogRevision: report.catalogRevision,
       warnings: [],
       typescript: generateProgramTypes(requested),

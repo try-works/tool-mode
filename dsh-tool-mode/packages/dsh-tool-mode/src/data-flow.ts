@@ -40,6 +40,42 @@ export interface DataFlowEdge {
   readonly evidence: DataFlowEvidence
 }
 
+/** How complete the observed graph is — a value-equality graph is never full provenance. */
+export interface DataFlowCoverage {
+  /** The only method available at the binding boundary: exact value equality. */
+  readonly method: 'value-equality'
+  /** Always false: a transformed value or a control-flow-dependent value has no edge. */
+  readonly complete: false
+  /** Traced calls after the first, i.e. calls that could have consumed an earlier result. */
+  readonly consumers: number
+  /** Consumers with at least one inbound edge. */
+  readonly matched: number
+  /** Trace call ids of consumers with no inbound edge. */
+  readonly unresolved: readonly string[]
+}
+
+/**
+ * Summarise how much of a trace the value graph explains.
+ *
+ * A quiet graph must not look like a simple program: `complete: false` plus the
+ * unresolved consumer ids say which calls the graph failed to explain.
+ * @param calls - the traced calls, in dispatch order.
+ * @returns the coverage facts.
+ */
+export function dataFlowCoverage(calls: readonly { readonly callId?: string; readonly input?: readonly DataFlowEdge[] }[]): DataFlowCoverage {
+  const consumers = calls.slice(1)
+  const unresolved = consumers
+    .filter(call => (call.input ?? []).length === 0)
+    .map(call => call.callId ?? 'unknown')
+  return {
+    method: 'value-equality',
+    complete: false,
+    consumers: consumers.length,
+    matched: consumers.length - unresolved.length,
+    unresolved,
+  }
+}
+
 /** The tracker the runner feeds; one per program run. */
 export interface DataFlowTracker {
   /** Edges INTO `to` from results recorded before this call. */
@@ -115,25 +151,39 @@ function keyPath(base: string, key: string): string {
 interface Producer {
   readonly callId: string
   readonly evidence: DataFlowEvidence
+  /** True when the matched value is a WHOLE result, not one of its nested values. */
+  readonly root: boolean
 }
 
 /** Create a bounded tracker. */
 export function createDataFlowTracker(): DataFlowTracker {
   /** Fingerprint -> the call ids that produced exactly this value. */
   const byDigest = new Map<string, string[]>()
+  /** Root fingerprint -> the call ids that returned exactly this whole result. */
+  const rootByDigest = new Map<string, string[]>()
   /** Result object identity -> the call id that returned it. */
   const byIdentity = new WeakMap<object, string>()
+  /** Objects that are a WHOLE result (not merely a nested value). */
+  const rootObjects = new WeakSet<object>()
+  const unique = (ids: readonly string[] | undefined): string | undefined =>
+    ids !== undefined && ids.length === 1 ? ids[0] : undefined
 
   const producerOf = (value: unknown): Producer | undefined => {
     if (typeof value === 'object' && value !== null) {
       const identity = byIdentity.get(value)
-      if (identity !== undefined) return { callId: identity, evidence: 'same-reference' }
+      if (identity !== undefined) {
+        return { callId: identity, evidence: 'same-reference', root: rootObjects.has(value) }
+      }
     }
     const digest = digestOf(value)
     if (digest === undefined) return undefined
+    // A whole result is more informative than one of its fields; when the argument is the
+    // whole object, report ONE edge instead of an edge per field.
+    const root = unique(rootByDigest.get(digest))
+    if (root !== undefined) return { callId: root, evidence: 'same-value', root: true }
     const producers = byDigest.get(digest)
     if (producers === undefined || producers.length !== 1) return undefined
-    return { callId: producers[0]!, evidence: 'same-value' }
+    return { callId: producers[0]!, evidence: 'same-value', root: false }
   }
 
   return {
@@ -149,11 +199,14 @@ export function createDataFlowTracker(): DataFlowTracker {
             seen.add(key)
             out.push({ from: producer.callId, to, input: path, evidence: producer.evidence })
           }
-          // An IDENTITY match is exact: the whole argument is the returned object, so
-          // descending would only restate it. A VALUE match keeps walking, because a
-          // more specific field (token vs a same-shaped argument object) is the useful
-          // edge; containers are pruned below.
-          if (producer.evidence === 'same-reference') return
+          // A WHOLE-result match (identity, or the whole object's fingerprint) is the
+          // edge; descending would only restate it as N field edges. A FIELD match keeps
+          // walking, because a more specific field is the useful edge; containers are
+          // pruned below.
+          // A root match at `$` is the argument OBJECT itself; descend so a field that
+          // was actually passed (token vs a same-shaped object) wins. A field/root match
+          // below `$` is the whole value and yields exactly one edge.
+          if (producer.evidence === 'same-reference' || (producer.root && path !== '$')) return
         }
         if (value === null || typeof value !== 'object') return
         if (Array.isArray(value)) {
@@ -200,6 +253,13 @@ export function createDataFlowTracker(): DataFlowTracker {
         }
         const record = node as Record<string, unknown>
         for (const key of Object.keys(record).slice(0, MAX_OBJECT_KEYS)) register(record[key], depth + 1)
+      }
+      if (typeof value === 'object' && value !== null) rootObjects.add(value)
+      const rootDigest = digestOf(value)
+      if (rootDigest !== undefined) {
+        const roots = rootByDigest.get(rootDigest)
+        if (roots === undefined) rootByDigest.set(rootDigest, [callId])
+        else if (!roots.includes(callId)) roots.push(callId)
       }
       register(value, 0)
     },

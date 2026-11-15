@@ -236,22 +236,33 @@ previous values when the host unloads. Resolution:
 The override is process-wide for the plugin's lifetime; Code Mode's sandbox reads
 `os.tmpdir()` when it starts a program, so it takes effect without extra configuration.
 
-### Provenance: which output reached which argument
+### Value-flow evidence: which output reached which argument (not full provenance)
 
-A composed run reports two layers of provenance. `meta.calls` is the bounded trace
-(`callId`, tool name, timing, argument/result previews); `meta.dataFlow` is the graph
-label: each edge names the producing `callId`, the consuming `callId`, the argument path
-(`query`, `documents[0].text`, or `$` for the whole argument object) and the evidence:
+A composed run reports `meta.calls` (the bounded trace: `callId`, tool name, timing,
+argument/result previews) and `meta.dataFlow` (observed edges). Each edge names the
+producing `callId`, the consuming `callId`, the argument path (`query`,
+`documents[0].text`, or `$` for the whole argument object) and the evidence:
 
-- `same-reference` — the argument contains the same object a previous call returned;
+- `same-reference` — the argument contains the same object identity a previous call
+  returned. This can only be observed inside one process; values normally cross the PTC
+  sandbox boundary by serialization, so live edges are almost always `same-value`.
 - `same-value` — the argument contains a value whose canonical JSON is exactly equal to a
-  previous call's result. Ambiguous matches (two earlier calls with the same value) produce
-  no edge rather than a guess.
+  previous call's result (including a field of it). Ambiguous matches (two earlier calls
+  with the same value) produce no edge rather than a guess. A whole object is one edge,
+  not one per field.
 
-In `model_tools action: "receipts"`, each nested receipt carries the trace `callId`, so it
-can be joined to the edges; the composition receipt carries `dataFlow` and the existing
-`runId`/`parentReceiptId` links. The evidence is bounded by trace depth/size, never a copy
-of the program's data.
+This is **equality evidence, not taint tracking**: a transformed value
+(`text.toUpperCase()`, arithmetic, re-encoding) or a value chosen by control flow has no
+edge. To keep that from looking like a simple graph, every run carries
+`meta.dataFlowCoverage`: `method: "value-equality"`, `complete: false`, the number of
+consumers, how many matched, and the `unresolved` call ids. Receipts expose the same
+`dataFlowCoverage` on the composition receipt; nested receipts carry `callId` so they join
+the edges. Full provenance would require instrumenting the program runtime, not widening
+this equality check.
+
+In `model_tools action: "receipts"`, the composition receipt carries `dataFlow` and
+`dataFlowCoverage` plus the existing `runId`/`parentReceiptId` links. The evidence is
+bounded by trace depth/size, never a copy of the program's data.
 
 ## Decision decomposition
 

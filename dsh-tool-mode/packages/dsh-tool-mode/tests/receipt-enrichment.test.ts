@@ -58,6 +58,13 @@ interface ReceiptRow {
   readonly outcome: string | null
   readonly callId?: string
   readonly dataFlow?: readonly { from: string; to: string; input: string; evidence: string }[]
+  readonly dataFlowCoverage?: {
+    readonly method: string
+    readonly complete: boolean
+    readonly consumers: number
+    readonly matched: number
+    readonly unresolved: readonly string[]
+  }
 }
 
 /** Every row the receipts action returns. */
@@ -267,6 +274,14 @@ describe('task-53 — a composition receipt labels the data flow', () => {
     assert.deepEqual(composition.dataFlow, [
       { from: 'call_1', to: 'call_2', input: 'value', evidence: 'same-value' },
     ])
+    // The graph is explicitly incomplete: value equality, not taint tracking.
+    assert.deepEqual(composition.dataFlowCoverage, {
+      method: 'value-equality',
+      complete: false,
+      consumers: 1,
+      matched: 1,
+      unresolved: [],
+    })
     const nested = rows.filter(row => row.parentReceiptId === composition.receiptId)
     assert.deepEqual(nested.map(row => row.callId).sort(), ['call_1', 'call_2'])
     for (const row of nested) {
