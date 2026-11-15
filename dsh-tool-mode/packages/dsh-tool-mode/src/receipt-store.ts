@@ -72,6 +72,10 @@ function isReceipt(value: unknown): value is InvocationReceipt {
   const record = value as Record<string, unknown>
   return typeof record['receiptId'] === 'string'
     && record['receiptId'].length > 0
+    && typeof record['runId'] === 'string'
+    && record['runId'].length > 0
+    && typeof record['at'] === 'string'
+    && record['at'].length > 0
     && typeof record['contract'] === 'string'
     && typeof record['implementationId'] === 'string'
     && typeof record['extension'] === 'string'

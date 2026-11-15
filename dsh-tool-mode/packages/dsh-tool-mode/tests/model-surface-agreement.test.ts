@@ -20,6 +20,7 @@ import assert from 'node:assert/strict'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
 
 import { MODEL_TOOL_STATES } from '../src/model-surface.ts'
+import { TOOL_MODE_LIST_CONTRACT } from '../src/discovery-contracts.ts'
 import { loadCatalog } from '../src/index.ts'
 import { buildToolBindings } from '../src/ptc-runtime.ts'
 import { callTool, cleanup, mountPlugin, mountPluginWithTongue } from './helpers.ts'
@@ -287,5 +288,82 @@ describe('task-49 — capability truth for store-installed extensions', () => {
     assert.ok(listed !== undefined, 'the registered extension tool must appear in tool_mode_list tools')
     assert.equal(listed.name, tongue.tool)
     assert.equal(listed.state, tongue.state)
+  })
+})
+/**
+ * TASK-52: a discovery artifact must be able to PIN the contract each row was built on.
+ *
+ * The report observed list rows with no `contractVersion`, so a consumer had to make a second
+ * `tool_mode_describe` call per tool to learn it — and the same report saw rows in `tools`
+ * that were not callable. Both are pinned here: every `tools` row is callable AND registered,
+ * every unregistered name lives only in `unavailable`, and each row carries the contract facts.
+ */
+interface ToolsRow {
+  readonly name: string
+  readonly state: string
+  readonly contract: string | null
+  readonly contractVersion: string | null
+  readonly schemaAvailable: boolean
+}
+
+describe('task-52 — tools rows are callable and pin their contract', () => {
+  it('lists only callable, registered rows, each with contract facts', async () => {
+    const ctx = await mountPluginWithTongue()
+    const enabled = await callTool(ctx, 'model_tools', { action: 'enable', model: 'tongue' })
+    assert.equal(enabled.isError, false, `the extension fixture must enable: ${JSON.stringify(enabled).slice(0, 200)}`)
+
+    // SAFETY: tool_mode_list's declared output is validated against its contract; this test
+    // reads only the fields it asserts on, which the contract now declares.
+    const list = (await call(ctx, 'tool_mode_list', {})) as {
+      tools: ToolsRow[]
+      unavailable: UnavailableRow[]
+    }
+    const registry = new Set(ctx.tools.schemas().map(schema => schema.name))
+
+    for (const row of list.tools) {
+      assert.equal(row.state, 'callable', `${row.name} is in tools but state is ${row.state}`)
+      assert.ok(registry.has(row.name), `${row.name} is in tools but the registry does not serve it`)
+      assert.ok(row.contract === null || row.contract.length > 0, `${row.name}: contract must be an id or null`)
+      assert.ok(
+        row.contractVersion === null || row.contractVersion.length > 0,
+        `${row.name}: contractVersion must be a version or null`,
+      )
+      assert.ok(
+        row.schemaAvailable === true || row.schemaAvailable === false,
+        `${row.name}: schemaAvailable must be a boolean`,
+      )
+    }
+
+    // A name the registry does not serve is explained, never advertised as callable.
+    for (const row of list.unavailable) {
+      assert.equal(registry.has(row.name), false, `${row.name} is unregistered, so it must only appear in unavailable`)
+      assert.notEqual(row.state, 'callable')
+    }
+  })
+
+  it('pins the host discovery contract, and reports null where no contract exists', async () => {
+    const ctx = await mountPlugin()
+    // SAFETY: same contract-declared shape as above.
+    const list = (await call(ctx, 'tool_mode_list', {})) as { tools: ToolsRow[] }
+    const discovery = list.tools.find(row => row.name === 'tool_mode_list')
+    assert.ok(discovery !== undefined, 'tool_mode_list must list itself')
+    assert.equal(discovery.contract, 'host.tool_mode_list')
+    assert.equal(discovery.contractVersion, '1.0.0')
+    assert.equal(discovery.schemaAvailable, true, 'describe can return its schemas')
+
+    // A host tool with no published ToolContract reports null rather than inventing a version.
+    const modelTools = list.tools.find(row => row.name === 'model_tools')
+    assert.ok(modelTools !== undefined)
+    assert.equal(modelTools.contract, null)
+    assert.equal(modelTools.contractVersion, null)
+  })
+
+  it('declares the new fields in the MCP-advertised output schema', () => {
+    // Asserted over the serialized contract, not a hand-typed mirror of its shape: a mirror
+    // would pass while the advertised schema stayed wrong.
+    const advertised = JSON.stringify(TOOL_MODE_LIST_CONTRACT.outputSchema)
+    assert.match(advertised, /"contract":\{"type":\["string","null"\]\}/)
+    assert.match(advertised, /"contractVersion":\{"type":\["string","null"\]\}/)
+    assert.match(advertised, /"schemaAvailable":\{"type":"boolean"\}/)
   })
 })

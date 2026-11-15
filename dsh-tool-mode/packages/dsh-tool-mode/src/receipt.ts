@@ -35,6 +35,16 @@ export const MAX_RETAINED_RECEIPTS = 200
 export interface InvocationReceipt {
   /** Opaque receipt identity, unique per call. */
   readonly receiptId: string
+  /**
+   * The COMPOSITION this receipt belongs to.
+   *
+   * A direct invocation is its own run (`runId === receiptId`). A nested call carries the
+   * composition receipt's id in BOTH `parentReceiptId` and `runId`, which is what lets a
+   * reader recover every call a composed run made without guessing at a tree shape.
+   */
+  readonly runId: string
+  /** When the host authored the receipt, ISO 8601 (host clock). */
+  readonly at: string
   /** The contract that was invoked. */
   readonly contract: string
   /** The contract version, so a receipt is interpretable after a schema change. */
@@ -73,7 +83,7 @@ export interface InvocationReceipt {
   readonly warnings: readonly string[]
   /** Which provenance lane produced this receipt (OBS-01). */
   readonly kind?: 'invocation' | 'nested' | 'auxiliary' | 'external'
-  /** The composition receipt a nested call belongs to. */
+  /** The DIRECT parent receipt; for a nested call it equals the composition receipt id. */
   readonly parentReceiptId?: string | null
   /** Terminal outcome, when the producing lane knows it. */
   readonly outcome?: 'ok' | 'failed' | 'cancelled' | 'policy-denied' | 'timed-out'
@@ -196,6 +206,10 @@ export function buildInvocationReceipt(input: {
   readonly warnings?: readonly string[]
   readonly kind?: InvocationReceipt['kind']
   readonly parentReceiptId?: string | null
+  /** Explicit composition identity; defaults to the parent, then to the receipt itself. */
+  readonly runId?: string
+  /** Explicit timestamp; defaults to the host clock at build time. */
+  readonly at?: string
   readonly outcome?: InvocationReceipt['outcome']
   readonly usage?: InvocationReceipt['usage']
   readonly cost?: InvocationReceipt['cost']
@@ -205,6 +219,11 @@ export function buildInvocationReceipt(input: {
   }
   return {
     receiptId: input.receiptId,
+    // A direct call is its own run; a nested call belongs to the composition that
+    // spawned it. The parent is the fallback so a lane that forgets runId still
+    // reports a coherent composition identity rather than a second, invented one.
+    runId: input.runId ?? input.parentReceiptId ?? input.receiptId,
+    at: input.at ?? new Date().toISOString(),
     contract: input.contract,
     contractVersion: input.contractVersion,
     implementationId: input.implementationId,

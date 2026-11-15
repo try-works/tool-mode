@@ -104,6 +104,39 @@ describe('EXT-35 — a receipt records what actually ran', () => {
   })
 })
 
+describe('EXT-35 — a receipt names its run and when it happened', () => {
+  it('defaults at to an ISO timestamp and runId to its own id for a direct call', () => {
+    const receipt = buildInvocationReceipt(base)
+    assert.match(receipt.at, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/, 'at must be an ISO timestamp')
+    assert.equal(Number.isNaN(Date.parse(receipt.at)), false)
+    // A direct invocation IS its own composition run.
+    assert.equal(receipt.runId, receipt.receiptId)
+    assert.equal(receipt.parentReceiptId, null)
+    // The builder does not invent an outcome for a lane that did not state one.
+    assert.equal(receipt.outcome, undefined)
+  })
+
+  it('nests a composed call under its composition run', () => {
+    const receipt = buildInvocationReceipt({ ...base, parentReceiptId: 'rcpt_000000' })
+    assert.equal(receipt.parentReceiptId, 'rcpt_000000')
+    // A nested call belongs to the SAME run as its parent, not a second invented run.
+    assert.equal(receipt.runId, 'rcpt_000000')
+  })
+
+  it('honours an explicit runId, at and outcome', () => {
+    const receipt = buildInvocationReceipt({
+      ...base,
+      parentReceiptId: 'rcpt_000000',
+      runId: 'rcpt_000009',
+      at: '2020-01-02T03:04:05.000Z',
+      outcome: 'failed',
+    })
+    assert.equal(receipt.runId, 'rcpt_000009')
+    assert.equal(receipt.at, '2020-01-02T03:04:05.000Z')
+    assert.equal(receipt.outcome, 'failed')
+  })
+})
+
 describe('EXT-35 — paths are reduced, never recorded in full', () => {
   it('keeps the basename and a digest, not the directory', () => {
     const redacted = redactPath('C:\\Users\\erikb\\Documents\\secret-project\\audio.wav')

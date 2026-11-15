@@ -170,6 +170,9 @@ export function buildReceipt(
     activationGeneration: host.activationGeneration,
     executionLocation: executionLocationOf(binding.route),
     warnings,
+    // The receipt is emitted only after the call SUCCEEDED (see the call sites), so the
+    // outcome is known here rather than defaulted by a lane guessing.
+    outcome: 'ok',
   })
 }
 

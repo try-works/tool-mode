@@ -29,6 +29,26 @@ const discoveryOutputSchema: Record<string, unknown> = {
       items: {
         type: 'object',
         additionalProperties: true,
+        /**
+         * DECL-01/task-52: the contract facts a discovery artifact pins itself against.
+         * `contract`/`contractVersion` are null when the tool publishes no contract, and
+         * `schemaAvailable` says whether a `tool_mode_describe` call would return schemas.
+         */
+        properties: {
+          name: { type: 'string' },
+          description: { type: 'string' },
+          state: { type: 'string', enum: ['callable', 'not-installed', 'unavailable'] },
+          toolName: { type: 'string' },
+          readiness: { type: 'string' },
+          model: { type: ['string', 'null'] },
+          extension: { type: ['string', 'null'] },
+          route: { type: 'string' },
+          executionKind: { type: 'string' },
+          recipeDigest: { type: ['string', 'null'] },
+          contract: { type: ['string', 'null'] },
+          contractVersion: { type: ['string', 'null'] },
+          schemaAvailable: { type: 'boolean' },
+        },
       },
     },
     unavailable: {

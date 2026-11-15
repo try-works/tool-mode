@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-15T08:43:52.022Z",
+  "generatedAt": "2026-11-15T09:16:39.117Z",
   "specification": [
     {
       "id": "TM-DSH-001",
@@ -1373,6 +1373,7 @@
       "testIds": [
         "packages/dsh-tool-mode/tests/ptc-authority.test.ts",
         "packages/dsh-tool-mode/tests/ptc-composition.test.ts",
+        "packages/dsh-tool-mode/tests/receipt-enrichment.test.ts",
         "packages/dsh-tool-mode/tests/tool-mode-run.test.ts"
       ],
       "requiredPlatform": "any",
@@ -1412,6 +1413,7 @@
         "packages/dsh-tool-mode/tests/code09-probes.test.ts",
         "packages/dsh-tool-mode/tests/ptc-confinement.test.ts",
         "packages/dsh-tool-mode/tests/ptc-runtime.test.ts",
+        "packages/dsh-tool-mode/tests/receipt-enrichment.test.ts",
         "packages/dsh-tool-mode/tests/tool-mode-run.test.ts"
       ],
       "requiredPlatform": "any",

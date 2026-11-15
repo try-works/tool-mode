@@ -41,6 +41,8 @@ function receiptFor(receiptId: string): InvocationReceipt {
     activationGeneration: 1,
     executionLocation: 'host',
     warnings: [],
+    at: new Date().toISOString(),
+    runId: receiptId,
   }
 }
 
