@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-15T11:49:08.363Z",
+  "generatedAt": "2026-11-15T17:43:07.790Z",
   "specification": [
     {
       "id": "TM-DSH-001",
@@ -1648,6 +1648,7 @@
       "testLayer": "unit",
       "testIds": [
         "packages/dsh-tool-mode/tests/capture-path.test.ts",
+        "packages/dsh-tool-mode/tests/data-flow.test.ts",
         "packages/dsh-tool-mode/tests/invocation-accounting.test.ts",
         "packages/dsh-tool-mode/tests/obs02-external-receipts.test.ts"
       ],

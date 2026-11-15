@@ -606,6 +606,7 @@ export async function runAuthoredProgram(options: AuthoredRunOptions): Promise<R
       elapsedMs: Date.now() - started,
       toolCalls: outcome.toolCalls,
       calls: outcome.calls,
+      dataFlow: outcome.dataFlow,
       catalogRevision: options.catalogRevision,
       warnings: [],
       typescript: generateProgramTypes(options.tools),

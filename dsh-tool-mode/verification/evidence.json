@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-11-15T11:49:08.363Z",
+  "generatedAt": "2026-11-15T17:43:07.790Z",
   "git": {
-    "commit": "b1dc5079632e6e0e6ea7a8507ab0c0c5cad9a3a7",
+    "commit": "f15b6f0f1c95c6a25acd6e6f3e4e43051fc419d0",
     "branch": "main",
     "dirty": true
   },
@@ -73,7 +73,7 @@
   "packages": [
     {
       "name": "@try-works/dsh-tool-mode",
-      "version": "0.5.73",
+      "version": "0.5.74",
       "path": "packages/dsh-tool-mode"
     },
     {
@@ -1753,6 +1753,7 @@
       "testLayer": "unit",
       "testIds": [
         "packages/dsh-tool-mode/tests/capture-path.test.ts",
+        "packages/dsh-tool-mode/tests/data-flow.test.ts",
         "packages/dsh-tool-mode/tests/invocation-accounting.test.ts",
         "packages/dsh-tool-mode/tests/obs02-external-receipts.test.ts"
       ],

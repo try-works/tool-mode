@@ -56,6 +56,8 @@ interface ReceiptRow {
   readonly runId: string
   readonly parentReceiptId: string | null
   readonly outcome: string | null
+  readonly callId?: string
+  readonly dataFlow?: readonly { from: string; to: string; input: string; evidence: string }[]
 }
 
 /** Every row the receipts action returns. */
@@ -234,6 +236,43 @@ describe('task-53 — a bare-string-output authored tool still records a receipt
     assert.equal(receipt.parentReceiptId, null)
     assert.equal(receipt.outcome, 'ok')
     assertEnriched(rows)
+  })
+})
+
+describe('task-53 — a composition receipt labels the data flow', () => {
+  it('joins nested receipts by callId and records which result fed which argument', async () => {
+    const ctx = await mountComposed()
+    const defined = await call(ctx, 'tool_mode_tools', {
+      action: 'define',
+      name: 'agent_flow_echo',
+      description: 'Echo a value for a data-flow edge.',
+      inputSchema: { type: 'object', properties: { value: { type: 'string' } }, required: ['value'] },
+      program: 'return input.value',
+      tools: [],
+    })
+    assert.equal(defined.isError, false, JSON.stringify(defined))
+    const result = await call(ctx, 'tool_mode_run', {
+      code: [
+        "const first = await tools.agent_flow_echo({ value: 'x' })",
+        'await tools.agent_flow_echo({ value: first })',
+        'return { ok: true }',
+      ].join('\n'),
+      tools: ['agent_flow_echo'],
+    })
+    assert.equal(result.isError, false, JSON.stringify(result))
+
+    const rows = await receiptsOf(ctx)
+    const composition = rows.find(row => row.contract === 'tool_mode_run')
+    assert.ok(composition, 'the composition receipt must exist')
+    assert.deepEqual(composition.dataFlow, [
+      { from: 'call_1', to: 'call_2', input: 'value', evidence: 'same-value' },
+    ])
+    const nested = rows.filter(row => row.parentReceiptId === composition.receiptId)
+    assert.deepEqual(nested.map(row => row.callId).sort(), ['call_1', 'call_2'])
+    for (const row of nested) {
+      assert.equal(row.parentReceiptId, composition.receiptId, 'the parent link is still present')
+      assert.equal(row.runId, composition.receiptId)
+    }
   })
 })
 

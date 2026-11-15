@@ -565,6 +565,32 @@ describe('CODE-02 — a run reports WHICH tools the program combined', () => {
     assert.ok((call?.elapsedMs ?? -1) >= 0, 'each call carries how long it took')
   })
 
+  it('labels which result fed which argument, and exposes the same graph on meta', async () => {
+    const runtime: ProgramRuntime = {
+      resolve: request => request,
+      async run(spec) {
+        const namespace = (spec as { bindings?: { functions?: Record<string, ToolBinding> }[] }).bindings?.[0]
+        const fn = namespace?.functions?.fixture_echo
+        assert.ok(fn)
+        const first = await fn({ token: 'a' })
+        await fn({ token: first })
+        return { value: null }
+      },
+    }
+    const { runner } = makeRunner({ runtime, bindings: { fixture_echo: async args => args.token } })
+    const outcome = await runner.run({ program: 'x', requested: ['fixture_echo'] })
+    assert.equal(outcome.ok, true)
+    if (!outcome.ok) return
+    assert.equal(outcome.calls[0]?.callId, 'call_1')
+    assert.equal(outcome.calls[1]?.callId, 'call_2')
+    assert.deepEqual(outcome.calls[1]?.input, [
+      { from: 'call_1', to: 'call_2', input: 'token', evidence: 'same-value' },
+    ])
+    assert.deepEqual(outcome.dataFlow, [
+      { from: 'call_1', to: 'call_2', input: 'token', evidence: 'same-value' },
+    ])
+  })
+
   it('caps the trace at 50 entries while the count keeps counting', async () => {
     const calls: number[] = []
     const runtime: ProgramRuntime = {

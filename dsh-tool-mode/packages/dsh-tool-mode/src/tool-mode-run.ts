@@ -36,6 +36,7 @@ import {
 import type { ToolBinding } from './ptc-authority.ts'
 import { generateProgramTypes } from './ptc-authority.ts'
 import { AsyncLocalStorage } from 'node:async_hooks'
+import { createDataFlowTracker, type DataFlowEdge } from './data-flow.ts'
 
 /** The runtime surface this module needs, narrowed so it is testable. */
 export interface ProgramRuntime {
@@ -152,6 +153,8 @@ export type ProgramOutcome =
     readonly toolCalls: number
     /** Bounded trace of the sub-calls, in dispatch order (CODE-02). */
     readonly calls: readonly ProgramCall[]
+    /** Observed value edges between calls (identity and exact equality). */
+    readonly dataFlow: readonly DataFlowEdge[]
   }
   | { readonly ok: false; readonly code: 'unavailable' | 'unauthorized' | 'cancelled' | 'failed'; readonly message: string }
 
@@ -163,6 +166,8 @@ export type ProgramOutcome =
  * 4 MB vector, and the report is provenance rather than a data dump.
  */
 export interface ProgramCall {
+  /** Stable id for the call within this run (for example `call_2`). */
+  readonly callId?: string
   readonly name: string
   readonly ok: boolean
   readonly elapsedMs: number
@@ -172,6 +177,8 @@ export interface ProgramCall {
   readonly resultPreview?: string
   /** The failure message when the sub-call threw. */
   readonly error?: string
+  /** Inbound value edges: earlier results found somewhere in this call's arguments. */
+  readonly input?: readonly DataFlowEdge[]
 }
 
 /** How many sub-calls a trace keeps; the count itself is never truncated. */
@@ -296,6 +303,10 @@ export function createProgramRunner(environment: RunnerEnvironment): ProgramRunn
       let toolCalls = 0
       let harnessModelCalls = 0
       const calls: ProgramCall[] = []
+      /** One bounded data-flow tracker per run: which result reached which argument. */
+      const flows = createDataFlowTracker()
+      /** Monotonic dispatch number, so a trace entry has a stable id even before it is pushed. */
+      let dispatchCount = 0
       /** Identical call counts for the composition loop detector (AT-10/AT-15). */
       const repeatedCalls = new Map<string, number>()
       const countedResolve = (name: string): ToolBinding | undefined => {
@@ -334,26 +345,37 @@ export function createProgramRunner(environment: RunnerEnvironment): ProgramRunn
           if (harness) harnessModelCalls += 1
           const started = Date.now()
           const argumentsPreview = preview(args)
+          // The trace is bounded, and so is the data-flow evidence that points into it:
+          // past the cap there is no entry an edge could name.
+          const keepTrace = calls.length < MAX_TRACE_CALLS
+          dispatchCount += 1
+          const callId = `call_${dispatchCount}`
+          const input = keepTrace ? flows.edges(args, callId) : []
           try {
             const value = await binding(args)
-            if (calls.length < MAX_TRACE_CALLS) {
+            if (keepTrace) {
+              flows.record(callId, value)
               calls.push({
+                callId,
                 name,
                 ok: true,
                 elapsedMs: Date.now() - started,
                 argumentsPreview,
                 resultPreview: preview(value),
+                ...input.length === 0 ? {} : { input },
               })
             }
             return value
           } catch (error) {
-            if (calls.length < MAX_TRACE_CALLS) {
+            if (keepTrace) {
               calls.push({
+                callId,
                 name,
                 ok: false,
                 elapsedMs: Date.now() - started,
                 argumentsPreview,
                 error: error instanceof Error ? error.message : String(error),
+                ...input.length === 0 ? {} : { input },
               })
             }
             throw error
@@ -412,7 +434,8 @@ export function createProgramRunner(environment: RunnerEnvironment): ProgramRunn
             message: result.error.message ?? `the program ended with ${String(kind)}`,
           }
         }
-        return { ok: true, value: result.value, logs: result.logs ?? [], toolCalls, calls }
+        const dataFlow = calls.flatMap(call => call.input ?? [])
+        return { ok: true, value: result.value, logs: result.logs ?? [], toolCalls, calls, dataFlow }
       } catch (error) {
         return {
           ok: false,
@@ -450,6 +473,8 @@ export interface RunReport {
     readonly toolCalls: number
     /** The bounded sub-call trace, in dispatch order: which tools combined, and how. */
     readonly calls: readonly ProgramCall[]
+    /** Observed value edges between the traced calls, referencing their `callId`s. */
+    readonly dataFlow: readonly DataFlowEdge[]
     readonly catalogRevision: string
     readonly warnings: readonly string[]
     /** TypeScript bindings for exactly the authorized tool set (CODE-03). */
@@ -508,6 +533,8 @@ export const TOOL_MODE_RUN_CONTRACT = {
           warnings: { type: 'array', items: { type: 'string' } },
           typescript: { type: 'string' },
           calls: { type: 'array', items: { type: 'object', additionalProperties: true } },
+          /** Data-flow edges between calls: which result reached which argument. */
+          dataFlow: { type: 'array', items: { type: 'object', additionalProperties: true } },
         },
       },
     },
@@ -588,6 +615,7 @@ export async function serveProgram(
       elapsedMs: Date.now() - started,
       toolCalls: outcome.toolCalls,
       calls: outcome.calls,
+      dataFlow: outcome.dataFlow,
       catalogRevision: report.catalogRevision,
       warnings: [],
       typescript: generateProgramTypes(requested),

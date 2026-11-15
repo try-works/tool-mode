@@ -231,6 +231,23 @@ previous values when the host unloads. Resolution:
 The override is process-wide for the plugin's lifetime; Code Mode's sandbox reads
 `os.tmpdir()` when it starts a program, so it takes effect without extra configuration.
 
+### Provenance: which output reached which argument
+
+A composed run reports two layers of provenance. `meta.calls` is the bounded trace
+(`callId`, tool name, timing, argument/result previews); `meta.dataFlow` is the graph
+label: each edge names the producing `callId`, the consuming `callId`, the argument path
+(`query`, `documents[0].text`, or `$` for the whole argument object) and the evidence:
+
+- `same-reference` — the argument contains the same object a previous call returned;
+- `same-value` — the argument contains a value whose canonical JSON is exactly equal to a
+  previous call's result. Ambiguous matches (two earlier calls with the same value) produce
+  no edge rather than a guess.
+
+In `model_tools action: "receipts"`, each nested receipt carries the trace `callId`, so it
+can be joined to the edges; the composition receipt carries `dataFlow` and the existing
+`runId`/`parentReceiptId` links. The evidence is bounded by trace depth/size, never a copy
+of the program's data.
+
 ## Decision decomposition
 
 The pattern is domain-neutral: triage, approvals, routing, moderation, release gates,

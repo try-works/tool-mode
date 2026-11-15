@@ -27,6 +27,7 @@
 import { createHash } from 'node:crypto'
 import { basename } from 'node:path'
 import type { ExecutionLocation } from '@try-works/tool-mode-contracts'
+import type { DataFlowEdge } from './data-flow.ts'
 
 /** How many invocation receipts are retained (EXT-35), in memory and on disk. */
 export const MAX_RETAINED_RECEIPTS = 200
@@ -85,6 +86,10 @@ export interface InvocationReceipt {
   readonly kind?: 'invocation' | 'nested' | 'auxiliary' | 'external'
   /** The DIRECT parent receipt; for a nested call it equals the composition receipt id. */
   readonly parentReceiptId?: string | null
+  /** The trace call id a nested receipt represents (joins it to `dataFlow` edges). */
+  readonly callId?: string
+  /** On a composition receipt: which nested call's output reached which argument. */
+  readonly dataFlow?: readonly DataFlowEdge[]
   /** Terminal outcome, when the producing lane knows it. */
   readonly outcome?: 'ok' | 'failed' | 'cancelled' | 'policy-denied' | 'timed-out'
   /** Token usage, or the honest unknown (never zero) for a lane that cannot measure it. */
@@ -206,6 +211,8 @@ export function buildInvocationReceipt(input: {
   readonly warnings?: readonly string[]
   readonly kind?: InvocationReceipt['kind']
   readonly parentReceiptId?: string | null
+  readonly callId?: string
+  readonly dataFlow?: readonly DataFlowEdge[]
   /** Explicit composition identity; defaults to the parent, then to the receipt itself. */
   readonly runId?: string
   /** Explicit timestamp; defaults to the host clock at build time. */
@@ -240,6 +247,8 @@ export function buildInvocationReceipt(input: {
     warnings: (input.warnings ?? []).map(redactText),
     kind: input.kind ?? 'invocation',
     parentReceiptId: input.parentReceiptId ?? null,
+    ...input.callId === undefined ? {} : { callId: input.callId },
+    ...input.dataFlow === undefined ? {} : { dataFlow: input.dataFlow },
     ...input.outcome === undefined ? {} : { outcome: input.outcome },
     ...input.usage === undefined ? {} : { usage: input.usage },
     ...input.cost === undefined ? {} : { cost: input.cost },
