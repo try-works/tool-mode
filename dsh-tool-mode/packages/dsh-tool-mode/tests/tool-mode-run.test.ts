@@ -414,6 +414,39 @@ describe('CODE-02 — the served path (serveProgram) reports what the interface 
     assert.equal(report.meta.toolCalls, 1)
   })
 
+  it('serves a PURE TRANSFORM with no bindings when tools is empty (task-59)', async () => {
+    const { runtime, requests } = makeRuntime({ invokeBindings: true })
+    const { runner } = makeRunner({
+      runtime,
+      backend: class Backend {},
+      bindings: {},
+    })
+    const report = await serveProgram({
+      description: 'pure transform',
+      code: 'return { doubled: input.x * 2 };',
+      input: { x: 2 },
+      tools: [],
+    }, runner, REPORT)
+
+    // The SAME report shape: the runner ran, the accounting line exists, and nothing was
+    // called because nothing was bound.
+    assert.deepEqual(report.result, { ran: true })
+    assert.equal(report.meta.toolCalls, 0)
+    assert.deepEqual(report.meta.calls, [])
+    assert.ok(report.meta.typescript.includes('interface ToolProgramBindings'))
+    assert.ok(report.logs.some(line => line.startsWith('tool_mode_accounting:')))
+
+    // The empty namespace is still passed, with a NULL PROTOTYPE and no functions: the
+    // program has no binding surface, not one it could reach through Object.prototype.
+    const spec = requests[0] as {
+      bindings: { global: string; functions: Record<string, unknown> }[]
+    }
+    const toolsNamespace = spec.bindings.find(namespace => namespace.global === 'tools')
+    assert.ok(toolsNamespace !== undefined, 'the tools namespace must still be bound')
+    assert.deepEqual(Object.keys(toolsNamespace.functions), [])
+    assert.equal(Object.getPrototypeOf(toolsNamespace.functions), null)
+  })
+
   it('binds input through a JSON binding, never into the program source (CODE-04)', async () => {
     const { runtime, requests } = makeRuntime()
     const { runner } = makeRunner({

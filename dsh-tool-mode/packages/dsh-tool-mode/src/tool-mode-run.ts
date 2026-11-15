@@ -546,12 +546,18 @@ export async function serveProgram(
   }
   void description
 
+  /**
+   * AN EMPTY `tools` ARRAY IS A PURE TRANSFORM (task-59), not a malformed request.
+   *
+   * A program that only computes from `input` — reshape JSON, decide from data, do
+   * arithmetic — binds nothing. Requiring a dummy name forced callers to invent one and
+   * made the authoring surfaces (workflows and agent tools) unable to store such a program
+   * with "may be empty" in their own schemas. The runner still builds the namespace, so
+   * the report shape is unchanged; it simply has no functions.
+   */
   const requested = Array.isArray(args.tools)
     ? args.tools.filter((name): name is string => typeof name === 'string')
     : []
-  if (requested.length === 0) {
-    throw new Error('`tools` must name at least one tool the program will call')
-  }
 
   const prepared = await runner.prepare()
   if (!prepared.mounted && prepared.reason === 'backend-unavailable') {

@@ -148,7 +148,7 @@ export type BindingOutcome =
 export function buildToolBindings(request: BindingRequest): BindingOutcome {
   const decision = authorizeProgramTools({ requested: request.requested }, request.authority, request.resolve)
   if (!decision.ok) {
-    return { ok: false, message: describeRejections(decision.rejections) }
+    return { ok: false, message: describeRejections(decision.rejections, decision.allowed) }
   }
   const global = request.global ?? 'tools'
   /**

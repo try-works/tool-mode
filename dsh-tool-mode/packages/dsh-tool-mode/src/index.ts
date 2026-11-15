@@ -46,6 +46,7 @@ import {
   runAuthoredProgram,
   type AgentToolDefinition,
 } from './agent-authoring.ts'
+import { installSandboxTempRoot, resolveSandboxTempRoot } from './sandbox-temp.ts'
 import { buildDiagnostics } from './diagnostics.ts'
 import { PACKAGE_VERSION } from './version.ts'
 import { CAPTURE_PATH } from './capture-path.ts'
@@ -270,6 +271,19 @@ export interface Config {
   allowAgentAuthoring?: boolean
   /** Where authored workflows/tools are stored; default is beside the state file. */
   agentAuthoringFile?: string
+  /**
+   * The temp root DSH's PTC sandbox is pointed at (Windows ACL fix).
+   *
+   * On Windows the `windows-acl` sandbox creates a private temp directory with
+   * `os.tmpdir()` and writes a DACL on it. An inherited TEMP/TMP on a volume that refuses
+   * `SetNamedSecurityInfoW` (Win32 5) makes Code Mode fail with an AclSandbox error. When
+   * resolved, the plugin points TEMP/TMP at this directory for its lifetime and restores
+   * them on teardown.
+   *
+   * RESOLUTION: unset -> on Windows `~/.dsh/tool-mode-sandbox/tmp`, elsewhere no override;
+   * an absolute path -> use it; an empty string -> DISABLE the override explicitly.
+   */
+  sandboxTempRoot?: string
   /**
    * LIC-04: a strict no-network deployment. Extensions whose DECLARED network
    * behaviour is not eligible are refused at activation, rather than having their
@@ -818,6 +832,9 @@ export const Config: z<Config> = z.object({
   hostedCode: z.boolean().default(false),
   allowAgentAuthoring: z.boolean().default(true),
   agentAuthoringFile: z.string().default(''),
+  // Deliberately NO default: undefined selects the platform policy (the win32 DSH-home
+  // default), while an explicit '' must be able to DISABLE the override.
+  sandboxTempRoot: z.string(),
   networkPolicy: z.union([z.const('any'), z.const('no-network')]).default('any'),
   cli: z.object({
     enabled: z.boolean().default(true),
@@ -1093,6 +1110,38 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   }) as never)
   // §12: the fixed-false flags REFUSE unsupported values before anything runs.
   assertConfigV3DisabledFlags(config)
+  /**
+   * THE PTC SANDBOX TEMP ROOT (task-58, Windows ACL fix).
+   *
+   * Installed before any surface that can start a program, because DSH's sandbox-local
+   * resolves `os.tmpdir()` when it materializes its private temp. An unset value means the
+   * win32 DSH-home default (or no override on other platforms); '' disables it explicitly.
+   * A directory that cannot be created is reported and SKIPPED rather than failing plugin
+   * load: the rest of the host does not depend on the sandbox temp root.
+   */
+  {
+    const sandboxTemp = resolveSandboxTempRoot({ configured: config.sandboxTempRoot })
+    if (sandboxTemp.root.length > 0) {
+      try {
+        const installed = installSandboxTempRoot(sandboxTemp.root)
+        if (installed.changed) {
+          ctx.logger.info(
+            `model-tools: TEMP/TMP point at ${installed.root} for the PTC sandbox `
+            + `(${sandboxTemp.source === 'configured' ? 'sandboxTempRoot' : 'the Windows default'}); `
+            + 'restored on teardown',
+          )
+          ctx.effect(() => () => {
+            installed.restore()
+          }, 'sandbox temp root restore')
+        }
+      } catch (error) {
+        ctx.logger.warn(
+          `model-tools: could not create the sandbox temp root ${sandboxTemp.root}: `
+          + `${error instanceof Error ? error.message : String(error)}; using the platform temp`,
+        )
+      }
+    }
+  }
   const entries = loadCatalog(config.catalogFile)
 
   /**
@@ -4660,7 +4709,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       description:
         'Run a program that calls Tool Mode tools (CODE-02). The requested `tools` list is '
         + 'a binding subset, not a grant: only names the host itself has granted are bound, '
-        + 'and the whole request is refused when any name is unattainable.',
+        + 'and the whole request is refused when any name is unattainable. `tools` may be '
+        + 'empty for a pure transform that computes only from `input`.',
       parameters: {
         // Advisory only, and optional: the program's code is what runs, and the
         // literal CODE-02 payload `{ code, tools }` must be callable as advertised.

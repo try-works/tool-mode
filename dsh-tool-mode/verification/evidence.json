@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-11-15T10:15:34.401Z",
+  "generatedAt": "2026-11-15T11:03:18.519Z",
   "git": {
-    "commit": "ab94236fd075395976ce752fe05883e9af14616d",
+    "commit": "eee911adaec87fcb2531155bc38d2d38041520fa",
     "branch": "main",
     "dirty": true
   },
@@ -73,7 +73,7 @@
   "packages": [
     {
       "name": "@try-works/dsh-tool-mode",
-      "version": "0.5.71",
+      "version": "0.5.72",
       "path": "packages/dsh-tool-mode"
     },
     {
@@ -1516,6 +1516,7 @@
       "testIds": [
         "packages/dsh-tool-mode/tests/agent-authoring.test.ts",
         "packages/dsh-tool-mode/tests/code09-probes.test.ts",
+        "packages/dsh-tool-mode/tests/confinement-release-gate.test.ts",
         "packages/dsh-tool-mode/tests/ptc-confinement.test.ts",
         "packages/dsh-tool-mode/tests/ptc-runtime.test.ts",
         "packages/dsh-tool-mode/tests/receipt-enrichment.test.ts",

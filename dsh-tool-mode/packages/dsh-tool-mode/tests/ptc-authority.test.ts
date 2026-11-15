@@ -33,6 +33,54 @@ function resolverFor(names: readonly string[]) {
 
 const BOTH = { granted: ['fixture_echo', 'lang_detect'], visible: ['fixture_echo', 'lang_detect'] }
 
+describe('task-59 — a refusal names what a program COULD bind', () => {
+  it('appends a sorted allowed list without the excluded control tools or confidential names', () => {
+    const authority = {
+      granted: ['zeta_tool', 'lang_detect', 'tool_mode_run', 'model_tools', 'alpha_tool', 'secret_tool'],
+      visible: ['zeta_tool', 'lang_detect', 'tool_mode_run', 'model_tools', 'alpha_tool', 'secret_tool'],
+      confidential: ['secret_tool'],
+    }
+    const { resolve } = resolverFor(['zeta_tool', 'lang_detect', 'alpha_tool'])
+    const decision = authorizeProgramTools({ requested: ['not_granted'] }, authority, resolve)
+    assert.equal(decision.ok, false)
+    if (decision.ok) return
+
+    // Grant ∩ visible, minus CODE-07 exclusions and confidential names, sorted.
+    assert.deepEqual(decision.allowed, ['alpha_tool', 'lang_detect', 'zeta_tool'])
+
+    const message = describeRejections(decision.rejections, decision.allowed)
+    // The per-name reason is PRESERVED, with its own remedy (forbidden precedes unknown
+    // deliberately: a caller must not learn whether an ungranted name exists).
+    assert.match(message, /not_granted: forbidden — Request only tools /)
+    // ... and the allowlist is one line the author can act on.
+    assert.match(message, /Allowed in a program: alpha_tool, lang_detect, zeta_tool/)
+    // Control tools are NEVER suggested: asking about one is refused, and recommending it
+    // would contradict the exclusion.
+    assert.equal(message.includes('tool_mode_run'), false)
+    assert.equal(message.includes('model_tools'), false)
+    assert.equal(message.includes('secret_tool'), false)
+  })
+
+  it('bounds the list and summarizes the remainder', () => {
+    const many = Array.from({ length: 30 }, (_, index) => `tool_${String(index).padStart(2, '0')}`)
+    const authority = { granted: many, visible: many }
+    const decision = authorizeProgramTools({ requested: ['absent'] }, authority, resolverFor(many).resolve)
+    assert.equal(decision.ok, false)
+    if (decision.ok) return
+    const message = describeRejections(decision.rejections, decision.allowed)
+    assert.match(message, /Allowed in a program: tool_00, tool_01,/)
+    assert.match(message, /… \(\+6 more\)/)
+  })
+
+  it('omits the line entirely when there is nothing allowed', () => {
+    const decision = authorizeProgramTools({ requested: ['absent'] }, { granted: [], visible: [] }, resolverFor([]).resolve)
+    assert.equal(decision.ok, false)
+    if (decision.ok) return
+    assert.deepEqual(decision.allowed, [])
+    assert.doesNotMatch(describeRejections(decision.rejections, decision.allowed), /Allowed in a program/)
+  })
+})
+
 describe('CODE-03 — the bindable set is the INTERSECTION of grant and visibility', () => {
   it('binds a name that is both granted and visible', () => {
     const { resolve } = resolverFor(['fixture_echo'])

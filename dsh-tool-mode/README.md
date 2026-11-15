@@ -213,6 +213,24 @@ confinement-sensitive code with
 `node packages/dsh-tool-mode/scripts/record-confinement-evidence.mjs`; `npm run
 check:confinement` fails when the shipped artifact is stale.
 
+### Windows: the sandbox temp root
+
+DSH's `windows-acl` sandbox creates a private temp directory with `os.tmpdir()` and
+writes a DACL on it. If the inherited `TEMP`/`TMP` is on a volume that refuses
+`SetNamedSecurityInfoW` (Win32 5), Code Mode fails with
+`AclSandbox init failed`. On Windows the plugin therefore points `TEMP`/`TMP` at
+`~/.dsh/tool-mode-sandbox/tmp` for its lifetime (creating it owner-only) and restores the
+previous values when the host unloads. Resolution:
+
+| `sandboxTempRoot` | Behavior |
+| --- | --- |
+| unset | Windows: `~/.dsh/tool-mode-sandbox/tmp`; other platforms: leave the platform temp alone |
+| absolute path | point `TEMP`/`TMP` at that path |
+| `""` (explicit empty) | disable the override; use the platform temp |
+
+The override is process-wide for the plugin's lifetime; Code Mode's sandbox reads
+`os.tmpdir()` when it starts a program, so it takes effect without extra configuration.
+
 ## Decision decomposition
 
 The pattern is domain-neutral: triage, approvals, routing, moderation, release gates,

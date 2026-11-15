@@ -95,6 +95,13 @@ export type AuthorityDecision =
      * round rather than being handed the next one each time.
      */
     readonly rejections: readonly BindingRejection[]
+    /**
+     * What a program COULD bind here (task-59), already intersected and sorted.
+     *
+     * A refusal that names only the requested failures leaves the author guessing what to
+     * ask for instead; the list answers that in the same breath, bounded.
+     */
+    readonly allowed: readonly string[]
   }
 
 /**
@@ -302,7 +309,7 @@ export function authorizeProgramTools(
   if (rejections.length > 0) {
     // ALL OR NOTHING. Binding the reachable subset would run a program that does not do
     // what it declares, which is the failure mode this refusal exists to prevent.
-    return { ok: false, rejections }
+    return { ok: false, rejections, allowed: allowedProgramBindings(authority) }
   }
 
   /**
@@ -326,15 +333,53 @@ export function authorizeProgramTools(
   return { ok: true, bindings, bound }
 }
 
+/** How many names the refusal prints before summarizing (task-59). */
+const MAX_ALLOWED_NAMES = 24
+
+/**
+ * The names a program COULD bind here (task-59).
+ *
+ * Grant ∩ visibility, minus the CODE-07 exclusions and the operator's confidential set,
+ * restricted to names that are actually usable as bindings, sorted. The exclusions are
+ * filtered FIRST so a control tool can never appear in the suggestion list — advertising
+ * `tool_mode_run` to a program that is refused for asking about it would be worse than
+ * saying nothing.
+ * @param authority - the caller's grant and the live visible/confidential sets.
+ * @returns the sorted, deduplicated, bindable names.
+ */
+export function allowedProgramBindings(authority: ProgramAuthority): string[] {
+  const visible = new Set(authority.visible)
+  const confidential = new Set(authority.confidential ?? [])
+  const allowed = new Set<string>()
+  for (const name of authority.granted) {
+    if (!isBindableName(name)) continue
+    if (!visible.has(name)) continue
+    if (EXCLUDED_BINDINGS.includes(name)) continue
+    if (confidential.has(name)) continue
+    allowed.add(name)
+  }
+  return [...allowed].sort((left, right) => left.localeCompare(right))
+}
+
 /**
  * Describe a refusal for a caller (CODE-03).
  *
  * Names every rejection and why, because a program author who is told only that the
- * request failed cannot fix it.
+ * request failed cannot fix it. When the allowed set is supplied it is appended as ONE
+ * bounded line, so the author also learns what to ask for instead (task-59).
  * @param rejections - the refusals.
+ * @param allowed - the names a program could bind here, sorted and pre-filtered.
  * @returns a readable summary.
  */
-export function describeRejections(rejections: readonly BindingRejection[]): string {
+export function describeRejections(
+  rejections: readonly BindingRejection[],
+  allowed: readonly string[] = [],
+): string {
   const lines = rejections.map(entry => `  ${entry.name}: ${entry.reason} — ${entry.remedy}`)
-  return `the program requested tools it may not use:\n${lines.join('\n')}`
+  const head = `the program requested tools it may not use:\n${lines.join('\n')}`
+  if (allowed.length === 0) return head
+  const shown = allowed.slice(0, MAX_ALLOWED_NAMES)
+  const hidden = allowed.length - shown.length
+  return `${head}\nAllowed in a program: ${shown.join(', ')}`
+    + (hidden > 0 ? ` … (+${hidden} more)` : '')
 }
