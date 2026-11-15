@@ -197,6 +197,14 @@ one JSON document under the plugin state directory (`agentAuthoringFile` overrid
 
 ## Code Mode gate
 
+**Release checklist:** before publishing, run
+`npm run release:evidence` in `packages/dsh-tool-mode` (it records
+`verification/ptc-confinement-evidence.json` against the current package version and
+validates it). `prepublishOnly` runs the build and `check:confinement`, so
+`npm publish` FAILS when the shipped artifact is missing, stale, failed or recorded for
+another version; `verify:static` and `verify:release` run the same check. A version bump
+therefore cannot ship stale confinement evidence.
+
 `tool_mode_run` requires a passing confinement-evidence artifact **and** `hostedCode: true`.
 The artifact is validated for the running package version; the plugin falls back to the
 artifact shipped in the package (`verification/ptc-confinement-evidence.json`), so a

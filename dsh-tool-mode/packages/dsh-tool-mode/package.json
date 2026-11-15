@@ -92,6 +92,8 @@
     "build:remote": "node scripts/gen-remote-artifacts.mjs",
     "check:remote": "node scripts/gen-remote-artifacts.mjs --check",
     "check:confinement": "node scripts/check-confinement-evidence.mjs",
+    "release:evidence": "node scripts/record-confinement-evidence.mjs --out verification/ptc-confinement-evidence.json && npm run check:confinement",
+    "prepublishOnly": "npm run build && npm run check:confinement",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "tsx --test tests/*.test.ts",
     "prepack": "node scripts/stage-bundle.mjs && npm run build",
