@@ -179,6 +179,25 @@ const DSH_PARAMETER_KEYWORDS = new Set([
   'items', 'properties', 'additionalProperties', 'required',
 ])
 
+/**
+ * THE ONE Tool Mode system-prompt section (P5).
+ *
+ * It says the four things a model cannot learn from a single tool description: the
+ * callable/unavailable split, "list and describe before you compose", that a
+ * prepared-cold model loads on its first call, and that receipts exist per call.
+ *
+ * It is deliberately NON-COMPLETE and bounded: an agent preset that supplies its own
+ * complete section must remain the sole prompt, and this contribution must never fight
+ * for the whole prompt. Keep it under 1200 characters; the test pins the text.
+ */
+const TOOL_MODE_PROMPT_SECTION = `## Tool Mode
+On-device model tools run beside your other tools.
+
+- **callable vs unavailable.** \`tool_mode_list\` returns \`tools\` (names you can call now) and \`unavailable\` (catalogued models you cannot call here, each with \`state\` and \`reason\`). Only names in \`tools\` may be bound in a \`tool_mode_run\` program; binding an \`unavailable\` name refuses the whole request.
+- **list and describe first in Code Mode.** Call \`tool_mode_list\`, then \`tool_mode_describe\` for the exact input/output schema. Describing a non-callable name answers \`callable: false\` with the reason and the action that would clear it, not a schema.
+- **prepared-cold loads on the first call.** A \`prepared-cold\` model starts its engine when you first call it, so that call is slower and may exceed the advertised timeout; retry once before concluding it is unavailable.
+- **per-call receipts.** Every invocation records a receipt (model, extension, outcome, elapsed). Read them with \`model_tools\` action \`receipts\` instead of re-running a call to see what happened.`
+
 /** Plugin configuration. */
 export interface Config {
   /** Catalog document to load; defaults to the bundled Desert Ant catalog. */
@@ -4136,6 +4155,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         + 'now; `unavailable` lists catalogued models that cannot be called here, each with its readiness state '
         + 'and the reason. Only `tools` may be bound in a program: binding an `unavailable` name refuses the '
         + 'whole request, and the Tool Mode control tools are callable directly but excluded from programs (CODE-07). '
+        + 'See the **Tool Mode** system-prompt section for the callable/unavailable contract. '
         + 'Read-only discovery (DECL-07): it never installs, prepares, activates or changes anything.',
       parameters: {},
       output: {
@@ -4312,6 +4332,36 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         return { card: 'generic', title: 'Tool mode describe', kind: 'read', rawInput: String((args.tools as string[] | undefined)?.join(',') ?? '') }
       },
     }))
+  }
+
+  /**
+   * ONE Tool Mode system-prompt section (P5), ordered AFTER the tool sections.
+   *
+   * DEFENSIVE BY DESIGN: `ctx.get` answers undefined on a host that composes no
+   * systemPrompt service, and such a host must keep working — this section explains the
+   * tool surface, it is never a prerequisite for it. A hard inject would make the plugin
+   * unloadable there.
+   *
+   * The order is DERIVED from the central map, not guessed: past MCP_SERVERS and before
+   * TOOLS_SDK is "after the tool sections" by construction, so a map change moves this
+   * section with it instead of silently reordering it.
+   */
+  const promptService = ctx.get('systemPrompt') as
+    | {
+      readonly section: (section: {
+        readonly name: string
+        readonly order: number
+        readonly text: string
+      }) => () => void
+      readonly getSectionOrder: (name: string) => number
+    }
+    | undefined
+  if (promptService !== undefined) {
+    const order = promptService.getSectionOrder('MCP_SERVERS') + 100
+    ctx.effect(
+      () => promptService.section({ name: 'tool-mode:readiness', order, text: TOOL_MODE_PROMPT_SECTION }),
+      'tool-mode prompt section',
+    )
   }
 
   // The registry disposes each registration with the plugin fiber, but doing it

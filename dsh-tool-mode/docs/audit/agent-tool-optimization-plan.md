@@ -11,9 +11,9 @@ Related: [inventory-audit.md](./inventory-audit.md), [tool-mode-agent-flow.md](.
 | P2 extension manifest skills | **done** (0.5.63) | `registerSkill` in `src/index.ts`; 6 tests; verifier PASS |
 | P3 deferred loading | **done** (P3 + P3b, default **off**) | `src/registrar.ts` selection; [deferred-loading.md](./deferred-loading.md); 18 tests across the registrar/bindings and both recipe lanes |
 | P4 discovery split | **done** (0.5.65) | `tool_mode_list` now splits into registered `tools` + `unavailable[]` with the same state/reason; `tool_mode_describe` explains a non-callable name; MCP schema updated |
-| P5 prompt section | pending | — |
+| P5 prompt section | **done** (0.5.66) | one bounded Tool Mode section (`tool-mode:readiness`), non-complete, guarded on `ctx.get('systemPrompt')`; snapshot + coexistence tests |
 | P6 family disambiguation | **done** (0.5.64) | decision-first budget keeps every when-not bullet; dedupe_and_rank covered via extension guidance; [tool-description-families.md](../packages/dsh-tool-mode/docs/audit/tool-description-families.md) |
-| P7 MCP parity/usage | partial (MCP description parity in P1b) | — |
+| P7 MCP parity/usage | **done** (0.5.66) | registry==MCP description parity tests, model-surface agreement across `model_tools`/`tool_mode_list`, never-called rows pinned by tool-inventory/tool-insights tests; review cadence in [inventory-audit.md](./inventory-audit.md#8-shipped-update-2026-11-15) |
 | P8 restart boundary | **done** (0.5.65) | explicit sentence in Settings, README and two guide pages, pinned by `restart-boundary.test.ts` |
 
 ## 0. Goal, non-goals, principles

@@ -85,8 +85,9 @@ export const TOOL_MODE_LIST_CONTRACT: ToolContract = {
   description:
     'List the tools this caller may use. `tools` are the names that can be BOUND in a program and called '
     + 'now; `unavailable` lists catalogued models that cannot be called here, each with its readiness state '
-    + 'and the reason. Only `tools` may be bound in a program. Read-only discovery (DECL-07): it never '
-    + 'installs, prepares, activates or changes anything.',
+    + 'and the reason. Only `tools` may be bound in a program. See the **Tool Mode** system-prompt section '
+    + 'for the callable/unavailable contract. Read-only discovery (DECL-07): it never installs, prepares, '
+    + 'activates or changes anything.',
   inputSchema: {
     type: 'object',
     additionalProperties: false,

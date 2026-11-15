@@ -121,3 +121,21 @@ triple so they never disagree.
 - No model appears twice; no extension that wraps a model needs a second visit.
 - One tools table; origin is metadata, not structure.
 - `model_tools` and `tool_mode_list` agree on model ↔ tool ↔ readiness.
+
+## 8. Shipped update (2026-11-15)
+
+The recommendation is implemented: one user-facing Models list (24 rows, lifecycle inline,
+Tool providers for model-less extensions), one Tools table with origin/kind as columns, and
+one model ↔ tool ↔ readiness triple shared by `model_tools`, `tool_mode_list` and the MCP
+surface. Discovery (0.5.65) now separates registered `tools` from `unavailable` entries, so
+a listed name can never be refused as unattainable.
+
+**Usage review cadence (P7).** Tool Insights already shows a never-called tool as such
+(`tool-inventory` and `tool-insights-render` tests pin "never called"), and the table carries
+owner, kind, state and calls. Use it on a regular cadence:
+
+1. Sort by calls over the last 30 days; zero-call tools are description/latency candidates.
+2. Compare a zero-call tool's composed description length and its family siblings before
+   rewriting prose; if the tool is genuinely unused, remove the binding rather than keeping
+   a confusing option.
+3. Re-run the golden description diff after any prose change so the review is visible.
