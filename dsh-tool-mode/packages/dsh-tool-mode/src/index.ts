@@ -2058,11 +2058,27 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     ...config.remote?.token !== undefined ? { token: config.remote.token } : {},
   }
 
+  /**
+   * THE STORE'S INSTALLED EXTENSION IDS (task-49).
+   *
+   * A store-installed extension lives under the profile's extension directory and is never
+   * resolvable from this plugin's module context, so capability probing must consult the
+   * store. Without this the host reported "not installed" about packages it had installed,
+   * and every provider model stayed `runnable: false` while its tool was callable.
+   *
+   * An absent store means no ids — the same answer as before, never an error.
+   */
+  const storeInstalledExtensions = new Set(
+    (extensionStore?.listInstalled().value ?? []).map(record => record.extensionId),
+  )
+  const providerInstalled = (extensionId: string): boolean => storeInstalledExtensions.has(extensionId)
+
   const resolved: ResolvedModel[] = entries.map(entry => ({
     entry,
     verdict: resolveCapability(entry, {
       cliAvailable,
       remoteEndpoint,
+      providerInstalled,
       ...config.allowNpm !== undefined ? { allowNpm: config.allowNpm } : {},
     }),
   }))
@@ -3548,13 +3564,26 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
          * name: under a contract two implementations share one tool, and reporting
          * the catalog name would tell a caller to call something that does not exist.
          */
+        /**
+         * TASK-49: THE REGISTRY DECIDES "CALLABLE", not the catalog verdict.
+         *
+         * Read once per execute so one row cannot disagree with another about what is
+         * registered at this instant.
+         */
+        const publishedToolNames = new Set(ctx.tools.schemas().map(schema => schema.name))
         const snapshot = async (items: ResolvedModel[]) => Promise.all(items.map(async item => {
           const record = installed.get(item.entry.id)
           /**
            * ONE readiness derivation, shared with tool_mode_list: the two discovery
            * surfaces cannot disagree about whether this model tool is callable.
            */
-          const surface = modelSurface(item.entry, item.verdict, record !== undefined)
+          const publishedName = record?.toolName ?? item.entry.tool?.name ?? item.entry.id
+          const surface = modelSurface(
+            item.entry,
+            item.verdict,
+            record !== undefined,
+            publishedToolNames.has(publishedName),
+          )
           return {
             ...(describeModels([item])[0] as ModelDescriptor),
             state: surface.state,
@@ -4082,7 +4111,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
        */
       if (registrySchema === undefined && modelItem !== undefined && descriptor !== undefined) {
         const record = installed.get(modelItem.entry.id)
-        const surface = modelSurface(modelItem.entry, modelItem.verdict, record !== undefined)
+        // The branch itself means the registry does not serve this name: not published.
+        const surface = modelSurface(modelItem.entry, modelItem.verdict, record !== undefined, false)
         return {
           name,
           callable: false as const,
@@ -4191,7 +4221,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           const toolName = record?.toolName ?? item.entry.tool?.name ?? item.entry.id
           if (permitted !== undefined && !permitted.has(toolName)) continue
           // The SAME derivation model_tools uses, so the two surfaces agree.
-          const surface = modelSurface(item.entry, item.verdict, record !== undefined)
+          const surface = modelSurface(item.entry, item.verdict, record !== undefined, registered.has(toolName))
           if (!registered.has(toolName)) {
             unavailable.push({
               name: toolName,

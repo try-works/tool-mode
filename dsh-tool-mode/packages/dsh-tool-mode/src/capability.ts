@@ -90,6 +90,15 @@ export function resolveCapability(
     readonly remoteEndpoint?: string | undefined
     /** Turn off in-process npm resolution, to force another transport. */
     readonly allowNpm?: boolean
+    /**
+     * Whether a provider extension is INSTALLED in this profile's extension store (task-49).
+     *
+     * Module resolution is the wrong test for a store-installed extension: the package lives
+     * under `<profile>/extensions`, never on this plugin's resolution path, so every
+     * installed provider model read as "not installed". The caller supplies the store's
+     * installed ids here; the extension service owns the real readiness checks.
+     */
+    readonly providerInstalled?: (extensionId: string) => boolean
   } = {},
 ): CapabilityVerdict {
   const resolve = options.resolve ?? canResolve
@@ -103,11 +112,24 @@ export function resolveCapability(
 
   if (entry.provider !== undefined && !entry.closedBeta) {
     const extensionManifest = `${entry.provider.extension}/package.json`
-    if (resolve(extensionManifest)) {
+    /**
+     * TWO WAYS TO BE PROVIDER-RUNNABLE, and the second one is the fix (task-49).
+     *
+     * Module resolution covers a package installed beside the plugin. A STORE-INSTALLED
+     * extension is never resolvable from here — it lives under the profile's extension
+     * store — so the store's installed set is consulted too. Without this, installing an
+     * extension changed nothing: the model stayed `runnable: false` while its tool was
+     * registered and callable.
+     */
+    const resolvable = resolve(extensionManifest)
+    const installedInStore = options.providerInstalled?.(entry.provider.extension) ?? false
+    if (resolvable || installedInStore) {
       return {
         runnable: true,
         route: 'extension',
-        reason: `${entry.name} is implemented by the Tool Mode extension ${entry.provider.extension}; provider readiness is checked through that extension before publication and again for discovery.`,
+        reason: resolvable
+          ? `${entry.name} is implemented by the Tool Mode extension ${entry.provider.extension}; provider readiness is checked through that extension before publication and again for discovery.`
+          : `${entry.name} is implemented by the Tool Mode extension ${entry.provider.extension}, which is installed in this profile's extension store; provider readiness is checked through that extension before publication and again for discovery.`,
         resolved: [extensionManifest],
       }
     }

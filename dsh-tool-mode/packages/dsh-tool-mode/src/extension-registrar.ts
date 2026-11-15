@@ -17,9 +17,13 @@
  *   the handle is a branded object the caller never sees the inside of.
  * - **Withdrawing is idempotent.** A deactivation that runs twice must not throw the
  *   second time, and must not withdraw a DIFFERENT contribution that reused the handle.
- * - **A name collision is refused, not silently overwritten.** Two extensions contributing
- *   `transcribe` is a configuration error; letting the second win would silently change
- *   what an existing caller reaches.
+ * - **A KIND:NAME collision is refused, and a re-publish is idempotent.** Two extensions
+ *   contributing the same kind and label is a configuration error; letting the second win
+ *   would silently change what an existing caller reaches. But the SAME extension
+ *   publishing the SAME contribution again (a restore followed by an enable, an
+ *   activation retry) gets its original handle back, because refusing it aborted a
+ *   real activation. Ownership is keyed KIND AND NAME, because a manifest may legally
+ *   use one label for a tool, an implementation and its usage skill.
  * - **The host stamps identity.** The contribution carries an extension id, but the HOST
  *   decides what that means; a package claiming another's id is refused rather than
  *   trusted.
@@ -99,6 +103,21 @@ interface Handle {
   readonly id: number
   readonly extensionId: string
   readonly name: string
+  readonly kind: Contribution['kind']
+}
+
+/** Who owns one published KIND:NAME, and the handle they were issued. */
+interface Ownership {
+  readonly extensionId: string
+  readonly handleId: number
+}
+
+/** One live registration: the opaque handle, its disposer, and the token issued for it. */
+interface PublishedEntry {
+  readonly handle: Handle
+  readonly dispose: () => void
+  /** The value handed back to the extension: the branded handle as the SDK's string type. */
+  readonly token: string
 }
 
 /**
@@ -127,9 +146,15 @@ export interface RegistrarOptions {
  * @returns the registrar.
  */
 export function createContributionRegistrar(options: RegistrarOptions): ContributionRegistrar {
-  const published = new Map<number, { handle: Handle; dispose: () => void }>()
-  /** Names currently taken, so a collision is detected rather than overwritten. */
-  const takenNames = new Map<string, string>()
+  const published = new Map<number, PublishedEntry>()
+  /**
+   * Ownership keyed KIND:NAME, so a collision is detected rather than overwritten and
+   * a different KIND may legally reuse one label. The lifecycle keys its handles the
+   * same way, which is what makes the two views comparable.
+   */
+  const owners = new Map<string, Ownership>()
+  const keyOf = (contribution: { readonly kind: Contribution['kind']; readonly name: string }): string =>
+    `${contribution.kind}:${contribution.name}`
   let nextId = 1
 
   const refuse = (contribution: Contribution, error: ContributionError): never => {
@@ -149,15 +174,30 @@ export function createContributionRegistrar(options: RegistrarOptions): Contribu
       }
 
       /**
-       * A COLLISION IS REFUSED. Letting the second registration win would silently change
-       * what an existing caller reaches — the same name would resolve to a different tool
-       * with no signal.
+       * A COLLISION IS REFUSED, BUT A RE-PUBLISH IS NOT A COLLISION.
+       *
+       * The same extension publishing the same KIND:NAME again (a restore followed by
+       * an enable, an activation retry) gets the ORIGINAL handle back. Refusing it
+       * aborted a live activation (restore-failures.log: "enhance-speech is already
+       * published by @try-works/extension-clear-recipe"); registering a second tool
+       * would instead leak a registration no handle can withdraw.
+       *
+       * A DIFFERENT extension still cannot take the same KIND:NAME over: that would
+       * silently change what an existing caller reaches.
        */
-      const existing = takenNames.get(contribution.name)
-      if (existing !== undefined) {
+      const key = keyOf(contribution)
+      const owner = owners.get(key)
+      if (owner !== undefined) {
+        if (owner.extensionId === contribution.extensionId) {
+          const existing = published.get(owner.handleId)
+          // A live entry means the original registration is still exactly what this
+          // contribution asks for. Ownership without it can only be a retained failed
+          // cleanup, which is refused below rather than answered with a dead handle.
+          if (existing !== undefined) return existing.token
+        }
         return refuse(contribution, new ContributionError(
           'name-collision',
-          `${contribution.name} is already published by ${existing}; `
+          `${contribution.name} is already published by ${owner.extensionId}; `
           + `${contribution.extensionId} cannot take the name over`,
         ))
       }
@@ -167,7 +207,16 @@ export function createContributionRegistrar(options: RegistrarOptions): Contribu
         id: nextId++,
         extensionId: contribution.extensionId,
         name: contribution.name,
+        kind: contribution.kind,
       }
+
+      // The SDK types the handle as a string; the runtime value is a branded object,
+      // which is what makes it unforgeable. ONE boundary cast produces the token that
+      // both the normal and the idempotent path return.
+      // SAFETY: the cast only reinterprets the branded object as the SDK's string type;
+      // withdraw() compares runtime identity, never the static type.
+      // oxlint-disable-next-line anti-slop/no-chained-type-assertions
+      const token = handle as unknown as string
 
       let dispose: () => void
       if (contribution.kind === 'tool') {
@@ -206,11 +255,9 @@ export function createContributionRegistrar(options: RegistrarOptions): Contribu
         dispose = () => {}
       }
 
-      takenNames.set(contribution.name, contribution.extensionId)
-      published.set(handle.id, { handle, dispose })
-      // The SDK types the handle as a string; the runtime value is a branded object, which
-      // is what makes it unforgeable. The cast is the boundary between the two.
-      return handle as unknown as string
+      owners.set(key, { extensionId: contribution.extensionId, handleId: handle.id })
+      published.set(handle.id, { handle, dispose, token })
+      return token
     },
 
     withdraw(rawHandle: string): void {
@@ -230,7 +277,10 @@ export function createContributionRegistrar(options: RegistrarOptions): Contribu
       // Failed cleanup retains ownership and the handle for an explicit retry.
       entry.dispose()
       published.delete(handle.id)
-      takenNames.delete(handle.name)
+      // Free the KIND:NAME ownership only while it still points at THIS handle: a
+      // stale handle must never free a label another handle has since taken.
+      const key = keyOf(handle)
+      if (owners.get(key)?.handleId === handle.id) owners.delete(key)
     },
   }
 }

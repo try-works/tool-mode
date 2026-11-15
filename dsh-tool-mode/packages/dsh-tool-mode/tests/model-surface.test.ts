@@ -7,12 +7,16 @@
  * model that merely was not installed read as unavailable. The pure function below is the
  * single derivation, so the two surfaces cannot drift.
  *
+ * TASK-49 ADDED THE MISSING FACT: the catalog verdict alone cannot say CALLABLE. A model
+ * whose route resolves but whose tool is not published is not callable — the caller would
+ * look for a tool that does not exist. `toolPublished` is therefore a required input.
+ *
  * STATE VOCABULARY (closed):
- * - `callable`     — the catalog route resolves on this host; the model can run now.
+ * - `callable`     — the route resolves AND the model-facing tool is published now.
  * - `not-installed` — a Tool Mode extension implements it, but that extension/model is not
  *                    installed here yet. Installing is the action that changes this.
- * - `unavailable`   — no route on this host can serve it (Apple-only, closed beta, no SDK),
- *                    or it IS installed and still cannot run: installing again would not help.
+ * - `unavailable`   — no route can serve it (Apple-only, closed beta, no SDK), or it is
+ *                    installed but its tool is not published: preparation/activation is missing.
  *
  * @module tests/model-surface
  */
@@ -29,11 +33,12 @@ import {
 
 /** A provider-bound catalog entry (a Tool Mode extension implements it). */
 const bound: ModelSurfaceEntry = {
+  id: 'example',
   provider: { extension: '@try-works/extension-example', modelId: 'example' },
 }
 
 /** A catalog entry no Tool Mode extension implements. */
-const unbound: ModelSurfaceEntry = {}
+const unbound: ModelSurfaceEntry = { id: 'plain' }
 
 /** A runnable verdict. */
 const runnable: ModelSurfaceVerdict = {
@@ -58,22 +63,35 @@ describe('modelSurface', () => {
     assert.deepEqual([...MODEL_TOOL_STATES], ['callable', 'not-installed', 'unavailable'])
   })
 
-  it('is callable whenever the route resolves, installed or not', () => {
-    for (const installed of [false, true]) {
-      assert.deepEqual(modelSurface(bound, runnable, installed), { state: 'callable', reason: null })
-      assert.deepEqual(modelSurface(unbound, runnable, installed), { state: 'callable', reason: null })
-    }
+  it('is callable ONLY when the route resolves AND the tool is published', () => {
+    assert.deepEqual(modelSurface(bound, runnable, true, true), { state: 'callable', reason: null })
+    assert.deepEqual(modelSurface(unbound, runnable, true, true), { state: 'callable', reason: null })
+  })
+
+  it('is NOT callable when the route resolves but the tool is not published', () => {
+    // Installing alone does not publish a tool; the extension still needs activating/preparing.
+    const surface = modelSurface(bound, runnable, true, false)
+    assert.equal(surface.state, 'unavailable')
+    assert.match(surface.reason ?? '', /not published/)
+    assert.match(surface.reason ?? '', /activate|prepar/i)
+  })
+
+  it('names ENABLING as the action when the extension is installed but no model record exists', () => {
+    const surface = modelSurface(bound, runnable, false, false)
+    assert.equal(surface.state, 'unavailable')
+    assert.match(surface.reason ?? '', /not enabled/i)
+    assert.match(surface.reason ?? '', /enable/i)
   })
 
   it('is not-installed when an extension implements the model but it is not installed here', () => {
-    assert.deepEqual(modelSurface(bound, needsExtension, false), {
+    assert.deepEqual(modelSurface(bound, needsExtension, false, false), {
       state: 'not-installed',
       reason: needsExtension.reason,
     })
   })
 
   it('is unavailable when the model is installed and still cannot run', () => {
-    assert.deepEqual(modelSurface(bound, needsExtension, true), {
+    assert.deepEqual(modelSurface(bound, needsExtension, true, false), {
       state: 'unavailable',
       reason: needsExtension.reason,
     })
@@ -81,20 +99,34 @@ describe('modelSurface', () => {
 
   it('is unavailable when no Tool Mode extension implements the model', () => {
     for (const installed of [false, true]) {
-      assert.deepEqual(modelSurface(unbound, platformBound, installed), {
-        state: 'unavailable',
-        reason: platformBound.reason,
-      })
+      for (const published of [false, true]) {
+        assert.deepEqual(modelSurface(unbound, platformBound, installed, published), {
+          state: 'unavailable',
+          reason: platformBound.reason,
+        })
+      }
     }
   })
 
-  it('always reports the verdict reason verbatim, never a second wording', () => {
-    const surface = modelSurface(bound, needsExtension, false)
-    assert.equal(surface.reason, needsExtension.reason)
+  it('reports the VERDICT reason verbatim for verdict-caused states', () => {
+    assert.equal(modelSurface(bound, needsExtension, false, false).reason, needsExtension.reason)
+    assert.equal(modelSurface(unbound, platformBound, false, false).reason, platformBound.reason)
+  })
+
+  it('never reports callable without a published tool, for any entry/verdict pair', () => {
+    const entries = [bound, unbound]
+    const verdicts = [runnable, needsExtension, platformBound]
+    for (const entry of entries) {
+      for (const verdict of verdicts) {
+        for (const installed of [false, true]) {
+          assert.notEqual(modelSurface(entry, verdict, installed, false).state, 'callable')
+        }
+      }
+    }
   })
 
   it('does not let a different extension name change the state', () => {
-    const other: ModelSurfaceEntry = { provider: { extension: '@try-works/extension-other', modelId: 'other' } }
-    assert.deepEqual(modelSurface(other, needsExtension, false), modelSurface(bound, needsExtension, false))
+    const other: ModelSurfaceEntry = { id: 'other', provider: { extension: '@try-works/extension-other', modelId: 'other' } }
+    assert.deepEqual(modelSurface(other, needsExtension, false, false), modelSurface(bound, needsExtension, false, false))
   })
 })

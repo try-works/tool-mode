@@ -22,7 +22,7 @@ import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import { MODEL_TOOL_STATES } from '../src/model-surface.ts'
 import { loadCatalog } from '../src/index.ts'
 import { buildToolBindings } from '../src/ptc-runtime.ts'
-import { cleanup, mountPlugin } from './helpers.ts'
+import { callTool, cleanup, mountPlugin, mountPluginWithTongue } from './helpers.ts'
 
 after(async () => { await cleanup() })
 
@@ -232,5 +232,60 @@ describe('tool_mode_describe explains what cannot be called', () => {
     }).tools[0]!
     assert.equal(described.callable, true)
     assert.notEqual(described.parameters, undefined)
+  })
+})
+/**
+ * TASK-49: the catalog verdet CANNOT make a model callable on its own.
+ *
+ * The live host reported `installed=1, runnable=0` while `tool_mode_list` advertised the
+ * extension's tools: the capability route was decided by resolving a package from the
+ * PLUGIN's node_modules (never true for a store-installed extension), and the surface said
+ * "callable" from the verdict alone. These tests pin both halves of the fix at the level the
+ * caller can see.
+ */
+describe('task-49 — capability truth for store-installed extensions', () => {
+  it('never reports a callable row whose model-facing tool is not registered', async () => {
+    const ctx = await mountPlugin()
+    const models = ((await call(ctx, 'model_tools', { action: 'list' })) as { models: ModelRow[] }).models
+    const registry = new Set(ctx.tools.schemas().map(schema => schema.name))
+
+    for (const model of models) {
+      if (model.state !== 'callable') continue
+      assert.ok(
+        registry.has(model.tool),
+        `${model.id}: model_tools reports callable, but ${model.tool} is not registered — a caller would find no tool`,
+      )
+    }
+  })
+
+  it('counts a STORE-INSTALLED provider extension as runnable, and its tool as callable once enabled', async () => {
+    const ctx = await mountPluginWithTongue()
+    const enabled = await callTool(ctx, 'model_tools', { action: 'enable', model: 'tongue' })
+    assert.equal(enabled.isError, false, `enabling the fixture must succeed: ${JSON.stringify(enabled).slice(0, 300)}`)
+
+    const summary = (await call(ctx, 'model_tools', { action: 'list' })) as {
+      models: ModelRow[]
+      installed: number
+      runnable: number
+    }
+    const tongue = summary.models.find(model => model.id === 'tongue')
+    assert.ok(tongue !== undefined, 'the catalog must still list tongue')
+
+    // THE DEFECT: this was runnable=false / state=unavailable with "not installed or not
+    // resolvable" even though the fixture package IS installed in the store.
+    assert.equal(tongue.installed, true)
+    assert.equal(tongue.runnable, true, 'an installed provider extension must be runnable')
+    assert.equal(tongue.state, 'callable')
+    assert.ok(summary.runnable >= 1, `runnable count must reflect the installed extension; got ${summary.runnable}`)
+
+    const registry = new Set(ctx.tools.schemas().map(schema => schema.name))
+    assert.ok(registry.has(tongue.tool), `the callable tool ${tongue.tool} must be registered`)
+
+    // And the two surfaces still agree about it.
+    const list = (await call(ctx, 'tool_mode_list', {})) as { tools: CatalogRow[] }
+    const listed = list.tools.find(row => row.model === 'tongue')
+    assert.ok(listed !== undefined, 'the registered extension tool must appear in tool_mode_list tools')
+    assert.equal(listed.name, tongue.tool)
+    assert.equal(listed.state, tongue.state)
   })
 })
