@@ -54,6 +54,20 @@ describe('data-flow — value evidence', () => {
     ])
   })
 
+  it('records a FIELD copied out of an object result', () => {
+    const edges = edgesOf({ text: 'bonjour' }, 'call_2', tracker => tracker.record('call_1', { text: 'bonjour', language: 'fr' }))
+    assert.deepEqual(edges, [
+      { from: 'call_1', to: 'call_2', input: 'text', evidence: 'same-value' },
+    ])
+  })
+
+  it('prefers the specific field over a same-shaped whole argument object', () => {
+    const edges = edgesOf({ token: 'a' }, 'call_2', tracker => tracker.record('call_1', { token: 'a' }))
+    assert.deepEqual(edges, [
+      { from: 'call_1', to: 'call_2', input: 'token', evidence: 'same-value' },
+    ], 'the argument object happening to equal the result is not more specific than its field')
+  })
+
   it('does NOT guess when two earlier calls produced the same value', () => {
     const edges = edgesOf({ text: 'same' }, 'call_3', tracker => {
       tracker.record('call_1', 'same')

@@ -573,11 +573,13 @@ describe('CODE-02 — a run reports WHICH tools the program combined', () => {
         const fn = namespace?.functions?.fixture_echo
         assert.ok(fn)
         const first = await fn({ token: 'a' })
-        await fn({ token: first })
+        // Pass a FIELD of the result: the ordinary shape of a composed step, and the
+        // reason nested result values must be indexed, not only the whole envelope.
+        await fn({ token: (first as { token: string }).token })
         return { value: null }
       },
     }
-    const { runner } = makeRunner({ runtime, bindings: { fixture_echo: async args => args.token } })
+    const { runner } = makeRunner({ runtime, bindings: { fixture_echo: async args => ({ token: args.token }) } })
     const outcome = await runner.run({ program: 'x', requested: ['fixture_echo'] })
     assert.equal(outcome.ok, true)
     if (!outcome.ok) return

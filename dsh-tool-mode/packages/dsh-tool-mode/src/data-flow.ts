@@ -149,8 +149,11 @@ export function createDataFlowTracker(): DataFlowTracker {
             seen.add(key)
             out.push({ from: producer.callId, to, input: path, evidence: producer.evidence })
           }
-          // A matched node is the edge; descending into it would only restate it.
-          return
+          // An IDENTITY match is exact: the whole argument is the returned object, so
+          // descending would only restate it. A VALUE match keeps walking, because a
+          // more specific field (token vs a same-shaped argument object) is the useful
+          // edge; containers are pruned below.
+          if (producer.evidence === 'same-reference') return
         }
         if (value === null || typeof value !== 'object') return
         if (Array.isArray(value)) {
@@ -163,15 +166,42 @@ export function createDataFlowTracker(): DataFlowTracker {
         }
       }
       walk(args, '$', 0)
-      return out.sort((left, right) => left.from.localeCompare(right.from) || left.input.localeCompare(right.input))
+      const isWithin = (child: string, parent: string): boolean =>
+        parent === '$' ? child !== '$' : child.startsWith(`${parent}.`) || child.startsWith(`${parent}[`)
+      const specific = out.filter(edge => !out.some(other =>
+        other.from === edge.from && other.to === edge.to && other.input !== edge.input
+        && isWithin(other.input, edge.input)))
+      return specific.sort((left, right) => left.from.localeCompare(right.from) || left.input.localeCompare(right.input))
     },
     record(callId, value) {
-      if (typeof value === 'object' && value !== null) byIdentity.set(value, callId)
-      const digest = digestOf(value)
-      if (digest === undefined) return
-      const producers = byDigest.get(digest)
-      if (producers === undefined) byDigest.set(digest, [callId])
-      else producers.push(callId)
+      // Register the whole result AND its nested JSON values. A program usually passes a
+      // FIELD of a result (`result.title`), not the whole envelope, so indexing only the
+      // root would miss the ordinary case.
+      const seen = new WeakSet<object>()
+      let registered = 0
+      const register = (node: unknown, depth: number): void => {
+        if (registered >= MAX_NODES || depth > MAX_DEPTH) return
+        registered += 1
+        if (typeof node === 'object' && node !== null) {
+          if (seen.has(node)) return
+          seen.add(node)
+          byIdentity.set(node, callId)
+        }
+        const digest = digestOf(node)
+        if (digest !== undefined) {
+          const producers = byDigest.get(digest)
+          if (producers === undefined) byDigest.set(digest, [callId])
+          else if (!producers.includes(callId)) producers.push(callId)
+        }
+        if (node === null || typeof node !== 'object') return
+        if (Array.isArray(node)) {
+          node.slice(0, MAX_ARRAY_ITEMS).forEach(item => register(item, depth + 1))
+          return
+        }
+        const record = node as Record<string, unknown>
+        for (const key of Object.keys(record).slice(0, MAX_OBJECT_KEYS)) register(record[key], depth + 1)
+      }
+      register(value, 0)
     },
   }
 }
