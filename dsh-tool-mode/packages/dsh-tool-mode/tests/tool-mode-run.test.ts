@@ -19,7 +19,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { createProgramRunner, externalRefusal, serveProgram, TOOL_MODE_RUN_CONTRACT, type ProgramRuntime } from '../src/tool-mode-run.ts'
-import { PTC_SERVICE, type PtcHostContext } from '../src/ptc-runtime.ts'
+import { PTC_SERVICE, resetConfinementEvidenceCacheForTest, type PtcHostContext } from '../src/ptc-runtime.ts'
 import type { ToolBinding } from '../src/ptc-authority.ts'
 import { callTool, cleanup, mountPlugin, tempDir } from './helpers.ts'
 
@@ -29,6 +29,9 @@ import { callTool, cleanup, mountPlugin, tempDir } from './helpers.ts'
  * path (an explicit bad path fails closed) and the cached reading is dropped.
  */
 process.env['DSH_PTC_CONFINEMENT_EVIDENCE'] = join(tmpdir(), 'dsh-test-no-confinement-evidence.json')
+// task-50: the packaged artifact would otherwise open the gate; these cases assert the CLOSED
+// gate, and the shipped-artifact path is covered in ptc-confinement-bundled.test.ts.
+resetConfinementEvidenceCacheForTest({ bundledPath: null })
 
 after(async () => { await cleanup() })
 
@@ -120,7 +123,7 @@ describe('CODE-08 — the exposure gate now HAS a caller', () => {
     // gate whose other half is the release-gate confinement evidence.
     const refusal = externalRefusal(runner)
     assert.ok(refusal, 'confinement evidence is absent, so the caller must still be refused')
-    assert.match(refusal.message, /withheld until the confinement tests pass/)
+    assert.match(refusal.message, /no passing confinement evidence for this build/)
   })
 
   it('reports the gate state and its reason independently', () => {
@@ -329,7 +332,7 @@ describe('the host REGISTERS tool_mode_run, so the gate is reachable through it'
       tools: ['lang_detect'],
     })
     assert.equal(result.isError, true, 'the confinement gate must stay closed')
-    assert.match(JSON.stringify(result), /withheld until the confinement tests pass/)
+    assert.match(JSON.stringify(result), /no passing confinement evidence for this build/)
     void tempDir
   })
 })

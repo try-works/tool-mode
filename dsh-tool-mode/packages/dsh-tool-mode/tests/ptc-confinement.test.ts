@@ -180,9 +180,12 @@ describe('the exposure gate needs BOTH the operator grant and valid evidence', (
     assert.equal(mayExposeToClients(true), true)
   })
 
-  it('stays closed, with the reason, when the artifact is stale', () => {
+  it('stays closed, with the reason, when the artifact is stale and nothing is shipped', () => {
+    // task-50: a stale OPERATOR artifact now falls back to the artifact the package ships.
+    // This case is about the no-shipped-evidence path, so the shipped candidate is disabled.
+    resetConfinementEvidenceCacheForTest({ bundledPath: null })
     process.env[CONFINEMENT_EVIDENCE_ENV] = artifact({ packageVersion: '9.9.9' })
-    resetConfinementEvidenceCacheForTest()
+    resetConfinementEvidenceCacheForTest({ bundledPath: null })
     assert.equal(mayExposeToClients(true), false)
     assert.match(confinementEvidenceReason() ?? '', /re-run scripts\/record-confinement-evidence\.mjs/)
   })

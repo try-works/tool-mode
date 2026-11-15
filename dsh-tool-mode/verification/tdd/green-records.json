@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-15T07:23:07.317Z",
+  "generatedAt": "2026-11-15T08:43:52.022Z",
   "count": 309,
   "records": [
     {
@@ -786,6 +786,7 @@
       "id": "CODE-09",
       "testLayer": "unit",
       "testIds": [
+        "packages/dsh-tool-mode/tests/agent-authoring.test.ts",
         "packages/dsh-tool-mode/tests/code09-probes.test.ts",
         "packages/dsh-tool-mode/tests/ptc-confinement.test.ts",
         "packages/dsh-tool-mode/tests/ptc-runtime.test.ts",
@@ -797,6 +798,7 @@
       "id": "CODE-10",
       "testLayer": "unit",
       "testIds": [
+        "packages/dsh-tool-mode/tests/agent-authoring.test.ts",
         "packages/dsh-tool-mode/tests/ptc-composition.test.ts",
         "packages/dsh-tool-mode/tests/ptc-confinement.test.ts",
         "packages/dsh-tool-mode/tests/ptc-runtime.test.ts",

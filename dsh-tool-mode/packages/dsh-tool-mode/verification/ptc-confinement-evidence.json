@@ -1,0 +1,19 @@
+{
+  "kind": "ptc-confinement-evidence",
+  "version": 1,
+  "passed": true,
+  "generatedAt": "2026-11-15T08:20:39.244Z",
+  "packageVersion": "0.5.69",
+  "platform": "win32",
+  "node": "v24.11.0",
+  "tests": [
+    "packages/dsh-tool-mode/tests/ptc-sandbox.test.ts"
+  ],
+  "command": "node --import tsx --test packages/dsh-tool-mode/tests/ptc-sandbox.test.ts",
+  "counts": {
+    "tests": 5,
+    "pass": 5,
+    "fail": 0,
+    "skipped": 0
+  }
+}

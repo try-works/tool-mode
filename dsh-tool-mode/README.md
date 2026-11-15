@@ -180,6 +180,31 @@ docs/tool-mode/specs/             the specification, and the pinned MCP schema
 verification/                     generated evidence, and FINAL-REPORT.md
 ```
 
+## Agent-authored workflows and tools
+
+`tool_mode_workflows` saves, versions and re-runs a Code Mode program by name
+(`save`, `list`, `get`, `delete`, `run`). `tool_mode_tools` defines persistent tools in
+the reserved `agent_*` namespace: it validates an input JSON Schema, persists the program
+and registers the tool immediately; deleting withdraws it, and stored tools are
+re-registered on the next host load.
+
+Authored code runs only through the same confined program runner as `tool_mode_run`:
+`tools` is a binding subset, never a grant, and execution is refused until the operator
+opens hosted code execution (CODE-09 confinement evidence + CODE-10 `hostedCode: true`).
+Saving and defining are allowed while the gate is closed; running is not. State lives in
+one JSON document under the plugin state directory (`agentAuthoringFile` overrides it);
+`allowAgentAuthoring: false` disables the whole surface.
+
+## Code Mode gate
+
+`tool_mode_run` requires a passing confinement-evidence artifact **and** `hostedCode: true`.
+The artifact is validated for the running package version; the plugin falls back to the
+artifact shipped in the package (`verification/ptc-confinement-evidence.json`), so a
+version upgrade no longer silently closes Code Mode. Re-record after changing
+confinement-sensitive code with
+`node packages/dsh-tool-mode/scripts/record-confinement-evidence.mjs`; `npm run
+check:confinement` fails when the shipped artifact is stale.
+
 ## Decision decomposition
 
 The pattern is domain-neutral: triage, approvals, routing, moderation, release gates,

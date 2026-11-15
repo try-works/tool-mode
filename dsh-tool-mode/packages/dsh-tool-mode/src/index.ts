@@ -37,7 +37,15 @@ import { appendFileSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, resolve, sep } from 'node:path'
 import { createContributionRegistrar, type RegistrableTool } from './extension-registrar.ts'
 import { createInvocationAuthority } from './authority.ts'
-import { createExternalGrantContext, createProgramRunner, externalRefusal, serveProgram, TOOL_MODE_RUN_CONTRACT, PTC_SERVICE } from './tool-mode-run.ts'
+import { createExternalGrantContext, createProgramRunner, externalRefusal, serveProgram, TOOL_MODE_RUN_CONTRACT, PTC_SERVICE, type RunReport } from './tool-mode-run.ts'
+import {
+  AGENT_TOOL_NAME_PATTERN,
+  agentToolContract,
+  createAgentAuthoringStore,
+  defaultAgentAuthoringFile,
+  runAuthoredProgram,
+  type AgentToolDefinition,
+} from './agent-authoring.ts'
 import { buildDiagnostics } from './diagnostics.ts'
 import { PACKAGE_VERSION } from './version.ts'
 import { CAPTURE_PATH } from './capture-path.ts'
@@ -119,7 +127,7 @@ import { normalizeCachePolicy } from './mcp/protocol.ts'
 import { applyMcpExportPolicy } from './mcp/export-policy.ts'
 import type { ClientGrantConfig } from './mcp/client-grant.ts'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
-import { STANDARD_CONTRACTS, assertAgainstSchema, compileSchema, projectSchemaToDsh, type ToolContract } from '@try-works/tool-mode-contracts'
+import { STANDARD_CONTRACTS, assertAgainstSchema, compileSchema, projectSchemaToDsh, toDshParameters, type ToolContract } from '@try-works/tool-mode-contracts'
 import { describeDataHandling, renderSkillBody } from './skills.ts'
 import { loadPlaybooks } from './playbook.ts'
 import { commandExists, DEFAULT_CLI_COMMAND } from './transport.ts'
@@ -196,7 +204,8 @@ On-device model tools run beside your other tools.
 - **callable vs unavailable.** \`tool_mode_list\` returns \`tools\` (names you can call now) and \`unavailable\` (catalogued models you cannot call here, each with \`state\` and \`reason\`). Only names in \`tools\` may be bound in a \`tool_mode_run\` program; binding an \`unavailable\` name refuses the whole request.
 - **list and describe first in Code Mode.** Call \`tool_mode_list\`, then \`tool_mode_describe\` for the exact input/output schema. Describing a non-callable name answers \`callable: false\` with the reason and the action that would clear it, not a schema.
 - **prepared-cold loads on the first call.** A \`prepared-cold\` model starts its engine when you first call it, so that call is slower and may exceed the advertised timeout; retry once before concluding it is unavailable.
-- **per-call receipts.** Every invocation records a receipt (model, extension, outcome, elapsed). Read them with \`model_tools\` action \`receipts\` instead of re-running a call to see what happened.`
+- **per-call receipts.** Every invocation records a receipt (model, extension, outcome, elapsed). Read them with \`model_tools\` action \`receipts\` instead of re-running a call to see what happened.
+- **author your own.** \`tool_mode_workflows\` saves and re-runs programs by name; \`tool_mode_tools\` defines persistent \`agent_*\` tools. Running is gated.`
 
 /** Plugin configuration. */
 export interface Config {
@@ -249,6 +258,18 @@ export interface Config {
    * Default false.
    */
   hostedCode?: boolean
+  /**
+   * Agent-authored workflows and tools (default TRUE).
+   *
+   * When on, the host exposes `tool_mode_workflows` (save/version/run programs) and
+   * `tool_mode_tools` (define persistent `agent_*` tools). Authored code runs ONLY through
+   * the same confined runner `tool_mode_run` uses, so this flag changes what can be
+   * STORED and NAMED, never how code is confined. Off removes both surfaces and does not
+   * register any stored authored tool.
+   */
+  allowAgentAuthoring?: boolean
+  /** Where authored workflows/tools are stored; default is beside the state file. */
+  agentAuthoringFile?: string
   /**
    * LIC-04: a strict no-network deployment. Extensions whose DECLARED network
    * behaviour is not eligible are refused at activation, rather than having their
@@ -795,6 +816,8 @@ export const Config: z<Config> = z.object({
   managementGrant: z.boolean().default(false),
   confidentialTools: z.array(z.string()).default([]),
   hostedCode: z.boolean().default(false),
+  allowAgentAuthoring: z.boolean().default(true),
+  agentAuthoringFile: z.string().default(''),
   networkPolicy: z.union([z.const('any'), z.const('no-network')]).default('any'),
   cli: z.object({
     enabled: z.boolean().default(true),
@@ -1138,6 +1161,15 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
    * id BEFORE the lifecycle publishes, and `disable` must revoke it.
    */
   const activatedExtensions = new Set<string>()
+
+  /**
+   * The agent-authored tool names registered in THIS host instance.
+   *
+   * Three consumers share it: the host grant (an authored tool may be bound by a
+   * workflow program), `tool_mode_list` (the tool is part of the caller's permitted
+   * surface), and the delete/teardown path (the name is released with its registration).
+   */
+  const authoredToolNames = new Set<string>()
 
   /**
    * Why the startup asset walk could not rebuild an extension's prepared handles, by
@@ -4265,7 +4297,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         const owned = new Set<string>([
           ...STANDARD_CONTRACTS.map(contract => contract.toolName),
           'tool_mode_list', 'tool_mode_describe', 'tool_mode_run', 'model_tools', 'model_tools_manage',
+          'tool_mode_workflows', 'tool_mode_tools',
           'decision_combine', 'decision_evaluate', 'decision_route',
+          ...authoredToolNames,
           ...ownedExtensionToolNames,
           ...declarativeRecipeDigests.keys(),
         ])
@@ -4454,7 +4488,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
      * the external caller's own grant when the run happens inside an external call,
      * the host's own grant otherwise. Never a caller's claim about what it may use.
      */
-    grant: () => externalGrantContext.current() ?? grant.allowedTools,
+    // The host grant plus the authored tools THIS instance registered: an authored
+    // workflow may bind another authored tool, while an EXTERNAL caller keeps its own
+    // transport-derived grant (SEC-04) and never inherits the operator's additions.
+    grant: () => externalGrantContext.current() ?? [...grant.allowedTools, ...authoredToolNames],
     // Read at RUN time, not once: extension restore registers tools after this closure
     // is created, and a program must see the live registry, not a stale snapshot.
     visible: () => ctx.tools.schemas().map(schema => schema.name),
@@ -4599,6 +4636,321 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       },
     }))
 
+  /* oxlint-disable anti-slop/require-safety-comment-for-type-assertion, anti-slop/no-chained-type-assertions, anti-slop/no-unknown-parameters, anti-slop/no-unsafe-dictionary-type, anti-slop/no-runtime-typeof -- SAFETY: this block is the JSON/registry boundary for agent-authored artifacts: it validates untrusted stored JSON and then casts DSH registry values at the plugin seam (the same boundary tool_mode_run uses). */
+  /**
+   * AGENT-AUTHORED WORKFLOWS AND TOOLS.
+   *
+   * The research report's missing capability: an agent could RUN a Code Mode program but
+   * could not NAME, SAVE, VERSION or RE-USE one, and could not define a new tool at all.
+   * Two surfaces close that gap, gated by allowAgentAuthoring (default true):
+   *
+   * - tool_mode_workflows stores versioned programs that can be run again by name;
+   * - tool_mode_tools stores persistent agent_* tools, registers each one immediately,
+   *   and executes its stored program through the SAME confined runner tool_mode_run uses.
+   *
+   * SECURITY: the store is data, never authority. An authored program runs only through
+   * runAuthoredProgram (the host's ProgramRunner), so the grant, the visibility policy,
+   * the budgets, the sub-call trace and the CODE-09 exposure gate are unchanged. Storing an
+   * artifact is allowed while the gate is closed; RUNNING or EXECUTING it is refused with
+   * the actionable gate message.
+   */
+  if (config.allowAgentAuthoring !== false) {
+    const authoringFile = (config.agentAuthoringFile ?? '').length > 0
+      ? config.agentAuthoringFile as string
+      : defaultAgentAuthoringFile(config.stateFile)
+    const authoringStore = createAgentAuthoringStore({ file: authoringFile })
+    if (authoringStore.issue !== undefined) {
+      ctx.logger.warn('model-tools: agent authoring: ' + authoringStore.issue)
+    }
+    /** The LIVE catalog revision, the same fact tool_mode_run reports (CODE-05). */
+    const authoringRevision = (): string => String(extensionLifecycle?.generation ?? host.activationGeneration)
+    /**
+     * Record one nested receipt per traced sub-call, then the composition receipt (OBS-01).
+     * A composed authored run is provenance twice over: the calls it made, and the run.
+     */
+    const recordAuthoredRun = (receiptId: string, revision: string, contract: string, report: RunReport): void => {
+      for (const call of report.meta.calls) {
+        host.recordReceipt?.(buildInvocationReceipt({
+          receiptId: host.nextReceiptId(),
+          contract: 'nested:' + call.name,
+          contractVersion: '1.0.0',
+          implementationId: call.name,
+          extension: host.extension,
+          extensionVersion: host.extensionVersion,
+          activationGeneration: Number(revision),
+          executionLocation: 'host',
+          modelIdentity: 'none',
+          kind: 'nested',
+          parentReceiptId: receiptId,
+          outcome: call.ok ? 'ok' : 'failed',
+        }))
+      }
+      host.recordReceipt?.(buildInvocationReceipt({
+        receiptId,
+        contract,
+        contractVersion: HOST_VERSION,
+        implementationId: 'hosted-composition',
+        extension: host.extension,
+        extensionVersion: host.extensionVersion,
+        activationGeneration: Number(revision),
+        executionLocation: 'host',
+        modelIdentity: 'none',
+      }))
+    }
+    /** The registered authored tools, so delete and teardown unregister exactly one each. */
+    const authoredDisposers = new Map<string, () => void>()
+    /**
+     * Register one stored authored tool.
+     *
+     * NEVER throws: boot registration must skip a name that is now taken (or a definition
+     * the registry cannot project) with a logged reason rather than crash the plugin. The
+     * same helper serves define, so the two registration paths cannot drift.
+     */
+    const registerAuthored = (definition: AgentToolDefinition): boolean => {
+      if (authoredToolNames.has(definition.name)) return false
+      if (ctx.tools.schemas().some(schema => schema.name === definition.name)) {
+        ctx.logger.warn(
+          'model-tools: authored tool ' + definition.name + ' was not registered: a tool with that name already exists',
+        )
+        return false
+      }
+      let validateInput: ReturnType<typeof compileSchema>
+      let parameters: ParameterSchemaSpec
+      try {
+        // Compiled ONCE at registration: a malformed schema fails here, not on the first call.
+        validateInput = compileSchema(definition.inputSchema)
+        parameters = toDshParameters(agentToolContract(definition)) as unknown as ParameterSchemaSpec
+      } catch (error) {
+        ctx.logger.warn(
+          'model-tools: authored tool ' + definition.name + ' was not registered: '
+          + (error instanceof Error ? error.message : String(error)),
+        )
+        return false
+      }
+      try {
+        const dispose = ctx.tools.register(defineTool({
+          name: definition.name,
+          description: definition.description,
+          parameters,
+          output: {
+            schema: { type: 'string' } as unknown as ValueSchemaSpec,
+            render: (_args: Record<string, unknown>, value: unknown) => [
+              { type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value) },
+            ],
+          },
+          async execute(args) {
+            // The DSH parameters are deliberately LOOSER than the authored schema (the
+            // projection drops keywords it cannot advertise); enforce the full one so a
+            // dropped constraint is never silently unenforced (BASE-04).
+            assertAgainstSchema(definition.name, validateInput, args)
+            const receiptId = host.nextReceiptId()
+            const revision = authoringRevision()
+            const report = await runAuthoredProgram({
+              program: definition.program,
+              tools: definition.tools,
+              input: args as JsonValue,
+              runner: programRunner,
+              receiptId,
+              catalogRevision: revision,
+            })
+            recordAuthoredRun(receiptId, revision, definition.name, report)
+            // The stored program's value, as JSON text: a caller parses one document.
+            return JSON.stringify(report.result ?? null) as never
+          },
+        }))
+        authoredToolNames.add(definition.name)
+        authoredDisposers.set(definition.name, dispose)
+        return true
+      } catch (error) {
+        ctx.logger.warn(
+          'model-tools: authored tool ' + definition.name + ' was not registered: '
+          + (error instanceof Error ? error.message : String(error)),
+        )
+        return false
+      }
+    }
+    /** Unregister one authored tool; false when no registration exists. */
+    const unregisterAuthored = (name: string): boolean => {
+      const dispose = authoredDisposers.get(name)
+      if (dispose === undefined) return false
+      dispose()
+      authoredDisposers.delete(name)
+      authoredToolNames.delete(name)
+      return true
+    }
+    // BOOT: every stored authored tool is registered again, after the built-in tools, so a
+    // restart is a continuation rather than a loss. Each entry is validated on load.
+    for (const definition of authoringStore.toolEntries()) registerAuthored(definition)
+    ctx.effect(() => () => {
+      for (const dispose of authoredDisposers.values()) dispose()
+      authoredDisposers.clear()
+      authoredToolNames.clear()
+    }, 'agent-authored tools teardown')
+
+    ctx.tools.register(defineTool({
+      name: 'tool_mode_workflows',
+      description:
+        'Save, version and re-run Code Mode programs (agent-authored workflows). WHEN TO USE: '
+        + 'save a program you have verified so it can be run again by name instead of retyped; '
+        + 'list or get saved workflows; run one against fresh input. Only registered Tool Mode '
+        + 'tools may be bound: tools is a binding subset, not a grant. Storing is allowed while '
+        + 'hosted code execution is gated; RUNNING is refused until the operator opens the gate.',
+      parameters: {
+        action: {
+          type: 'string',
+          required: true,
+          enum: ['save', 'list', 'get', 'delete', 'run'],
+          description: 'save: create or update (bumps the version). list: summaries. get/delete/run: by name or id.',
+        },
+        name: { type: 'string', description: 'Workflow name (lowercase kebab/snake, 2-64 chars) or its id.' },
+        description: { type: 'string', description: 'What the workflow does; shown by list.' },
+        program: { type: 'string', description: 'The Code Mode program body (async function body with top-level await/return).' },
+        tools: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'The tool names the saved program will call; may be empty for a pure transform.',
+        },
+        input: { type: 'json', description: 'Run only: structured data bound as the program input variable.' },
+      } as unknown as ParameterSchemaSpec,
+      output: {
+        schema: { type: 'object', additionalProperties: true } as unknown as ValueSchemaSpec,
+        render: (_args: Record<string, unknown>, value: unknown) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      async execute(args) {
+        const request = args as Record<string, unknown>
+        const action = request['action']
+        const nameOrId = typeof request['name'] === 'string' ? request['name'] : ''
+        if (action === 'save') {
+          const entry = authoringStore.saveWorkflow({
+            name: nameOrId,
+            description: typeof request['description'] === 'string' ? request['description'] : undefined,
+            program: typeof request['program'] === 'string' ? request['program'] : '',
+            tools: Array.isArray(request['tools']) ? request['tools'].filter((tool): tool is string => typeof tool === 'string') : [],
+            catalogRevision: authoringRevision(),
+          })
+          return { saved: true, workflow: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt } } as never
+        }
+        if (action === 'list') {
+          return { workflows: authoringStore.listWorkflows() } as never
+        }
+        if (action === 'get') {
+          const entry = authoringStore.getWorkflow(nameOrId)
+          if (entry === undefined) throw new Error('unknown workflow "' + nameOrId + '"; list the workflows to see what exists')
+          return { workflow: entry } as never
+        }
+        if (action === 'delete') {
+          return { deleted: authoringStore.deleteWorkflow(nameOrId) } as never
+        }
+        if (action === 'run') {
+          const entry = authoringStore.getWorkflow(nameOrId)
+          if (entry === undefined) throw new Error('unknown workflow "' + nameOrId + '"; list the workflows to see what exists')
+          const receiptId = host.nextReceiptId()
+          const revision = authoringRevision()
+          const report = await runAuthoredProgram({
+            program: entry.program,
+            tools: entry.tools,
+            input: request['input'] === undefined ? undefined : request['input'] as JsonValue,
+            runner: programRunner,
+            receiptId,
+            catalogRevision: revision,
+          })
+          recordAuthoredRun(receiptId, revision, 'tool_mode_workflows', report)
+          return {
+            workflow: { id: entry.id, name: entry.name, version: entry.version },
+            result: report.result,
+            logs: report.logs,
+            meta: report.meta,
+          } as never
+        }
+        throw new Error('unknown action "' + String(action) + '"; expected save, list, get, delete or run')
+      },
+    }))
+
+    ctx.tools.register(defineTool({
+      name: 'tool_mode_tools',
+      description:
+        'Define persistent agent-authored tools named agent_* (stored program plus JSON input '
+        + 'schema). WHEN TO USE: define a tool once so it is registered for every later call; '
+        + 'list or get definitions; delete one. The stored program runs through the same confined '
+        + 'runner as tool_mode_run, its tools list is a binding subset (never a grant), and '
+        + 'execution is refused until the operator opens the hosted-code gate.',
+      parameters: {
+        action: {
+          type: 'string',
+          required: true,
+          enum: ['define', 'list', 'get', 'delete'],
+          description: 'define: create or update (bumps the version) and register immediately. list/get/delete: by name or id.',
+        },
+        name: { type: 'string', description: 'The authored tool name: agent_ followed by lowercase letters, digits or underscores.' },
+        description: { type: 'string', description: 'What the tool does; shown to callers.' },
+        inputSchema: { type: 'json', description: 'JSON Schema for the call arguments (object root with declared properties).' },
+        program: { type: 'string', description: 'The Code Mode program body; the call arguments arrive as the input variable.' },
+        tools: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'The tool names the stored program will call; may be empty. Never the tool itself.',
+        },
+      } as unknown as ParameterSchemaSpec,
+      output: {
+        schema: { type: 'object', additionalProperties: true } as unknown as ValueSchemaSpec,
+        render: (_args: Record<string, unknown>, value: unknown) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      async execute(args) {
+        const request = args as Record<string, unknown>
+        const action = request['action']
+        const nameOrId = typeof request['name'] === 'string' ? request['name'] : ''
+        if (action === 'define') {
+          if (!AGENT_TOOL_NAME_PATTERN.test(nameOrId)) {
+            throw new Error(
+              '"' + nameOrId + '" is not an authored tool name: it must match agent_[a-z0-9_]{2,60} (for example "agent_double")',
+            )
+          }
+          const inputSchema = request['inputSchema']
+          if (typeof inputSchema !== 'object' || inputSchema === null || Array.isArray(inputSchema)) {
+            throw new Error('inputSchema must be a JSON object schema (type: "object" with declared properties)')
+          }
+          // Collision is checked BEFORE persisting: a definition that cannot own its name is
+          // refused, not stored to fail later. A re-define of one of OUR tools is an update.
+          const stored = authoringStore.getTool(nameOrId)
+          if (stored === undefined && ctx.tools.schemas().some(schema => schema.name === nameOrId)) {
+            throw new Error('a tool named "' + nameOrId + '" is already registered; choose another agent_* name')
+          }
+          const entry = authoringStore.saveTool({
+            name: nameOrId,
+            description: typeof request['description'] === 'string' ? request['description'] : '',
+            inputSchema: inputSchema as Record<string, JsonValue>,
+            program: typeof request['program'] === 'string' ? request['program'] : '',
+            tools: Array.isArray(request['tools']) ? request['tools'].filter((tool): tool is string => typeof tool === 'string') : [],
+          })
+          // Replace the old registration (an update may change schema or program) and register
+          // the stored definition now: a define that is not callable is a lie.
+          unregisterAuthored(entry.name)
+          if (!registerAuthored(entry)) {
+            if (stored === undefined) authoringStore.deleteTool(entry.id)
+            throw new Error('the tool ' + entry.name + ' was defined but could not be registered; see the host log')
+          }
+          return { defined: true, tool: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt } } as never
+        }
+        if (action === 'list') {
+          return { tools: authoringStore.listTools() } as never
+        }
+        if (action === 'get') {
+          const entry = authoringStore.getTool(nameOrId)
+          if (entry === undefined) throw new Error('unknown authored tool "' + nameOrId + '"; list the tools to see what exists')
+          return { tool: entry } as never
+        }
+        if (action === 'delete') {
+          const entry = authoringStore.getTool(nameOrId)
+          if (entry === undefined) return { deleted: false } as never
+          unregisterAuthored(entry.name)
+          return { deleted: authoringStore.deleteTool(entry.id) } as never
+        }
+        throw new Error('unknown action "' + String(action) + '"; expected define, list, get or delete')
+      },
+    }))
+  }
+
+  /* oxlint-enable anti-slop/require-safety-comment-for-type-assertion, anti-slop/no-chained-type-assertions, anti-slop/no-unknown-parameters, anti-slop/no-unsafe-dictionary-type, anti-slop/no-runtime-typeof */
   /*
    * "Jev makes judgments, code makes decisions" (TypeSafe, 2026-11-03): this
    * pure tool composes caller-supplied atomic judgments and code facts through

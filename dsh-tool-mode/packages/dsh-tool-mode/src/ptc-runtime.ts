@@ -35,6 +35,7 @@ import {
 } from './ptc-authority.ts'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import { checkConfinementEvidence } from './ptc-confinement.ts'
 import { PACKAGE_VERSION } from './version.ts'
@@ -201,6 +202,20 @@ export function admitTimeout(requestedMs: number | null | undefined): number {
  */
 let confinementEvidence = false
 
+/**
+ * THE SHIPPED ARTIFACT (task-50).
+ *
+ * Resolved from this module's URL so it works in both layouts — `src/` under tsx and
+ * `lib/` in the published package are both one level below the package root, so
+ * `../verification/...` names the same file. `files[]` ships it, so an installed host has it.
+ */
+const DEFAULT_BUNDLED_EVIDENCE_PATH = fileURLToPath(
+  new URL('../verification/ptc-confinement-evidence.json', import.meta.url),
+)
+
+/** The bundled candidate for this process; `null` disables it (the acceptance tests' "no evidence" case). */
+let bundledEvidencePath: string | null = DEFAULT_BUNDLED_EVIDENCE_PATH
+
 /** The cached artifact check, so one process reads and validates the file once. */
 let artifactCheck: { readonly ok: boolean; readonly reason: string } | undefined
 
@@ -212,14 +227,27 @@ function artifactOutcome(): { readonly ok: boolean; readonly reason: string } {
     // The recorder writes this standard local artifact, so a host started normally (no
     // wrapper launcher, no environment variable) still has a release path.
     defaultPath: join(homedir(), '.dsh', 'ptc-confinement-evidence.json'),
+    // And the release builds its own, so a version bump cannot silently close the gate:
+    // a stale home artifact no longer blocks a shipped passing one.
+    bundledPath: bundledEvidencePath ?? undefined,
   })
   artifactCheck = check.ok ? { ok: true, reason: '' } : { ok: false, reason: check.reason }
   return artifactCheck
 }
 
-/** Drop the cached artifact reading (tests change the environment between cases). */
-export function resetConfinementEvidenceCacheForTest(): void {
+/**
+ * Drop the cached artifact reading (tests change the environment between cases).
+ *
+ * @param options - `bundledPath: null` simulates a package with no shipped artifact, so the
+ * "gate is closed" cases stay executable; omitted restores the real bundled path.
+ */
+export function resetConfinementEvidenceCacheForTest(
+  options: { readonly bundledPath?: string | null } = {},
+): void {
   artifactCheck = undefined
+  if (options.bundledPath === null) bundledEvidencePath = null
+  else if (options.bundledPath !== undefined) bundledEvidencePath = options.bundledPath
+  else bundledEvidencePath = DEFAULT_BUNDLED_EVIDENCE_PATH
 }
 
 /** The current confinement evidence (CODE-09). */
@@ -297,12 +325,22 @@ export function mayExposeToClients(operatorGranted: boolean): boolean {
  * @returns the reason callers are given.
  */
 export function exposureWithheldReason(operatorGranted: boolean): string {
+  /**
+   * THE REFUSAL IS FOR AN AGENT, NOT A LOG (task-50).
+   *
+   * The old text interpolated the validator's reason, which named the operator's home path
+   * and both package versions — unactionable to a caller and a small information leak. The
+   * caller now gets WHAT is missing and the EXACT command that fixes it; the detailed reason
+   * stays available in-process through `confinementEvidenceReason()` for the status row.
+   */
   if (!operatorGranted) {
     return 'generated-code execution is disabled: the operator has not granted hosted '
-      + 'code execution (CODE-10); it is a separate consent from model-tool access'
+      + 'code execution (CODE-10), a separate consent from model-tool access. '
+      + 'Operator: set `hostedCode: true` in the tool-mode profile, then restart DSH. '
+      + 'The runtime is mounted and usable in-process; no production client is served generated-code execution.'
   }
-  const evidence = confinementEvidenceReason()
-  return 'generated-code execution is withheld until the confinement tests pass'
-    + (evidence === undefined ? '' : ` (${evidence})`)
-    + '; the runtime is mounted and usable in-process, and no production client is served it'
+  return 'generated-code execution is withheld: no passing confinement evidence for this build. '
+    + 'Operator: run node packages/dsh-tool-mode/scripts/record-confinement-evidence.mjs, '
+    + 'then restart DSH. '
+    + 'The runtime is mounted and usable in-process; no production client is served generated-code execution.'
 }

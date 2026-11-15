@@ -37,7 +37,11 @@ import type { ToolBinding } from '../src/ptc-authority.ts'
  * closed — and the cached reading is dropped.
  */
 process.env['DSH_PTC_CONFINEMENT_EVIDENCE'] = join(tmpdir(), 'dsh-test-no-confinement-evidence.json')
-resetConfinementEvidenceCacheForTest()
+// task-50: the package SHIPS a passing artifact now, so an absent env/home artifact would open
+// the gate and these CLOSED-gate cases would assert the opposite of the release path. Disable
+// the shipped candidate for this file; the release path itself is covered in
+// ptc-confinement-bundled.test.ts.
+resetConfinementEvidenceCacheForTest({ bundledPath: null })
 
 /** A host context that records what was mounted. */
 function makeContext(options: { readonly provides?: unknown; readonly pluginThrows?: boolean } = {}) {
@@ -221,8 +225,9 @@ describe('CODE-08 — generated-code execution is WITHHELD from clients', () => 
     const noGrant = exposureWithheldReason(false)
     assert.match(noGrant, /operator has not granted hosted code execution/)
     const noConfinement = exposureWithheldReason(true)
-    assert.match(noConfinement, /withheld until the confinement tests pass/)
-    assert.match(noConfinement, /no production client is served it/)
+    assert.match(noConfinement, /no passing confinement evidence for this build/)
+    assert.match(noConfinement, /record-confinement-evidence\.mjs/)
+    assert.match(noConfinement, /no production client is served generated-code execution/)
   })
 
   it('the test seam is INERT without the operator environment marker', () => {

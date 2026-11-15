@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-11-15T07:23:07.317Z",
+  "generatedAt": "2026-11-15T08:43:52.022Z",
   "git": {
-    "commit": "0e73383ae172df3bda636c980d6e3c17e4ae76ca",
+    "commit": "108fa8b52cdffb43eb8e8cc8fd3d94a7ce11d689",
     "branch": "main",
     "dirty": true
   },
@@ -73,7 +73,7 @@
   "packages": [
     {
       "name": "@try-works/dsh-tool-mode",
-      "version": "0.5.68",
+      "version": "0.5.69",
       "path": "packages/dsh-tool-mode"
     },
     {
@@ -1513,6 +1513,7 @@
       "owningModule": "packages/dsh-tool-mode/src/ptc-runtime.ts",
       "testLayer": "unit",
       "testIds": [
+        "packages/dsh-tool-mode/tests/agent-authoring.test.ts",
         "packages/dsh-tool-mode/tests/code09-probes.test.ts",
         "packages/dsh-tool-mode/tests/ptc-confinement.test.ts",
         "packages/dsh-tool-mode/tests/ptc-runtime.test.ts",
@@ -1531,6 +1532,7 @@
       "owningModule": "packages/dsh-tool-mode/src/ptc-runtime.ts",
       "testLayer": "unit",
       "testIds": [
+        "packages/dsh-tool-mode/tests/agent-authoring.test.ts",
         "packages/dsh-tool-mode/tests/ptc-composition.test.ts",
         "packages/dsh-tool-mode/tests/ptc-confinement.test.ts",
         "packages/dsh-tool-mode/tests/ptc-runtime.test.ts",

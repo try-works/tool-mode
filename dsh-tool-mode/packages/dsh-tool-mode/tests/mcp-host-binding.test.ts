@@ -398,7 +398,7 @@ describe('MCP-08 / MCP-09 — end to end through the plugin', () => {
      * model tool. `tool_mode_list`/`tool_mode_describe` ARE exported (DECL-07) and
      * therefore stay in the registry comparison.
      */
-    const HOST_CONTROL_TOOLS = new Set(['model_tools', 'model_tools_manage', 'tool_mode_run'])
+    const HOST_CONTROL_TOOLS = new Set(['model_tools', 'model_tools_manage', 'tool_mode_run', 'tool_mode_workflows', 'tool_mode_tools'])
     const registered = ctx.tools.schemas()
       .map(schema => schema.name)
       .filter(name => !HOST_CONTROL_TOOLS.has(name))

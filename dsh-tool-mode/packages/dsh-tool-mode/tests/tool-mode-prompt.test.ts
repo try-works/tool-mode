@@ -96,7 +96,8 @@ On-device model tools run beside your other tools.
 - **callable vs unavailable.** \`tool_mode_list\` returns \`tools\` (names you can call now) and \`unavailable\` (catalogued models you cannot call here, each with \`state\` and \`reason\`). Only names in \`tools\` may be bound in a \`tool_mode_run\` program; binding an \`unavailable\` name refuses the whole request.
 - **list and describe first in Code Mode.** Call \`tool_mode_list\`, then \`tool_mode_describe\` for the exact input/output schema. Describing a non-callable name answers \`callable: false\` with the reason and the action that would clear it, not a schema.
 - **prepared-cold loads on the first call.** A \`prepared-cold\` model starts its engine when you first call it, so that call is slower and may exceed the advertised timeout; retry once before concluding it is unavailable.
-- **per-call receipts.** Every invocation records a receipt (model, extension, outcome, elapsed). Read them with \`model_tools\` action \`receipts\` instead of re-running a call to see what happened.`)
+- **per-call receipts.** Every invocation records a receipt (model, extension, outcome, elapsed). Read them with \`model_tools\` action \`receipts\` instead of re-running a call to see what happened.
+- **author your own.** \`tool_mode_workflows\` saves and re-runs programs by name; \`tool_mode_tools\` defines persistent \`agent_*\` tools. Running is gated.`)
   })
 
   it('mounts on a host with NO systemPrompt service, without throwing and without a section', async () => {

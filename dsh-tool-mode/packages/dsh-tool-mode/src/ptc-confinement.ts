@@ -48,8 +48,22 @@ export interface ConfinementEvidence {
   readonly command: string
 }
 
+/** Which candidate supplied the accepted artifact. */
+export type ConfinementEvidenceSource = 'env' | 'home' | 'bundled'
+
 /** The result of reading the artifact. */
 export type ConfinementEvidenceCheck =
+  | {
+    readonly ok: true
+    readonly path: string
+    /** Which candidate the artifact came from; the env path always wins when it is valid. */
+    readonly source: ConfinementEvidenceSource
+    readonly evidence: ConfinementEvidence
+  }
+  | { readonly ok: false; readonly present: boolean; readonly path?: string; readonly reason: string }
+
+/** The result of validating ONE path, before the candidate order is applied. */
+type SinglePathCheck =
   | { readonly ok: true; readonly path: string; readonly evidence: ConfinementEvidence }
   | { readonly ok: false; readonly present: boolean; readonly path?: string; readonly reason: string }
 
@@ -58,41 +72,29 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+/** The options the single-path validator reads. */
+interface EvidenceReadOptions {
+  readonly expectedVersion: string
+  readonly platform?: string
+  readonly readFile?: (path: string) => string
+}
+
 /**
- * Read and validate the evidence artifact.
+ * Read and validate ONE evidence file.
  *
- * The path is the operator's `DSH_PTC_CONFINEMENT_EVIDENCE` when set, otherwise the
- * standard local artifact `~/.dsh/ptc-confinement-evidence.json` that the recorder writes.
- * The default matters because a host started normally never carries that variable, and a
- * gate whose only release path requires a wrapper launcher is still effectively closed.
- * The default is not a bypass: the artifact is validated exactly like an explicit one —
- * kind, schema, pass, package version, platform, timestamp, test list, command and counts.
+ * This is the ONLY validator: the candidate order below decides WHICH file is tried, never
+ * how lenient the checks are. A shipped artifact and the operator's own artifact are held to
+ * exactly the same standard — kind, schema, pass, package version, platform, timestamp, test
+ * list, command and counts — so "a file exists" is never mistaken for evidence.
  *
  * Failures are VALUES with a reason, never exceptions: a gate that throws on a malformed
  * file would crash the host, and one that silently treats a malformed file as evidence
  * would open the gate. Both are refused here with the reason spelled out.
- * @param options - the environment, the expected package version, and the platform.
- * @returns the check outcome.
+ * @param path - the artifact to read.
+ * @param options - the expected package version and platform, plus a file reader for tests.
+ * @returns the check outcome for this path.
  */
-export function checkConfinementEvidence(options: {
-  readonly env?: Readonly<Record<string, string | undefined>>
-  readonly expectedVersion: string
-  readonly platform?: string
-  readonly readFile?: (path: string) => string
-  /** Fallback path when the environment names none; the runtime supplies the home file. */
-  readonly defaultPath?: string
-}): ConfinementEvidenceCheck {
-  const env = options.env ?? process.env
-  const configured = env[CONFINEMENT_EVIDENCE_ENV]
-  const path = configured !== undefined && configured.trim().length > 0 ? configured : options.defaultPath
-  if (path === undefined || path.trim().length === 0) {
-    return {
-      ok: false,
-      present: false,
-      reason: `no confinement evidence is configured (set ${CONFINEMENT_EVIDENCE_ENV} to the `
-        + 'artifact written by scripts/record-confinement-evidence.mjs)',
-    }
-  }
+function readConfinementEvidenceAt(path: string, options: EvidenceReadOptions): SinglePathCheck {
   let text: string
   try {
     text = (options.readFile ?? (file => readFileSync(file, 'utf8')))(path)
@@ -239,5 +241,76 @@ export function checkConfinementEvidence(options: {
       tests: parsed['tests'] as readonly string[],
       command: parsed['command'],
     },
+  }
+}
+
+/**
+ * Read and validate the evidence artifact, in priority order.
+ *
+ * THE RELEASE GATE MUST HAVE A RELEASE PATH. The operator's artifact (the env path, then the
+ * standard home file) is authoritative while it is valid, but a host that was installed
+ * normally has neither: requiring a wrapper launcher for the only path left the gate
+ * effectively closed, and every version bump invalidated the home artifact (a 0.5.19
+ * artifact blocked 0.5.66). The package therefore SHIPS its own artifact, recorded against
+ * the release build, as the last candidate.
+ *
+ * Order: `DSH_PTC_CONFINEMENT_EVIDENCE` → `~/.dsh/ptc-confinement-evidence.json` → the
+ * bundled `verification/ptc-confinement-evidence.json`.
+ *
+ * An EXPLICITLY configured path still fails closed against the HOME file: falling forward to
+ * a different operator artifact would make the configuration meaningless. It does fall
+ * forward to the SHIPPED artifact, which is the release's own evidence rather than a second
+ * operator selection. The shipped artifact is never trusted on faith: the same version check
+ * refuses one recorded for another build.
+ * @param options - the environment, the expected package version, platform and candidate paths.
+ * @returns the check outcome, naming the source that was accepted.
+ */
+export function checkConfinementEvidence(options: {
+  readonly env?: Readonly<Record<string, string | undefined>>
+  readonly expectedVersion: string
+  readonly platform?: string
+  readonly readFile?: (path: string) => string
+  /** Standard local artifact when the environment names none; the runtime supplies the home file. */
+  readonly defaultPath?: string
+  /** The artifact the package ships, recorded against the release build. */
+  readonly bundledPath?: string | undefined
+}): ConfinementEvidenceCheck {
+  const env = options.env ?? process.env
+  const configured = env[CONFINEMENT_EVIDENCE_ENV]
+  const configuredPath = configured !== undefined && configured.trim().length > 0 ? configured : undefined
+  const candidates: { readonly path: string; readonly source: ConfinementEvidenceSource }[] = []
+  if (configuredPath !== undefined) {
+    candidates.push({ path: configuredPath, source: 'env' })
+  } else if (options.defaultPath !== undefined && options.defaultPath.trim().length > 0) {
+    candidates.push({ path: options.defaultPath, source: 'home' })
+  }
+  if (options.bundledPath !== undefined && options.bundledPath.trim().length > 0) {
+    candidates.push({ path: options.bundledPath, source: 'bundled' })
+  }
+  if (candidates.length === 0) {
+    return {
+      ok: false,
+      present: false,
+      reason: `no confinement evidence is configured (set ${CONFINEMENT_EVIDENCE_ENV} to the `
+        + 'artifact written by scripts/record-confinement-evidence.mjs)',
+    }
+  }
+  /**
+   * The FIRST VALID candidate wins. A failure is remembered only so the refusal can name the
+   * most authoritative defect instead of a generic one; a later candidate is still tried,
+   * which is what makes a stale home artifact stop blocking a shipped release build.
+   */
+  let firstFailure: Extract<SinglePathCheck, { ok: false }> | undefined
+  for (const candidate of candidates) {
+    const outcome = readConfinementEvidenceAt(candidate.path, options)
+    if (outcome.ok) {
+      return { ok: true, path: outcome.path, source: candidate.source, evidence: outcome.evidence }
+    }
+    if (firstFailure === undefined) firstFailure = outcome
+  }
+  return firstFailure ?? {
+    ok: false,
+    present: false,
+    reason: 'no confinement evidence artifact could be read',
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "@try-works/dsh-tool-mode",
-  "version": "0.5.68",
+  "version": "0.5.69",
   "description": "Install Desert Ant Labs on-device models as DSH tools and skills, with per-platform capability gating",
   "keywords": [
     "dsh",
@@ -54,6 +54,7 @@
     "catalog/playbooks.json",
     "cordis.patch.yml",
     "builtins.lock.json",
+    "verification/ptc-confinement-evidence.json",
     "README.md",
     "bin"
   ],
@@ -90,6 +91,7 @@
     "build:client": "node scripts/gen-client-catalog.mjs",
     "build:remote": "node scripts/gen-remote-artifacts.mjs",
     "check:remote": "node scripts/gen-remote-artifacts.mjs --check",
+    "check:confinement": "node scripts/check-confinement-evidence.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "tsx --test tests/*.test.ts",
     "prepack": "node scripts/stage-bundle.mjs && npm run build",
