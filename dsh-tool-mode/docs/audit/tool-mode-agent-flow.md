@@ -17,6 +17,7 @@ styles:
 - catalog: Catalog and config (caption="18 models · enabled set", color=#e8eefc)
 - lifecycle: Extension lifecycle (caption="install then prepare then activate", color=#e8eefc)
 - composer: Description composer (caption="when / when not / limits / example · 700 chars", color=#e8eefc)
+- promptsec: Tool Mode prompt section (caption="readiness · discovery · receipts", color=#e8eefc)
 - control: Control and discovery tools (caption="model_tools · tool_mode_*", color=#e8eefc)
 - contracts: Contract tools (caption="text_embed · lang_detect · decision_*", color=#e8eefc)
 - extools: Extension tools (caption="shape_recognize · enhance_speech", color=#e8eefc)
@@ -34,6 +35,7 @@ Registration happens once per host process, not per chat turn. Since 0.5.63 ever
 [tool-mode](#boot) reads [the catalog and config](#catalog): which models the operator enabled, which extensions are installed, and whether unavailable models may be exposed at all.
 
 - boot -> catalog: reads enabled models and routes
+- boot -> promptsec: registers one Tool Mode section
 
 #### register: Control tools and contract tools enter the registry
 The host always registers its control surface; every enabled model binds its contract tool. A model whose route cannot run stays unregistered unless `exposeUnavailable` is on. [The composer](#composer) turns the declared text into the model-facing description (purpose, when to use, when not to use, inputs/outputs, limits, one example).
@@ -71,6 +73,7 @@ This repeats for every model step of every turn. Discovery through the control t
 
 - tools -> prompt: wireSchemas with composed descriptions
 - skills -> prompt: model and extension skill catalog
+- promptsec -> prompt: readiness and discovery guidance
 
 #### pin: The agent loop pins that list in the request header
 The loop compares the assembled tools with the header in force. The header is the model-facing list; a schema or description change is an explicit additions-or-removals event, not a silent mutation.
@@ -93,7 +96,7 @@ Execution is the only place readiness is enforced. A failed or needs-preparation
 - exec -> model: model-facing result
 
 #### next: The step settles and the header may change
-The result becomes context for the next step. If the tool set changed through activation or install, the loop logs a new header; otherwise the pinned list stays identical. Heavy-schema deferral is planned as an opt-in change (P3), not part of the pinned list today.
+The result becomes context for the next step. If the tool set changed through activation or install, the loop logs a new header; otherwise the pinned list stays identical. Heavy-schema deferral is an opt-in flag (off by default): it marks selected schemas with deferLoading at registration, and the activation caveat is documented.
 
 - exec -> model[0]
 - loop -> header[0]
@@ -108,7 +111,7 @@ Code Mode is the second discovery path: the model sees tool_mode_run but not the
 - model -> control: tool_mode_run advertised
 
 #### list: Ask what can be called here
-`tool_mode_list` returns the permitted surface with readiness. `tool_mode_describe` returns the full schema, semantics, examples and unsupported cases for the selected names. A split into callable and unavailable lists is planned (P4).
+`tool_mode_list` returns the permitted surface with readiness. `tool_mode_describe` returns the full schema, semantics, examples and unsupported cases for the selected names. Registered tools and unavailable models come back in separate lists (P4); only tools may be bound in a program.
 
 - model -> control: tool_mode_list
 - control -> tools: live permitted surface

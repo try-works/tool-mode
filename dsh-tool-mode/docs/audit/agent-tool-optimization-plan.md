@@ -1,6 +1,6 @@
 # Agent tool-selection optimization plan
 
-Status: **in progress**. P1 + P2 shipped in `@try-works/dsh-tool-mode@0.5.63`; P3 (opt-in) + P6 in `0.5.64`; P4 + P8 in `0.5.65`.
+Status: **complete** — P1 + P2 shipped in `@try-works/dsh-tool-mode@0.5.63`; P3 (opt-in) + P6 in `0.5.64`; P4 + P8 in `0.5.65`; P5 + P7 in `0.5.66`. Every phase is test-first and independently verified.
 Related: [inventory-audit.md](./inventory-audit.md), [tool-mode-agent-flow.md](./tool-mode-agent-flow.md), [verification-p1-p2.md](./verification-p1-p2.md), [deferred-loading.md](./deferred-loading.md).
 
 ## Progress
