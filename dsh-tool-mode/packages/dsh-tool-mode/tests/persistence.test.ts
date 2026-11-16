@@ -25,6 +25,7 @@ import {
   createMemoryStateStore,
   defaultStateFile,
   parseState,
+  resolveDshHomePath,
   resolveSelection,
   withChoice,
   StateError,
@@ -106,6 +107,14 @@ describe('state — pure merge rules', () => {
   it('derives the default state file from DSH_HOME, falling back to ~/.dsh', () => {
     assert.equal(defaultStateFile({ DSH_HOME: 'C:/dsh' }), join('C:/dsh', 'model-as-tool', 'state.json'))
     assert.match(defaultStateFile({}), /model-as-tool[\\/]state\.json$/)
+  })
+})
+
+describe('state — DSH home paths', () => {
+  it('resolves a RELATIVE storage path under DSH_HOME and keeps an absolute one', () => {
+    assert.equal(resolveDshHomePath('model-as-tool/assets', { DSH_HOME: 'C:/dsh' }), join('C:/dsh', 'model-as-tool', 'assets'))
+    assert.equal(resolveDshHomePath('C:/large-volume/assets', { DSH_HOME: 'C:/dsh' }), 'C:/large-volume/assets')
+    assert.equal(resolveDshHomePath('', { DSH_HOME: 'C:/dsh' }), '', 'empty keeps the caller default')
   })
 })
 

@@ -20,7 +20,7 @@
 
 import { mkdirSync, readFileSync, renameSync, writeFileSync, rmSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, isAbsolute, join, resolve } from 'node:path'
 
 /** The persisted user choices. */
 export interface PersistedState {
@@ -85,6 +85,28 @@ export function defaultStateFile(env: NodeJS.ProcessEnv = process.env): string {
     ? env.DSH_HOME
     : join(homedir(), '.dsh')
   return join(home, 'model-as-tool', 'state.json')
+}
+
+/**
+ * Resolve a storage path so it lands under the DSH home by default.
+ *
+ * A deployment must not name `C:\Users\<someone>\...` or `E:\...`: those work on
+ * one machine. An ABSOLUTE value is kept (an operator may deliberately use a
+ * larger volume), while a RELATIVE value resolves against `DSH_HOME` (or
+ * `~/.dsh`), so `extensions` means `<DSH_HOME>/extensions` everywhere. An empty
+ * value stays empty, because callers use it as "feature disabled / use default".
+ * @param value - the configured path.
+ * @param env - the environment to read; defaults to the process environment.
+ * @returns the absolute path, or '' when the value was empty.
+ */
+export function resolveDshHomePath(value: string, env: NodeJS.ProcessEnv = process.env): string {
+  const trimmed = value.trim()
+  if (trimmed.length === 0) return ''
+  if (isAbsolute(trimmed)) return trimmed
+  const home = env.DSH_HOME !== undefined && env.DSH_HOME.length > 0
+    ? env.DSH_HOME
+    : join(homedir(), '.dsh')
+  return resolve(home, trimmed)
 }
 
 /**

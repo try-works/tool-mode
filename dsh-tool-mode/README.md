@@ -279,6 +279,25 @@ That means `<DSH_HOME>/files` (with `DSH_HOME` defaulting to `~/.dsh`) on every
 machine. Absolute roots are still accepted for a deliberate volume, but they do not
 port across machines; a relative root that escapes the DSH home is dropped rather
 than widening the grant.
+## Where extensions and models live
+
+Storage is under the DSH home (`DSH_HOME`, or `~/.dsh`). Relative config paths resolve
+there; an absolute path is kept only when an operator deliberately chooses another
+volume.
+
+| Data | Default | Config |
+| --- | --- | --- |
+| State and receipts | `<DSH_HOME>/model-as-tool/state.json` | `stateFile` |
+| Credentials | `<DSH_HOME>/model-as-tool/credentials.json` | `credentialsFile` |
+| Extension packages | `<DSH_HOME>/profiles/<profile>/extensions` | `extensionStore` (relative resolves under DSH_HOME) |
+| Prepared model assets | `<DSH_HOME>/model-as-tool/asset-cache` | `assetCacheRoot` (relative resolves under DSH_HOME) |
+| Files path-taking tools may read | `<DSH_HOME>/files` | `approvedRoots: [files]` |
+
+The current profile uses `extensionStore: profiles/web/extensions` and
+`assetCacheRoot: model-as-tool/assets`, both relative. A previous absolute asset cache
+such as `E:\dsh-asset-cache` is no longer used; remove it to reclaim the space. Model
+assets are re-downloaded to the DSH-home cache when an extension is prepared.
+
 ## Decision decomposition
 
 The pattern is domain-neutral: triage, approvals, routing, moderation, release gates,

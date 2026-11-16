@@ -137,6 +137,7 @@ import {
   createFileStateStore,
   createMemoryStateStore,
   defaultStateFile,
+  resolveDshHomePath,
   resolveSelection,
   withChoice,
   type PersistedState,
@@ -346,7 +347,8 @@ export interface Config {
    * Directory of the operator-owned EXTENSION store.
    *
    * When set, the host mounts the extension lifecycle and restores the extensions the
-   * operator approved as active. Left unset, no extension is mounted and behaviour is
+   * operator approved as active. A RELATIVE path resolves under the DSH home
+   * (`DSH_HOME`, or `~/.dsh`), so `profiles/web/extensions` works on any machine. Left unset, no extension is mounted and behaviour is
    * exactly as before - which is why this is a directory rather than a boolean: an
    * absent directory is a deployment that has no extensions, not one that forbade them.
    */
@@ -481,10 +483,10 @@ export interface Config {
   }
   /**
    * TASK-131 (RC2): the prepared-assets cache root. Defaults to the
-   * state-file-adjacent `asset-cache` directory; set it to a volume with room
-   * for the planned asset set (the embeddinggemma set is ~3.2 GB). The
-   * prepare preflight refuses with `extension-asset-space-insufficient` when
-   * the free space cannot hold the missing bytes.
+   * state-file-adjacent `<DSH_HOME>/model-as-tool/asset-cache`; a RELATIVE value
+   * resolves under the DSH home. Set it to a larger volume only deliberately (the
+   * embeddinggemma set is ~3.2 GB). The prepare preflight refuses with
+   * `extension-asset-space-insufficient` when the free space cannot hold the missing bytes.
    */
   assetCacheRoot?: string
   /** TASK-131 test seam: the free-space probe the prepare preflight uses. */
@@ -1147,6 +1149,17 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     }
   }
   const entries = loadCatalog(config.catalogFile)
+  /**
+   * STORAGE LAYOUT: extensions and downloaded model assets live under the DSH home.
+   *
+   * A relative config value resolves against DSH_HOME (or ~/.dsh), so the same
+   * profile works on another machine; an absolute value is kept for an operator who
+   * deliberately chose a larger volume. Extension bytes go to `extensionStore`, and
+   * prepared model assets go to `assetCacheRoot` (default: the state-file-adjacent
+   * `asset-cache`).
+   */
+  const extensionStoreDir = resolveDshHomePath(config.extensionStore ?? '')
+  const assetCacheRoot = resolveDshHomePath(config.assetCacheRoot ?? '')
 
   /**
    * Declared at the apply top so the catalog-change notifier (below) can read
@@ -1166,8 +1179,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
    * catalogue registration is RESTORED. Deterministic in both orders: the
    * probe reads the durable store, not an in-flight registry.
    */
-  const extensionStore = config.extensionStore !== undefined && config.extensionStore.length > 0
-    ? new ExtensionStore(config.extensionStore)
+  const extensionStore = extensionStoreDir.length > 0
+    ? new ExtensionStore(extensionStoreDir)
     : undefined
   const catalogueDeferred = new Set<string>()
 
@@ -1281,7 +1294,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const activationApprovalRequired = config.requireActivationApproval === true
 
   const extensionsService = createExtensionsService({
-    storeDir: config.extensionStore ?? '',
+    storeDir: extensionStoreDir,
     sourceDir: config.extensionSourceDir ?? '',
     allowSourceDirectories: config.extensions?.allowSourceDirectories === true,
     onAudit: recordLifecycleEvent,
@@ -1778,7 +1791,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     ? await runLegacyStartupMigration({
         stateFile: config.stateFile ?? defaultStateFile(),
         store: stateStore,
-        extensionStoreDir: config.extensionStore ?? '',
+        extensionStoreDir,
         log: line => ctx.logger.info(`model-tools: ${line}`),
       })
     : undefined
@@ -5503,7 +5516,6 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
    * already approved and reads their declarations. It performs NO model preparation and
    * NO package resolution, so nothing downloads because a plugin loaded.
    */
-  const extensionStoreDir = config.extensionStore ?? ''
   if (extensionStoreDir.length > 0) {
     // TASK-117: the store is the HOISTED instance (constructed at the apply
     // top so the catalogue-install loop can probe extension tool ownership).
@@ -6942,7 +6954,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     {
       const statePath = config.stateFile ?? defaultStateFile()
       const registry: PreparedAssetRegistry = createPreparedAssetRegistry({
-        cacheRoot: config.assetCacheRoot ?? join(dirname(resolve(statePath)), 'asset-cache'),
+        cacheRoot: assetCacheRoot.length > 0 ? assetCacheRoot : join(dirname(resolve(statePath)), 'asset-cache'),
         ...config.assetFreeSpaceProbe === undefined ? {} : { freeSpaceBytes: config.assetFreeSpaceProbe },
       })
       const planCache = new Map<string, { plan: ReturnType<typeof planPreparation>; groups: readonly LockGroup[]; modelId: string }>()
@@ -7306,10 +7318,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
            * isolated profile), so a restore failure also lands beside the store. This
            * is a diagnostic record only: it does not change activation.
            */
-          if (config.extensionStore !== undefined) {
+          if (extensionStoreDir.length > 0) {
             try {
               appendFileSync(
-                join(config.extensionStore, 'restore-failures.log'),
+                join(extensionStoreDir, 'restore-failures.log'),
                 `${new Date().toISOString()} ${entry.extensionId}@${entry.version}: `
                 + `${error instanceof Error ? error.message : String(error)}\n`,
               )
@@ -7331,7 +7343,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
        * skips and per-extension error isolation; this block only supplies the host
        * operations and maps the described rows onto the planner's shape.
        */
-      if (config.extensionStore !== undefined && config.autoProvisionExtensions === true) {
+      if (extensionStoreDir.length > 0 && config.autoProvisionExtensions === true) {
         try {
           const disabledExtensions = new Set(config.disabledExtensions ?? [])
           const describeProvisioning = async (): Promise<readonly ProvisioningExtensionState[]> => {
@@ -7419,7 +7431,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       // outlives the host that spawned it.
       void workerRegistry.disposeAll()
     }, 'model-tools extension teardown')
-    ctx.logger.info(`model-tools: extension store mounted at ${config.extensionStore}`)
+    ctx.logger.info(`model-tools: extension store mounted at ${extensionStoreDir}`)
   }
 
 
