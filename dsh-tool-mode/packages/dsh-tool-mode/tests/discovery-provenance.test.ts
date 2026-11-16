@@ -47,6 +47,17 @@ interface Row {
     alternatives: string[]
   }
   withheld?: { code: string; message: string }
+  output: string
+  contract: string | null
+  parameters: { name: string; type: string; description: string }[]
+  returns: string
+  runtime: {
+    windowsSupport: string
+    verifiedRunnableOnWindows: boolean
+    closedBeta: boolean
+    modelSizeMB: number | null
+    requiresRuntime: string[]
+  }
 }
 
 async function listing(ctx: Context): Promise<Row[]> {
@@ -65,6 +76,32 @@ describe('EXT-32 — provenance is exposed for every model', () => {
     // Which PACKAGE implements it, not just which catalog row exists.
     assert.equal(tongue.provenance.extension, '@try-works/extension-desert-ant-tongue')
     assert.equal(tongue.provenance.modelId, 'tongue')
+  })
+
+  it('describes the model as a capability card a caller can compose against', async () => {
+    const ctx = await mountPlugin()
+    const tongue = (await listing(ctx)).find(row => row.id === 'tongue')
+    assert.ok(tongue, 'tongue must be listed')
+    assert.match(tongue.output, /isTooCloseToCall/)
+    assert.equal(tongue.contract, 'text.language_detect')
+    assert.deepEqual(tongue.parameters.map(parameter => [parameter.name, parameter.type]), [
+      ['text', 'string'],
+      ['top', 'integer'],
+    ])
+    assert.match(tongue.returns, /reliability verdict/)
+    assert.equal(tongue.runtime.windowsSupport, 'native-node')
+    assert.equal(tongue.runtime.modelSizeMB, 2)
+  })
+
+  it('serves the same capability card through tool_mode_describe when the tool is absent', async () => {
+    const ctx = await mountPlugin()
+    const result = await call(ctx, 'tool_mode_describe', { tools: ['lang_detect'] })
+    if (result.isError) throw new Error(`expected success: ${result.error.message}`)
+    const tool = (result.value as { tools: { model?: Row } }).tools[0]
+    assert.ok(tool?.model, 'an unavailable catalog tool still describes its model')
+    assert.match(tool.model.output, /isTooCloseToCall/)
+    assert.deepEqual(tool.model.parameters.map(parameter => parameter.name), ['text', 'top'])
+    assert.equal(tool.model.runtime.verifiedRunnableOnWindows, true)
   })
 
   it('reports the tool name that was actually published', async () => {

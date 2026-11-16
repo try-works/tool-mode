@@ -279,6 +279,32 @@ That means `<DSH_HOME>/files` (with `DSH_HOME` defaulting to `~/.dsh`) on every
 machine. Absolute roots are still accepted for a deliberate volume, but they do not
 port across machines; a relative root that escapes the DSH home is dropped rather
 than widening the grant.
+## Model cards and custom tools
+
+`model_tools action="describe"` returns a **capability card** for a model, not just a name:
+
+- the input modality and the catalog's output shape;
+- every accepted parameter with its JSON type;
+- what the tool returns, its limits and any example the catalog declares;
+- runtime facts (platform support, verified-on-Windows, size, required runtime);
+- the contract it implements and the tool a caller actually invokes.
+
+The card is served even when the model is not installed, so an agent can plan a composition before
+preparing it. `tool_mode_describe` serves the same card through the discovery surface for a
+model-backed tool.
+
+Custom tools compose these primitives. A tool that OCRs a page and then extracts typed fields is
+one `tool_mode_tools` definition whose program calls two model tools:
+
+```js
+const text = await tools.mirage_ocr({ image_path: input.image_path });
+return await tools.extract_fields({ text: text.text, schema: input.schema });
+```
+
+Read the cards first and pass the exact tool names; do not invent operations a model does not
+declare. For a model with several operations (for example Mirage), each operation is a separate
+callable tool.
+
 ## Where extensions and models live
 
 Storage is under the DSH home (`DSH_HOME`, or `~/.dsh`). Relative config paths resolve

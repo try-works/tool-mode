@@ -1023,7 +1023,11 @@ export interface ModelDescriptor {
   readonly name: string
   readonly summary: string
   readonly capability: string
+  /** The contract this model implements, or null when it keeps a per-model tool. */
+  readonly contract: string | null
   readonly input: string
+  /** The catalog's declared RESULT SHAPE, in prose a caller can plan around. */
+  readonly output: string
   readonly tool: string
   readonly skill: string
   readonly runnable: boolean
@@ -1032,6 +1036,39 @@ export interface ModelDescriptor {
   readonly languages: number | null
   readonly license: string
   readonly docs: string
+  /** One entry per accepted argument, so a caller can compose without an extra call. */
+  readonly parameters: ModelParameterCard[]
+  /** What the tool returns, in the catalog's own words. */
+  readonly returns: string
+  /** Platform and packaging facts that decide whether the model can run here. */
+  readonly runtime: ModelRuntimeCard
+  readonly whenToUse?: string
+  readonly whenNotToUse?: string
+  readonly limits?: string
+  readonly example?: string
+}
+
+/** One accepted model-tool argument, rendered for capability discovery. */
+export interface ModelParameterCard {
+  readonly name: string
+  readonly type: string
+  readonly description: string
+}
+
+/** How the model's weights are packaged and where they can run. */
+export interface ModelRuntimeCard {
+  readonly windowsSupport: string
+  readonly verifiedRunnableOnWindows: boolean
+  readonly closedBeta: boolean
+  readonly modelSizeMB: number | null
+  readonly requiresRuntime: string[]
+}
+
+/** Render the model list the control tool returns, and the plugin logs. */
+export function describeModelCard(descriptor: ModelDescriptor, extension: string | null): ModelDescriptor & {
+  readonly extension: string | null
+} {
+  return { ...descriptor, extension }
 }
 
 /** Render the model list the control tool returns, and the plugin logs. */
@@ -1041,7 +1078,9 @@ export function describeModels(resolved: readonly ResolvedModel[]): ModelDescrip
     name: entry.name,
     summary: entry.summary,
     capability: entry.capability,
+    contract: entry.contract,
     input: entry.input,
+    output: entry.output,
     tool: entry.tool.name,
     skill: entry.skill.name,
     runnable: verdict.runnable,
@@ -1050,6 +1089,23 @@ export function describeModels(resolved: readonly ResolvedModel[]): ModelDescrip
     languages: entry.languages,
     license: entry.license,
     docs: entry.docsUrl,
+    parameters: Object.entries(entry.tool.params).map(([name, param]) => ({
+      name,
+      type: param.type ?? 'string',
+      description: param.description,
+    })),
+    returns: entry.tool.returns,
+    runtime: {
+      windowsSupport: entry.windowsSupport,
+      verifiedRunnableOnWindows: entry.verifiedRunnableOnWindows,
+      closedBeta: entry.closedBeta,
+      modelSizeMB: entry.modelSizeMB,
+      requiresRuntime: [...entry.requiresRuntime],
+    },
+    ...entry.tool.whenToUse === undefined ? {} : { whenToUse: entry.tool.whenToUse },
+    ...entry.tool.whenNotToUse === undefined ? {} : { whenNotToUse: entry.tool.whenNotToUse },
+    ...entry.tool.limits === undefined ? {} : { limits: entry.tool.limits },
+    ...entry.tool.example === undefined ? {} : { example: entry.tool.example },
   }))
 }
 
@@ -3285,6 +3341,48 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
                   },
                   license: { type: 'string', required: true },
                   docs: { type: 'string', required: true },
+                  /** The model's contract identity, so a card can explain shared tool names. */
+                  contract: {
+                    required: true,
+                    oneOf: [{ type: 'string' }, { type: 'null' }],
+                  },
+                  /** The catalog's declared result shape, in prose a caller can compose against. */
+                  output: { type: 'string', required: true },
+                  /** One row per accepted argument, with its JSON type. */
+                  parameters: {
+                    type: 'array',
+                    required: true,
+                    items: {
+                      type: 'object',
+                      additionalProperties: false,
+                      properties: {
+                        name: { type: 'string', required: true },
+                        type: { type: 'string', required: true },
+                        description: { type: 'string', required: true },
+                      },
+                    },
+                  },
+                  returns: { type: 'string', required: true },
+                  /** Platform/packaging facts, so "can it run here?" is answerable from the card. */
+                  runtime: {
+                    type: 'object',
+                    required: true,
+                    additionalProperties: false,
+                    properties: {
+                      windowsSupport: { type: 'string', required: true },
+                      verifiedRunnableOnWindows: { type: 'boolean', required: true },
+                      closedBeta: { type: 'boolean', required: true },
+                      modelSizeMB: {
+                        required: true,
+                        oneOf: [{ type: 'number' }, { type: 'null' }],
+                      },
+                      requiresRuntime: { type: 'array', required: true, items: { type: 'string' } },
+                    },
+                  },
+                  whenToUse: { type: 'string' },
+                  whenNotToUse: { type: 'string' },
+                  limits: { type: 'string' },
+                  example: { type: 'string' },
                   /**
                    * Public extension/implementation provenance (EXT-32).
                    *
@@ -4335,14 +4433,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           state: surface.state,
           reason: descriptor.reason,
           action: clearingActionFor(surface.state, modelItem.entry.provider?.extension),
-          model: {
-            id: descriptor.id,
-            capability: descriptor.capability,
-            runnable: descriptor.runnable,
-            reason: descriptor.reason,
-            route: descriptor.route,
-            extension: modelItem.entry.provider?.extension ?? null,
-          },
+          model: describeModelCard(descriptor, modelItem.entry.provider?.extension ?? null),
           catalogRevision: catalogRevision(),
         }
       }
@@ -4380,14 +4471,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           + 'instead of retrying unchanged; never silently substitute a remote provider.',
         ...skill === undefined ? {} : { skill },
         ...descriptor === undefined ? {} : {
-          model: {
-            id: descriptor.id,
-            capability: descriptor.capability,
-            runnable: descriptor.runnable,
-            reason: descriptor.reason,
-            route: descriptor.route,
-            extension: modelItem?.entry.provider?.extension ?? null,
-          },
+          model: describeModelCard(descriptor, modelItem?.entry.provider?.extension ?? null),
         },
         ...owner === undefined ? {} : { ownerExtension: owner },
         executionLocation: 'device',
@@ -5150,13 +5234,12 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     ctx.tools.register(defineTool({
       name: 'tool_mode_tools',
       description:
-        'Define persistent agent-authored tools named agent_* (stored program plus JSON input '
-        + 'schema). WHEN TO USE: define a tool once so it is registered for every later call; '
-        + 'list or get definitions; delete one. The stored program runs through the same confined '
-        + 'runner as tool_mode_run, its tools list is a binding subset (never a grant), and '
-        + 'execution is refused until the operator opens the hosted-code gate. Defining registers '
-        + 'the tool immediately for direct calls and later programs; a program already running keeps '
-        + 'the bindings it started with, so it cannot call a tool defined in that same run.',
+        'Define persistent agent_* tools (stored program + JSON input schema). WHEN TO USE: '
+        + 'define once for later calls; list/get/delete definitions. The program runs through the '
+        + 'same confined runner as tool_mode_run; its tools list is a binding subset, not a grant; '
+        + 'execution is refused until the hosted-code gate opens. Defining registers it immediately '
+        + 'for direct calls and later programs; a running program keeps its original bindings. Read '
+        + 'model capability cards with model_tools action "describe" before composing.',
       parameters: {
         action: {
           type: 'string',
