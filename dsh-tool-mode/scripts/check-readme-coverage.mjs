@@ -3,8 +3,8 @@
  *
  * The README is the first thing a new user reads. A tool or model that exists
  * only in the docs makes the repository look current while the landing page
- * teaches an older surface. This check requires every catalog model and every
- * manifest-declared tool to be named in the root README.
+ * teaches an older surface. This check requires every catalog model, every workspace
+ * package and every manifest-declared tool to be named in the root README.
  */
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
@@ -12,7 +12,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const readmePath = join(root, '..', 'README.md')
+const readmePath = join(root, 'README.md')
 const failures = []
 
 if (!existsSync(readmePath)) {
@@ -33,6 +33,13 @@ for (const model of catalog) {
 
 for (const entry of readdirSync(join(root, 'packages'), { withFileTypes: true })) {
   if (!entry.isDirectory()) continue
+  const packagePath = join(root, 'packages', entry.name, 'package.json')
+  if (existsSync(packagePath)) {
+    const pkg = JSON.parse(readFileSync(packagePath, 'utf8'))
+    if (typeof pkg.name === 'string' && pkg.name.length > 0 && !readme.includes(pkg.name)) {
+      failures.push(`README.md: workspace package "${pkg.name}" is not listed`)
+    }
+  }
   const manifestPath = join(root, 'packages', entry.name, 'tool-mode.extension.json')
   if (!existsSync(manifestPath)) continue
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
@@ -45,8 +52,8 @@ for (const entry of readdirSync(join(root, 'packages'), { withFileTypes: true })
 
 if (failures.length > 0) {
   for (const failure of failures) console.error(`✖ ${failure}`)
-  console.error('update README.md so it names every shipped model and tool')
+  console.error('update README.md so it names every shipped package, model and tool')
   process.exit(1)
 }
 
-console.log(`README coverage OK — ${catalog.length} catalog models, extension tools included`)
+console.log(`README coverage OK — ${catalog.length} catalog models, all workspace packages, extension tools included`)

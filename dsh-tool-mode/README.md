@@ -26,13 +26,50 @@ tracked items drifts from its data — and the drift is always in the flattering
 
 ## Packages
 
-| Package | Version | What it is |
+All 28 workspace packages, not only the published host packages.
+
+### Host and runtime packages
+
+| Package | Version | Role |
 | --- | --- | --- |
-| [`@try-works/dsh-tool-mode`](https://www.npmjs.com/package/@try-works/dsh-tool-mode) | 0.5.44 | The DSH plugin: catalogue, contracts, dispatch and the MCP surface |
-| [`@try-works/tool-mode-contracts`](https://www.npmjs.com/package/@try-works/tool-mode-contracts) | 0.1.0 | Model-free contract definitions |
-| [`@try-works/tool-mode-extension-sdk`](https://www.npmjs.com/package/@try-works/tool-mode-extension-sdk) | 0.1.4 | The public API an extension is built against |
-| [`@try-works/extension-desert-ant-tongue`](https://www.npmjs.com/package/@try-works/extension-desert-ant-tongue) | 0.1.3 | Language detection, pure JavaScript, runs on Windows x64 |
-| [`@try-works/extension-desert-ant-voz`](https://www.npmjs.com/package/@try-works/extension-desert-ant-voz) | 0.1.5 | Speech-to-text through ONNX Runtime, runs on Windows x64 |
+| `@try-works/dsh-tool-mode` | 0.5.82 | DSH plugin: catalog, dispatch, discovery, MCP |
+| `@try-works/tool-mode-contracts` | 0.1.1 | Model-free contract identities, schemas, validation |
+| `@try-works/tool-mode-extension-sdk` | 0.1.5 | Extension authoring API and manifest validation |
+| `@try-works/tool-mode-recipes` | 0.1.0 | Recipe format and provider-neutral LLM broker |
+| `@try-works/tool-mode-runtime-core` | 0.1.0 | Runtime contracts, errors, readiness, ports |
+| `@try-works/tool-mode-runtime-dsh` | 0.1.0 | Effect runtime → SDK ModelProviderV1 bridge |
+| `@try-works/tool-mode-runtime-litert` | 0.1.0 | LiteRT.js engine and fetch-interception shim |
+| `@try-works/tool-mode-runtime-onnx` | 0.1.0 | ONNX Runtime engine and waveform processors |
+| `@try-works/tool-mode-runtime-processors` | 0.1.0 | Deterministic text/window/span/PII processors |
+| `@try-works/tool-mode-runtime-recipes` | 0.1.0 | Declarative recipe validation and provider resolution |
+
+### Extension packages
+
+| Package | Version | Kind | Tools | Models |
+| --- | --- | --- | --- | --- |
+| `@try-works/extension-clear-recipe` | 0.1.1 | declarative | `enhance_speech` | clear |
+| `@try-works/extension-declarative-recipes` | 0.1.0 | declarative | — | — |
+| `@try-works/extension-desert-ant-tongue` | 0.1.3 | module | `lang_detect` | tongue |
+| `@try-works/extension-desert-ant-voz` | 0.1.5 | module | `stt_transcribe` | voz |
+| `@try-works/extension-ear-recipe` | 0.1.1 | declarative | `identify_language` | ear |
+| `@try-works/extension-embeddinggemma` | 0.1.2 | module | `multimodal_embed`, `semantic_similarity`, `semantic_rank`, `semantic_classify`, `semantic_deduplicate`, `dedupe_and_rank`, `media_find_moments` | embeddinggemma-2 |
+| `@try-works/extension-emo-recipe` | 0.1.1 | declarative | `suggest_emojis` | emo |
+| `@try-works/extension-laya` | 1.0.4 | module | `decision_choose_local`, `decision_choose`, `decision_test`, `decision_score`, `decision_test_typed`, `decision_score_typed` | laya |
+| `@try-works/extension-minilm-embed` | 1.0.0 | module | `text_embed` (implementation) | minilm-l6 |
+| `@try-works/extension-minilm-rerank` | 1.0.0 | module | `text_rerank` (implementation) | minilm-rerank |
+| `@try-works/extension-mirage` | 0.1.2 | module | `mirage_describe`, `mirage_detect`, `mirage_ocr`, `mirage_extract` | mirage |
+| `@try-works/extension-moderator-recipe` | 0.1.1 | declarative | `classify_nsfw` | moderator |
+| `@try-works/extension-needle` | 0.1.3 | module | `tools_plan`, `structured_extract`, `validate_record`, `extract_with_repair` | needle3 |
+| `@try-works/extension-redact` | 0.1.1 | module | `redact_text` | redact |
+| `@try-works/extension-shapes-recipe` | 0.1.1 | declarative | `shape_recognize` | shapes |
+| `@try-works/extension-uhm-recipe` | 0.1.1 | declarative | `detect_fillers` | uhm |
+
+### Harness recipe packages
+
+| Package | Version | Tools | Role |
+| --- | --- | --- | --- |
+| `@try-works/harness-vision` | 0.1.0 | `describe_image` | Harness Vision |
+| `@try-works/tool-mode-harness-text` | 0.1.0 | `text_title` | Harness Text Tools |
 
 ## Quick start
 
@@ -105,23 +142,36 @@ Other checks:
 | `npm run verify:verification` | The evidence never reports a pass for a partial requirement |
 | `npm run traceability` | Regenerates the requirement-by-requirement traceability table |
 
-## What runs on this host
+## Catalog models
 
-Two of the eighteen catalogued models run here, and the other sixteen do not:
+All 18 catalog entries. “Verified” means a real inference was verified on Windows x64; the other rows name the concrete block.
 
-- **Tongue** — pure JavaScript, weights bundled (2 MB), no runtime or accelerator needed.
-- **Voz** — `onnxruntime-node` on CPU.
-
-The other sixteen are unavailable for concrete reasons: most LiteRT/TFLite models have no
-`win32-x64` native build, `title` is Apple-only (Core ML / MLX, no JS SDK), and six are
-closed beta with no shipping SDK.
+| Model | id | Capability | Tool | Input | Contract | Windows |
+| --- | --- | --- | --- | --- | --- | --- |
+| Align | align | audio.word-alignment | `align_transcript` | audio | — | no win32 build |
+| Clear | clear | audio.speech-enhancement | `enhance_speech` | audio | — | verified |
+| Clips | clips | video.clip-selection | `select_clips` | video | — | no win32 build |
+| Ear | ear | audio.spoken-language-identification | `identify_language` | audio | — | verified |
+| Emo | emo | text.emoji-suggestion | `suggest_emojis` | text | — | verified |
+| Eye | eye | image.frame-scoring | `score_frames` | image | — | closed beta |
+| Face | face | image.face-matching | `match_faces` | image | — | closed beta |
+| Gist | gist | text.topic-tagging | `tag_topics` | text | — | no win32 build |
+| Moderator | moderator | image.nsfw-detection | `classify_nsfw` | image | — | verified |
+| Redact | redact | text.pii-redaction | `redact_text` | text | — | verified |
+| Schemer | schemer | text.structured-extraction | `extract_fields` | text | — | closed beta |
+| Shapes | shapes | stroke.shape-recognition | `shape_recognize` | stroke | — | verified |
+| Title | title | text.title-generation | `suggest_title` | text | — | Apple only |
+| Tongue | tongue | text.language-identification | `lang_detect` | text | text.language_detect | verified |
+| Toxic | toxic | text.toxicity-detection | `moderate_text` | text | — | closed beta |
+| Uhm | uhm | audio.filler-detection | `detect_fillers` | audio | — | verified |
+| Voz | voz | audio.speech-recognition | `transcribe_audio` | audio | stt.transcribe | verified |
+| Who | who | audio.speaker-labeling | `detect_speakers` | audio | — | closed beta |
 
 ### Runtime-layer tools
 
-The Effect-based runtime layer adds two first-party tools beyond the catalog:
-
-- `redact_text` — PII spans over the pinned Redact LiteRT artifact, with honest coverage when the window cap truncates a long document.
-- `shape_recognize` — single-stroke shape recognition from a declarative, code-free package (manifest + recipe, no extension entry).
+`redact_text` and `shape_recognize` are the two first-party tools the runtime layer adds beyond the
+catalog's extension-backed entries. Redaction reports coverage honestly when the window cap truncates a
+document; stroke recognition is a declarative, code-free package (manifest + recipe, no extension entry).
 
 Model and tool registration changes apply on the next host load; install, prepare, enable and disable do not mutate the pinned list mid-session.
 
