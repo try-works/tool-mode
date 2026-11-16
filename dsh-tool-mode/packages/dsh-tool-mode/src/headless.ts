@@ -31,7 +31,7 @@ import {
   crossFieldRules,
   type ToolMeta,
 } from '@try-works/tool-mode-contracts'
-import { createGrant, authorizeTool, createInvocationAuthority } from './authority.ts'
+import { createGrant, authorizeTool, createInvocationAuthority, resolveApprovedRoots } from './authority.ts'
 import { buildMeta, buildReceipt, type ContractBinding, type HostIdentity } from './bindings.ts'
 import { DEFAULT_CATALOG_FILE, loadCatalog } from './catalog.ts'
 import type { ModelCatalogEntry } from './types.ts'
@@ -133,7 +133,7 @@ function resolveBindings(config: HeadlessConfig): Map<string, ContractBinding> {
   const grant = createGrant({
     grantId: config.grantId ?? 'local-interactive',
     allowedTools: [...STANDARD_CONTRACTS.map(contract => contract.toolName), 'model_tools', 'tool_mode_run'],
-    approvedRoots: config.approvedRoots ?? [],
+    approvedRoots: resolveApprovedRoots(config.approvedRoots ?? []),
     hostedCode: false,
     recordingPolicy: config.recordReceipts === false ? 'none' : 'receipts',
   })
@@ -218,7 +218,7 @@ export async function startHeadlessServe(configPath?: string): Promise<HeadlessS
     grant: createGrant({
       grantId: config.grantId ?? 'local-interactive',
       allowedTools: [...STANDARD_CONTRACTS.map(contract => contract.toolName), 'model_tools', 'tool_mode_run'],
-      approvedRoots: config.approvedRoots ?? [],
+      approvedRoots: resolveApprovedRoots(config.approvedRoots ?? []),
       hostedCode: false,
       recordingPolicy: config.recordReceipts === false ? 'none' : 'receipts',
     }),

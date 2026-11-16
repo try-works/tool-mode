@@ -11,7 +11,7 @@
 
 import { after, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
@@ -202,6 +202,27 @@ describe('BASE-05 / SEC-06 — the host enforces authority before inference', ()
     assert.equal(result.isError, true)
     if (!result.isError) throw new Error('expected failure')
     assert.match(result.error.message, /absolute|outside every root|not admitted|does not exist/i)
+  })
+
+  it('resolves a RELATIVE approved root against DSH_HOME', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'tm-dsh-home-'))
+    tmpDirs.push(home)
+    const files = join(home, 'files')
+    mkdirSync(files, { recursive: true })
+    const audio = join(files, 'present.wav')
+    writeFileSync(audio, 'RIFF....')
+    const previous = process.env.DSH_HOME
+    process.env.DSH_HOME = home
+    try {
+      const ctx = await mountPlugin({ approvedRoots: ['files'] })
+      const result = await call(ctx, 'stt_transcribe', { audio: { path: audio } })
+      if (result.isError) {
+        assert.doesNotMatch(result.error.message, /outside every root approved/)
+      }
+    } finally {
+      if (previous === undefined) delete process.env.DSH_HOME
+      else process.env.DSH_HOME = previous
+    }
   })
 
   it('fails before loading the model, not after', async () => {

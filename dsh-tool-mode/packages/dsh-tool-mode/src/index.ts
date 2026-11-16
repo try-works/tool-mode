@@ -37,7 +37,7 @@ import { EXCLUDED_BINDINGS } from './ptc-authority.ts'
 import { appendFileSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, resolve, sep } from 'node:path'
 import { createContributionRegistrar, type RegistrableTool } from './extension-registrar.ts'
-import { createInvocationAuthority } from './authority.ts'
+import { createInvocationAuthority, resolveApprovedRoots } from './authority.ts'
 import { createExternalGrantContext, createProgramRunner, externalRefusal, serveProgram, TOOL_MODE_RUN_CONTRACT, PTC_SERVICE, type RunReport } from './tool-mode-run.ts'
 import {
   AGENT_TOOL_NAME_PATTERN,
@@ -597,7 +597,10 @@ export interface Config {
    *
    * Empty by default, which fails closed: a path-bearing tool then refuses every
    * call rather than admitting an arbitrary path. An operator adds the roots this
-   * machine may read from.
+   * machine may read from. A RELATIVE entry resolves against the DSH home
+   * (`DSH_HOME`, or `~/.dsh`), so `["files"]` means `<DSH_HOME>/files` on every
+   * machine; an absolute entry is still accepted for a deliberate volume root but
+   * is not portable.
    */
   approvedRoots?: string[]
   /** Grant identity recorded in receipts; defaults to `local-interactive`. */
@@ -2309,7 +2312,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     // appears on the external surface.
     allowedTools: [...STANDARD_CONTRACTS.map(contract => contract.toolName), 'model_tools'],
     allowedHarnessProfiles: Object.keys(config.harnessProfiles ?? {}),
-    approvedRoots: config.approvedRoots ?? [],
+    approvedRoots: resolveApprovedRoots(config.approvedRoots ?? []),
     hostedCode: false,
     recordingPolicy: config.recordReceipts === false ? 'none' : 'receipts',
     ...config.limits === undefined ? {} : { limits: config.limits },

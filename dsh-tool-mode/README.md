@@ -264,6 +264,21 @@ In `model_tools action: "receipts"`, the composition receipt carries `dataFlow` 
 `dataFlowCoverage` plus the existing `runId`/`parentReceiptId` links. The evidence is
 bounded by trace depth/size, never a copy of the program's data.
 
+## Path roots and portability
+
+Path-bearing model tools (`identify_language`, `stt_transcribe`, `classify_nsfw`,
+`multimodal_embed` image/audio parts) admit only paths under an approved root. Roots
+are configured as **relative to the DSH home**:
+
+```yaml
+approvedRoots:
+  - files
+```
+
+That means `<DSH_HOME>/files` (with `DSH_HOME` defaulting to `~/.dsh`) on every
+machine. Absolute roots are still accepted for a deliberate volume, but they do not
+port across machines; a relative root that escapes the DSH home is dropped rather
+than widening the grant.
 ## Decision decomposition
 
 The pattern is domain-neutral: triage, approvals, routing, moderation, release gates,

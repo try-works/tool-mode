@@ -28,6 +28,7 @@ import {
   createGrant,
   createInvocationAuthority,
   DEFAULT_LIMITS,
+  resolveApprovedRoots,
 } from '../src/authority.ts'
 
 const roots: string[] = []
@@ -46,6 +47,21 @@ function scratch(): string {
 function grantFor(approvedRoots: readonly string[], tools = ['stt_transcribe']) {
   return createGrant({ grantId: 'test-grant', allowedTools: tools, approvedRoots })
 }
+
+describe('portable approved roots', () => {
+  it('resolves a relative root under DSH_HOME and keeps absolute roots', () => {
+    const home = scratch()
+    const absolute = scratch()
+    const resolved = resolveApprovedRoots(['files', absolute], { DSH_HOME: home })
+    assert.deepEqual(resolved, [join(home, 'files'), absolute])
+  })
+
+  it('drops a relative root that escapes the DSH home', () => {
+    const home = scratch()
+    const resolved = resolveApprovedRoots(['../outside', 'nested/../files'], { DSH_HOME: home })
+    assert.deepEqual(resolved, [join(home, 'files')])
+  })
+})
 
 describe('SEC-06 — path authorization', () => {
   it('admits an absolute path under an approved root', () => {

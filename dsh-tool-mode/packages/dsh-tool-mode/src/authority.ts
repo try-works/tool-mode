@@ -19,7 +19,8 @@
  */
 
 import { realpathSync } from 'node:fs'
-import { isAbsolute, sep } from 'node:path'
+import { homedir } from 'node:os'
+import { isAbsolute, join, resolve, sep } from 'node:path'
 
 /** The stable error codes a denied request reports (SPEC §4 error vocabulary). */
 export type AuthorityErrorCode =
@@ -183,6 +184,37 @@ function isWithin(child: string, root: string): boolean {
   return CASE_INSENSITIVE
     ? child.toLowerCase().startsWith(prefix.toLowerCase())
     : child.startsWith(prefix)
+}
+
+/**
+ * Resolve configured roots so a profile is portable across machines.
+ *
+ * An ABSOLUTE entry is kept as-is (backward compatibility, and an operator may
+ * deliberately authorize a volume). A RELATIVE entry is resolved against the DSH
+ * home (`DSH_HOME`, or `~/.dsh`), because a hardcoded drive path works on exactly
+ * one machine. A relative entry that escapes the DSH home is dropped rather than
+ * silently widening the grant.
+ *
+ * This is the CONFIG boundary; `createGrant` still accepts absolute, canonical roots
+ * only, so a caller cannot smuggle in an unresolved relative root later.
+ * @param roots - the configured entries.
+ * @param env - the environment to read; defaults to the process environment.
+ * @returns the absolute roots to hand to `createGrant`.
+ */
+export function resolveApprovedRoots(roots: readonly string[], env: NodeJS.ProcessEnv = process.env): string[] {
+  const home = (env.DSH_HOME !== undefined && env.DSH_HOME.length > 0 ? env.DSH_HOME : join(homedir(), '.dsh'))
+  const base = resolve(home)
+  const resolved: string[] = []
+  for (const root of roots) {
+    if (typeof root !== 'string' || root.length === 0) continue
+    if (isAbsolute(root)) {
+      resolved.push(root)
+      continue
+    }
+    const candidate = resolve(base, root)
+    if (isWithin(candidate, base)) resolved.push(candidate)
+  }
+  return resolved
 }
 
 /**
