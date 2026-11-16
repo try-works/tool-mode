@@ -191,15 +191,18 @@ export function createContributionRegistrar(options: RegistrarOptions): Contribu
         if (owner.extensionId === contribution.extensionId) {
           const existing = published.get(owner.handleId)
           // A live entry means the original registration is still exactly what this
-          // contribution asks for. Ownership without it can only be a retained failed
-          // cleanup, which is refused below rather than answered with a dead handle.
+          // contribution asks for. Ownership without a live entry is a retained
+          // record from a cleanup that removed the registration but not the owner;
+          // the SAME extension may take its own label back and register afresh.
           if (existing !== undefined) return existing.token
+          owners.delete(key)
+        } else {
+          return refuse(contribution, new ContributionError(
+            'name-collision',
+            `${contribution.name} is already published by ${owner.extensionId}; `
+            + `${contribution.extensionId} cannot take the name over`,
+          ))
         }
-        return refuse(contribution, new ContributionError(
-          'name-collision',
-          `${contribution.name} is already published by ${owner.extensionId}; `
-          + `${contribution.extensionId} cannot take the name over`,
-        ))
       }
 
       const handle: Handle = {

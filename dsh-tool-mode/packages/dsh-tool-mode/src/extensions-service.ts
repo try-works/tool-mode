@@ -50,6 +50,7 @@
  */
 
 import { accessSync, constants, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { FIRST_PARTY_EXTENSIONS } from './first-party-provisioning.ts'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import {
@@ -446,6 +447,15 @@ export interface ExtensionsServiceOptions {
    *   against a local directory.
    */
   readonly installSource?: 'registry' | 'directory' | 'auto'
+  /**
+   * The package ids this build ships (defaults to {@link FIRST_PARTY_EXTENSIONS}).
+   *
+   * A first-party package can be absent from npm because its bytes ship in the source
+   * checkout (Mirage is the current example). Under `auto`, a 404 for one of these ids
+   * falls back to the configured source directory when directory installs are allowed;
+   * a third-party 404 is still a named package refusal and is never retried locally.
+   */
+  readonly firstPartyIds?: readonly string[]
   /** The npm registry base URL; defaults to the public npm registry. */
   readonly registryUrl?: string
   /** Hard cap on one registry package tarball; defaults to the SDK archive bound (256 MiB). */
@@ -2127,12 +2137,18 @@ export class ExtensionsService implements ModelToolsRemote {
     try {
       return await this.#installFromRegistry(extensionId, storeDir, signal)
     } catch (error) {
+      const sourceAvailable = this.#options.allowSourceDirectories === true
+        && this.#directorySourceAvailable(extensionId)
       const transportFallback = mode === 'auto'
         && error instanceof ExtensionsServiceError
         && (error.code === 'extension-registry-unavailable' || error.code === 'extension-registry-unconfigured')
-        && this.#options.allowSourceDirectories === true
-        && this.#directorySourceAvailable(extensionId)
-      if (!transportFallback) throw error
+        && sourceAvailable
+      const firstPartyFallback = mode === 'auto'
+        && error instanceof ExtensionsServiceError
+        && error.code === 'extension-registry-not-found'
+        && sourceAvailable
+        && (this.#options.firstPartyIds ?? FIRST_PARTY_EXTENSIONS).includes(extensionId)
+      if (!transportFallback && !firstPartyFallback) throw error
       return this.#installFromDirectory(extensionId, undefined, storeDir, signal)
     }
   }

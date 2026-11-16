@@ -968,6 +968,30 @@ describe('source selection: auto fallback, directory mode, and named refusals', 
     }
   })
 
+  it('auto falls back to the directory for a FIRST-PARTY 404 when the source exists', async () => {
+    const sourceDir = tempDir()
+    cpSync(FIXTURE_DIR, join(sourceDir, packageDirFor(EXTENSION_ID)), { recursive: true })
+    const registry = await startRegistry({})
+    try {
+      const installed = await createExtensionsService({
+        storeDir: tempDir(),
+        sourceDir,
+        allowSourceDirectories: true,
+        registryUrl: registry.url,
+        firstPartyIds: [EXTENSION_ID],
+      }).install(EXTENSION_ID)
+      assert.deepEqual(installed, {
+        id: EXTENSION_ID,
+        version: '1.0.0',
+        active: false,
+        source: 'directory',
+        resolvedVersion: '1.0.0',
+      })
+    } finally {
+      await registry.close()
+    }
+  })
+
   it('describes the registry as the source route for a not-yet-installed row', async () => {
     const sourceDir = tempDir()
     cpSync(FIXTURE_DIR, join(sourceDir, packageDirFor(EXTENSION_ID)), { recursive: true })
