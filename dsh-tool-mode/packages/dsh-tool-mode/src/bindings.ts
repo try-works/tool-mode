@@ -129,6 +129,10 @@ export function buildMeta(
     activationGeneration: host.activationGeneration,
     executionLocation: executionLocationOf(binding.route),
     receiptId: host.nextReceiptId(),
+    // The MODEL identity, not only the implementation code path: a package can
+    // serve several weights, and a caller needs the weights identity to explain
+    // a result (U16: Whisper/Voz confusion).
+    modelIdentity: binding.implementation.provider?.modelId ?? binding.implementation.id,
     warnings: [...warnings],
   }
 }

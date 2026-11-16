@@ -75,7 +75,7 @@ import {
 } from './contracts.ts'
 import { DEFAULT_MAX_OUTPUT_BYTES } from './process-bridge.ts'
 import { EngineCallError, invokeEngine, type EngineResult } from './engine.ts'
-import { extractWithRepair, readAttempt, withRepairFeedback } from './extraction.ts'
+import { assertExtractionTextWithinLimit, extractWithRepair, readAttempt, withRepairFeedback } from './extraction.ts'
 import {
   resolveArtifacts,
   resolvedEngine,
@@ -503,6 +503,10 @@ function createNeedleProvider(context: ExtensionContextV1): ModelProviderV1 {
         const prepared = prepareExtractionSchema(input.schema)
         const instruction = typeof input.instruction === 'string' ? input.instruction : ''
         const text = await readSource(input, invocation)
+        // ADMISSION GUARD: the engine's working envelope is ~100 characters. Above it the
+        // engine returns no call, and returning `extraction:null` made that look like a
+        // document with nothing to extract. Refuse by name before starting the process.
+        assertExtractionTextWithinLimit(text)
         const tool = extractionTool(prepared, instruction)
         const resolution = await resolve()
         const engine = resolvedEngine(resolution)
@@ -570,6 +574,7 @@ function createNeedleProvider(context: ExtensionContextV1): ModelProviderV1 {
         const prepared = prepareExtractionSchema(input.schema)
         const instruction = typeof input.instruction === 'string' ? input.instruction : ''
         const text = await readSource(input, invocation)
+        assertExtractionTextWithinLimit(text)
         const resolution = await resolve()
         const engine = resolvedEngine(resolution)
         const weights = resolvedWeights(resolution)

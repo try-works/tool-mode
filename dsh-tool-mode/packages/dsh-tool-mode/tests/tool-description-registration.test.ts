@@ -17,7 +17,7 @@ import { STANDARD_CONTRACTS } from '@try-works/tool-mode-contracts'
 import { loadCatalog } from '../src/catalog.ts'
 import { buildParameters, registerModelTool } from '../src/registrar.ts'
 import { registerContractTool, type HostIdentity } from '../src/bindings.ts'
-import { contractToolDescription, catalogToolDescription, TOOL_DESCRIPTION_MAX_CHARS } from '../src/tool-description.ts'
+import { canonicalExampleFor, contractToolDescription, catalogToolDescription, TOOL_DESCRIPTION_MAX_CHARS } from '../src/tool-description.ts'
 import type { ModelAdapter } from '../src/adapters/index.ts'
 import { mountPlugin, cleanup } from './helpers.ts'
 
@@ -105,6 +105,17 @@ function fakeHost(): HostIdentity {
     callerKind: 'interactive',
   }
 }
+
+describe('contract guidance examples', () => {
+  it('publishes the accepted semantic_rank shape instead of leaving it opaque', () => {
+    const example = canonicalExampleFor('semantic_rank')
+    assert.ok(example !== undefined)
+    assert.match(example, /"query"/)
+    assert.match(example, /"parts"/)
+    assert.match(example, /"candidates"/)
+    assert.match(example, /"top_k"/)
+  })
+})
 
 describe('the registrar registers the composer output', () => {
   it('uses catalogToolDescription for a per-model tool, with the skill fallback and no changed schema', () => {

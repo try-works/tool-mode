@@ -32,13 +32,13 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 32768,
-      "description": "The source document, inline."
+      "description": "The source document, inline. The measured working envelope is about 100 characters; a longer source is refused with input-too-long before the engine starts, rather than returning a silent null."
     },
     "path": {
       "type": "string",
       "minLength": 1,
       "maxLength": 4096,
-      "description": "A path the HOST authorizes through resolvePath; the resolved path is what is read, so a check-then-open window cannot be won by a symlink."
+      "description": "A path the HOST authorizes through resolvePath; the resolved path is what is read. The same ~100-character working envelope applies to the file contents; longer content is refused with input-too-long."
     },
     "instruction": {
       "type": "string",

@@ -348,7 +348,7 @@ describe('task-52 — tools rows are callable and pin their contract', () => {
     const discovery = list.tools.find(row => row.name === 'tool_mode_list')
     assert.ok(discovery !== undefined, 'tool_mode_list must list itself')
     assert.equal(discovery.contract, 'host.tool_mode_list')
-    assert.equal(discovery.contractVersion, '1.1.0')
+    assert.equal(discovery.contractVersion, '1.2.0')
     assert.equal(discovery.schemaAvailable, true, 'describe can return its schemas')
     assert.equal(discovery.bindable, false, 'a control tool is callable but not program-bindable')
 

@@ -32,7 +32,7 @@ All 28 workspace packages, not only the published host packages.
 
 | Package | Version | Role |
 | --- | --- | --- |
-| `@try-works/dsh-tool-mode` | 0.5.82 | DSH plugin: catalog, dispatch, discovery, MCP |
+| `@try-works/dsh-tool-mode` | 0.5.83 | DSH plugin: catalog, dispatch, discovery, MCP |
 | `@try-works/tool-mode-contracts` | 0.1.1 | Model-free contract identities, schemas, validation |
 | `@try-works/tool-mode-extension-sdk` | 0.1.5 | Extension authoring API and manifest validation |
 | `@try-works/tool-mode-recipes` | 0.1.0 | Recipe format and provider-neutral LLM broker |
@@ -250,6 +250,17 @@ The program binding surface is fixed when a run starts. A tool defined with
 bind a name it defines in that same run: define the tool first, then compose it in a later
 program (or call it directly).
 
+Discovery now publishes an `authoring` block: the stored tools/workflows, the most recent
+authoring events (from `authoring-receipts.json`, value-free), and a read-only
+`repeatedShapes` report. A shape is a sequence of contracts plus the argument paths a
+previous result reached; it never contains argument values or program source, and it is
+only a suggestion — defining a workflow remains the caller's decision.
+
+`captureRunPrograms: true` opts into storing a successful `tool_mode_run` program plus a
+shape-only input schema (never the input values) in `run-captures.json`. With a capture
+present, `tool_mode_tools` action `from-run` creates an editable `agent_*` scaffold from
+that run; it is not a promise that the constants inside the program are parameterised.
+
 ## Code Mode gate
 
 **Release checklist:** before publishing, run
@@ -343,6 +354,10 @@ The card is served even when the model is not installed, so an agent can plan a 
 preparing it. `tool_mode_describe` serves the same card through the discovery surface for a
 model-backed tool.
 
+Every standard-contract result also carries `meta.modelIdentity` — the weights identity, not
+only the implementation code path — so two transcribers or two rankers can be compared without
+guessing which model produced a result.
+
 Custom tools compose these primitives. A tool that OCRs a page and then extracts typed fields is
 one `tool_mode_tools` definition whose program calls two model tools:
 
@@ -354,6 +369,11 @@ return await tools.extract_fields({ text: text.text, schema: input.schema });
 Read the cards first and pass the exact tool names; do not invent operations a model does not
 declare. For a model with several operations (for example Mirage), each operation is a separate
 callable tool.
+
+The `structured_extract` and `extract_with_repair` tools are a measured exception: their
+working envelope is about **100 characters** of source text. A longer input is refused with a
+typed `input-too-long` error before the engine starts; it no longer returns a silent
+`extraction: null` that looks like an empty document.
 
 ## Where extensions and models live
 

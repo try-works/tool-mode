@@ -38,6 +38,39 @@ import type { EngineEnvelope, EngineValidation } from './engine.ts'
 import type { OfferedTool } from './contracts.ts'
 import { checkArguments } from './validation.ts'
 
+/**
+ * The measured working envelope for the extraction engine.
+ *
+ * The Cactus Needle 3 engine can fit roughly 100 characters of source text
+ * together with the extraction grammar and instruction. Above that it returns
+ * no call at all, which the old path exposed as `proposed:false` /
+ * `extraction:null` — indistinguishable from "the document said nothing". A
+ * refusal that names the limit is honest; a silent null is not.
+ */
+export const EXTRACTION_TEXT_LIMIT = 100
+
+/** A caller-visible, typed refusal for an extraction input outside the envelope. */
+export class ExtractionInputError extends Error {
+  override readonly name = 'ExtractionInputError'
+  readonly code = 'input-too-long' as const
+  constructor(readonly length: number, readonly limit: number = EXTRACTION_TEXT_LIMIT) {
+    super(
+      'input-too-long: structured_extract and extract_with_repair accept at most '
+      + `${String(limit)} characters of source text; this input is ${String(length)} characters. `
+      + 'Shorten the source and retry; a longer document needs chunking at the caller.',
+    )
+  }
+}
+
+/**
+ * Enforce the extraction envelope BEFORE the engine is started.
+ * @param text - the decoded inline text or file contents.
+ * @throws ExtractionInputError when the source is over the measured limit.
+ */
+export function assertExtractionTextWithinLimit(text: string): void {
+  if (text.length > EXTRACTION_TEXT_LIMIT) throw new ExtractionInputError(text.length)
+}
+
 /** Most issue lines the repair feedback quotes. The validator can report many. */
 const MAX_FEEDBACK_ISSUES = 12
 

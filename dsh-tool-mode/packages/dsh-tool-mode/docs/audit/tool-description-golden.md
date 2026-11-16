@@ -373,9 +373,6 @@ Inputs and outputs:
 - Inputs: query, candidates
 - Outputs: ranked, meta
 
-Limits:
-- maxCandidates: 100
-
 Example:
 {"input":{"query":"deploy","candidates":["ship it","unrelated"],"topK":1},"output":{"ranking":[{"id":"0","score":0.9}],"meta":{}}}
 

@@ -132,6 +132,7 @@ describe('DECL-03 — host-stamped provenance', () => {
     assert.equal(meta.contractVersion, '1.0.0')
     assert.equal(meta.extension, '@try-works/dsh-tool-mode')
     assert.equal(meta.executionLocation, 'host')
+    assert.equal(meta.modelIdentity, 'tongue', 'the result names the weights, not only the implementation')
     assert.match(String(meta.receiptId), /^rcpt_/)
     assert.deepEqual(meta.warnings, [])
   })

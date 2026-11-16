@@ -32,7 +32,7 @@ import {
 import { createAdapter } from './adapters/index.ts'
 import { registerModelTool, shouldDeferHeavySchema, toolSchemaBytes } from './registrar.ts'
 import { registerContractTool, registerContractImplementationTool, type ContractBinding, type HostIdentity } from './bindings.ts'
-import { contractToolDescription, extensionToolDescription } from './tool-description.ts'
+import { canonicalExampleFor, contractToolDescription, extensionToolDescription } from './tool-description.ts'
 import { EXCLUDED_BINDINGS } from './ptc-authority.ts'
 import { appendFileSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, resolve, sep } from 'node:path'
@@ -46,7 +46,12 @@ import {
   defaultAgentAuthoringFile,
   runAuthoredProgram,
   type AgentToolDefinition,
+  type AgentToolSummary,
+  type AgentWorkflowSummary,
 } from './agent-authoring.ts'
+import { createAuthoringLedger, type AuthoringReceipt } from './authoring-ledger.ts'
+import { createRunCaptureStore, schemaShape, type RunCaptureStore } from './run-capture.ts'
+import { findRepeatedShapes, type RepeatedShape } from './repeated-shapes.ts'
 import { installSandboxTempRoot, resolveSandboxTempRoot } from './sandbox-temp.ts'
 import { buildDiagnostics } from './diagnostics.ts'
 import { PACKAGE_VERSION } from './version.ts'
@@ -273,6 +278,13 @@ export interface Config {
   allowAgentAuthoring?: boolean
   /** Where authored workflows/tools are stored; default is beside the state file. */
   agentAuthoringFile?: string
+  /**
+   * Capture successful Code Mode run programs for define-from-run (default FALSE).
+   * The capture stores the program and a shape-only input schema, never input values.
+   */
+  captureRunPrograms?: boolean
+  /** Where run captures are stored; default is beside the authoring file. */
+  runCaptureFile?: string
   /**
    * The temp root DSH's PTC sandbox is pointed at (Windows ACL fix).
    *
@@ -838,6 +850,8 @@ export const Config: z<Config> = z.object({
   hostedCode: z.boolean().default(false),
   allowAgentAuthoring: z.boolean().default(true),
   agentAuthoringFile: z.string().default(''),
+  captureRunPrograms: z.boolean().default(false),
+  runCaptureFile: z.string().default(''),
   // Deliberately NO default: undefined selects the platform policy (the win32 DSH-home
   // default), while an explicit '' must be able to DISABLE the override.
   sandboxTempRoot: z.string(),
@@ -1223,6 +1237,20 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
    * install loop; the extension-store block assigns it.
    */
   let extensionLifecycle: ExtensionLifecycle | undefined
+  /**
+   * Authoring inventory, published by tool_mode_list.
+   *
+   * Declared OUTSIDE the authoring block because discovery is registered earlier and
+   * still has to report what exists. Undefined means authoring is disabled.
+   */
+  let authoringSnapshot: (() => {
+    readonly tools: AgentToolSummary[]
+    readonly workflows: AgentWorkflowSummary[]
+    readonly recent: AuthoringReceipt[]
+    readonly repeatedShapes: RepeatedShape[]
+  }) | undefined
+  /** Optional capture of successful run programs (disabled unless opted in). */
+  let runCaptureStore: RunCaptureStore | undefined
 
   /**
    * TASK-117: the catalogue-vs-extension tool-name reconciliation.
@@ -4432,6 +4460,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           ...contractFactsFor(name),
           state: surface.state,
           reason: descriptor.reason,
+          ...canonicalExampleFor(name) === undefined ? {} : { example: canonicalExampleFor(name) },
           action: clearingActionFor(surface.state, modelItem.entry.provider?.extension),
           model: describeModelCard(descriptor, modelItem.entry.provider?.extension ?? null),
           catalogRevision: catalogRevision(),
@@ -4456,6 +4485,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           output: typescriptBindings(name, 'Output', outputSchema),
         },
         examples: [exampleFromSchema(inputSchema)],
+        ...canonicalExampleFor(name) === undefined ? {} : { example: canonicalExampleFor(name) },
         // DECL-01/slice 5: the contract already carries these two; describe must not
         // drop the half a schema cannot express (semantics) or the refusal list.
         // The refusal list is bounded here because the value-schema DSL cannot
@@ -4497,6 +4527,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             catalogRevision: { type: 'string' },
             tools: { type: 'array' },
             unavailable: { type: 'array' },
+            /** Authored artifacts and the read-only repeated-shape report. */
+            authoring: { type: 'object', additionalProperties: true },
           },
         },
         render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
@@ -4602,7 +4634,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             bindable: bindableName(schema.name),
           } as never)
         }
-        return { catalogRevision: catalogRevision(), tools, unavailable } as never
+        const authoring = authoringSnapshot?.()
+        return {
+          catalogRevision: catalogRevision(),
+          tools,
+          unavailable,
+          ...authoring === undefined ? {} : { authoring },
+        } as never
       },
       presentCall() {
         return { card: 'generic', title: 'Tool mode list', kind: 'read', rawInput: '' }
@@ -4973,6 +5011,21 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           dataFlowCoverage: report.meta.dataFlowCoverage,
           outcome: 'ok',
         }))
+        // OPTIONAL run capture: the program and a shape-only input schema, never
+        // input values. Off unless captureRunPrograms is explicitly enabled.
+        if (runCaptureStore !== undefined) {
+          const captured = args as { code?: unknown; tools?: unknown; input?: unknown }
+          const program = typeof captured.code === 'string' ? captured.code : ''
+          if (program.length > 0) {
+            runCaptureStore.record({
+              runId: receiptId,
+              program,
+              tools: Array.isArray(captured.tools) ? captured.tools.filter((tool): tool is string => typeof tool === 'string') : [],
+              inputSchema: schemaShape(captured.input),
+              contracts: report.meta.calls.map(call => call.name),
+            })
+          }
+        }
         return report as never
       },
     }))
@@ -4995,6 +5048,15 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
    * artifact is allowed while the gate is closed; RUNNING or EXECUTING it is refused with
    * the actionable gate message.
    */
+  if (config.captureRunPrograms === true) {
+    const captureFile = (config.runCaptureFile ?? '').length > 0
+      ? config.runCaptureFile as string
+      : join(dirname(defaultAgentAuthoringFile(config.stateFile)), 'run-captures.json')
+    runCaptureStore = createRunCaptureStore({ file: captureFile })
+    if (runCaptureStore.issue !== undefined) {
+      ctx.logger.warn('model-tools: run capture: ' + runCaptureStore.issue)
+    }
+  }
   if (config.allowAgentAuthoring !== false) {
     const authoringFile = (config.agentAuthoringFile ?? '').length > 0
       ? config.agentAuthoringFile as string
@@ -5003,6 +5065,18 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     if (authoringStore.issue !== undefined) {
       ctx.logger.warn('model-tools: agent authoring: ' + authoringStore.issue)
     }
+    const authoringLedger = createAuthoringLedger({
+      file: join(dirname(authoringFile), 'authoring-receipts.json'),
+    })
+    if (authoringLedger.issue !== undefined) {
+      ctx.logger.warn('model-tools: authoring ledger: ' + authoringLedger.issue)
+    }
+    authoringSnapshot = () => ({
+      tools: authoringStore.listTools(),
+      workflows: authoringStore.listWorkflows(),
+      recent: authoringLedger.list().slice(-20),
+      repeatedShapes: findRepeatedShapes(invocationReceipts),
+    })
     /** The LIVE catalog revision, the same fact tool_mode_run reports (CODE-05). */
     const authoringRevision = (): string => String(extensionLifecycle?.generation ?? host.activationGeneration)
     /**
@@ -5095,6 +5169,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             // projection drops keywords it cannot advertise); enforce the full one so a
             // dropped constraint is never silently unenforced (BASE-04).
             assertAgainstSchema(definition.name, validateInput, args)
+            const started = Date.now()
             const receiptId = host.nextReceiptId()
             const revision = authoringRevision()
             let report: RunReport
@@ -5108,9 +5183,17 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
                 catalogRevision: revision,
               })
             } catch (error) {
+              authoringLedger.record({
+                operation: 'run', artifactKind: 'tool', name: definition.name, version: definition.version,
+                outcome: 'failed', durationMs: Date.now() - started,
+              })
               recordFailedComposition(receiptId, revision, definition.name)
               throw error
             }
+            authoringLedger.record({
+              operation: 'run', artifactKind: 'tool', name: definition.name, version: definition.version,
+              durationMs: Date.now() - started,
+            })
             recordAuthoredRun(receiptId, revision, definition.name, report)
             // The stored program's value, STRUCTURED: a composed step can read its
             // fields without parsing a JSON document first.
@@ -5193,6 +5276,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             tools: Array.isArray(request['tools']) ? request['tools'].filter((tool): tool is string => typeof tool === 'string') : [],
             catalogRevision: authoringRevision(),
           })
+          authoringLedger.record({ operation: 'save', artifactKind: 'workflow', name: entry.name, version: entry.version })
           return { saved: true, workflow: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt } } as never
         }
         if (action === 'list') {
@@ -5204,20 +5288,39 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           return { workflow: entry } as never
         }
         if (action === 'delete') {
-          return { deleted: authoringStore.deleteWorkflow(nameOrId) } as never
+          const entry = authoringStore.getWorkflow(nameOrId)
+          const deleted = authoringStore.deleteWorkflow(nameOrId)
+          if (deleted && entry !== undefined) {
+            authoringLedger.record({ operation: 'delete', artifactKind: 'workflow', name: entry.name, version: entry.version })
+          }
+          return { deleted } as never
         }
         if (action === 'run') {
           const entry = authoringStore.getWorkflow(nameOrId)
           if (entry === undefined) throw new Error('unknown workflow "' + nameOrId + '"; list the workflows to see what exists')
           const receiptId = host.nextReceiptId()
           const revision = authoringRevision()
-          const report = await runAuthoredProgram({
-            program: entry.program,
-            tools: entry.tools,
-            input: request['input'] === undefined ? undefined : request['input'] as JsonValue,
-            runner: programRunner,
-            receiptId,
-            catalogRevision: revision,
+          const started = Date.now()
+          let report: RunReport
+          try {
+            report = await runAuthoredProgram({
+              program: entry.program,
+              tools: entry.tools,
+              input: request['input'] === undefined ? undefined : request['input'] as JsonValue,
+              runner: programRunner,
+              receiptId,
+              catalogRevision: revision,
+            })
+          } catch (error) {
+            authoringLedger.record({
+              operation: 'run', artifactKind: 'workflow', name: entry.name, version: entry.version,
+              outcome: 'failed', durationMs: Date.now() - started,
+            })
+            throw error
+          }
+          authoringLedger.record({
+            operation: 'run', artifactKind: 'workflow', name: entry.name, version: entry.version,
+            durationMs: Date.now() - started,
           })
           recordAuthoredRun(receiptId, revision, 'tool_mode_workflows', report)
           return {
@@ -5244,8 +5347,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         action: {
           type: 'string',
           required: true,
-          enum: ['define', 'list', 'get', 'delete'],
-          description: 'define: create or update (bumps the version) and register immediately. list/get/delete: by name or id.',
+          enum: ['define', 'from-run', 'list', 'get', 'delete'],
+          description: 'define: create/update and register. from-run: scaffold a tool from a captured successful run. list/get/delete: by name or id.',
         },
         name: { type: 'string', description: 'The authored tool name: agent_ followed by lowercase letters, digits or underscores.' },
         description: { type: 'string', description: 'What the tool does; shown to callers.' },
@@ -5256,15 +5359,37 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           items: { type: 'string' },
           description: 'The tool names the stored program will call; may be empty. Never the tool itself.',
         },
+        runId: { type: 'string', description: 'from-run: the run id to distill; no effect on other actions.' },
       } as unknown as ParameterSchemaSpec,
       output: {
         schema: { type: 'object', additionalProperties: true } as unknown as ValueSchemaSpec,
         render: (_args: Record<string, unknown>, value: unknown) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
       },
       async execute(args) {
-        const request = args as Record<string, unknown>
-        const action = request['action']
+        let request = args as Record<string, unknown>
+        let action = request['action']
         const nameOrId = typeof request['name'] === 'string' ? request['name'] : ''
+        if (action === 'from-run') {
+          if (runCaptureStore === undefined) {
+            throw new Error('from-run needs captureRunPrograms: true on this deployment')
+          }
+          const runId = typeof request['runId'] === 'string' ? request['runId'] : ''
+          const capture = runCaptureStore.get(runId)
+          if (capture === undefined) {
+            throw new Error('no captured run "' + runId + '"; enable captureRunPrograms and run the program once first')
+          }
+          request = {
+            ...request,
+            action: 'define',
+            program: capture.program,
+            tools: capture.tools,
+            description: typeof request['description'] === 'string' && request['description'].length > 0
+              ? request['description']
+              : 'Distilled from successful run ' + capture.runId + ' (contracts: ' + capture.contracts.join(', ') + ').',
+            inputSchema: request['inputSchema'] ?? capture.inputSchema,
+          }
+          action = 'define'
+        }
         if (action === 'define') {
           if (!AGENT_TOOL_NAME_PATTERN.test(nameOrId)) {
             throw new Error(
@@ -5295,6 +5420,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             if (stored === undefined) authoringStore.deleteTool(entry.id)
             throw new Error('the tool ' + entry.name + ' was defined but could not be registered; see the host log')
           }
+          authoringLedger.record({ operation: 'define', artifactKind: 'tool', name: entry.name, version: entry.version })
           return { defined: true, tool: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt } } as never
         }
         if (action === 'list') {
@@ -5309,7 +5435,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           const entry = authoringStore.getTool(nameOrId)
           if (entry === undefined) return { deleted: false } as never
           unregisterAuthored(entry.name)
-          return { deleted: authoringStore.deleteTool(entry.id) } as never
+          const deleted = authoringStore.deleteTool(entry.id)
+          if (deleted) {
+            authoringLedger.record({ operation: 'delete', artifactKind: 'tool', name: entry.name, version: entry.version })
+          }
+          return { deleted } as never
         }
         throw new Error('unknown action "' + String(action) + '"; expected define, list, get or delete')
       },
@@ -5343,6 +5473,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     activationGeneration: host.activationGeneration,
     executionLocation: 'host',
     receiptId: host.nextReceiptId(),
+    modelIdentity: 'host',
     warnings: [],
   })
 

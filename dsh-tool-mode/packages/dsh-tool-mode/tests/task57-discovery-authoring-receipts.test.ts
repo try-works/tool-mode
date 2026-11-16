@@ -6,7 +6,7 @@
  */
 import { after, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -195,6 +195,60 @@ describe('task-57 (2) — authored tools publish agent.<name>@1.0.0', () => {
     // BOOT: the same helper registers stored tools, so the contract does not change.
     const remounted = await mountGateOpen({ agentAuthoringFile: file })
     await assertRow(remounted)
+  })
+})
+
+describe('task-57 (2b) — discovery publishes authored artifacts and their receipts', () => {
+  const SCHEMA = { type: 'object', properties: { value: { type: 'integer' } }, required: ['value'] }
+
+  it('lists the authored tool and records the define event without caller content', async () => {
+    const dir = tempDir()
+    const ctx = await mountGateOpen({ agentAuthoringFile: join(dir, 'authoring.json') })
+    await call(ctx, 'tool_mode_tools', {
+      action: 'define', name: 'agent_double', description: 'Double.', inputSchema: SCHEMA,
+      program: 'return { doubled: input.value * 2 }', tools: [],
+    })
+    const listed = await call(ctx, 'tool_mode_list', {})
+    const authoring = (listed as { value: { authoring?: {
+      tools: { name: string }[]
+      workflows: { name: string }[]
+      recent: { operation: string; artifactKind: string; name: string }[]
+    } } }).value.authoring
+    assert.ok(authoring !== undefined, 'discovery must publish an authoring inventory')
+    assert.deepEqual(authoring.tools.map(tool => tool.name), ['agent_double'])
+    assert.deepEqual(authoring.workflows, [])
+    assert.equal(authoring.recent[0]?.operation, 'define')
+    assert.equal(authoring.recent[0]?.artifactKind, 'tool')
+    assert.equal(authoring.recent[0]?.name, 'agent_double')
+    assert.equal(JSON.stringify(authoring).includes('doubled'), false, 'the program body must not leak')
+  })
+})
+
+describe('task-57 (2c) — optional run capture and define-from-run', () => {
+  it('captures a successful program as a shape-only scaffold and registers it', async () => {
+    const dir = tempDir()
+    const ctx = await mountGateOpen({
+      captureRunPrograms: true,
+      runCaptureFile: join(dir, 'run-captures.json'),
+      agentAuthoringFile: join(dir, 'authoring.json'),
+    })
+    const run = await call(ctx, 'tool_mode_run', {
+      code: 'return { doubled: input.value * 2 }', tools: [], input: { value: 21 },
+    })
+    if (run.isError) throw new Error(JSON.stringify(run))
+    const runId = (run.value as { meta: { receiptId: string } }).meta.receiptId
+    const defined = await call(ctx, 'tool_mode_tools', {
+      action: 'from-run', name: 'agent_from_run', runId,
+    })
+    if (defined.isError) throw new Error(JSON.stringify(defined))
+    const executed = await call(ctx, 'agent_from_run', { value: 4 })
+    if (executed.isError) throw new Error(JSON.stringify(executed))
+    assert.deepEqual(executed.value, { doubled: 8 })
+    const capture = JSON.parse(readFileSync(join(dir, 'run-captures.json'), 'utf8')) as {
+      captures: { inputSchema: { properties?: Record<string, unknown> } }[]
+    }
+    assert.deepEqual(Object.keys(capture.captures[0]?.inputSchema.properties ?? {}), ['value'])
+    assert.equal(JSON.stringify(capture).includes('21'), false, 'the input value must not be captured')
   })
 })
 

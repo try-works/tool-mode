@@ -77,8 +77,20 @@ export function extensionToolDescription(input: ExtensionToolDescriptionInput): 
     purpose: declared.length > 0 ? declared : input.fallback.trim(),
     whenToUse: guidance?.whenToUse ?? input.skill?.description,
     whenNotToUse: guidance?.whenNotToUse,
+    ...guidance?.limits === undefined ? {} : { limits: guidance.limits },
+    ...guidance?.example === undefined ? {} : { example: guidance.example },
     skill: input.skill === undefined ? undefined : { name: input.skill.name },
   })
+}
+
+/**
+ * The canonical worked example for a tool, when one is reviewed.
+ * @param toolName - the caller-facing tool name.
+ * @returns a JSON-shaped example string, or undefined.
+ */
+export function canonicalExampleFor(toolName: string): string | undefined {
+  return CONTRACT_DISAMBIGUATION[toolName]?.example
+    ?? EXTENSION_TOOL_DISAMBIGUATION[toolName]?.example
 }
 
 /** One row of the reviewed model-facing golden list. */
@@ -237,6 +249,10 @@ export interface ContractGuidance {
   readonly whenToUse: readonly string[]
   /** Which sibling to choose instead, when this tool would be the wrong family member. */
   readonly whenNotToUse: readonly string[]
+  /** One canonical input, so a caller sees the accepted shape instead of guessing it. */
+  readonly example?: string
+  /** Input bounds the schema alone does not make obvious. */
+  readonly limits?: readonly string[]
 }
 
 /** The reviewed disambiguation table, keyed by caller-facing contract tool name. */
@@ -307,6 +323,13 @@ export const CONTRACT_DISAMBIGUATION: ContractDisambiguationTable = {
       'Use semantic_similarity for a single pair.',
       'Use semantic_classify when each candidate must land in a label.',
     ],
+    limits: [
+      'query and each candidate are { id, parts: [{ kind: "text", text }] } (also code/image/audio);',
+      'at most 256 candidates, 16 parts per item, 4096 characters per part;',
+      'dimensions are 768/512/256/128 and must be the same for query and candidates;',
+      'top_k must not exceed candidates.length.',
+    ],
+    example: '{"query":{"id":"q","parts":[{"kind":"text","text":"..."}]},"candidates":[{"id":"a","parts":[{"kind":"text","text":"..."}]}],"top_k":1,"dimensions":768}',
   },
   semantic_classify: {
     whenToUse: ['Use to assign one of a bounded label set to an item, with abstention allowed.'],
@@ -388,8 +411,8 @@ export function contractToolDescription(contract: ToolContract): string {
     whenNotToUse: [...guidance?.whenNotToUse ?? [], ...contract.unsupported],
     inputs: inputs.join(', '),
     outputs: outputs.join(', '),
-    limits,
-    example: example === undefined ? undefined : JSON.stringify(example),
+    limits: [...limits, ...guidance?.limits ?? []],
+    example: example === undefined ? guidance?.example : JSON.stringify(example),
   })
 }
 

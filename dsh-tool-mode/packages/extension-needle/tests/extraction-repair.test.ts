@@ -31,6 +31,7 @@ import {
 } from '@try-works/tool-mode-extension-sdk'
 
 import extension from '../src/index.ts'
+import { assertExtractionTextWithinLimit, EXTRACTION_TEXT_LIMIT, ExtractionInputError } from '../src/extraction.ts'
 import type { EngineEnvelope } from '../src/engine.ts'
 import { checkArguments, extractionTool, prepareExtractionSchema } from '../src/validation.ts'
 import {
@@ -120,6 +121,20 @@ async function provider(): Promise<ModelProviderV1> {
   const instance = await extension.create({ ...context(), configuration })
   return instance.createProvider({ modelId: 'needle3', configuration })
 }
+
+describe('the extraction admission envelope', () => {
+  it('accepts the measured limit and refuses one character over it by name', () => {
+    assert.equal(EXTRACTION_TEXT_LIMIT, 100)
+    assert.doesNotThrow(() => assertExtractionTextWithinLimit('x'.repeat(EXTRACTION_TEXT_LIMIT)))
+    assert.throws(
+      () => assertExtractionTextWithinLimit('x'.repeat(EXTRACTION_TEXT_LIMIT + 1)),
+      (error: unknown) => error instanceof ExtractionInputError
+        && error.code === 'input-too-long'
+        && error.limit === EXTRACTION_TEXT_LIMIT
+        && error.message.includes('101 characters'),
+    )
+  })
+})
 
 describe('readAttempt — one projection, shared with structured_extract', () => {
   it('reports "nothing matched" as data, with no invented issue', () => {

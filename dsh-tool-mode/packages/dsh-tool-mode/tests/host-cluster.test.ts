@@ -79,7 +79,7 @@ test('DECL-07: tool_mode_describe returns schemas for a requested tool + refuses
   assert.ok(described.description.length > 0)
   // Probe E gap: describe must publish the contract it describes, and the preflight bit.
   assert.equal(described.contract, 'host.tool_mode_list')
-  assert.equal(described.contractVersion, '1.1.0')
+  assert.equal(described.contractVersion, '1.2.0')
   assert.equal(described.bindable, false, 'tool_mode_list is a control tool and is not program-bindable')
   const run = await callTool(ctx, 'tool_mode_describe', { tools: ['tool_mode_run'] })
   assert.equal(run.isError, false, JSON.stringify(run))

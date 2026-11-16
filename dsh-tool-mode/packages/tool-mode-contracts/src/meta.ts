@@ -53,6 +53,15 @@ export interface ToolMeta {
   readonly executionLocation: ExecutionLocation
   /** Host-issued receipt identity, for correlation and audit. */
   readonly receiptId: string
+  /**
+   * The model or implementation identity that actually produced the result.
+   *
+   * `implementationId` names the code path; this names the weights or model. They
+   * are not interchangeable (a package can serve several models), and a caller
+   * comparing two transcriber outputs needs the WEIGHTS identity to explain a
+   * difference. Optional because host-only tools have no model.
+   */
+  readonly modelIdentity?: string
   /** Non-fatal conditions the caller should know about. */
   readonly warnings: readonly string[]
   /**
@@ -81,6 +90,7 @@ export const TOOL_META_SCHEMA = {
     activationGeneration: { type: 'integer', minimum: 0 },
     executionLocation: { type: 'string', enum: ['host', 'device', 'team-server', 'remote'] },
     receiptId: { type: 'string', minLength: 1 },
+    modelIdentity: { type: 'string', minLength: 1 },
     warnings: { type: 'array', items: { type: 'string' } },
     confidence: {
       type: 'object',

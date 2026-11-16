@@ -53,6 +53,11 @@ const discoveryOutputSchema: Record<string, unknown> = {
         },
       },
     },
+    /** Authored artifacts and the read-only repeated-shape report (0.5.83+). */
+    authoring: {
+      type: 'object',
+      additionalProperties: true,
+    },
     unavailable: {
       type: 'array',
       items: {
@@ -107,7 +112,7 @@ const describeOutputSchema: Record<string, unknown> = {
 /** `tool_mode_list` — permitted tools, readiness and catalog revision. */
 export const TOOL_MODE_LIST_CONTRACT: ToolContract = {
   contract: 'host.tool_mode_list',
-  version: '1.1.0',
+  version: '1.2.0',
   toolName: 'tool_mode_list',
   description:
     'List the tools this caller may use. `tools` are the names that can be CALLED now; each row carries '
