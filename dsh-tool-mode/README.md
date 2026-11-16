@@ -32,7 +32,7 @@ All 28 workspace packages, not only the published host packages.
 
 | Package | Version | Role |
 | --- | --- | --- |
-| `@try-works/dsh-tool-mode` | 0.5.85 | DSH plugin: catalog, dispatch, discovery, MCP |
+| `@try-works/dsh-tool-mode` | 0.5.86 | DSH plugin: catalog, dispatch, discovery, MCP |
 | `@try-works/tool-mode-contracts` | 0.1.1 | Model-free contract identities, schemas, validation |
 | `@try-works/tool-mode-extension-sdk` | 0.1.5 | Extension authoring API and manifest validation |
 | `@try-works/tool-mode-recipes` | 0.1.0 | Recipe format and provider-neutral LLM broker |

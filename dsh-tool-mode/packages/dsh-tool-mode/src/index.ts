@@ -7762,6 +7762,20 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
               // Remember WHY: the row must name a missing/resized cache file rather than
               // the generic "needs its model assets prepared".
               assetRestoreFailures.set(entry.extensionId, restored.reason)
+              // A failed restore means the cache no longer matches the persisted
+              // prepared-cold state (typically because assetCacheRoot moved). Do not
+              // keep advertising prepared-cold: downgrade to needs-preparation so the
+              // page offers Prepare instead of repeating a restore error forever.
+              if (lifecycleForRestore !== undefined) {
+                try {
+                  const plan = prepareAssetsSurface?.plan(entry.extensionId)
+                  if (plan !== undefined) {
+                    await lifecycleForRestore.recordReadiness(entry.extensionId, {
+                      [plan.identity.modelId]: 'needs-preparation',
+                    })
+                  }
+                } catch { /* a missing plan is reported by the restore reason already */ }
+              }
               ctx.logger.info(`model-tools: ${entry.extensionId} assets not restored: ${restored.reason}`)
             } else {
               assetRestoreFailures.delete(entry.extensionId)
