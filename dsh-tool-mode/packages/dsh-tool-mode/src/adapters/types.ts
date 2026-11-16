@@ -20,6 +20,8 @@ export type JsonValue = null | boolean | number | string | JsonValue[] | { [key:
 export interface AdapterInvocation {
   /** Validated tool arguments, already constrained by the registered parameter schema. */
   readonly args: Readonly<Record<string, unknown>>
+  /** The operation being invoked, when the catalog declares more than its primary tool. */
+  readonly operationId?: string
   /** Caller cancellation, forwarded by the tool body. */
   readonly signal: AbortSignal
   /**

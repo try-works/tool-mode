@@ -19,7 +19,7 @@ import { defineTool, type ParameterSchemaSpec, type ValueSchemaSpec } from '@dee
 // Type-only: resolves the required ctx.skills service declaration. The skill
 // service is read opportunistically via ctx.get(), so it stays optional.
 import type {} from '@deepseek-ai/dsh-skill'
-import { loadCatalog } from './catalog.ts'
+import { loadCatalog, modelOperations } from './catalog.ts'
 import { resolveCapability, type ResolvedModel } from './capability.ts'
 import { MODEL_TOOL_STATES, modelSurface } from './model-surface.ts'
 import {
@@ -148,7 +148,7 @@ import {
   type PersistedState,
   type StateStore,
 } from './state.ts'
-import type { ModelCatalogEntry } from './types.ts'
+import type { ModelCatalogEntry, ModelOperationSpec } from './types.ts'
 import { runLegacyStartupMigration } from './legacy-migration.ts'
 import { ApprovalStore } from './approval.ts'
 import { createExtensionsService, DEFAULT_TRUSTED_PREBUILT_DEPENDENCIES, recordRestoreIntegrityFailure, selectInstalled, type HarnessProviderStatus } from './extensions-service.ts'
@@ -1052,6 +1052,8 @@ export interface ModelDescriptor {
   readonly docs: string
   /** One entry per accepted argument, so a caller can compose without an extra call. */
   readonly parameters: ModelParameterCard[]
+  /** Every callable operation this model declares, primary first. */
+  readonly operations: ModelOperationCard[]
   /** What the tool returns, in the catalog's own words. */
   readonly returns: string
   /** Platform and packaging facts that decide whether the model can run here. */
@@ -1069,6 +1071,22 @@ export interface ModelParameterCard {
   readonly description: string
 }
 
+/** One callable operation, with the schema a caller needs to invoke it. */
+export interface ModelOperationCard {
+  readonly id: string
+  readonly tool: string
+  readonly contract: string | null
+  readonly description: string
+  readonly parameters: ModelParameterCard[]
+  /** A JSON-Schema view of the operation arguments. */
+  readonly inputSchema: Record<string, JsonValue>
+  readonly returns: string
+  readonly whenToUse?: string
+  readonly whenNotToUse?: string
+  readonly limits?: string
+  readonly example?: string
+}
+
 /** How the model's weights are packaged and where they can run. */
 export interface ModelRuntimeCard {
   readonly windowsSupport: string
@@ -1083,6 +1101,44 @@ export function describeModelCard(descriptor: ModelDescriptor, extension: string
   readonly extension: string | null
 } {
   return { ...descriptor, extension }
+}
+
+/** One parameter card from a tool declaration. */
+function parameterCards(tool: ModelCatalogEntry['tool']): ModelParameterCard[] {
+  return Object.entries(tool.params).map(([name, param]) => ({
+    name,
+    type: param.type ?? 'string',
+    description: param.description,
+  }))
+}
+
+/** A JSON-Schema view of one operation's arguments. */
+function operationInputSchema(tool: ModelCatalogEntry['tool']): Record<string, JsonValue> {
+  const properties: Record<string, JsonValue> = {}
+  for (const [name, param] of Object.entries(tool.params)) {
+    const type = param.type ?? 'string'
+    properties[name] = type === 'string[]'
+      ? { type: 'array', items: { type: 'string' }, description: param.description }
+      : { type, description: param.description }
+  }
+  return { type: 'object', properties, required: [] }
+}
+
+/** Render one operation as a capability card. */
+function operationCard(_entry: ModelCatalogEntry, operation: ModelOperationSpec): ModelOperationCard {
+  return {
+    id: operation.id,
+    tool: operation.tool.name,
+    contract: operation.contract,
+    description: operation.tool.description,
+    parameters: parameterCards(operation.tool),
+    inputSchema: operationInputSchema(operation.tool),
+    returns: operation.tool.returns,
+    ...operation.tool.whenToUse === undefined ? {} : { whenToUse: operation.tool.whenToUse },
+    ...operation.tool.whenNotToUse === undefined ? {} : { whenNotToUse: operation.tool.whenNotToUse },
+    ...operation.tool.limits === undefined ? {} : { limits: operation.tool.limits },
+    ...operation.tool.example === undefined ? {} : { example: operation.tool.example },
+  }
 }
 
 /** Render the model list the control tool returns, and the plugin logs. */
@@ -1103,11 +1159,8 @@ export function describeModels(resolved: readonly ResolvedModel[]): ModelDescrip
     languages: entry.languages,
     license: entry.license,
     docs: entry.docsUrl,
-    parameters: Object.entries(entry.tool.params).map(([name, param]) => ({
-      name,
-      type: param.type ?? 'string',
-      description: param.description,
-    })),
+    parameters: parameterCards(entry.tool),
+    operations: modelOperations(entry).map(operation => operationCard(entry, operation)),
     returns: entry.tool.returns,
     runtime: {
       windowsSupport: entry.windowsSupport,
@@ -3076,14 +3129,16 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         )
         return false
       }
-      const registration = registerModelTool(
+      const operations = modelOperations(entry)
+      const registrations = operations.map(operation => registerModelTool(
         ctx as unknown as { tools: { register(definition: unknown): () => void } },
         entry,
         adapter,
         { deferHeavySchemas: config.deferHeavySchemas === true },
-      )
-      toolName = registration.toolName
-      dispose = registration.dispose
+        operation,
+      ))
+      toolName = registrations[0]?.toolName ?? entry.tool.name
+      dispose = () => { for (const registration of registrations) registration.dispose() }
     }
 
     const record: InstalledModel = { entry, toolName, dispose }
@@ -3387,6 +3442,43 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
                         name: { type: 'string', required: true },
                         type: { type: 'string', required: true },
                         description: { type: 'string', required: true },
+                      },
+                    },
+                  },
+                  /** Every callable operation, each with its own argument schema. */
+                  operations: {
+                    type: 'array',
+                    required: true,
+                    items: {
+                      type: 'object',
+                      additionalProperties: false,
+                      properties: {
+                        id: { type: 'string', required: true },
+                        tool: { type: 'string', required: true },
+                        contract: {
+                          required: true,
+                          oneOf: [{ type: 'string' }, { type: 'null' }],
+                        },
+                        description: { type: 'string', required: true },
+                        parameters: {
+                          type: 'array',
+                          required: true,
+                          items: {
+                            type: 'object',
+                            additionalProperties: false,
+                            properties: {
+                              name: { type: 'string', required: true },
+                              type: { type: 'string', required: true },
+                              description: { type: 'string', required: true },
+                            },
+                          },
+                        },
+                        inputSchema: { type: 'object', additionalProperties: true, required: true },
+                        returns: { type: 'string', required: true },
+                        whenToUse: { type: 'string' },
+                        whenNotToUse: { type: 'string' },
+                        limits: { type: 'string' },
+                        example: { type: 'string' },
                       },
                     },
                   },
@@ -4439,7 +4531,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     const describeOne = async (name: string) => {
       const registrySchema = ctx.tools.schemas().find(schema => schema.name === name)
       const definition = ctx.tools.get(name)
-      const modelItem = resolved.find(item => (installed.get(item.entry.id)?.toolName ?? item.entry.tool?.name ?? '') === name)
+      const modelItem = resolved.find(item => {
+        const primary = installed.get(item.entry.id)?.toolName ?? item.entry.tool?.name ?? ''
+        return primary === name
+          || modelOperations(item.entry).some(operation => operation.tool.name === name)
+      })
       const descriptor = modelItem === undefined ? undefined : describeModels([modelItem])[0]
       /**
        * A CATALOG NAME THE REGISTRY DOES NOT SERVE IS EXPLAINED, NOT DESCRIBED (P4).
@@ -4588,6 +4684,29 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             schemaAvailable: schemaAvailableFor(toolName),
             bindable: bindableName(toolName),
           })
+          // A model may declare more than its primary operation. Expose each
+          // REGISTERED operation as its own discoverable row; an unregistered one
+          // stays out of `tools` rather than being promised.
+          for (const operation of modelOperations(item.entry)) {
+            const operationName = operation.tool.name
+            if (operationName === toolName || !registered.has(operationName)) continue
+            if (permitted !== undefined && !permitted.has(operationName)) continue
+            tools.push({
+              name: operationName,
+              description: operation.tool.description,
+              state: 'callable',
+              toolName: operationName,
+              readiness: 'callable',
+              model: item.entry.id,
+              extension: item.entry.provider?.extension ?? null,
+              route: item.verdict.route,
+              executionKind: declarativeRecipeDigests.has(operationName) ? 'declarative' : 'extension',
+              recipeDigest: declarativeRecipeDigests.get(operationName) ?? null,
+              ...contractFactsFor(operationName),
+              schemaAvailable: schemaAvailableFor(operationName),
+              bindable: bindableName(operationName),
+            } as never)
+          }
         }
         /**
          * DECL-07: the list is the caller's PERMITTED TOOL SURFACE, not only the

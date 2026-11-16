@@ -216,18 +216,18 @@ function paramType(param: ModelParam): string {
 }
 
 /** The composed description for one catalog model's tool. */
-export function catalogToolDescription(entry: ModelCatalogEntry): string {
-  const inputs = Object.entries(entry.tool.params)
+export function catalogToolDescription(entry: ModelCatalogEntry, tool = entry.tool): string {
+  const inputs = Object.entries(tool.params)
     .map(([name, param]) => name + ' (' + paramType(param) + ')')
     .join(', ')
   return composeToolDescription({
-    purpose: entry.tool.description,
-    whenToUse: entry.tool.whenToUse ?? entry.skill.whenToUse,
-    whenNotToUse: entry.tool.whenNotToUse,
+    purpose: tool.description,
+    whenToUse: tool.whenToUse ?? entry.skill.whenToUse,
+    whenNotToUse: tool.whenNotToUse,
     inputs,
-    outputs: entry.tool.returns,
-    limits: entry.tool.limits,
-    example: entry.tool.example,
+    outputs: tool.returns,
+    limits: tool.limits,
+    example: tool.example,
     skill: { name: entry.skill.name },
   })
 }

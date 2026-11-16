@@ -10,19 +10,7 @@
 
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import type { ModelCatalogEntry, ModelInput, ModelParam, ModelParamType, WindowsSupport } from './types.ts'
-
-/** The tool spec while its optional guidance is added field by field. */
-interface MutableToolSpec {
-  name: string
-  description: string
-  params: Record<string, ModelParam>
-  returns: string
-  whenToUse?: string
-  whenNotToUse?: string
-  limits?: string
-  example?: string
-}
+import type { ModelCatalogEntry, ModelInput, ModelOperationSpec, ModelParam, ModelParamType, ModelToolSpec, WindowsSupport } from './types.ts'
 
 /** The skill spec while its optional guidance is added field by field. */
 interface MutableSkillSpec {
@@ -163,6 +151,56 @@ function parseContract(value: unknown, scope: string, source: string): string | 
  * @param index - position in the array, for entries with no usable id.
  * @returns the validated entry.
  */
+
+/** Optional non-empty guidance text on a tool declaration. */
+function optionalDeclarationText(
+  raw: Record<string, unknown>,
+  key: string,
+  scope: string,
+  source: string,
+): string | undefined {
+  const value = raw[key]
+  if (value === undefined) return undefined
+  if (Object.prototype.toString.call(value) !== '[object String]') {
+    fail(source, `${scope} tool.${key} must be a non-empty string when present`)
+  }
+  const text = String(value).trim()
+  if (text.length === 0) fail(source, `${scope} tool.${key} must be a non-empty string when present`)
+  return text
+}
+
+/** Parse one tool declaration, shared by the primary tool and operations. */
+function parseToolDeclaration(raw: unknown, scope: string, source: string): ModelToolSpec {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    fail(source, `${scope} tool must be an object`)
+  }
+  const tool = raw as Record<string, unknown>
+  const name = requireString(tool, 'name', source)
+  if (!/^[a-z][a-z0-9_]*$/.test(name)) {
+    fail(source, `${scope} tool.name ${JSON.stringify(name)} must be lower snake_case starting with a letter`)
+  }
+  const params = tool.params
+  if (typeof params !== 'object' || params === null || Array.isArray(params)) {
+    fail(source, `${scope} tool.params must be an object`)
+  }
+  const whenToUse = optionalDeclarationText(tool, 'whenToUse', scope, source)
+  const whenNotToUse = optionalDeclarationText(tool, 'whenNotToUse', scope, source)
+  const limits = optionalDeclarationText(tool, 'limits', scope, source)
+  const example = optionalDeclarationText(tool, 'example', scope, source)
+  return {
+    name,
+    description: requireString(tool, 'description', source),
+    params: Object.fromEntries(
+      Object.entries(params as Record<string, unknown>).map(([key, value]) => [key, parseParam(value, scope, key)]),
+    ),
+    returns: requireString(tool, 'returns', source),
+    ...whenToUse === undefined ? {} : { whenToUse },
+    ...whenNotToUse === undefined ? {} : { whenNotToUse },
+    ...limits === undefined ? {} : { limits },
+    ...example === undefined ? {} : { example },
+  }
+}
+
 export function parseCatalogEntry(raw: unknown, source: string, index: number): ModelCatalogEntry {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     fail(source, `entry ${String(index)} must be an object`)
@@ -186,10 +224,6 @@ export function parseCatalogEntry(raw: unknown, source: string, index: number): 
 
   const toolSpec = tool as Record<string, unknown>
   const skillSpec = skill as Record<string, unknown>
-  const params = toolSpec.params
-  if (typeof params !== 'object' || params === null || Array.isArray(params)) {
-    fail(source, `${scope} tool.params must be an object`)
-  }
 
   const bool = (key: string): boolean => {
     const value = entry[key]
@@ -217,23 +251,6 @@ export function parseCatalogEntry(raw: unknown, source: string, index: number): 
     }
     return value as string[]
   }
-  /**
-   * An optional non-empty guidance string on the TOOL declaration.
-   *
-   * The String tag is checked rather than a typeof narrowing: the field comes
-   * from untrusted JSON, so the boundary is parsed here and only a real string
-   * proceeds.
-   */
-  const optionalToolText = (key: string): string | undefined => {
-    const value = toolSpec[key]
-    if (value === undefined) return undefined
-    if (Object.prototype.toString.call(value) !== '[object String]') {
-      fail(source, `${scope} tool.${key} must be a non-empty string when present`)
-    }
-    const text = String(value).trim()
-    if (text.length === 0) fail(source, `${scope} tool.${key} must be a non-empty string when present`)
-    return text
-  }
   /** The same boundary check for the SKILL declaration's optional guidance. */
   const optionalSkillText = (key: string): string | undefined => {
     const value = skillSpec[key]
@@ -245,36 +262,41 @@ export function parseCatalogEntry(raw: unknown, source: string, index: number): 
     if (text.length === 0) fail(source, `${scope} skill.${key} must be a non-empty string when present`)
     return text
   }
-  const toolWhenToUse = optionalToolText('whenToUse')
-  const toolWhenNotToUse = optionalToolText('whenNotToUse')
-  const toolLimits = optionalToolText('limits')
-  const toolExample = optionalToolText('example')
   const skillWhenToUse = optionalSkillText('whenToUse')
-
-  const toolName = requireString(toolSpec, 'name', source)
-  if (!/^[a-z][a-z0-9_]*$/.test(toolName)) {
-    fail(source, `${scope} tool.name ${JSON.stringify(toolName)} must be lower snake_case starting with a letter`)
-  }
+  const toolOut = parseToolDeclaration(toolSpec, scope, source)
   const skillName = requireString(skillSpec, 'name', source)
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(skillName)) {
     fail(source, `${scope} skill.name ${JSON.stringify(skillName)} must be kebab-case`)
   }
-
-  const toolOut: MutableToolSpec = {
-    name: toolName,
-    description: requireString(toolSpec, 'description', source),
-    params: Object.fromEntries(
-      Object.entries(params as Record<string, unknown>).map(([key, value]) => [
-        key,
-        parseParam(value, scope, key),
-      ]),
-    ),
-    returns: requireString(toolSpec, 'returns', source),
+  const operations = (() => {
+    const raw = entry.operations
+    if (raw === undefined) return undefined
+    if (!Array.isArray(raw) || raw.length === 0) {
+      fail(source, `${scope} field "operations" must be a non-empty array when present`)
+    }
+    const ids = new Set<string>()
+    return raw.map((operation, operationIndex) => {
+      if (typeof operation !== 'object' || operation === null || Array.isArray(operation)) {
+        fail(source, `${scope} operations[${String(operationIndex)}] must be an object`)
+      }
+      const item = operation as Record<string, unknown>
+      const id = requireString(item, 'id', source)
+      if (!/^[a-z][a-z0-9_.-]*$/.test(id)) {
+        fail(source, `${scope} operations[${String(operationIndex)}].id ${JSON.stringify(id)} must be lower-case`)
+      }
+      if (ids.has(id)) fail(source, `${scope} declares operation id "${id}" more than once`)
+      ids.add(id)
+      return {
+        id,
+        tool: parseToolDeclaration(item.tool, `${scope} operation "${id}"`, source),
+        contract: parseContract(item.contract ?? null, `${scope} operation "${id}"`, source),
+      }
+    })
+  })()
+  if (operations !== undefined && !operations.some(operation => operation.tool.name === toolOut.name)) {
+    fail(source, `${scope} operations must include the primary tool "${toolOut.name}"`)
   }
-  if (toolWhenToUse !== undefined) toolOut.whenToUse = toolWhenToUse
-  if (toolWhenNotToUse !== undefined) toolOut.whenNotToUse = toolWhenNotToUse
-  if (toolLimits !== undefined) toolOut.limits = toolLimits
-  if (toolExample !== undefined) toolOut.example = toolExample
+
   const skillOut: MutableSkillSpec = {
     name: skillName,
     description: requireString(skillSpec, 'description', source),
@@ -304,6 +326,7 @@ export function parseCatalogEntry(raw: unknown, source: string, index: number): 
     docsUrl: requireString(entry, 'docsUrl', source),
     hfRepo: requireString(entry, 'hfRepo', source),
     tool: toolOut,
+    ...operations === undefined ? {} : { operations },
     skill: skillOut,
   }
 }
@@ -337,12 +360,27 @@ export function loadCatalog(file: string = DEFAULT_CATALOG_FILE): ModelCatalogEn
   }
   const toolNames = new Set<string>()
   for (const entry of entries) {
-    if (toolNames.has(entry.tool.name)) {
-      throw new CatalogError(`${file} maps tool name "${entry.tool.name}" to more than one model`)
+    const names = new Set([entry.tool.name, ...(entry.operations ?? []).map(operation => operation.tool.name)])
+    for (const name of names) {
+      if (toolNames.has(name)) {
+        throw new CatalogError(`${file} maps tool name "${name}" to more than one model`)
+      }
+      toolNames.add(name)
     }
-    toolNames.add(entry.tool.name)
   }
   return entries
+}
+
+/**
+ * The complete operation set for a model.
+ *
+ * A model without an explicit `operations` array has exactly its primary tool, so
+ * every caller gets one uniform list instead of branching on the old singular shape.
+ * @param entry - the catalog entry.
+ * @returns the operations, primary first.
+ */
+export function modelOperations(entry: ModelCatalogEntry): readonly ModelOperationSpec[] {
+  return entry.operations ?? [{ id: entry.tool.name, tool: entry.tool, contract: entry.contract }]
 }
 
 /** Index a catalog by model id. */

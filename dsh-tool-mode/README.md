@@ -32,7 +32,7 @@ All 28 workspace packages, not only the published host packages.
 
 | Package | Version | Role |
 | --- | --- | --- |
-| `@try-works/dsh-tool-mode` | 0.5.83 | DSH plugin: catalog, dispatch, discovery, MCP |
+| `@try-works/dsh-tool-mode` | 0.5.84 | DSH plugin: catalog, dispatch, discovery, MCP |
 | `@try-works/tool-mode-contracts` | 0.1.1 | Model-free contract identities, schemas, validation |
 | `@try-works/tool-mode-extension-sdk` | 0.1.5 | Extension authoring API and manifest validation |
 | `@try-works/tool-mode-recipes` | 0.1.0 | Recipe format and provider-neutral LLM broker |
@@ -345,6 +345,9 @@ than widening the grant.
 `model_tools action="describe"` returns a **capability card** for a model, not just a name:
 
 - the input modality and the catalog's output shape;
+- every callable operation (`operations[]`), each with its own tool name, contract,
+  parameters and JSON input schema; a model with no explicit operations has one primary
+  operation;
 - every accepted parameter with its JSON type;
 - what the tool returns, its limits and any example the catalog declares;
 - runtime facts (platform support, verified-on-Windows, size, required runtime);

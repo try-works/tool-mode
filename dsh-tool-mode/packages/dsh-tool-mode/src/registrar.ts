@@ -16,7 +16,7 @@ import {
   type ParameterPropertySpec,
   type ParameterSchemaSpec,
 } from '@deepseek-ai/dsh-tools'
-import type { ModelCatalogEntry, ModelParamType } from './types.ts'
+import type { ModelCatalogEntry, ModelOperationSpec, ModelParamType, ModelToolSpec } from './types.ts'
 import type { ModelAdapter } from './adapters/index.ts'
 import { catalogToolDescription } from './tool-description.ts'
 
@@ -121,8 +121,8 @@ function parameterSpec(
  * @param entry - the catalog entry.
  * @returns the DSH parameter schema spec.
  */
-export function buildParameters(entry: ModelCatalogEntry): ParameterSchemaSpec {
-  const params = entry.tool.params
+export function buildParameters(entry: ModelCatalogEntry, tool: ModelToolSpec = entry.tool): ParameterSchemaSpec {
+  const params = tool.params
   const schema: Record<string, ParameterPropertySpec> = {}
   for (const [name, param] of Object.entries(params)) {
     if (param === undefined) continue
@@ -158,8 +158,9 @@ export function buildParameters(entry: ModelCatalogEntry): ParameterSchemaSpec {
 export function renderResult(
   entry: ModelCatalogEntry,
   value: Record<string, unknown>,
+  contract: string | null = entry.contract,
 ): { type: 'text'; text: string }[] {
-  if (entry.contract === 'text.language_detect' && typeof value.language === 'string') {
+  if (contract === 'text.language_detect' && typeof value.language === 'string') {
     const candidates = Array.isArray(value.candidates) ? value.candidates : []
     const detail = candidates
       .filter((candidate): candidate is { language: string; probability: number } =>
@@ -178,7 +179,7 @@ export function renderResult(
         + (detail.length > 0 ? `\nCandidates: ${detail}` : ''),
     }]
   }
-  if (entry.contract === 'stt.transcribe' && typeof value.text === 'string') {
+  if (contract === 'stt.transcribe' && typeof value.text === 'string') {
     const wordCount = typeof value.wordCount === 'number' ? value.wordCount : 0
     return [{
       type: 'text',
@@ -215,13 +216,16 @@ export function registerModelTool(
   entry: ModelCatalogEntry,
   adapter: ModelAdapter,
   options: DeferLoadingOptions = {},
+  operation?: ModelOperationSpec,
 ): RegisteredModelTool {
-  const description = catalogToolDescription(entry)
-  const parameters = buildParameters(entry)
+  const tool = operation?.tool ?? entry.tool
+  const contract = operation?.contract ?? entry.contract
+  const description = catalogToolDescription(entry, tool)
+  const parameters = buildParameters(entry, tool)
   const deferLoading = shouldDeferHeavySchema({
-    toolName: entry.tool.name,
+    toolName: tool.name,
     schemaBytes: toolSchemaBytes({
-      name: entry.tool.name,
+      name: tool.name,
       description,
       parameters: parameterSchemaSpecToJsonSchema(parameters),
     }),
@@ -229,18 +233,19 @@ export function registerModelTool(
   })
   const deferMarker = deferLoading ? { deferLoading: true as const } : {}
   const definition = defineTool({
-    name: entry.tool.name,
+    name: tool.name,
     description,
     parameters,
     ...deferMarker,
     output: {
       schema: outputSchemaFor(entry),
-      render: (_args, value) => renderResult(entry, value as Record<string, unknown>),
+      render: (_args, value) => renderResult(entry, value as Record<string, unknown>, contract),
     },
     async execute(args, exec) {
       const value = await adapter.invoke({
         args: args as Record<string, unknown>,
         signal: exec.signal,
+        ...operation === undefined ? {} : { operationId: operation.id },
       })
       return value
     },
@@ -256,5 +261,5 @@ export function registerModelTool(
     },
   })
   const dispose = ctx.tools.register(definition)
-  return { modelId: entry.id, toolName: entry.tool.name, dispose }
+  return { modelId: entry.id, toolName: tool.name, dispose }
 }

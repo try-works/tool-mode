@@ -75,6 +75,16 @@ export interface ModelSkillSpec {
   readonly whenToUse?: string
 }
 
+/** One callable operation a model exposes. */
+export interface ModelOperationSpec {
+  /** Stable operation identity inside the model. */
+  readonly id: string
+  /** The tool declaration this operation registers. */
+  readonly tool: ModelToolSpec
+  /** The contract this operation implements, or null. */
+  readonly contract: string | null
+}
+
 /** One model in the Desert Ant Labs catalog. */
 export interface ModelCatalogEntry {
   readonly id: string
@@ -116,6 +126,13 @@ export interface ModelCatalogEntry {
   readonly docsUrl: string
   readonly hfRepo: string
   readonly tool: ModelToolSpec
+  /**
+   * Additional callable operations this model exposes.
+   *
+   * Omitted means the model has exactly its primary `tool`. When present, the
+   * list is the complete operation set and each entry registers its own tool.
+   */
+  readonly operations?: readonly ModelOperationSpec[]
   readonly skill: ModelSkillSpec
 }
 
