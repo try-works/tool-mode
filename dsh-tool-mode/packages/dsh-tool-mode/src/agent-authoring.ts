@@ -50,6 +50,19 @@ export const WORKFLOW_NAME_PATTERN = /^[a-z][a-z0-9_-]{1,63}$/
 /** An authored tool name: the reserved `agent_` namespace, then lowercase/digits/underscore. */
 export const AGENT_TOOL_NAME_PATTERN = /^agent_[a-z0-9_]{2,60}$/
 
+/**
+ * The callable tool name a saved workflow publishes.
+ *
+ * Workflow names may contain hyphens; tool names may not, so the hyphen is mapped
+ * to an underscore. The prefix keeps workflow tools distinguishable from authored
+ * agent tools and from model tools.
+ * @param name - the workflow name.
+ * @returns the lower snake_case tool name.
+ */
+export function workflowToolName(name: string): string {
+  return 'workflow_' + name.replace(/-/g, '_')
+}
+
 /** Why an authoring operation was refused. */
 export type AuthoringErrorCode =
   | 'invalid-name'
@@ -83,6 +96,8 @@ export interface AgentWorkflow {
   readonly version: number
   readonly program: string
   readonly tools: readonly string[]
+  /** The JSON Schema a caller's arguments are validated against. */
+  readonly inputSchema: Record<string, JsonValue>
   readonly createdAt: string
   readonly updatedAt: string
   /** The catalog revision observed when the workflow was saved (CODE-05 provenance). */
@@ -96,6 +111,7 @@ export interface AgentWorkflowSummary {
   readonly description: string
   readonly version: number
   readonly tools: readonly string[]
+  readonly inputSchema: Record<string, JsonValue>
   readonly createdAt: string
   readonly updatedAt: string
 }
@@ -132,6 +148,7 @@ export interface SaveWorkflowInput {
   readonly description?: string | undefined
   readonly program: string
   readonly tools?: readonly string[]
+  readonly inputSchema?: Record<string, JsonValue> | undefined
   readonly catalogRevision?: string | undefined
 }
 
@@ -326,15 +343,18 @@ function normalizeTool(input: SaveToolInput): Omit<AgentToolDefinition, 'id' | '
 /** Parse a workflow entry loaded from disk; undefined when it is not usable. */
 function parseWorkflowEntry(raw: JsonValue): AgentWorkflow | undefined {
   if (!isRecord(raw)) return undefined
-  const { id, name, description, version, program, tools, createdAt, updatedAt, catalogRevision } = raw
+  const { id, name, description, version, program, tools, inputSchema, createdAt, updatedAt, catalogRevision } = raw
   if (typeof id !== 'string' || typeof name !== 'string' || !WORKFLOW_NAME_PATTERN.test(name)) return undefined
+  const schema = inputSchema === undefined ? { type: 'object', properties: {} } : inputSchema
+  if (!isRecord(schema)) return undefined
+  try { requireInputSchema(schema) } catch { return undefined }
   if (typeof description !== 'string' || typeof program !== 'string' || program.trim().length === 0) return undefined
   if (typeof version !== 'number' || !Number.isInteger(version) || version < 1) return undefined
   const toolNames = stringList(tools)
   if (toolNames === undefined) return undefined
   if (typeof createdAt !== 'string' || typeof updatedAt !== 'string') return undefined
   if (typeof catalogRevision !== 'string') return undefined
-  return { id, name, description, version, program, tools: toolNames, createdAt, updatedAt, catalogRevision }
+  return { id, name, description, version, program, tools: toolNames, inputSchema: schema as Record<string, JsonValue>, createdAt, updatedAt, catalogRevision }
 }
 
 /** Parse an authored tool entry loaded from disk; undefined when it is not usable. */
@@ -443,7 +463,7 @@ function writeDocument(file: string, document: AuthoringDocument): void {
 function summarizeWorkflow(workflow: AgentWorkflow): AgentWorkflowSummary {
   return {
     id: workflow.id, name: workflow.name, description: workflow.description, version: workflow.version,
-    tools: workflow.tools, createdAt: workflow.createdAt, updatedAt: workflow.updatedAt,
+    tools: workflow.tools, inputSchema: workflow.inputSchema, createdAt: workflow.createdAt, updatedAt: workflow.updatedAt,
   }
 }
 
@@ -509,6 +529,7 @@ export function createAgentAuthoringStore(options: { readonly file: string }): A
         version: (existing?.version ?? 0) + 1,
         program,
         tools,
+        inputSchema: requireInputSchema(input.inputSchema ?? existing?.inputSchema ?? { type: 'object', properties: {} }),
         createdAt: existing?.createdAt ?? now,
         updatedAt: now,
         catalogRevision: input.catalogRevision ?? existing?.catalogRevision ?? '',

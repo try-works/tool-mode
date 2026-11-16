@@ -32,7 +32,7 @@ All 28 workspace packages, not only the published host packages.
 
 | Package | Version | Role |
 | --- | --- | --- |
-| `@try-works/dsh-tool-mode` | 0.5.84 | DSH plugin: catalog, dispatch, discovery, MCP |
+| `@try-works/dsh-tool-mode` | 0.5.85 | DSH plugin: catalog, dispatch, discovery, MCP |
 | `@try-works/tool-mode-contracts` | 0.1.1 | Model-free contract identities, schemas, validation |
 | `@try-works/tool-mode-extension-sdk` | 0.1.5 | Extension authoring API and manifest validation |
 | `@try-works/tool-mode-recipes` | 0.1.0 | Recipe format and provider-neutral LLM broker |
@@ -233,7 +233,12 @@ verification/                     generated evidence, and FINAL-REPORT.md
 ## Agent-authored workflows and tools
 
 `tool_mode_workflows` saves, versions and re-runs a Code Mode program by name
-(`save`, `list`, `get`, `delete`, `run`). `tool_mode_tools` defines persistent tools in
+(`save`, `list`, `get`, `delete`, `run`). A saved workflow is also registered as a callable
+`workflow_<name>` tool, with the `inputSchema` supplied at save time, so another workflow can
+compose it through its normal `tools` binding. A recursion guard refuses a workflow that
+calls itself directly or indirectly.
+
+`tool_mode_tools` defines persistent tools in
 the reserved `agent_*` namespace: it validates an input JSON Schema, persists the program
 and registers the tool immediately; deleting withdraws it, and stored tools are
 re-registered on the next host load.
@@ -251,7 +256,9 @@ bind a name it defines in that same run: define the tool first, then compose it 
 program (or call it directly).
 
 Discovery now publishes an `authoring` block: the stored tools/workflows, the most recent
-authoring events (from `authoring-receipts.json`, value-free), and a read-only
+authoring events (from `authoring-receipts.json`, value-free), a per-session adoption summary
+(`offered`, `called`, `authored`, `reused`; `stepsSaved` is null because no counterfactual
+exists), and a read-only
 `repeatedShapes` report. A shape is a sequence of contracts plus the argument paths a
 previous result reached; it never contains argument values or program source, and it is
 only a suggestion — defining a workflow remains the caller's decision.

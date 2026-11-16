@@ -36,6 +36,7 @@ import { canonicalExampleFor, contractToolDescription, extensionToolDescription 
 import { EXCLUDED_BINDINGS } from './ptc-authority.ts'
 import { appendFileSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, resolve, sep } from 'node:path'
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { createContributionRegistrar, type RegistrableTool } from './extension-registrar.ts'
 import { createInvocationAuthority, resolveApprovedRoots } from './authority.ts'
 import { createExternalGrantContext, createProgramRunner, externalRefusal, serveProgram, TOOL_MODE_RUN_CONTRACT, PTC_SERVICE, type RunReport } from './tool-mode-run.ts'
@@ -45,12 +46,15 @@ import {
   createAgentAuthoringStore,
   defaultAgentAuthoringFile,
   runAuthoredProgram,
+  workflowToolName,
   type AgentToolDefinition,
   type AgentToolSummary,
+  type AgentWorkflow,
   type AgentWorkflowSummary,
 } from './agent-authoring.ts'
 import { createAuthoringLedger, type AuthoringReceipt } from './authoring-ledger.ts'
 import { createRunCaptureStore, schemaShape, type RunCaptureStore } from './run-capture.ts'
+import { createSessionLedger, type SessionLedger } from './session-ledger.ts'
 import { findRepeatedShapes, type RepeatedShape } from './repeated-shapes.ts'
 import { installSandboxTempRoot, resolveSandboxTempRoot } from './sandbox-temp.ts'
 import { buildDiagnostics } from './diagnostics.ts'
@@ -1304,6 +1308,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   }) | undefined
   /** Optional capture of successful run programs (disabled unless opted in). */
   let runCaptureStore: RunCaptureStore | undefined
+  /** Workflow tools registered from the durable workflow store. */
+  const workflowToolNames = new Set<string>()
+  const workflowDisposers = new Map<string, () => void>()
+  /** Cycle guard for workflow-calls-workflow composition. */
+  const workflowCallStack = new AsyncLocalStorage<ReadonlySet<string>>()
+  /** Per-session adoption ledger (offered/called/authored/reused). */
+  let sessionLedger: SessionLedger | undefined
 
   /**
    * TASK-117: the catalogue-vs-extension tool-name reconciliation.
@@ -4629,7 +4640,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         },
         render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
       },
-      async execute() {
+      async execute(_args, exec) {
         const callerGrant = externalGrantContext.current()
         const permitted = callerGrant === undefined ? undefined : new Set(callerGrant)
         /**
@@ -4729,6 +4740,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           'tool_mode_list', 'tool_mode_describe', 'tool_mode_run', 'model_tools', 'model_tools_manage',
           'tool_mode_workflows', 'tool_mode_tools',
           'decision_combine', 'decision_evaluate', 'decision_route',
+          ...workflowToolNames,
           ...authoredToolNames,
           ...ownedExtensionToolNames,
           ...declarativeRecipeDigests.keys(),
@@ -4753,12 +4765,16 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             bindable: bindableName(schema.name),
           } as never)
         }
+        const sessionId = (exec.agent as { sessionId?: string } | undefined)?.sessionId
+        if (sessionId !== undefined) sessionLedger?.offered(sessionId, tools.map(tool => tool.name))
         const authoring = authoringSnapshot?.()
+        const session = sessionId === undefined ? undefined : sessionLedger?.summary(sessionId)
         return {
           catalogRevision: catalogRevision(),
           tools,
           unavailable,
           ...authoring === undefined ? {} : { authoring },
+          ...session === undefined ? {} : { authoring: { ...authoring, session } },
         } as never
       },
       presentCall() {
@@ -5167,6 +5183,24 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
    * artifact is allowed while the gate is closed; RUNNING or EXECUTING it is refused with
    * the actionable gate message.
    */
+  sessionLedger = createSessionLedger({
+    file: join(dirname(defaultAgentAuthoringFile(config.stateFile)), 'session-ledger.json'),
+  })
+  if (sessionLedger.issue !== undefined) {
+    ctx.logger.warn('model-tools: session ledger: ' + sessionLedger.issue)
+  }
+  ctx.on('tools/post-execute' as never, (async (
+    exec: { agent?: { sessionId?: string }; name: string },
+    _result: unknown,
+    next: () => Promise<unknown>,
+  ) => {
+    const sessionId = exec.agent?.sessionId
+    if (sessionId !== undefined && sessionId.length > 0) {
+      sessionLedger?.called(sessionId, exec.name)
+    }
+    return next()
+  }) as never)
+
   if (config.captureRunPrograms === true) {
     const captureFile = (config.runCaptureFile ?? '').length > 0
       ? config.runCaptureFile as string
@@ -5239,6 +5273,105 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         outcome: 'ok',
       }))
     }
+
+    /**
+     * Register one saved workflow as a callable tool.
+     *
+     * This is what makes a workflow composable: a later program can list
+     * `workflow_<name>` in its binding subset and call it like any other tool.
+     * The AsyncLocalStorage stack refuses direct or indirect recursion instead of
+     * letting a cycle run until the runner's budget stops it.
+     */
+    const registerWorkflow = (workflow: AgentWorkflow): boolean => {
+      const toolName = workflowToolName(workflow.name)
+      const existing = workflowDisposers.get(toolName)
+      if (existing !== undefined) {
+        existing()
+        workflowDisposers.delete(toolName)
+        workflowToolNames.delete(toolName)
+      }
+      if (ctx.tools.schemas().some(schema => schema.name === toolName)) {
+        ctx.logger.warn('model-tools: workflow ' + workflow.name + ' was not registered: a tool with that name already exists')
+        return false
+      }
+      let validateInput: ReturnType<typeof compileSchema>
+      let parameters: ParameterSchemaSpec
+      try {
+        validateInput = compileSchema(workflow.inputSchema)
+        parameters = toDshParameters(agentToolContract({
+          name: toolName,
+          description: workflow.description,
+          inputSchema: workflow.inputSchema,
+        })) as unknown as ParameterSchemaSpec
+      } catch (error) {
+        ctx.logger.warn('model-tools: workflow ' + workflow.name + ' has an unprojectable schema: '
+          + (error instanceof Error ? error.message : String(error)))
+        return false
+      }
+      try {
+        const dispose = ctx.tools.register(defineTool({
+          name: toolName,
+          description: workflow.description,
+          parameters,
+          output: {
+            schema: { type: 'json' } as unknown as ValueSchemaSpec,
+            render: (_args: Record<string, unknown>, value: unknown) => [
+              { type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value) },
+            ],
+          },
+          async execute(args) {
+            const active = workflowCallStack.getStore() ?? new Set<string>()
+            if (active.has(workflow.name)) {
+              throw new Error('workflow recursion refused: ' + workflow.name + ' is already on this call stack')
+            }
+            return workflowCallStack.run(new Set([...active, workflow.name]), async () => {
+              assertAgainstSchema(toolName, validateInput, args)
+              const receiptId = host.nextReceiptId()
+              const revision = authoringRevision()
+              const started = Date.now()
+              let report: RunReport
+              try {
+                report = await runAuthoredProgram({
+                  program: workflow.program,
+                  tools: workflow.tools,
+                  input: args as JsonValue,
+                  runner: programRunner,
+                  receiptId,
+                  catalogRevision: revision,
+                })
+              } catch (error) {
+                authoringLedger.record({
+                  operation: 'run', artifactKind: 'workflow', name: workflow.name, version: workflow.version,
+                  outcome: 'failed', durationMs: Date.now() - started,
+                })
+                recordFailedComposition(receiptId, revision, 'workflow.' + workflow.name)
+                throw error
+              }
+              authoringLedger.record({
+                operation: 'run', artifactKind: 'workflow', name: workflow.name, version: workflow.version,
+                durationMs: Date.now() - started,
+              })
+              recordAuthoredRun(receiptId, revision, 'workflow.' + workflow.name, report)
+              return (report.result ?? null) as never
+            })
+          },
+        }))
+        workflowDisposers.set(toolName, dispose)
+        workflowToolNames.add(toolName)
+        return true
+      } catch (error) {
+        ctx.logger.warn('model-tools: workflow ' + workflow.name + ' was not registered: '
+          + (error instanceof Error ? error.message : String(error)))
+        return false
+      }
+    }
+    for (const workflow of authoringStore.workflowEntries()) registerWorkflow(workflow)
+    ctx.effect(() => () => {
+      for (const dispose of workflowDisposers.values()) dispose()
+      workflowDisposers.clear()
+      workflowToolNames.clear()
+    }, 'workflow tools teardown')
+
     /** The registered authored tools, so delete and teardown unregister exactly one each. */
     const authoredDisposers = new Map<string, () => void>()
     /**
@@ -5378,13 +5511,15 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           description: 'The tool names the saved program will call; may be empty for a pure transform.',
         },
         input: { type: 'json', description: 'Run only: structured data bound as the program input variable.' },
+        inputSchema: { type: 'json', description: 'Save only: JSON Schema for the callable workflow tool arguments.' },
       } as unknown as ParameterSchemaSpec,
       output: {
         schema: { type: 'object', additionalProperties: true } as unknown as ValueSchemaSpec,
         render: (_args: Record<string, unknown>, value: unknown) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
       },
-      async execute(args) {
+      async execute(args, exec) {
         const request = args as Record<string, unknown>
+        const sessionId = (exec.agent as { sessionId?: string } | undefined)?.sessionId
         const action = request['action']
         const nameOrId = typeof request['name'] === 'string' ? request['name'] : ''
         if (action === 'save') {
@@ -5393,8 +5528,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             description: typeof request['description'] === 'string' ? request['description'] : undefined,
             program: typeof request['program'] === 'string' ? request['program'] : '',
             tools: Array.isArray(request['tools']) ? request['tools'].filter((tool): tool is string => typeof tool === 'string') : [],
+            ...typeof request['inputSchema'] === 'object' && request['inputSchema'] !== null && !Array.isArray(request['inputSchema'])
+              ? { inputSchema: request['inputSchema'] as Record<string, JsonValue> }
+              : {},
             catalogRevision: authoringRevision(),
           })
+          registerWorkflow(entry)
+          if (sessionId !== undefined) sessionLedger?.authored(sessionId)
           authoringLedger.record({ operation: 'save', artifactKind: 'workflow', name: entry.name, version: entry.version })
           return { saved: true, workflow: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt } } as never
         }
@@ -5410,6 +5550,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           const entry = authoringStore.getWorkflow(nameOrId)
           const deleted = authoringStore.deleteWorkflow(nameOrId)
           if (deleted && entry !== undefined) {
+            const toolName = workflowToolName(entry.name)
+            workflowDisposers.get(toolName)?.()
+            workflowDisposers.delete(toolName)
+            workflowToolNames.delete(toolName)
             authoringLedger.record({ operation: 'delete', artifactKind: 'workflow', name: entry.name, version: entry.version })
           }
           return { deleted } as never
@@ -5484,8 +5628,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         schema: { type: 'object', additionalProperties: true } as unknown as ValueSchemaSpec,
         render: (_args: Record<string, unknown>, value: unknown) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
       },
-      async execute(args) {
+      async execute(args, exec) {
         let request = args as Record<string, unknown>
+        const sessionId = (exec.agent as { sessionId?: string } | undefined)?.sessionId
         let action = request['action']
         const nameOrId = typeof request['name'] === 'string' ? request['name'] : ''
         if (action === 'from-run') {
@@ -5539,6 +5684,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             if (stored === undefined) authoringStore.deleteTool(entry.id)
             throw new Error('the tool ' + entry.name + ' was defined but could not be registered; see the host log')
           }
+          if (sessionId !== undefined) sessionLedger?.authored(sessionId)
           authoringLedger.record({ operation: 'define', artifactKind: 'tool', name: entry.name, version: entry.version })
           return { defined: true, tool: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt } } as never
         }

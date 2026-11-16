@@ -343,6 +343,33 @@ describe('tool_mode_workflows', () => {
     assert.ok(receipts.receipts.some(receipt => receipt.contract === 'tool_mode_workflows'), 'the run must record a composition receipt')
   })
 
+  it('registers a workflow as a callable tool and lets another workflow compose it', async () => {
+    const ctx = await mountHost({}, { gateOpen: true })
+    await callOk(ctx, 'tool_mode_workflows', {
+      action: 'save', name: 'double-value', program: 'return { doubled: input.value * 2 }', tools: [],
+      inputSchema: { type: 'object', properties: { value: { type: 'integer' } }, required: ['value'] },
+    })
+    await callOk(ctx, 'tool_mode_workflows', {
+      action: 'save', name: 'call-double', program: 'return await tools.workflow_double_value(input)', tools: ['workflow_double_value'],
+      inputSchema: { type: 'object', properties: { value: { type: 'integer' } }, required: ['value'] },
+    })
+    assert.deepEqual(await callOk(ctx, 'workflow_double_value', { value: 5 }), { doubled: 10 })
+    assert.deepEqual(await callOk(ctx, 'workflow_call_double', { value: 6 }), { doubled: 12 })
+    const names = ctx.tools.schemas().map(schema => schema.name)
+    assert.ok(names.includes('workflow_call_double'))
+  })
+
+  it('refuses workflow recursion instead of running until the budget stops it', async () => {
+    const ctx = await mountHost({}, { gateOpen: true })
+    await callOk(ctx, 'tool_mode_workflows', {
+      action: 'save', name: 'loop', program: 'return await tools.workflow_loop(input)', tools: ['workflow_loop'],
+      inputSchema: { type: 'object', properties: {} },
+    })
+    const result = await call(ctx, 'workflow_loop', {})
+    assert.equal(result.isError, true)
+    assert.match(JSON.stringify(result), /recursion refused/)
+  })
+
   it('refuses an unknown workflow with a listed action', async () => {
     const ctx = await mountHost()
     const result = await call(ctx, 'tool_mode_workflows', { action: 'get', name: 'missing' })
