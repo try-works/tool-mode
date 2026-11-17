@@ -19,7 +19,7 @@ import { dirname } from 'node:path'
 export const MAX_AUTHORING_EVENTS = 200
 
 /** What happened to an artifact. */
-export type AuthoringOperation = 'define' | 'save' | 'clone' | 'delete' | 'run'
+export type AuthoringOperation = 'define' | 'save' | 'clone' | 'promote' | 'demote' | 'delete' | 'run' | 'expire'
 
 /** Which artifact family the event concerns. */
 export type ArtifactKind = 'tool' | 'workflow'
@@ -34,6 +34,23 @@ export interface AuthoringReceipt {
   readonly version?: number
   readonly outcome: 'ok' | 'failed'
   readonly durationMs?: number
+  /** The scope the event's artifact lived at. */
+  readonly scope?: 'session' | 'workspace' | 'global'
+  /** The destination scope for promote/demote. */
+  readonly targetScope?: 'session' | 'workspace' | 'global'
+  /** Promotion provenance, when the event copied an artifact. */
+  readonly promotedFrom?: {
+    readonly scope: 'session' | 'workspace' | 'global'
+    readonly scopeKey: string
+    readonly version: number
+    readonly at: string
+    readonly sessionId?: string
+    readonly tools: readonly string[]
+  }
+  /** The counts used by a promotion decision. */
+  readonly evidence?: { readonly uses: number; readonly sessions: number; readonly failures: number }
+  readonly uses?: number
+  readonly sessions?: number
 }
 
 /** What a caller supplies to record an event. */
@@ -45,6 +62,12 @@ export interface AuthoringReceiptInput {
   readonly outcome?: 'ok' | 'failed'
   readonly durationMs?: number
   readonly at?: string
+  readonly scope?: 'session' | 'workspace' | 'global'
+  readonly targetScope?: 'session' | 'workspace' | 'global'
+  readonly promotedFrom?: AuthoringReceipt['promotedFrom']
+  readonly evidence?: AuthoringReceipt['evidence']
+  readonly uses?: number
+  readonly sessions?: number
 }
 
 /** The durable ledger. */
@@ -87,7 +110,7 @@ function isReceipt(value: unknown): value is AuthoringReceipt {
   const record = value as Record<string, unknown>
   return typeof record['receiptId'] === 'string'
     && typeof record['at'] === 'string'
-    && ['define', 'save', 'clone', 'delete', 'run'].includes(String(record['operation']))
+    && ['define', 'save', 'clone', 'promote', 'demote', 'delete', 'run', 'expire'].includes(String(record['operation']))
     && (record['artifactKind'] === 'tool' || record['artifactKind'] === 'workflow')
     && typeof record['name'] === 'string'
     && (record['outcome'] === 'ok' || record['outcome'] === 'failed')
@@ -127,6 +150,12 @@ export function createAuthoringLedger(options: { readonly file: string }): Autho
         name: input.name,
         ...input.version === undefined ? {} : { version: input.version },
         ...input.durationMs === undefined ? {} : { durationMs: input.durationMs },
+        ...input.scope === undefined ? {} : { scope: input.scope },
+        ...input.targetScope === undefined ? {} : { targetScope: input.targetScope },
+        ...input.promotedFrom === undefined ? {} : { promotedFrom: input.promotedFrom },
+        ...input.evidence === undefined ? {} : { evidence: input.evidence },
+        ...input.uses === undefined ? {} : { uses: input.uses },
+        ...input.sessions === undefined ? {} : { sessions: input.sessions },
         outcome: input.outcome ?? 'ok',
       }
       receipts = [...receipts, receipt].slice(-MAX_AUTHORING_EVENTS)

@@ -28,6 +28,25 @@ export interface RunCapture {
   readonly inputSchema: Record<string, unknown>
   /** The contracts the run actually called, in trace order. */
   readonly contracts: readonly string[]
+  /** The input schema was OBSERVED from the run, never generated. */
+  readonly schemaSource?: 'observed'
+  /** How much the schema describes: observed, not exhaustive. */
+  readonly schemaCompleteness?: 'observed'
+  /** When the run input was captured, ISO 8601 (may differ from `at`). */
+  readonly capturedAt?: string
+}
+
+/** One capture while its optional provenance is being attached. */
+interface MutableRunCapture {
+  runId: string
+  at: string
+  program: string
+  tools: string[]
+  inputSchema: Record<string, unknown>
+  contracts: string[]
+  schemaSource?: 'observed'
+  schemaCompleteness?: 'observed'
+  capturedAt?: string
 }
 
 /** The store. */
@@ -120,7 +139,7 @@ export function createRunCaptureStore(options: { readonly file: string }): RunCa
     get: runId => captures.find(capture => capture.runId === runId),
     record(input) {
       if (Buffer.byteLength(input.program, 'utf8') > MAX_PROGRAM_BYTES) return undefined
-      const capture: RunCapture = {
+      const capture: MutableRunCapture = {
         runId: input.runId,
         at: input.at ?? new Date().toISOString(),
         program: input.program,
@@ -128,6 +147,11 @@ export function createRunCaptureStore(options: { readonly file: string }): RunCa
         inputSchema: input.inputSchema,
         contracts: [...input.contracts],
       }
+      // Optional provenance is copied only when the capture supplied it; nothing is
+      // inferred here, so an absent value stays absent rather than becoming a claim.
+      if (input.schemaSource !== undefined) capture.schemaSource = input.schemaSource
+      if (input.schemaCompleteness !== undefined) capture.schemaCompleteness = input.schemaCompleteness
+      if (input.capturedAt !== undefined) capture.capturedAt = input.capturedAt
       captures = [...captures.filter(existing => existing.runId !== capture.runId), capture].slice(-MAX_RUN_CAPTURES)
       write(options.file, { version: 1, captures })
       return capture

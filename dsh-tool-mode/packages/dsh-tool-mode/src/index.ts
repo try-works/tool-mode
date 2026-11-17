@@ -51,7 +51,11 @@ import {
   type AgentToolSummary,
   type AgentWorkflow,
   type AgentWorkflowSummary,
+  type ArtifactScope,
 } from './agent-authoring.ts'
+import { ArtifactScopeError, buildScopeContext, type BuiltScopeContext } from './artifact-scope-context.ts'
+import { cardExample as verifiedCardExample, captureDisclosure, inferRunInputSchema, suggestAgentName } from './authoring-quality.ts'
+import { evaluatePromotion, evidenceFromReceipts } from './artifact-promotion.ts'
 import { createAuthoringLedger, type AuthoringReceipt } from './authoring-ledger.ts'
 import { createRunCaptureStore, schemaShape, type RunCaptureStore } from './run-capture.ts'
 import { createSessionLedger, type SessionLedger } from './session-ledger.ts'
@@ -289,6 +293,18 @@ export interface Config {
   captureRunPrograms?: boolean
   /** Where run captures are stored; default is beside the authoring file. */
   runCaptureFile?: string
+  /**
+   * Authored-artifact scoping. Disabled by default: every artifact is global and
+   * behaviour is byte-identical to the pre-scoping store.
+   */
+  artifactScopes?: {
+    enabled?: boolean
+    defaultScope?: 'session' | 'workspace' | 'global'
+    workspaceRoot?: string
+    globalPromotion?: 'human' | 'off'
+    promoteMinUses?: number
+    expireSessionArtifacts?: boolean
+  }
   /**
    * The temp root DSH's PTC sandbox is pointed at (Windows ACL fix).
    *
@@ -856,6 +872,19 @@ export const Config: z<Config> = z.object({
   agentAuthoringFile: z.string().default(''),
   captureRunPrograms: z.boolean().default(true),
   runCaptureFile: z.string().default(''),
+  /**
+   * Authored-artifact scoping. DISABLED ships byte-identical global behaviour;
+   * enabling it makes new artifacts session-scoped by default and exposes
+   * session > workspace > global resolution plus promotion/expiry receipts.
+   */
+  artifactScopes: z.object({
+    enabled: z.boolean().default(false),
+    defaultScope: z.union([z.const('session'), z.const('workspace'), z.const('global')]).default('session'),
+    workspaceRoot: z.string().default('auto'),
+    globalPromotion: z.union([z.const('human'), z.const('off')]).default('human'),
+    promoteMinUses: z.number().min(0).default(2),
+    expireSessionArtifacts: z.boolean().default(true),
+  }),
   // Deliberately NO default: undefined selects the platform policy (the win32 DSH-home
   // default), while an explicit '' must be able to DISABLE the override.
   sandboxTempRoot: z.string(),
@@ -1153,9 +1182,13 @@ function cardLimits(entry: ModelCatalogEntry, tool: ModelCatalogEntry['tool']): 
   return parts.join('; ')
 }
 
-function cardExample(tool: ModelCatalogEntry['tool']): string {
-  if (tool.example !== undefined) return tool.example
-  return JSON.stringify(exampleFromSchema(operationInputSchema(tool)))
+function cardExample(tool: ModelCatalogEntry['tool']): string | undefined {
+  // Never synthesize a placeholder: an example an agent can copy must be the
+  // author's real JSON and must satisfy the schema. Otherwise the field is absent.
+  return verifiedCardExample({
+    inputSchema: operationInputSchema(tool),
+    ...tool.example === undefined ? {} : { example: tool.example },
+  }).example
 }
 
 /** Render one operation as a capability card. */
@@ -1171,7 +1204,7 @@ function operationCard(entry: ModelCatalogEntry, operation: ModelOperationSpec):
     whenToUse: cardWhenToUse(entry, operation.tool),
     ...operation.tool.whenNotToUse === undefined ? {} : { whenNotToUse: operation.tool.whenNotToUse },
     limits: cardLimits(entry, operation.tool),
-    example: cardExample(operation.tool),
+    ...cardExample(operation.tool) === undefined ? {} : { example: cardExample(operation.tool) as string },
   }
 }
 
@@ -1206,7 +1239,7 @@ export function describeModels(resolved: readonly ResolvedModel[]): ModelDescrip
     whenToUse: cardWhenToUse(entry, entry.tool),
     ...entry.tool.whenNotToUse === undefined ? {} : { whenNotToUse: entry.tool.whenNotToUse },
     limits: cardLimits(entry, entry.tool),
-    example: cardExample(entry.tool),
+    ...cardExample(entry.tool) === undefined ? {} : { example: cardExample(entry.tool) as string },
   }))
 }
 
@@ -1330,7 +1363,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
    * Declared OUTSIDE the authoring block because discovery is registered earlier and
    * still has to report what exists. Undefined means authoring is disabled.
    */
-  let authoringSnapshot: (() => {
+  let authoringSnapshot: ((exec: { agent?: unknown }) => {
     readonly tools: AgentToolSummary[]
     readonly workflows: AgentWorkflowSummary[]
     readonly recent: AuthoringReceipt[]
@@ -3771,6 +3804,12 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
                   version: { type: 'integer' },
                   outcome: { type: 'string', required: true },
                   durationMs: { type: 'number' },
+                  scope: { type: 'string' },
+                  targetScope: { type: 'string' },
+                  promotedFrom: { type: 'object', additionalProperties: true },
+                  evidence: { type: 'object', additionalProperties: true },
+                  uses: { type: 'integer' },
+                  sessions: { type: 'integer' },
                 },
               },
             },
@@ -4687,7 +4726,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         + 'tools), so a caller can tell callable from bindable without provoking a refusal. `unavailable` lists '
         + 'catalogued models that cannot be called here with its readiness state and reason. '
         + 'Read-only discovery (DECL-07): it never installs, prepares, activates or changes anything.',
-      parameters: {},
+      parameters: {
+        scope: { type: 'string', description: 'Optional authoring filter: session | workspace | global | all (default resolved).' },
+      } as unknown as ParameterSchemaSpec,
       output: {
         schema: {
           type: 'object',
@@ -4702,7 +4743,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         },
         render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
       },
-      async execute(_args, exec) {
+      async execute(args, exec) {
         const callerGrant = externalGrantContext.current()
         const permitted = callerGrant === undefined ? undefined : new Set(callerGrant)
         /**
@@ -4829,7 +4870,17 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         }
         const sessionId = (exec.agent as { sessionId?: string } | undefined)?.sessionId
         if (sessionId !== undefined) sessionLedger?.offered(sessionId, tools.map(tool => tool.name))
-        const authoring = authoringSnapshot?.()
+        const listedAuthoring = authoringSnapshot?.(exec)
+        const scopeFilter = typeof (args as { scope?: unknown }).scope === 'string'
+          ? (args as { scope: string }).scope
+          : undefined
+        const authoring = listedAuthoring === undefined || scopeFilter === undefined || scopeFilter === 'all'
+          ? listedAuthoring
+          : {
+              ...listedAuthoring,
+              tools: listedAuthoring.tools.filter(row => row.scope === scopeFilter),
+              workflows: listedAuthoring.workflows.filter(row => row.scope === scopeFilter),
+            }
         const session = sessionId === undefined ? undefined : sessionLedger?.summary(sessionId)
         return {
           catalogRevision: catalogRevision(),
@@ -4877,6 +4928,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
                   // though the entry keeps room for implementation-specific extras.
                   semantics: { type: 'object', additionalProperties: true },
                   unsupported: { type: 'array', items: { type: 'string' } },
+                  scope: { type: 'string' },
+                  shadowing: { type: 'object', additionalProperties: true },
                 },
               },
             },
@@ -4884,8 +4937,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         },
         render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
       },
-      async execute(args) {
+      async execute(args, exec) {
         const names = args.tools as string[]
+        const authoring = authoringSnapshot?.(exec)
         const callerGrant = externalGrantContext.current()
         const permitted = callerGrant === undefined ? undefined : new Set(callerGrant)
         const entries = []
@@ -4906,7 +4960,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             && described.model === undefined) {
             throw new Error(`unknown tool ${JSON.stringify(name)}`)
           }
-          entries.push(described)
+          const row = authoring === undefined
+            ? undefined
+            : authoring.workflows.find(candidate => workflowToolName(candidate.name) === name)
+              ?? authoring.tools.find(candidate => candidate.name === name)
+          entries.push(row === undefined
+            ? described
+            : { ...described, scope: row.scope, ...row.shadowing === null ? {} : { shadowing: row.shadowing } })
         }
         return { catalogRevision: catalogRevision(), tools: entries } as never
       },
@@ -5276,10 +5336,30 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     }
   }
   if (config.allowAgentAuthoring !== false) {
+    /**
+     * Scoping runtime facts. The config object always exists after Schemastery parsing,
+     * but a hand-built test config can omit it; the fallback is exactly the disabled shape.
+     */
+    const scopeSettings = config.artifactScopes ?? {
+      enabled: false,
+      defaultScope: 'session' as const,
+      workspaceRoot: 'auto',
+      globalPromotion: 'human' as const,
+      promoteMinUses: 2,
+      expireSessionArtifacts: true,
+    }
+    const scopingEnabled = scopeSettings.enabled === true
+    // Global promotion is an OPERATOR decision, never a model-supplied boolean.
+    // The operator exports this in the host environment after a human approval;
+    // a tool call cannot set it. Absent means no global promotion.
+    const globalApprovalGranted = process.env['DSH_ARTIFACT_GLOBAL_APPROVAL'] === '1'
     const authoringFile = (config.agentAuthoringFile ?? '').length > 0
       ? config.agentAuthoringFile as string
       : defaultAgentAuthoringFile(config.stateFile)
-    const authoringStore = createAgentAuthoringStore({ file: authoringFile })
+    const authoringStore = createAgentAuthoringStore({
+      file: authoringFile,
+      scopeEnabled: scopingEnabled,
+    })
     if (authoringStore.issue !== undefined) {
       ctx.logger.warn('model-tools: agent authoring: ' + authoringStore.issue)
     }
@@ -5289,20 +5369,123 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     if (authoringLedger.issue !== undefined) {
       ctx.logger.warn('model-tools: authoring ledger: ' + authoringLedger.issue)
     }
-    authoringReceipts = () => authoringLedger.list()
-    authoringSnapshot = () => ({
-      tools: authoringStore.listTools(),
-      workflows: authoringStore.listWorkflows(),
-      recent: authoringLedger.list().slice(-20),
-      repeatedShapes: findRepeatedShapes(invocationReceipts),
+    // ctx.get() is the OPTIONAL service lookup: reading ctx.sessions directly
+    // would require a Cordis injection declaration and break every mount that does
+    // not load SessionStore (the authoring unit tests among them).
+    const sessionsService = ctx.get('sessions' as never) as unknown as {
+      get(id: string): { header?: { parentSession?: string; cwd?: string } } | undefined
+    } | undefined
+    const parentOfSession = (id: string): string | undefined => {
+      const session = sessionsService?.get(id)
+      const parent = session?.header?.parentSession
+      return parent === undefined ? undefined : String(parent)
+    }
+    const cwdOfSession = (id: string): string => {
+      const cwd = sessionsService?.get(id)?.header?.cwd
+      return cwd !== undefined && cwd.length > 0 ? cwd : process.cwd()
+    }
+    /**
+     * Resolve the caller's artifact scope. A session id is the LEAF id; the context
+     * helper walks to the root so subagents share their parent's session artifacts.
+     */
+    const scopeFor = (exec: { agent?: unknown } | undefined, requested?: string): BuiltScopeContext => {
+      const sessionId = (exec?.agent as { sessionId?: string } | undefined)?.sessionId
+      if (!scopingEnabled && requested !== undefined && requested !== 'global') {
+        throw new Error('E_SCOPE_DISABLED: artifactScopes.enabled is false, so only global scope is available '
+          + '(requested "' + requested + '"; allowed: global)')
+      }
+      try {
+        return buildScopeContext({
+        config: { enabled: scopingEnabled, defaultScope: scopeSettings.defaultScope ?? 'session' },
+        ...sessionId === undefined ? {} : { sessionId },
+        ...requested === undefined ? {} : { requestedScope: requested },
+        parentOf: parentOfSession,
+        cwd: sessionId === undefined ? process.cwd() : cwdOfSession(sessionId),
+          ...scopeSettings.workspaceRoot === 'auto' ? {} : { workspaceRoot: scopeSettings.workspaceRoot },
+        })
+      } catch (error) {
+        if (error instanceof ArtifactScopeError) throw new Error(error.code + ': ' + error.message)
+        throw error
+      }
+    }
+    /** The workspace-only context used to register durable rows at boot. */
+    const workspaceScope = buildScopeContext({
+      config: { enabled: true, defaultScope: 'workspace' },
+      parentOf: () => undefined,
+      cwd: process.cwd(),
+      ...scopeSettings.workspaceRoot === 'auto' ? {} : { workspaceRoot: scopeSettings.workspaceRoot },
     })
+    authoringReceipts = () => authoringLedger.list()
+    authoringSnapshot = (exec) => {
+      const scope = scopeFor(exec)
+      const root = scope.rootSessionId
+      const pending = root === undefined
+        ? []
+        : [
+            ...authoringStore.sessionWorkflows(root).map(workflow => {
+              const evidence = evidenceFromReceipts(invocationReceipts, { name: workflow.name, digest: workflow.digest })
+              return { artifactKind: 'workflow', name: workflow.name, scope: 'session', ...evidence, eligibleFor: ['workspace'] }
+            }),
+            ...authoringStore.sessionTools(root).map(tool => {
+              const evidence = evidenceFromReceipts(invocationReceipts, { name: tool.name, digest: tool.digest })
+              return { artifactKind: 'tool', name: tool.name, scope: 'session', ...evidence, eligibleFor: ['workspace'] }
+            }),
+          ]
+      return {
+        tools: authoringStore.listTools(scope.context).map(tool => ({
+          ...tool,
+          ...evidenceFromReceipts(invocationReceipts, { name: tool.name, digest: tool.digest }),
+        })),
+        workflows: authoringStore.listWorkflows(scope.context).map(workflow => ({
+          ...workflow,
+          ...evidenceFromReceipts(invocationReceipts, { name: workflow.name, digest: workflow.digest }),
+        })),
+        recent: authoringLedger.list().slice(-20),
+        repeatedShapes: findRepeatedShapes(invocationReceipts),
+        pending,
+          runCapture: captureDisclosure({
+          captureRunPrograms: config.captureRunPrograms !== false,
+          ...config.runCaptureFile === undefined ? {} : { runCaptureFile: config.runCaptureFile },
+        }),
+      }
+    }
+    // Root-session end: receive the expired rows BEFORE deleting so the evidence
+    // can be attached to the expire receipt. A crash cannot emit this event; the
+    // docs state that unreceipted session rows are lost on a crash, by design.
+    ctx.on('session/disposed' as never, ((session: { header?: { id?: unknown; parentSession?: unknown } }) => {
+      if (!scopingEnabled || scopeSettings.expireSessionArtifacts === false) return
+      const id = session.header?.id
+      if (id === undefined || session.header?.parentSession !== undefined) return
+      const root = String(id)
+      const expired = authoringStore.expireSession(root)
+      for (const workflow of expired.workflows) {
+        const evidence = evidenceFromReceipts(invocationReceipts, { name: workflow.name, digest: workflow.digest })
+        authoringLedger.record({
+          operation: 'expire', artifactKind: 'workflow', name: workflow.name, version: workflow.version,
+          scope: 'session', uses: evidence.uses, sessions: evidence.sessions,
+        })
+      }
+      for (const tool of expired.tools) {
+        const evidence = evidenceFromReceipts(invocationReceipts, { name: tool.name, digest: tool.digest })
+        authoringLedger.record({
+          operation: 'expire', artifactKind: 'tool', name: tool.name, version: tool.version,
+          scope: 'session', uses: evidence.uses, sessions: evidence.sessions,
+        })
+      }
+    }) as never)
     /** The LIVE catalog revision, the same fact tool_mode_run reports (CODE-05). */
     const authoringRevision = (): string => String(extensionLifecycle?.generation ?? host.activationGeneration)
     /**
      * Record one nested receipt per traced sub-call, then the composition receipt (OBS-01).
      * A composed authored run is provenance twice over: the calls it made, and the run.
      */
-    const recordAuthoredRun = (receiptId: string, revision: string, contract: string, report: RunReport): void => {
+    const recordAuthoredRun = (
+      receiptId: string,
+      revision: string,
+      contract: string,
+      report: RunReport,
+      artifact?: { name: string; digest: string; scope: ArtifactScope; sessionId?: string },
+    ): void => {
       for (const call of report.meta.calls) {
         host.recordReceipt?.(buildInvocationReceipt({
           receiptId: host.nextReceiptId(),
@@ -5337,6 +5520,12 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         dataFlow: report.meta.dataFlow,
         dataFlowCoverage: report.meta.dataFlowCoverage,
         outcome: 'ok',
+        ...artifact === undefined ? {} : {
+          ...artifact.sessionId === undefined ? {} : { sessionId: artifact.sessionId, rootSessionId: artifact.sessionId },
+          artifactScope: artifact.scope,
+          artifactName: artifact.name,
+          artifactDigest: artifact.digest,
+        },
       }))
     }
 
@@ -5350,20 +5539,17 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
      */
     const registerWorkflow = (workflow: AgentWorkflow): boolean => {
       const toolName = workflowToolName(workflow.name)
-      const existing = workflowDisposers.get(toolName)
-      if (existing !== undefined) {
-        existing()
-        workflowDisposers.delete(toolName)
-        workflowToolNames.delete(toolName)
-      }
+      // A name is registered ONCE even when several scopes hold it: the published
+      // tool resolves the caller's scope at call time. Re-registering would churn
+      // the registry and break a program that already holds the binding.
+      if (workflowDisposers.has(toolName)) return true
       if (ctx.tools.schemas().some(schema => schema.name === toolName)) {
         ctx.logger.warn('model-tools: workflow ' + workflow.name + ' was not registered: a tool with that name already exists')
         return false
       }
-      let validateInput: ReturnType<typeof compileSchema>
       let parameters: ParameterSchemaSpec
       try {
-        validateInput = compileSchema(workflow.inputSchema)
+        compileSchema(workflow.inputSchema)
         parameters = toDshParameters(agentToolContract({
           name: toolName,
           description: workflow.description,
@@ -5385,21 +5571,26 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
               { type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value) },
             ],
           },
-          async execute(args) {
+          async execute(args, exec) {
+            const scope = scopeFor(exec)
+            const resolved = authoringStore.getWorkflow(workflow.name, scope.context) ?? workflow
             const active = workflowCallStack.getStore() ?? new Set<string>()
-            if (active.has(workflow.name)) {
-              throw new Error('workflow recursion refused: ' + workflow.name + ' is already on this call stack')
+            if (active.has(resolved.name)) {
+              throw new Error('workflow recursion refused: ' + resolved.name + ' is already on this call stack')
             }
-            return workflowCallStack.run(new Set([...active, workflow.name]), async () => {
-              assertAgainstSchema(toolName, validateInput, args)
+            return workflowCallStack.run(new Set([...active, resolved.name]), async () => {
+              // The published schema is the registration baseline; the resolved
+              // row may be a different version at another scope, so validate
+              // against the program that will actually run.
+              assertAgainstSchema(toolName, compileSchema(resolved.inputSchema), args)
               const receiptId = host.nextReceiptId()
               const revision = authoringRevision()
               const started = Date.now()
               let report: RunReport
               try {
                 report = await runAuthoredProgram({
-                  program: workflow.program,
-                  tools: workflow.tools,
+                  program: resolved.program,
+                  tools: resolved.tools,
                   input: args as JsonValue,
                   runner: programRunner,
                   receiptId,
@@ -5407,17 +5598,22 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
                 })
               } catch (error) {
                 authoringLedger.record({
-                  operation: 'run', artifactKind: 'workflow', name: workflow.name, version: workflow.version,
+                  operation: 'run', artifactKind: 'workflow', name: resolved.name, version: resolved.version,
                   outcome: 'failed', durationMs: Date.now() - started,
                 })
-                recordFailedComposition(receiptId, revision, 'workflow.' + workflow.name)
+                recordFailedComposition(receiptId, revision, 'workflow.' + resolved.name)
                 throw error
               }
               authoringLedger.record({
-                operation: 'run', artifactKind: 'workflow', name: workflow.name, version: workflow.version,
+                operation: 'run', artifactKind: 'workflow', name: resolved.name, version: resolved.version,
                 durationMs: Date.now() - started,
               })
-              recordAuthoredRun(receiptId, revision, 'workflow.' + workflow.name, report)
+              recordAuthoredRun(receiptId, revision, 'workflow.' + resolved.name, report, {
+                name: resolved.name,
+                digest: resolved.digest,
+                scope: resolved.scope,
+                ...scope.rootSessionId === undefined ? {} : { sessionId: scope.rootSessionId },
+              })
               return (report.result ?? null) as never
             })
           },
@@ -5431,7 +5627,21 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         return false
       }
     }
-    for (const workflow of authoringStore.workflowEntries()) registerWorkflow(workflow)
+    {
+      const bootNames = new Set<string>()
+      for (const workflow of authoringStore.workflowEntries()) {
+        if (bootNames.has(workflow.name)) continue
+        bootNames.add(workflow.name)
+        registerWorkflow(workflow)
+      }
+      if (scopingEnabled) {
+        for (const workflow of authoringStore.workflowEntries(workspaceScope.context)) {
+          if (bootNames.has(workflow.name)) continue
+          bootNames.add(workflow.name)
+          registerWorkflow(workflow)
+        }
+      }
+    }
     ctx.effect(() => () => {
       for (const dispose of workflowDisposers.values()) dispose()
       workflowDisposers.clear()
@@ -5448,18 +5658,18 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
      * same helper serves define, so the two registration paths cannot drift.
      */
     const registerAuthored = (definition: AgentToolDefinition): boolean => {
-      if (authoredToolNames.has(definition.name)) return false
+      if (authoredToolNames.has(definition.name)) return true
       if (ctx.tools.schemas().some(schema => schema.name === definition.name)) {
         ctx.logger.warn(
           'model-tools: authored tool ' + definition.name + ' was not registered: a tool with that name already exists',
         )
         return false
       }
-      let validateInput: ReturnType<typeof compileSchema>
       let parameters: ParameterSchemaSpec
       try {
-        // Compiled ONCE at registration: a malformed schema fails here, not on the first call.
-        validateInput = compileSchema(definition.inputSchema)
+        // A malformed baseline schema still fails at registration. The resolved row is
+        // compiled again at call time because another scope may shadow the baseline.
+        compileSchema(definition.inputSchema)
         parameters = toDshParameters(agentToolContract(definition)) as unknown as ParameterSchemaSpec
       } catch (error) {
         ctx.logger.warn(
@@ -5482,19 +5692,24 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
               { type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value) },
             ],
           },
-          async execute(args) {
+          async execute(args, exec) {
+            const scope = scopeFor(exec)
+            const resolved = authoringStore.getTool(definition.name, scope.context)
+            if (resolved === undefined) {
+              throw new Error('authored tool "' + definition.name + '" is not available in this scope')
+            }
             // The DSH parameters are deliberately LOOSER than the authored schema (the
-            // projection drops keywords it cannot advertise); enforce the full one so a
-            // dropped constraint is never silently unenforced (BASE-04).
-            assertAgainstSchema(definition.name, validateInput, args)
+            // projection drops keywords it cannot advertise); enforce the resolved full one
+            // so a dropped constraint is never silently unenforced (BASE-04).
+            assertAgainstSchema(resolved.name, compileSchema(resolved.inputSchema), args)
             const started = Date.now()
             const receiptId = host.nextReceiptId()
             const revision = authoringRevision()
             let report: RunReport
             try {
               report = await runAuthoredProgram({
-                program: definition.program,
-                tools: definition.tools,
+                program: resolved.program,
+                tools: resolved.tools,
                 input: args as JsonValue,
                 runner: programRunner,
                 receiptId,
@@ -5502,17 +5717,22 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
               })
             } catch (error) {
               authoringLedger.record({
-                operation: 'run', artifactKind: 'tool', name: definition.name, version: definition.version,
+                operation: 'run', artifactKind: 'tool', name: resolved.name, version: resolved.version,
                 outcome: 'failed', durationMs: Date.now() - started,
               })
-              recordFailedComposition(receiptId, revision, definition.name)
+              recordFailedComposition(receiptId, revision, resolved.name)
               throw error
             }
             authoringLedger.record({
-              operation: 'run', artifactKind: 'tool', name: definition.name, version: definition.version,
+              operation: 'run', artifactKind: 'tool', name: resolved.name, version: resolved.version,
               durationMs: Date.now() - started,
             })
-            recordAuthoredRun(receiptId, revision, definition.name, report)
+            recordAuthoredRun(receiptId, revision, resolved.name, report, {
+              name: resolved.name,
+              digest: resolved.digest,
+              scope: resolved.scope,
+              ...scope.rootSessionId === undefined ? {} : { sessionId: scope.rootSessionId },
+            })
             // The stored program's value, STRUCTURED: a composed step can read its
             // fields without parsing a JSON document first.
             return (report.result ?? null) as never
@@ -5546,7 +5766,21 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     }
     // BOOT: every stored authored tool is registered again, after the built-in tools, so a
     // restart is a continuation rather than a loss. Each entry is validated on load.
-    for (const definition of authoringStore.toolEntries()) registerAuthored(definition)
+    {
+      const bootNames = new Set<string>()
+      for (const definition of authoringStore.toolEntries()) {
+        if (bootNames.has(definition.name)) continue
+        bootNames.add(definition.name)
+        registerAuthored(definition)
+      }
+      if (scopingEnabled) {
+        for (const definition of authoringStore.toolEntries(workspaceScope.context)) {
+          if (bootNames.has(definition.name)) continue
+          bootNames.add(definition.name)
+          registerAuthored(definition)
+        }
+      }
+    }
     ctx.effect(() => () => {
       for (const dispose of authoredDisposers.values()) dispose()
       authoredDisposers.clear()
@@ -5565,8 +5799,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         action: {
           type: 'string',
           required: true,
-          enum: ['save', 'clone', 'list', 'get', 'delete', 'run'],
-          description: 'save: create or update (bumps the version). clone: copy an existing workflow to a new name. list: summaries. get/delete/run: by name or id.',
+          enum: ['save', 'clone', 'list', 'get', 'delete', 'run', 'promote', 'demote'],
+          description: 'save: create or update (bumps the version). clone: copy to a new name. list/get/delete/run: by name or id. promote/demote: move the artifact between scopes.',
         },
         name: { type: 'string', description: 'Workflow name (lowercase kebab/snake, 2-64 chars) or its id.' },
         target: { type: 'string', description: 'Clone only: the new workflow name.' },
@@ -5579,6 +5813,12 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         },
         input: { type: 'json', description: 'Run only: structured data bound as the program input variable.' },
         inputSchema: { type: 'json', description: 'Save only: JSON Schema for the callable workflow tool arguments.' },
+        scope: { type: 'string', description: 'session | workspace | global (default artifactScopes.defaultScope). list also accepts all.' },
+        to: { type: 'string', description: 'promote only: the destination scope (workspace or global).' },
+        from: { type: 'string', description: 'demote only: the scope to remove (default the caller scope).' },
+        force: { type: 'boolean', description: 'promote only: bypass evidence for a workspace promotion; never valid for global.' },
+        keepSource: { type: 'boolean', description: 'promote only: keep the source row (default true).' },
+        all: { type: 'boolean', description: 'list only: include shadowed rows as well as the winners.' },
       } as unknown as ParameterSchemaSpec,
       output: {
         schema: { type: 'object', additionalProperties: true } as unknown as ValueSchemaSpec,
@@ -5589,12 +5829,16 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         const sessionId = (exec.agent as { sessionId?: string } | undefined)?.sessionId
         const action = request['action']
         const nameOrId = typeof request['name'] === 'string' ? request['name'] : ''
+        const rawScope = typeof request['scope'] === 'string' ? request['scope'] : undefined
+        const requestedScope = rawScope === 'all' ? undefined : rawScope
+        const includeAll = rawScope === 'all' || request['all'] === true
+        const scope = scopeFor(exec, requestedScope)
         if (action === 'clone') {
           const target = typeof request['target'] === 'string' ? request['target'] : ''
           if (target.length === 0) throw new Error('clone needs a target workflow name')
-          const source = authoringStore.getWorkflow(nameOrId)
+          const source = authoringStore.getWorkflow(nameOrId, scope.context)
           if (source === undefined) throw new Error('unknown source workflow "' + nameOrId + '"')
-          if (authoringStore.getWorkflow(target) !== undefined) {
+          if (authoringStore.getWorkflow(target, scope.context) !== undefined) {
             throw new Error('workflow "' + target + '" already exists; choose a new target name')
           }
           const entry = authoringStore.saveWorkflow({
@@ -5608,11 +5852,17 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
               ? { inputSchema: request['inputSchema'] as Record<string, JsonValue> }
               : { inputSchema: source.inputSchema },
             catalogRevision: authoringRevision(),
-          })
+          }, scope.context)
           registerWorkflow(entry)
           if (sessionId !== undefined) sessionLedger?.authored(sessionId)
-          authoringLedger.record({ operation: 'clone', artifactKind: 'workflow', name: entry.name, version: entry.version })
-          return { cloned: true, workflow: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt } } as never
+          authoringLedger.record({
+            operation: 'clone', artifactKind: 'workflow', name: entry.name, version: entry.version,
+            scope: entry.scope,
+          })
+          return {
+            cloned: true,
+            workflow: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt, scope: entry.scope },
+          } as never
         }
         if (action === 'save') {
           const entry = authoringStore.saveWorkflow({
@@ -5624,34 +5874,52 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
               ? { inputSchema: request['inputSchema'] as Record<string, JsonValue> }
               : {},
             catalogRevision: authoringRevision(),
-          })
+          }, scope.context)
           registerWorkflow(entry)
           if (sessionId !== undefined) sessionLedger?.authored(sessionId)
-          authoringLedger.record({ operation: 'save', artifactKind: 'workflow', name: entry.name, version: entry.version })
-          return { saved: true, workflow: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt } } as never
+          authoringLedger.record({
+            operation: 'save', artifactKind: 'workflow', name: entry.name, version: entry.version,
+            scope: entry.scope,
+          })
+          return {
+            saved: true,
+            workflow: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt, scope: entry.scope },
+          } as never
         }
         if (action === 'list') {
-          return { workflows: authoringStore.listWorkflows() } as never
+          const rows = authoringStore.listWorkflows(scope.context, { all: includeAll })
+          const workflows = rawScope === undefined || rawScope === 'all'
+            ? rows
+            : rows.filter(row => row.scope === rawScope)
+          return { workflows, scope: scope.scope, shadowing: 'reported per row' } as never
         }
         if (action === 'get') {
-          const entry = authoringStore.getWorkflow(nameOrId)
+          const entry = authoringStore.getWorkflow(nameOrId, scope.context)
           if (entry === undefined) throw new Error('unknown workflow "' + nameOrId + '"; list the workflows to see what exists')
-          return { workflow: entry } as never
+          return { workflow: entry, scope: entry.scope } as never
         }
         if (action === 'delete') {
-          const entry = authoringStore.getWorkflow(nameOrId)
-          const deleted = authoringStore.deleteWorkflow(nameOrId)
+          const entry = authoringStore.getWorkflow(nameOrId, scope.context)
+          const deleted = authoringStore.deleteWorkflow(nameOrId, scope.context)
           if (deleted && entry !== undefined) {
-            const toolName = workflowToolName(entry.name)
-            workflowDisposers.get(toolName)?.()
-            workflowDisposers.delete(toolName)
-            workflowToolNames.delete(toolName)
-            authoringLedger.record({ operation: 'delete', artifactKind: 'workflow', name: entry.name, version: entry.version })
+            // Keep the published dispatcher while any scope still holds this name;
+            // deleting one row must unshadow, not withdraw the callable.
+            const stillThere = authoringStore.getWorkflow(nameOrId, scope.context) !== undefined
+              || authoringStore.getWorkflow(nameOrId) !== undefined
+            if (!stillThere) {
+              const toolName = workflowToolName(entry.name)
+              workflowDisposers.get(toolName)?.()
+              workflowDisposers.delete(toolName)
+              workflowToolNames.delete(toolName)
+            }
+            authoringLedger.record({
+              operation: 'delete', artifactKind: 'workflow', name: entry.name, version: entry.version, scope: entry.scope,
+            })
           }
           return { deleted } as never
         }
         if (action === 'run') {
-          const entry = authoringStore.getWorkflow(nameOrId)
+          const entry = authoringStore.getWorkflow(nameOrId, scope.context)
           if (entry === undefined) throw new Error('unknown workflow "' + nameOrId + '"; list the workflows to see what exists')
           const receiptId = host.nextReceiptId()
           const revision = authoringRevision()
@@ -5677,15 +5945,77 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             operation: 'run', artifactKind: 'workflow', name: entry.name, version: entry.version,
             durationMs: Date.now() - started,
           })
-          recordAuthoredRun(receiptId, revision, 'tool_mode_workflows', report)
+          recordAuthoredRun(receiptId, revision, 'tool_mode_workflows', report, {
+            name: entry.name,
+            digest: entry.digest,
+            scope: entry.scope,
+            ...scope.rootSessionId === undefined ? {} : { sessionId: scope.rootSessionId },
+          })
           return {
-            workflow: { id: entry.id, name: entry.name, version: entry.version },
+            workflow: { id: entry.id, name: entry.name, version: entry.version, scope: entry.scope },
             result: report.result,
             logs: report.logs,
             meta: report.meta,
           } as never
         }
-        throw new Error('unknown action "' + String(action) + '"; expected save, list, get, delete or run')
+        if (action === 'promote' || action === 'demote') {
+          const from = typeof request['from'] === 'string' ? request['from'] : undefined
+          const sourceScope = action === 'demote' && from !== undefined ? scopeFor(exec, from) : scope
+          const entry = authoringStore.getWorkflow(nameOrId, sourceScope.context)
+          if (entry === undefined) throw new Error('unknown workflow "' + nameOrId + '"')
+          if (action === 'demote') {
+            if (entry.scope === 'global' && !globalApprovalGranted) {
+              throw new Error('E_APPROVAL_REQUIRED: removing a global artifact requires a human decision '
+                + '(DSH_ARTIFACT_GLOBAL_APPROVAL=1 in the host environment)')
+            }
+            authoringStore.demote(nameOrId, sourceScope.context)
+            authoringLedger.record({
+              operation: 'demote', artifactKind: 'workflow', name: entry.name, version: entry.version,
+              scope: entry.scope,
+              ...requestedScope === undefined ? {} : { targetScope: requestedScope as ArtifactScope },
+            })
+            return { demoted: true, workflow: authoringStore.getWorkflow(nameOrId, scope.context) ?? null } as never
+          }
+          const to = typeof request['to'] === 'string' ? request['to'] : ''
+          const target = scopeFor(exec, to)
+          const evidence = evidenceFromReceipts(invocationReceipts, { name: entry.name, digest: entry.digest })
+          const decision = evaluatePromotion({
+            from: entry.scope,
+            to: target.scope,
+            evidence,
+            ...request['force'] === true ? { force: true } : {},
+            globalPromotion: scopeSettings.globalPromotion ?? 'human',
+            approval: globalApprovalGranted ? 'human' : 'none',
+            minUses: scopeSettings.promoteMinUses ?? 2,
+          })
+          if (!decision.ok) throw new Error(decision.code + ': ' + decision.message)
+          const promoted = authoringStore.promote(
+            nameOrId,
+            scope.context,
+            target.context,
+            {
+              scope: entry.scope,
+              scopeKey: entry.scopeKey,
+              version: entry.version,
+              at: new Date().toISOString(),
+              ...scope.rootSessionId === undefined ? {} : { sessionId: scope.rootSessionId },
+              tools: entry.tools,
+            },
+            request['keepSource'] !== false,
+          )
+          if (promoted.kind !== 'workflow') throw new Error('promotion produced the wrong artifact kind')
+          registerWorkflow(promoted.workflow)
+          authoringLedger.record({
+            operation: 'promote', artifactKind: 'workflow', name: promoted.workflow.name,
+            version: promoted.workflow.version, scope: promoted.workflow.scope, targetScope: target.scope,
+            evidence: decision.evidence,
+            uses: decision.evidence.uses,
+            sessions: decision.evidence.sessions,
+            promotedFrom: promoted.workflow.promotedFrom,
+          })
+          return { promoted: true, workflow: promoted.workflow, evidence: decision.evidence } as never
+        }
+        throw new Error('unknown action "' + String(action) + '"; expected save, clone, list, get, delete, run, promote or demote')
       },
     }))
 
@@ -5702,8 +6032,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         action: {
           type: 'string',
           required: true,
-          enum: ['define', 'clone', 'from-run', 'list', 'get', 'delete'],
-          description: 'define: create/update and register. clone: copy an existing tool to a new name. from-run: scaffold a tool from a captured successful run. list/get/delete: by name or id.',
+          enum: ['define', 'clone', 'from-run', 'list', 'get', 'delete', 'promote', 'demote'],
+          description: 'define: create/update and register. clone: copy to a new name. from-run: scaffold a tool from a captured successful run. list/get/delete: by name or id. promote/demote: move between scopes.',
         },
         name: { type: 'string', description: 'The authored tool name: agent_ followed by lowercase letters, digits or underscores.' },
         description: { type: 'string', description: 'What the tool does; shown to callers.' },
@@ -5716,6 +6046,12 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         },
         target: { type: 'string', description: 'Clone only: the new agent_* tool name.' },
         runId: { type: 'string', description: 'from-run: the run id to distill; no effect on other actions.' },
+        scope: { type: 'string', description: 'session | workspace | global (default artifactScopes.defaultScope). list also accepts all.' },
+        to: { type: 'string', description: 'promote only: the destination scope (workspace or global).' },
+        from: { type: 'string', description: 'demote only: the scope to remove (default the caller scope).' },
+        force: { type: 'boolean', description: 'promote only: bypass evidence for a workspace promotion; never valid for global.' },
+        keepSource: { type: 'boolean', description: 'promote only: keep the source row (default true).' },
+        all: { type: 'boolean', description: 'list only: include shadowed rows as well as the winners.' },
       } as unknown as ParameterSchemaSpec,
       output: {
         schema: { type: 'object', additionalProperties: true } as unknown as ValueSchemaSpec,
@@ -5725,13 +6061,17 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         let request = args as Record<string, unknown>
         const sessionId = (exec.agent as { sessionId?: string } | undefined)?.sessionId
         let action = request['action']
-        const nameOrId = typeof request['name'] === 'string' ? request['name'] : ''
+        let nameOrId = typeof request['name'] === 'string' ? request['name'] : ''
+        const rawScope = typeof request['scope'] === 'string' ? request['scope'] : undefined
+        const requestedScope = rawScope === 'all' ? undefined : rawScope
+        const includeAll = rawScope === 'all' || request['all'] === true
+        const scope = scopeFor(exec, requestedScope)
         if (action === 'clone') {
           const target = typeof request['target'] === 'string' ? request['target'] : ''
           if (target.length === 0) throw new Error('clone needs a target agent_* tool name')
-          const source = authoringStore.getTool(nameOrId)
+          const source = authoringStore.getTool(nameOrId, scope.context)
           if (source === undefined) throw new Error('unknown source tool "' + nameOrId + '"')
-          if (authoringStore.getTool(target) !== undefined) {
+          if (authoringStore.getTool(target, scope.context) !== undefined) {
             throw new Error('tool "' + target + '" already exists; choose a new target name')
           }
           const entry = authoringStore.saveTool({
@@ -5744,14 +6084,19 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             tools: Array.isArray(request['tools'])
               ? request['tools'].filter((tool): tool is string => typeof tool === 'string')
               : source.tools,
-          })
+          }, scope.context)
           if (!registerAuthored(entry)) {
             authoringStore.deleteTool(entry.id)
             throw new Error('the cloned tool could not be registered; see the host log')
           }
           if (sessionId !== undefined) sessionLedger?.authored(sessionId)
-          authoringLedger.record({ operation: 'clone', artifactKind: 'tool', name: entry.name, version: entry.version })
-          return { cloned: true, tool: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt } } as never
+          authoringLedger.record({
+            operation: 'clone', artifactKind: 'tool', name: entry.name, version: entry.version, scope: entry.scope,
+          })
+          return {
+            cloned: true,
+            tool: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt, scope: entry.scope },
+          } as never
         }
         if (action === 'from-run') {
           if (runCaptureStore === undefined) {
@@ -5762,32 +6107,43 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           if (capture === undefined) {
             throw new Error('no captured run "' + runId + '"; enable captureRunPrograms and run the program once first')
           }
+          if (nameOrId.length === 0) nameOrId = suggestAgentName(capture.runId)
+          const inferred = inferRunInputSchema(capture)
+          const explicitSchema = typeof request['inputSchema'] === 'object'
+            && request['inputSchema'] !== null
+            && !Array.isArray(request['inputSchema'])
           request = {
             ...request,
             action: 'define',
+            name: nameOrId,
             program: capture.program,
             tools: capture.tools,
             description: typeof request['description'] === 'string' && request['description'].length > 0
               ? request['description']
               : 'Distilled from successful run ' + capture.runId + ' (contracts: ' + capture.contracts.join(', ') + ').',
-            inputSchema: request['inputSchema'] ?? capture.inputSchema,
+            inputSchema: explicitSchema ? request['inputSchema'] : inferred.schema,
+            schemaInferred: !explicitSchema,
           }
           action = 'define'
         }
         if (action === 'define') {
-          if (!AGENT_TOOL_NAME_PATTERN.test(nameOrId)) {
-            throw new Error(
-              '"' + nameOrId + '" is not an authored tool name: it must match agent_[a-z0-9_]{2,60} (for example "agent_double")',
-            )
-          }
+          const nameIssue = AGENT_TOOL_NAME_PATTERN.test(nameOrId)
+            ? undefined
+            : '"' + nameOrId + '" is not an authored tool name: it must match agent_[a-z0-9_]{2,60} '
+              + '(for example "agent_double")'
           const inputSchema = request['inputSchema']
-          if (typeof inputSchema !== 'object' || inputSchema === null || Array.isArray(inputSchema)) {
-            throw new Error('inputSchema must be a JSON object schema (type: "object" with declared properties)')
+          const schemaIssue = typeof inputSchema !== 'object' || inputSchema === null || Array.isArray(inputSchema)
+            ? 'inputSchema must be a JSON object schema (type: "object" with declared properties)'
+            : undefined
+          if (nameIssue !== undefined && schemaIssue !== undefined) {
+            throw new Error(nameIssue + '; ' + schemaIssue)
           }
+          if (nameIssue !== undefined) throw new Error(nameIssue)
+          if (schemaIssue !== undefined) throw new Error(schemaIssue)
           // Collision is checked BEFORE persisting: a definition that cannot own its name is
           // refused, not stored to fail later. A re-define of one of OUR tools is an update.
-          const stored = authoringStore.getTool(nameOrId)
-          if (stored === undefined && ctx.tools.schemas().some(schema => schema.name === nameOrId)) {
+          const stored = authoringStore.getTool(nameOrId, scope.context)
+          if (stored === undefined && !authoredToolNames.has(nameOrId) && ctx.tools.schemas().some(schema => schema.name === nameOrId)) {
             throw new Error('a tool named "' + nameOrId + '" is already registered; choose another agent_* name')
           }
           const entry = authoringStore.saveTool({
@@ -5796,37 +6152,107 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             inputSchema: inputSchema as Record<string, JsonValue>,
             program: typeof request['program'] === 'string' ? request['program'] : '',
             tools: Array.isArray(request['tools']) ? request['tools'].filter((tool): tool is string => typeof tool === 'string') : [],
-          })
-          // Replace the old registration (an update may change schema or program) and register
-          // the stored definition now: a define that is not callable is a lie.
-          unregisterAuthored(entry.name)
-          if (!registerAuthored(entry)) {
+          }, scope.context)
+          // The dispatcher resolves the caller's scope at call time. Only the first
+          // row for a name needs a registration; later scope shadows reuse it.
+          if (!authoredToolNames.has(entry.name) && !registerAuthored(entry)) {
             if (stored === undefined) authoringStore.deleteTool(entry.id)
             throw new Error('the tool ' + entry.name + ' was defined but could not be registered; see the host log')
           }
           if (sessionId !== undefined) sessionLedger?.authored(sessionId)
-          authoringLedger.record({ operation: 'define', artifactKind: 'tool', name: entry.name, version: entry.version })
-          return { defined: true, tool: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt } } as never
+          authoringLedger.record({
+            operation: 'define', artifactKind: 'tool', name: entry.name, version: entry.version, scope: entry.scope,
+          })
+          return {
+            defined: true,
+            tool: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt, scope: entry.scope },
+            ...request['schemaInferred'] === true ? { schemaInferred: true, typed: false } : {},
+          } as never
         }
         if (action === 'list') {
-          return { tools: authoringStore.listTools() } as never
+          const rows = authoringStore.listTools(scope.context, { all: includeAll })
+          const tools = rawScope === undefined || rawScope === 'all'
+            ? rows
+            : rows.filter(row => row.scope === rawScope)
+          return { tools, scope: scope.scope } as never
         }
         if (action === 'get') {
-          const entry = authoringStore.getTool(nameOrId)
+          const entry = authoringStore.getTool(nameOrId, scope.context)
           if (entry === undefined) throw new Error('unknown authored tool "' + nameOrId + '"; list the tools to see what exists')
-          return { tool: entry } as never
+          return { tool: entry, scope: entry.scope } as never
         }
         if (action === 'delete') {
-          const entry = authoringStore.getTool(nameOrId)
+          const entry = authoringStore.getTool(nameOrId, scope.context)
           if (entry === undefined) return { deleted: false } as never
-          unregisterAuthored(entry.name)
-          const deleted = authoringStore.deleteTool(entry.id)
+          const deleted = authoringStore.deleteTool(nameOrId, scope.context)
           if (deleted) {
-            authoringLedger.record({ operation: 'delete', artifactKind: 'tool', name: entry.name, version: entry.version })
+            const stillThere = authoringStore.getTool(nameOrId, scope.context) !== undefined
+              || authoringStore.getTool(nameOrId) !== undefined
+            if (!stillThere) unregisterAuthored(entry.name)
+            authoringLedger.record({
+              operation: 'delete', artifactKind: 'tool', name: entry.name, version: entry.version, scope: entry.scope,
+            })
           }
           return { deleted } as never
         }
-        throw new Error('unknown action "' + String(action) + '"; expected define, list, get or delete')
+        if (action === 'promote' || action === 'demote') {
+          const from = typeof request['from'] === 'string' ? request['from'] : undefined
+          const sourceScope = action === 'demote' && from !== undefined ? scopeFor(exec, from) : scope
+          const entry = authoringStore.getTool(nameOrId, sourceScope.context)
+          if (entry === undefined) throw new Error('unknown authored tool "' + nameOrId + '"')
+          if (action === 'demote') {
+            if (entry.scope === 'global' && !globalApprovalGranted) {
+              throw new Error('E_APPROVAL_REQUIRED: removing a global artifact requires a human decision '
+                + '(DSH_ARTIFACT_GLOBAL_APPROVAL=1 in the host environment)')
+            }
+            authoringStore.demote(nameOrId, sourceScope.context)
+            authoringLedger.record({
+              operation: 'demote', artifactKind: 'tool', name: entry.name, version: entry.version, scope: entry.scope,
+            })
+            return { demoted: true, tool: authoringStore.getTool(nameOrId, scope.context) ?? null } as never
+          }
+          const to = typeof request['to'] === 'string' ? request['to'] : ''
+          const target = scopeFor(exec, to)
+          const evidence = evidenceFromReceipts(invocationReceipts, { name: entry.name, digest: entry.digest })
+          const decision = evaluatePromotion({
+            from: entry.scope,
+            to: target.scope,
+            evidence,
+            ...request['force'] === true ? { force: true } : {},
+            globalPromotion: scopeSettings.globalPromotion ?? 'human',
+            approval: globalApprovalGranted ? 'human' : 'none',
+            minUses: scopeSettings.promoteMinUses ?? 2,
+          })
+          if (!decision.ok) throw new Error(decision.code + ': ' + decision.message)
+          const promoted = authoringStore.promote(
+            nameOrId,
+            scope.context,
+            target.context,
+            {
+              scope: entry.scope,
+              scopeKey: entry.scopeKey,
+              version: entry.version,
+              at: new Date().toISOString(),
+              ...scope.rootSessionId === undefined ? {} : { sessionId: scope.rootSessionId },
+              tools: entry.tools,
+            },
+            request['keepSource'] !== false,
+          )
+          if (promoted.kind !== 'tool') throw new Error('promotion produced the wrong artifact kind')
+          if (!registerAuthored(promoted.tool)) {
+            throw new Error('the promoted tool could not be registered; see the host log')
+          }
+          authoringLedger.record({
+            operation: 'promote', artifactKind: 'tool', name: promoted.tool.name,
+            version: promoted.tool.version, scope: promoted.tool.scope, targetScope: target.scope,
+            evidence: decision.evidence,
+            uses: decision.evidence.uses,
+            sessions: decision.evidence.sessions,
+            promotedFrom: promoted.tool.promotedFrom,
+          })
+          return { promoted: true, tool: promoted.tool, evidence: decision.evidence } as never
+        }
+        throw new Error('unknown action "' + String(action) + '"; expected define, clone, from-run, list, get, delete, promote or demote')
       },
     }))
   }

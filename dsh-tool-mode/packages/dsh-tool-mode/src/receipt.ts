@@ -100,6 +100,16 @@ export interface InvocationReceipt {
   readonly usage?: { readonly inputTokens: number; readonly outputTokens: number } | 'unknown'
   /** Monetary cost, or the honest unknown. */
   readonly cost?: { readonly amount: number; readonly currency: string } | 'unknown'
+  /** The session that issued the call, when the host knows it. */
+  readonly sessionId?: string
+  /** The ROOT session of a nested composition, when the host knows it. */
+  readonly rootSessionId?: string
+  /** The scope of the authored artifact this call concerns, when it concerns one. */
+  readonly artifactScope?: string
+  /** The name of the authored artifact this call concerns, when it concerns one. */
+  readonly artifactName?: string
+  /** The content digest of the authored artifact this call concerns, when known. */
+  readonly artifactDigest?: string
 }
 
 /** The lifecycle operations EXT-35 requires recorded. */
@@ -226,11 +236,24 @@ export function buildInvocationReceipt(input: {
   readonly outcome?: InvocationReceipt['outcome']
   readonly usage?: InvocationReceipt['usage']
   readonly cost?: InvocationReceipt['cost']
+  /** The session that issued the call, when the host knows it. */
+  readonly sessionId?: string
+  /** The ROOT session of a nested composition, when the host knows it. */
+  readonly rootSessionId?: string
+  /** The scope of the authored artifact this call concerns. */
+  readonly artifactScope?: string
+  /** The name of the authored artifact this call concerns. */
+  readonly artifactName?: string
+  /** The content digest of the authored artifact this call concerns. */
+  readonly artifactDigest?: string
 }): InvocationReceipt {
   if (input.receiptId.length === 0) {
     throw new ReceiptRedactionError('a receipt needs an identity; an unidentifiable receipt is not an audit trail')
   }
-  return {
+  // Construct the receipt as mutable and attach each OPTIONAL provenance field only
+  // when it was supplied. There is no program/body parameter anywhere in the input,
+  // so an authored program's text cannot enter a receipt through this function.
+  const receipt: { -readonly [Key in keyof InvocationReceipt]: InvocationReceipt[Key] } = {
     receiptId: input.receiptId,
     // A direct call is its own run; a nested call belongs to the composition that
     // spawned it. The parent is the fallback so a lane that forgets runId still
@@ -253,14 +276,20 @@ export function buildInvocationReceipt(input: {
     warnings: (input.warnings ?? []).map(redactText),
     kind: input.kind ?? 'invocation',
     parentReceiptId: input.parentReceiptId ?? null,
-    ...input.callId === undefined ? {} : { callId: input.callId },
-    ...input.argumentPaths === undefined ? {} : { argumentPaths: [...input.argumentPaths] },
-    ...input.dataFlow === undefined ? {} : { dataFlow: input.dataFlow },
-    ...input.dataFlowCoverage === undefined ? {} : { dataFlowCoverage: input.dataFlowCoverage },
-    ...input.outcome === undefined ? {} : { outcome: input.outcome },
-    ...input.usage === undefined ? {} : { usage: input.usage },
-    ...input.cost === undefined ? {} : { cost: input.cost },
   }
+  if (input.callId !== undefined) receipt.callId = input.callId
+  if (input.argumentPaths !== undefined) receipt.argumentPaths = [...input.argumentPaths]
+  if (input.dataFlow !== undefined) receipt.dataFlow = input.dataFlow
+  if (input.dataFlowCoverage !== undefined) receipt.dataFlowCoverage = input.dataFlowCoverage
+  if (input.outcome !== undefined) receipt.outcome = input.outcome
+  if (input.usage !== undefined) receipt.usage = input.usage
+  if (input.cost !== undefined) receipt.cost = input.cost
+  if (input.sessionId !== undefined) receipt.sessionId = input.sessionId
+  if (input.rootSessionId !== undefined) receipt.rootSessionId = input.rootSessionId
+  if (input.artifactScope !== undefined) receipt.artifactScope = input.artifactScope
+  if (input.artifactName !== undefined) receipt.artifactName = input.artifactName
+  if (input.artifactDigest !== undefined) receipt.artifactDigest = input.artifactDigest
+  return receipt
 }
 
 /**

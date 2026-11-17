@@ -254,7 +254,9 @@ describe('task-57 (2c) — optional run capture and define-from-run', () => {
       captures: { inputSchema: { properties?: Record<string, unknown> } }[]
     }
     assert.deepEqual(Object.keys(capture.captures[0]?.inputSchema.properties ?? {}), ['value'])
-    assert.equal(JSON.stringify(capture).includes('21'), false, 'the input value must not be captured')
+    const serialized = JSON.stringify(capture.captures[0])
+    assert.equal(serialized.includes('"input"'), false, 'the input envelope must not be captured')
+    assert.equal(/"value"\s*:\s*21/.test(serialized), false, 'the input VALUE must not be captured')
   })
 
   it('captures by default, so define-from-run is not gated off', async () => {
@@ -273,6 +275,31 @@ describe('task-57 (2c) — optional run capture and define-from-run', () => {
     const executed = await call(ctx, 'agent_default_capture', { value: 2 })
     if (executed.isError) throw new Error(JSON.stringify(executed))
     assert.deepEqual(executed.value, { tripled: 6 })
+  })
+  it('from-run is zero-config: inferred name and observed schema, marked untyped', async () => {
+    const dir = tempDir()
+    const ctx = await mountGateOpen({
+      agentAuthoringFile: join(dir, 'authoring.json'),
+      runCaptureFile: join(dir, 'run-captures.json'),
+    })
+    const run = await call(ctx, 'tool_mode_run', {
+      code: 'return { tripled: input.value * 3 }', tools: [], input: { value: 7 },
+    })
+    if (run.isError) throw new Error(JSON.stringify(run))
+    const runId = (run.value as { meta: { receiptId: string } }).meta.receiptId
+    const defined = await call(ctx, 'tool_mode_tools', { action: 'from-run', runId })
+    if (defined.isError) throw new Error(JSON.stringify(defined))
+    const value = defined.value as { tool: { name: string }; schemaInferred?: boolean; typed?: boolean }
+    assert.match(value.tool.name, /^agent_from_/)
+    assert.equal(value.schemaInferred, true)
+    assert.equal(value.typed, false)
+    const executed = await call(ctx, value.tool.name, { value: 2 })
+    if (executed.isError) throw new Error(JSON.stringify(executed))
+    assert.deepEqual(executed.value, { tripled: 6 })
+    const listed = await call(ctx, 'tool_mode_list', {})
+    const authoring = (listed.value as { authoring?: { runCapture?: { enabled: boolean; notice: string } } }).authoring
+    assert.equal(authoring?.runCapture?.enabled, true)
+    assert.match(authoring?.runCapture?.notice ?? '', /input values are never stored/)
   })
 })
 

@@ -1,22 +1,10 @@
 {
-  "generatedAt": "2026-11-17T01:26:11.932Z",
+  "generatedAt": "2026-11-17T12:30:04.927Z",
   "boundaries": [
     "packages/dsh-tool-mode/tests/architecture.test.ts — model-free host boundary",
     "packages/dsh-tool-mode/tests/mcp-conformance.test.ts — protocol identity"
   ],
   "runs": [
-    {
-      "generatedAt": "2026-11-14T11:30:41.130Z",
-      "commit": "8a8006000e34ddd453e0bfde9e11eb6f5ba9ef8a",
-      "dirty": true,
-      "counts": {
-        "PASS": 309,
-        "FAIL": 0,
-        "BLOCKED": 8,
-        "NOT_RUN": 0,
-        "NOT_APPLICABLE": 0
-      }
-    },
     {
       "generatedAt": "2026-11-14T12:01:30.019Z",
       "commit": "b4ce02290bc697d7b2683abb345867e5de55590b",
@@ -596,6 +584,18 @@
     {
       "generatedAt": "2026-11-17T01:26:11.932Z",
       "commit": "29217846a3eebb170d7223d351a5f85c1a7629fd",
+      "dirty": true,
+      "counts": {
+        "PASS": 309,
+        "FAIL": 0,
+        "BLOCKED": 8,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-17T12:30:04.927Z",
+      "commit": "0d19639863957f031032fcd0c5887eade32b1d52",
       "dirty": true,
       "counts": {
         "PASS": 309,

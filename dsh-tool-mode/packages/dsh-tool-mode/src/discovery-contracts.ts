@@ -122,7 +122,12 @@ export const TOOL_MODE_LIST_CONTRACT: ToolContract = {
   inputSchema: {
     type: 'object',
     additionalProperties: false,
-    properties: {},
+    properties: {
+      scope: {
+        type: 'string',
+        description: 'Optional authored-artifact filter: session | workspace | global | all.',
+      },
+    },
     required: [],
   },
   outputSchema: discoveryOutputSchema,

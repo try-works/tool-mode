@@ -71,21 +71,24 @@ async function listing(ctx: Context): Promise<Row[]> {
 }
 
 describe('capability-card prose', () => {
-  it('populates whenToUse, limits and example on every model and operation card', async () => {
+  it('fills trigger/limits and never emits a generated placeholder example', async () => {
     const ctx = await mountPlugin()
     const rows = await listing(ctx)
     assert.ok(rows.length >= 18)
+    const assertExample = (example: string | undefined, label: string): void => {
+      if (example === undefined) return
+      assert.equal(example.includes('"example"'), false, `${label} must not be a generated placeholder`)
+    }
     for (const row of rows) {
       assert.equal(typeof row.whenToUse, 'string', `${row.id} model whenToUse`)
       assert.ok((row.whenToUse ?? '').length > 0, `${row.id} model whenToUse non-empty`)
       assert.equal(typeof row.limits, 'string', `${row.id} model limits`)
       assert.ok((row.limits ?? '').length > 0, `${row.id} model limits non-empty`)
-      assert.equal(typeof row.example, 'string', `${row.id} model example`)
-      assert.ok((row.example ?? '').length > 0, `${row.id} model example non-empty`)
+      assertExample(row.example, `${row.id} model`)
       for (const operation of row.operations) {
-        assert.ok((operation.whenToUse ?? '').length > 0, `${row.id}/${operation.example} operation whenToUse`)
+        assert.ok((operation.whenToUse ?? '').length > 0, `${row.id} operation whenToUse`)
         assert.ok((operation.limits ?? '').length > 0, `${row.id} operation limits`)
-        assert.ok((operation.example ?? '').length > 0, `${row.id} operation example`)
+        assertExample(operation.example, `${row.id} operation`)
       }
     }
   })

@@ -32,7 +32,7 @@ All 28 workspace packages, not only the published host packages.
 
 | Package | Version | Role |
 | --- | --- | --- |
-| `@try-works/dsh-tool-mode` | 0.5.88 | DSH plugin: catalog, dispatch, discovery, MCP |
+| `@try-works/dsh-tool-mode` | 0.5.89 | DSH plugin: catalog, dispatch, discovery, MCP |
 | `@try-works/tool-mode-contracts` | 0.1.1 | Model-free contract identities, schemas, validation |
 | `@try-works/tool-mode-extension-sdk` | 0.1.5 | Extension authoring API and manifest validation |
 | `@try-works/tool-mode-recipes` | 0.1.0 | Recipe format and provider-neutral LLM broker |
@@ -246,6 +246,30 @@ and registers the tool immediately; deleting withdraws it, and stored tools are
 re-registered on the next host load. `clone` copies an `agent_*` tool to a new name with
 optional overrides; the source is unchanged and the clone is a normal editable tool.
 
+### Scoping authored artifacts
+
+Scoping is **disabled by default** (`artifactScopes.enabled: false`), preserving the
+pre-scoping global namespace exactly. When enabled, each authored artifact lives at one of
+three scopes: `session` (root session; subagents inherit), `workspace` (git root, else
+cwd), or `global`. Resolution is `session > workspace > global`; `list` reports the winning
+`scope` plus the lower row it hides as `shadowing`, and `tool_mode_describe` reports both.
+Scope is data, never part of the artifact name: `workflow_x` and `agent_x` stay callable
+after promotion.
+
+`scope` is accepted on `save`/`define`/`clone` (and `from-run`); `promote` and `demote`
+move an artifact. Promotion copies under the same name with `version` 1 and a
+`promotedFrom` record, requires evidence (`uses >= artifactScopes.promoteMinUses`,
+`failures == 0`) unless `force: true` promotes to workspace, and **never** auto-promotes.
+A promotion to `global` also requires the operator to export
+`DSH_ARTIFACT_GLOBAL_APPROVAL=1` in the host environment; a model-supplied boolean cannot
+substitute for that. At root-session end session artifacts are removed and an `expire`
+receipt is recorded; `authoring.pending` exposes their use counts beforehand. A crash can
+lose session artifacts without an expire receipt, by design.
+
+`tool_mode_list { scope: "session" | "workspace" | "global" | "all" }` filters authored rows.
+Authoring rows carry `scope`, `uses` and `sessions`; invocation receipts for authored
+artifacts carry `artifactScope`, `artifactName` and `artifactDigest`, which is what promotion
+evidence reads. Existing v1 artifacts migrate to `global` on first read with no data move.
 Authored code runs only through the same confined program runner as `tool_mode_run`:
 `tools` is a binding subset, never a grant, and execution is refused until the operator
 opens hosted code execution (CODE-09 confinement evidence + CODE-10 `hostedCode: true`).
@@ -268,14 +292,18 @@ or program source, and it is only a suggestion — defining a workflow remains t
 decision.
 
 The `model_tools action="receipts"` result also exposes an `authoring` array of the
-value-free `define` / `save` / `clone` / `delete` / `run` events, so an authored change is
-auditable alongside invocation and lifecycle provenance.
+value-free `define` / `save` / `clone` / `promote` / `demote` / `delete` / `run` / `expire`
+events, with `scope`, `targetScope`, `promotedFrom`, `evidence`, `uses` and `sessions` where
+they apply, so an authored change is auditable alongside invocation and lifecycle provenance.
 
 Successful `tool_mode_run` programs are captured by default in `run-captures.json`, with a
 shape-only input schema and never the input values; set `captureRunPrograms: false` to opt
-out. With a capture present, `tool_mode_tools` action `from-run` creates an editable
-`agent_*` scaffold from that run; it is not a promise that the constants inside the program
-are parameterised.
+out. The notice is published as `authoring.runCapture` in discovery. With a capture present,
+`tool_mode_tools` action `from-run` creates an editable `agent_*` scaffold from that run.
+`name` and `inputSchema` are optional: the host suggests `agent_from_<run>` and returns the
+observed schema with `typed: false` and `schemaInferred: true`. That schema is honest about
+being observed - optionality, enums and defaults are not invented; supply an explicit
+`inputSchema` when those matter.
 
 ## Code Mode gate
 
