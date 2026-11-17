@@ -37,6 +37,8 @@ export interface InferredRunInputSchema {
   readonly schemaSource: 'observed'
   /** How much of the run input the schema describes. */
   readonly schemaCompleteness: 'observed'
+  /** Whether at least one argument key was observed (a non-empty parameter set). */
+  readonly parameterised: boolean
 }
 
 /** An empty object schema: the honest answer for a capture with no input. */
@@ -53,6 +55,44 @@ function copyJsonObject(value: JsonObject): JsonObject {
   return copied
 }
 
+/** Build an object schema from observed argument paths (keys only). */
+function schemaFromPaths(paths: readonly string[]): Record<string, JsonValue> {
+  const properties: Record<string, JsonValue> = {}
+  const required: string[] = []
+  for (const path of [...new Set(paths)].sort()) {
+    const segments = path.split('.').filter(segment => segment.length > 0 && segment !== '[]')
+    const head = segments[0]
+    if (head === undefined) continue
+    if (segments.length === 1) {
+      properties[head] = {}
+      required.push(head)
+      continue
+    }
+    // Nested paths are observed as an object; the leaf stays unconstrained
+    // because only keys were retained, never values or types.
+    let cursor = properties
+    for (let index = 0; index < segments.length - 1; index += 1) {
+      const segment = segments[index]!
+      const existing = cursor[segment]
+      if (existing === null || typeof existing !== 'object' || Array.isArray(existing)) {
+        cursor[segment] = { type: 'object', properties: {} }
+      }
+      const object = cursor[segment] as Record<string, JsonValue>
+      const child = object['properties']
+      if (child === null || typeof child !== 'object' || Array.isArray(child)) {
+        object['properties'] = {}
+      }
+      cursor = object['properties'] as Record<string, JsonValue>
+    }
+    cursor[segments[segments.length - 1]!] = {}
+  }
+  return {
+    type: 'object',
+    properties,
+    ...required.length === 0 ? {} : { required: [...new Set(required)] },
+  }
+}
+
 /**
  * Infer the input schema from one successful run capture.
  *
@@ -67,14 +107,29 @@ export function inferRunInputSchema(capture: RunCapture): InferredRunInputSchema
   // JSON round-trip first: the capture stores plain JSON, and this keeps the value
   // typed without a cast while also detaching it from the stored document.
   const candidate: JsonValue = JSON.parse(JSON.stringify(capture.inputSchema))
-  const schema: JsonObject = isJsonObject(candidate) && candidate['type'] === 'object'
-    ? copyJsonObject(candidate)
-    : EMPTY_INPUT_SCHEMA
+  const fromInput = isJsonObject(candidate) && candidate['type'] === 'object' ? copyJsonObject(candidate) : EMPTY_INPUT_SCHEMA
+  const observedPaths = capture.parameterPaths ?? []
+  const fromPaths = schemaFromPaths(observedPaths)
+  const pathProperties = fromPaths['properties']
+  const inputProperties = fromInput['properties']
+  const pathCount = pathProperties !== null && typeof pathProperties === 'object' && !Array.isArray(pathProperties)
+    ? Object.keys(pathProperties).length
+    : 0
+  const inputCount = inputProperties !== null && typeof inputProperties === 'object' && !Array.isArray(inputProperties)
+    ? Object.keys(inputProperties).length
+    : 0
+  // The captured input schema wins when it has keys; otherwise the call argument
+  // paths are the only parameter evidence (a program may hardcode its input).
+  const schema: JsonObject = inputCount > 0 ? fromInput : pathCount > 0 ? fromPaths : EMPTY_INPUT_SCHEMA
+  const properties = schema['properties']
+  const parameterised = properties !== null && typeof properties === 'object' && !Array.isArray(properties)
+    && Object.keys(properties).length > 0
   return {
     schema,
     typed: false,
     schemaSource: 'observed',
     schemaCompleteness: 'observed',
+    parameterised,
   }
 }
 

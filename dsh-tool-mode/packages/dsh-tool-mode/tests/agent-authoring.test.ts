@@ -478,6 +478,19 @@ describe('tool_mode_tools', () => {
     assert.deepEqual(contract.outputSchema, { type: ['object', 'array', 'string', 'number', 'boolean', 'null'] })
   })
 
+  it('exposes bare tool names as well as tools.<name> in a program', async () => {
+    const ctx = await mountHost({}, { gateOpen: true })
+    await callOk(ctx, 'tool_mode_tools', {
+      action: 'define', name: 'agent_echo', description: 'Echo.',
+      inputSchema: { type: 'object', properties: { value: { type: 'integer' } }, required: ['value'] },
+      program: 'return { echoed: input.value }', tools: [],
+    })
+    const result = await callOk(ctx, 'tool_mode_run', {
+      code: 'return await agent_echo({ value: 9 })', tools: ['agent_echo'], input: {},
+    }) as { result: unknown }
+    assert.deepEqual(result.result, { echoed: 9 })
+  })
+
   it('lets a host program bind a registered catalog tool, not just authored tools', async () => {
     const ctx = await mountHost({}, { gateOpen: true })
     ctx.tools.register(defineTool({

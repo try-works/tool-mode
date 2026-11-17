@@ -32,7 +32,7 @@ All 28 workspace packages, not only the published host packages.
 
 | Package | Version | Role |
 | --- | --- | --- |
-| `@try-works/dsh-tool-mode` | 0.5.89 | DSH plugin: catalog, dispatch, discovery, MCP |
+| `@try-works/dsh-tool-mode` | 0.5.90 | DSH plugin: catalog, dispatch, discovery, MCP |
 | `@try-works/tool-mode-contracts` | 0.1.1 | Model-free contract identities, schemas, validation |
 | `@try-works/tool-mode-extension-sdk` | 0.1.5 | Extension authoring API and manifest validation |
 | `@try-works/tool-mode-recipes` | 0.1.0 | Recipe format and provider-neutral LLM broker |
@@ -248,13 +248,14 @@ optional overrides; the source is unchanged and the clone is a normal editable t
 
 ### Scoping authored artifacts
 
-Scoping is **disabled by default** (`artifactScopes.enabled: false`), preserving the
-pre-scoping global namespace exactly. When enabled, each authored artifact lives at one of
-three scopes: `session` (root session; subagents inherit), `workspace` (git root, else
-cwd), or `global`. Resolution is `session > workspace > global`; `list` reports the winning
-`scope` plus the lower row it hides as `shadowing`, and `tool_mode_describe` reports both.
-Scope is data, never part of the artifact name: `workflow_x` and `agent_x` stay callable
-after promotion.
+Scoping is **enabled by default**; new artifacts are `session`-scoped and existing global
+rows remain resolvable. Set `artifactScopes.enabled: false` for the pre-scoping global
+namespace. Each artifact lives at one of three scopes: `session` (root session; subagents
+inherit), `workspace` (git root, else cwd), or `global`. Resolution is
+`session > workspace > global`; `list` reports the winning `scope` plus the lower row it
+hides as `shadowing`, and `tool_mode_describe` reports both. A caller with no session
+identity falls back to global. Scope is data, never part of the artifact name:
+`workflow_x` and `agent_x` stay callable after promotion.
 
 `scope` is accepted on `save`/`define`/`clone` (and `from-run`); `promote` and `demote`
 move an artifact. Promotion copies under the same name with `version` 1 and a
@@ -280,7 +281,8 @@ one JSON document under the plugin state directory (`agentAuthoringFile` overrid
 The program binding surface is fixed when a run starts. A tool defined with
 `tool_mode_tools` is registered immediately and appears in discovery, but a program cannot
 bind a name it defines in that same run: define the tool first, then compose it in a later
-program (or call it directly).
+program (or call it directly). Inside a program both `tools.<name>` and the bare
+`<name>` form are available; stored workflows written with the bare form keep working.
 
 Discovery now publishes an `authoring` block: the stored tools/workflows, the most recent
 authoring events (from `authoring-receipts.json`, value-free), a per-session adoption summary

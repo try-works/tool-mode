@@ -26,6 +26,8 @@ export interface RunCapture {
   readonly tools: readonly string[]
   /** A shape-only schema for the run input; never the input values. */
   readonly inputSchema: Record<string, unknown>
+  /** Argument keys the run's tool calls were wired with (dotted paths, no values). */
+  readonly parameterPaths?: readonly string[]
   /** The contracts the run actually called, in trace order. */
   readonly contracts: readonly string[]
   /** The input schema was OBSERVED from the run, never generated. */
@@ -43,6 +45,7 @@ interface MutableRunCapture {
   program: string
   tools: string[]
   inputSchema: Record<string, unknown>
+  parameterPaths?: readonly string[]
   contracts: string[]
   schemaSource?: 'observed'
   schemaCompleteness?: 'observed'
@@ -145,6 +148,7 @@ export function createRunCaptureStore(options: { readonly file: string }): RunCa
         program: input.program,
         tools: [...input.tools],
         inputSchema: input.inputSchema,
+        ...input.parameterPaths === undefined ? {} : { parameterPaths: [...input.parameterPaths] },
         contracts: [...input.contracts],
       }
       // Optional provenance is copied only when the capture supplied it; nothing is

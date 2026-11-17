@@ -289,10 +289,11 @@ describe('task-57 (2c) — optional run capture and define-from-run', () => {
     const runId = (run.value as { meta: { receiptId: string } }).meta.receiptId
     const defined = await call(ctx, 'tool_mode_tools', { action: 'from-run', runId })
     if (defined.isError) throw new Error(JSON.stringify(defined))
-    const value = defined.value as { tool: { name: string }; schemaInferred?: boolean; typed?: boolean }
+    const value = defined.value as { tool: { name: string }; schemaInferred?: boolean; typed?: boolean; parameterised?: boolean }
     assert.match(value.tool.name, /^agent_from_/)
     assert.equal(value.schemaInferred, true)
     assert.equal(value.typed, false)
+    assert.equal(value.parameterised, true)
     const executed = await call(ctx, value.tool.name, { value: 2 })
     if (executed.isError) throw new Error(JSON.stringify(executed))
     assert.deepEqual(executed.value, { tripled: 6 })
@@ -300,6 +301,21 @@ describe('task-57 (2c) — optional run capture and define-from-run', () => {
     const authoring = (listed.value as { authoring?: { runCapture?: { enabled: boolean; notice: string } } }).authoring
     assert.equal(authoring?.runCapture?.enabled, true)
     assert.match(authoring?.runCapture?.notice ?? '', /input values are never stored/)
+  })
+
+  it('from-run honestly reports a constant program as unparameterised', async () => {
+    const dir = tempDir()
+    const ctx = await mountGateOpen({
+      agentAuthoringFile: join(dir, 'authoring.json'),
+      runCaptureFile: join(dir, 'run-captures.json'),
+    })
+    const run = await call(ctx, 'tool_mode_run', { code: 'return { constant: 1 }', tools: [], input: {} })
+    if (run.isError) throw new Error(JSON.stringify(run))
+    const runId = (run.value as { meta: { receiptId: string } }).meta.receiptId
+    const defined = await call(ctx, 'tool_mode_tools', { action: 'from-run', runId })
+    if (defined.isError) throw new Error(JSON.stringify(defined))
+    const value = defined.value as { tool: { name: string }; parameterised?: boolean }
+    assert.equal(value.parameterised, false, 'a program that never reads input is not parameterised')
   })
 })
 

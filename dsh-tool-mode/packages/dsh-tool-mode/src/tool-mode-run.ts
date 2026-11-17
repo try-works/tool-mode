@@ -443,9 +443,17 @@ export function createProgramRunner(environment: RunnerEnvironment): ProgramRunn
                 read: async (): Promise<unknown> => request.input,
               },
             }
-        const program = inputNamespace === undefined
-          ? request.program
-          : `const input = await inputSource.read(null);\n${request.program}`
+        // Bare-name compatibility: the published examples and every stored
+        // workflow written before the namespace was documented use `lang_detect(...)`,
+        // not `tools.lang_detect(...)`. Destructuring the SAME authorized namespace
+        // preserves the grant and makes both forms identical.
+        const aliasNames = Object.keys(bindings.namespace.functions)
+          .filter(name => /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name) && name !== 'input' && name !== 'tools')
+        const aliasLine = aliasNames.length === 0
+          ? ''
+          : `const { ${aliasNames.join(', ')} } = ${bindings.namespace.global};\n`
+        const inputLine = inputNamespace === undefined ? '' : 'const input = await inputSource.read(null);\n'
+        const program = inputLine + aliasLine + request.program
         const result = await programDepth.run(depth + 1, () => runtime.run(runtime.resolve({
           program,
           bindings: inputNamespace === undefined ? [bindings.namespace] : [bindings.namespace, inputNamespace],

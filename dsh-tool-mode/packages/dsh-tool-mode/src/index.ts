@@ -873,12 +873,13 @@ export const Config: z<Config> = z.object({
   captureRunPrograms: z.boolean().default(true),
   runCaptureFile: z.string().default(''),
   /**
-   * Authored-artifact scoping. DISABLED ships byte-identical global behaviour;
-   * enabling it makes new artifacts session-scoped by default and exposes
-   * session > workspace > global resolution plus promotion/expiry receipts.
+   * Authored-artifact scoping. ENABLED by default: new artifacts are
+   * session-scoped, existing global rows remain resolvable, and
+   * session > workspace > global resolution plus promotion/expiry is active.
+   * Set enabled:false for the pre-scoping global-only behaviour.
    */
   artifactScopes: z.object({
-    enabled: z.boolean().default(false),
+    enabled: z.boolean().default(true),
     defaultScope: z.union([z.const('session'), z.const('workspace'), z.const('global')]).default('session'),
     workspaceRoot: z.string().default('auto'),
     globalPromotion: z.union([z.const('human'), z.const('off')]).default('human'),
@@ -5282,6 +5283,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
               program,
               tools: Array.isArray(captured.tools) ? captured.tools.filter((tool): tool is string => typeof tool === 'string') : [],
               inputSchema: schemaShape(captured.input),
+              parameterPaths: [...new Set(report.meta.calls.flatMap(call => call.argumentPaths ?? []))],
               contracts: report.meta.calls.map(call => call.name),
             })
           }
@@ -5341,7 +5343,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
      * but a hand-built test config can omit it; the fallback is exactly the disabled shape.
      */
     const scopeSettings = config.artifactScopes ?? {
-      enabled: false,
+      enabled: true,
       defaultScope: 'session' as const,
       workspaceRoot: 'auto',
       globalPromotion: 'human' as const,
@@ -5394,13 +5396,21 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         throw new Error('E_SCOPE_DISABLED: artifactScopes.enabled is false, so only global scope is available '
           + '(requested "' + requested + '"; allowed: global)')
       }
+      // A host caller with no session identity cannot hold session artifacts;
+      // fall back to global there rather than failing calls outside a session.
+      // An EXPLICIT session request still refuses.
+      const effectiveScope = requested ?? (
+        (scopeSettings.defaultScope ?? 'session') === 'session' && sessionId === undefined
+          ? 'global'
+          : undefined
+      )
       try {
         return buildScopeContext({
-        config: { enabled: scopingEnabled, defaultScope: scopeSettings.defaultScope ?? 'session' },
-        ...sessionId === undefined ? {} : { sessionId },
-        ...requested === undefined ? {} : { requestedScope: requested },
-        parentOf: parentOfSession,
-        cwd: sessionId === undefined ? process.cwd() : cwdOfSession(sessionId),
+          config: { enabled: scopingEnabled, defaultScope: scopeSettings.defaultScope ?? 'session' },
+          ...sessionId === undefined ? {} : { sessionId },
+          ...effectiveScope === undefined ? {} : { requestedScope: effectiveScope },
+          parentOf: parentOfSession,
+          cwd: sessionId === undefined ? process.cwd() : cwdOfSession(sessionId),
           ...scopeSettings.workspaceRoot === 'auto' ? {} : { workspaceRoot: scopeSettings.workspaceRoot },
         })
       } catch (error) {
@@ -5442,6 +5452,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         })),
         recent: authoringLedger.list().slice(-20),
         repeatedShapes: findRepeatedShapes(invocationReceipts),
+        scope: {
+          enabled: scopingEnabled,
+          defaultScope: scopeSettings.defaultScope ?? 'session',
+          workspaceRoot: scopeSettings.workspaceRoot ?? 'auto',
+        },
         pending,
           runCapture: captureDisclosure({
           captureRunPrograms: config.captureRunPrograms !== false,
@@ -6112,6 +6127,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           const explicitSchema = typeof request['inputSchema'] === 'object'
             && request['inputSchema'] !== null
             && !Array.isArray(request['inputSchema'])
+          const parameterised = /\binput\b/.test(capture.program) && (explicitSchema || inferred.parameterised)
+          const toolSchema = !explicitSchema && !parameterised
+            ? { type: 'object', properties: {} }
+            : explicitSchema ? request['inputSchema'] as Record<string, JsonValue> : inferred.schema
           request = {
             ...request,
             action: 'define',
@@ -6121,8 +6140,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             description: typeof request['description'] === 'string' && request['description'].length > 0
               ? request['description']
               : 'Distilled from successful run ' + capture.runId + ' (contracts: ' + capture.contracts.join(', ') + ').',
-            inputSchema: explicitSchema ? request['inputSchema'] : inferred.schema,
+            inputSchema: toolSchema,
             schemaInferred: !explicitSchema,
+            parameterised,
           }
           action = 'define'
         }
@@ -6166,7 +6186,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           return {
             defined: true,
             tool: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt, scope: entry.scope },
-            ...request['schemaInferred'] === true ? { schemaInferred: true, typed: false } : {},
+            ...request['schemaInferred'] === true
+              ? { schemaInferred: true, typed: false, parameterised: request['parameterised'] === true }
+              : { parameterised: request['parameterised'] === true },
           } as never
         }
         if (action === 'list') {

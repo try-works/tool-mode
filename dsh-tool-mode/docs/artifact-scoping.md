@@ -1,8 +1,9 @@
 # Artifact scoping
 
 Authored workflows (`workflow_<name>`) and tools (`agent_<name>`) can live at one of three
-scopes. Scoping is off by default; with `artifactScopes.enabled: false` every artifact is
-global and the pre-scoping behaviour is preserved.
+scopes. Scoping is **on by default**; new artifacts are session-scoped, existing global rows
+remain resolvable, and a caller with no session identity falls back to global. Set
+`artifactScopes.enabled: false` for the pre-scoping global-only behaviour.
 
 ```yaml
 artifactScopes:
@@ -53,9 +54,9 @@ evidence does not accrue to the new content.
 
 ## Rollout
 
-1. Ship with `enabled: false`; verify existing global behaviour.
-2. Enable with `defaultScope: session` on one host.
-3. Consider changing the default only after the adoption measurements.
+0.5.90 enables scoping by default with `defaultScope: session`. Existing v1 rows remain
+global and resolve underneath new session rows, so a stored `workflow_x` keeps working.
+Operators can still set `enabled: false` to return to the global-only path.
 
 Existing v1 store rows migrate to `global`/`host` on load with no data move. Writes use
 document version 2; reads still accept v1.
