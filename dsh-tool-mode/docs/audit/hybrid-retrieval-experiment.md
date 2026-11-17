@@ -1,6 +1,31 @@
 # Hybrid retrieval experiment (pre-registered)
 
-**Status:** plan only. No ranker default has been changed.
+**Status:** scored on 2026-11-17 after the prepared assets were restored. The hybrid is
+**rejected** by the pre-registered rule; no ranker default has been changed.
+
+## Result
+
+Corpus: `task-F4-v2.json` (52 documents, 3 expected aspects `d1,d2,d3`), query
+"How do honeybees find their way back to the hive?". Three warm repetitions per arm;
+p50/p95 are wall-clock per query.
+
+| Arm | hit@1 | expected in top 3 | recall@20 | p50 | p95 |
+| --- | --- | --- | --- | --- | --- |
+| A `semantic_rank` all | d2 (1/1) | 2/3 (0.67) | 3/3 | 18.0 s | 19.1 s |
+| B `text_embed` + cosine | d9 (0/1) | 1/3 (0.33) | 3/3 | 3.3 s | 3.9 s |
+| B hybrid (cosine top 20 → `text_rerank`) | d9 (0/1) | 1/3 (0.33) | 3/3 | 4.8 s | 5.3 s |
+| C `text_rerank` all | d9 (0/1) | 1/3 (0.33) | 2/3 | 1.6 s | 1.8 s |
+| D model reading (previous baseline) | correct | — | — | — | 18 s |
+
+Decision: **do not adopt**. Rule 1 fails: the hybrid's top-3 recovery (0.33) is not
+strictly above arm A (0.67) and only equals arm C (0.33). Rule 3 (second corpus) was not
+reached. The cross-encoder prefers topical bee documents but not the homing aspect; the
+embedding-only arm is more accurate on this query despite being the slowest.
+
+Keep the published descriptions' warning: `semantic_rank` is not reliably faster or more
+accurate than a model reading a small corpus, and `text_rerank` is not a drop-in
+improvement over it.
+
 
 ## Question
 
