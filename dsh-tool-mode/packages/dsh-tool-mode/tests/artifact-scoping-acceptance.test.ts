@@ -133,6 +133,37 @@ describe('artifact scoping T1-T12', () => {
     assert.equal(b.workflow.program, 'return 2')
   })
 
+  it('T1d: an implicit session default without a session downgrades visibly', async () => {
+    const ctx = await mountHost()
+    const saved = await ok(ctx, 'tool_mode_workflows', {
+      action: 'save', name: 'no-session-flow', program: 'return 1',
+    }, undefined as never) as { workflow: { scope: string }; scopeReason?: string }
+    assert.equal(saved.workflow.scope, 'global')
+    assert.equal(saved.scopeReason, 'no-session-id')
+    const listed = await ok(ctx, 'tool_mode_list', {}, undefined as never) as {
+      authoring?: { scope?: { reason?: string } }
+    }
+    assert.equal(listed.authoring?.scope?.reason, 'no-session-id')
+  })
+
+  it('T1c: a Code Mode nested call carries the caller session', async () => {
+    const ctx = await mountHost({ gateOpen: true })
+    await ok(ctx, 'tool_mode_tools', {
+      action: 'define', name: 'agent_scope_probe', description: 'Global.', scope: 'global',
+      inputSchema: { type: 'object', properties: {} },
+      program: 'return { scope: "global" }', tools: [],
+    }, 'session-a')
+    await ok(ctx, 'tool_mode_tools', {
+      action: 'define', name: 'agent_scope_probe', description: 'Session.', scope: 'session',
+      inputSchema: { type: 'object', properties: {} },
+      program: 'return { scope: "session" }', tools: [],
+    }, 'session-a')
+    const result = await ok(ctx, 'tool_mode_run', {
+      code: 'return await agent_scope_probe({})', tools: ['agent_scope_probe'], input: {},
+    }, 'session-a') as { result: { scope: string } }
+    assert.equal(result.result.scope, 'session', 'the nested call must resolve the caller session, not global')
+  })
+
   it('T2: a subagent writes into its root session scope', async () => {
     const ctx = await mountHost({ parents: { child: 'root' } })
     await ok(ctx, 'tool_mode_workflows', { action: 'save', name: 'subagent-flow', program: 'return 1' }, 'child')
@@ -171,7 +202,7 @@ describe('artifact scoping T1-T12', () => {
     assert.deepEqual(row?.shadowing, { scope: 'global', version: 1 })
     const b = await ok(ctx, 'tool_mode_workflows', { action: 'list' }, 'session-b') as { workflows: { scope: string }[] }
     assert.equal(b.workflows.find(candidate => candidate.name === 'shared-flow')?.scope, 'global')
-    const described = await ok(ctx, 'tool_mode_describe', { tools: ['workflow_shared_flow'] }, 'session-a') as {
+    const described = await ok(ctx, 'tool_mode_describe', { tools: ['shared-flow'] }, 'session-a') as {
       tools: { scope?: string; shadowing?: { scope: string } }[]
     }
     assert.equal(described.tools[0]?.scope, 'session')

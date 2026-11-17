@@ -4944,11 +4944,21 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         const callerGrant = externalGrantContext.current()
         const permitted = callerGrant === undefined ? undefined : new Set(callerGrant)
         const entries = []
-        for (const name of names) {
-          if (permitted !== undefined && !permitted.has(name)) {
-            throw new Error(`tool ${JSON.stringify(name)} is forbidden for this caller (EXT-32)`)
+        for (const requestedName of names) {
+          if (permitted !== undefined && !permitted.has(requestedName)) {
+            throw new Error(`tool ${JSON.stringify(requestedName)} is forbidden for this caller (EXT-32)`)
           }
-          const described = await describeOne(name)
+          const row = authoring === undefined
+            ? undefined
+            : authoring.workflows.find(candidate => candidate.name === requestedName)
+              ?? authoring.workflows.find(candidate => workflowToolName(candidate.name) === requestedName)
+              ?? authoring.tools.find(candidate => candidate.name === requestedName)
+          // An authored workflow is listed by its ARTIFACT name but callable by
+          // workflow_<name>; describe accepts either spelling.
+          const lookupName = row !== undefined && authoring?.workflows.includes(row) === true
+            ? workflowToolName(row.name)
+            : requestedName
+          const described = await describeOne(lookupName)
           // A KNOWN catalog name that cannot be called is EXPLAINED, not refused (P4).
           if (described.callable === false) {
             entries.push(described)
@@ -4961,10 +4971,6 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             && described.model === undefined) {
             throw new Error(`unknown tool ${JSON.stringify(name)}`)
           }
-          const row = authoring === undefined
-            ? undefined
-            : authoring.workflows.find(candidate => workflowToolName(candidate.name) === name)
-              ?? authoring.tools.find(candidate => candidate.name === name)
           entries.push(row === undefined
             ? described
             : { ...described, scope: row.scope, ...row.shadowing === null ? {} : { shadowing: row.shadowing } })
@@ -5038,6 +5044,12 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
    * program. The native/interactive path carries no context and keeps the host's grant.
    */
   const externalGrantContext = createExternalGrantContext()
+  /**
+   * The DSH execution context the CURRENT program belongs to. A nested call made
+   * by Code Mode must carry the same root session as the program's own caller;
+   * otherwise scoping sees no session and silently degrades to global (U24).
+   */
+  const programAgentContext = new AsyncLocalStorage<{ readonly agent?: unknown }>()
   const programRunner = createProgramRunner({
     context: ctx as never,
     /**
@@ -5079,11 +5091,15 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     confidential: () => [...confidentialTools],
     resolve: name => async (args: Record<string, unknown>) => {      // A binding dispatches through the SAME registry pipeline a native call uses
       // (ARCH-01), so a program cannot reach a tool the registry would refuse.
+      const callerAgent = programAgentContext.getStore()?.agent
       const result = await ctx.tools.execute({
         signal: new AbortController().signal,
         callId: `ptc_${name}_${Date.now().toString(36)}` as never,
         name,
         arguments: args,
+        // SAFETY: the outer tool execution already validated this agent; this only
+        // forwards the SAME context to the nested call.
+        ...callerAgent === undefined ? {} : { agent: callerAgent as never },
       })
       if (result.isError) throw new Error(result.error?.message ?? `${name} failed`)
       return result.value
@@ -5201,7 +5217,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         } as unknown as ValueSchemaSpec,
         render: (_args: unknown, value: unknown) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
       },
-      async execute(args) {
+      async execute(args, exec) {
         /**
          * THE GATE, ENFORCED — the caller `mayExposeToClients()` never had, so the refusal
          * is now REACHABLE rather than a boolean nothing consults. This tool is only
@@ -5217,10 +5233,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         const receiptId = host.nextReceiptId()
         let report: Awaited<ReturnType<typeof serveProgram>>
         try {
-          report = await serveProgram(args as Record<string, unknown>, programRunner, {
-            receiptId,
-            catalogRevision: revision,
-          })
+          const agent = (exec as { agent?: unknown } | undefined)?.agent
+          report = await programAgentContext.run(
+            agent === undefined ? {} : { agent },
+            () => serveProgram(args as Record<string, unknown>, programRunner, {
+              receiptId,
+              catalogRevision: revision,
+            }),
+          )
         } catch (error) {
           recordFailedComposition(receiptId, revision, 'tool_mode_run')
           throw error
@@ -5396,16 +5416,20 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         throw new Error('E_SCOPE_DISABLED: artifactScopes.enabled is false, so only global scope is available '
           + '(requested "' + requested + '"; allowed: global)')
       }
-      // A host caller with no session identity cannot hold session artifacts;
-      // fall back to global there rather than failing calls outside a session.
-      // An EXPLICIT session request still refuses.
-      const effectiveScope = requested ?? (
-        (scopeSettings.defaultScope ?? 'session') === 'session' && sessionId === undefined
-          ? 'global'
-          : undefined
-      )
+      // A host caller with no session identity cannot hold session artifacts.
+      // An IMPLICIT session default is downgraded to global but marked, so the
+      // caller can see it did not get a private artifact. An EXPLICIT session
+      // request refuses instead of silently writing somewhere else.
+      const implicitSessionWithoutId = requested === undefined
+        && (scopeSettings.defaultScope ?? 'session') === 'session'
+        && sessionId === undefined
+      if (requested === 'session' && sessionId === undefined) {
+        throw new Error('E_SESSION_REQUIRED: session scope needs a session id; '
+          + 'call from a session or choose workspace/global')
+      }
+      const effectiveScope = requested ?? (implicitSessionWithoutId ? 'global' : undefined)
       try {
-        return buildScopeContext({
+        const built = buildScopeContext({
           config: { enabled: scopingEnabled, defaultScope: scopeSettings.defaultScope ?? 'session' },
           ...sessionId === undefined ? {} : { sessionId },
           ...effectiveScope === undefined ? {} : { requestedScope: effectiveScope },
@@ -5413,6 +5437,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           cwd: sessionId === undefined ? process.cwd() : cwdOfSession(sessionId),
           ...scopeSettings.workspaceRoot === 'auto' ? {} : { workspaceRoot: scopeSettings.workspaceRoot },
         })
+        return implicitSessionWithoutId ? { ...built, scopeReason: 'no-session-id' } : built
       } catch (error) {
         if (error instanceof ArtifactScopeError) throw new Error(error.code + ': ' + error.message)
         throw error
@@ -5456,6 +5481,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           enabled: scopingEnabled,
           defaultScope: scopeSettings.defaultScope ?? 'session',
           workspaceRoot: scopeSettings.workspaceRoot ?? 'auto',
+          ...scope.scopeReason === undefined ? {} : { reason: scope.scopeReason },
         },
         pending,
           runCapture: captureDisclosure({
@@ -5603,14 +5629,17 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
               const started = Date.now()
               let report: RunReport
               try {
-                report = await runAuthoredProgram({
-                  program: resolved.program,
-                  tools: resolved.tools,
-                  input: args as JsonValue,
-                  runner: programRunner,
-                  receiptId,
-                  catalogRevision: revision,
-                })
+                report = await programAgentContext.run(
+                  { agent: (exec as { agent?: unknown } | undefined)?.agent },
+                  () => runAuthoredProgram({
+                    program: resolved.program,
+                    tools: resolved.tools,
+                    input: args as JsonValue,
+                    runner: programRunner,
+                    receiptId,
+                    catalogRevision: revision,
+                  }),
+                )
               } catch (error) {
                 authoringLedger.record({
                   operation: 'run', artifactKind: 'workflow', name: resolved.name, version: resolved.version,
@@ -5722,14 +5751,17 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             const revision = authoringRevision()
             let report: RunReport
             try {
-              report = await runAuthoredProgram({
-                program: resolved.program,
-                tools: resolved.tools,
-                input: args as JsonValue,
-                runner: programRunner,
-                receiptId,
-                catalogRevision: revision,
-              })
+              report = await programAgentContext.run(
+                { agent: (exec as { agent?: unknown } | undefined)?.agent },
+                () => runAuthoredProgram({
+                  program: resolved.program,
+                  tools: resolved.tools,
+                  input: args as JsonValue,
+                  runner: programRunner,
+                  receiptId,
+                  catalogRevision: revision,
+                }),
+              )
             } catch (error) {
               authoringLedger.record({
                 operation: 'run', artifactKind: 'tool', name: resolved.name, version: resolved.version,
@@ -5876,7 +5908,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           })
           return {
             cloned: true,
-            workflow: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt, scope: entry.scope },
+                        ...scope.scopeReason === undefined ? {} : { scopeReason: scope.scopeReason },
+workflow: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt, scope: entry.scope },
           } as never
         }
         if (action === 'save') {
@@ -5898,7 +5931,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           })
           return {
             saved: true,
-            workflow: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt, scope: entry.scope },
+                        ...scope.scopeReason === undefined ? {} : { scopeReason: scope.scopeReason },
+workflow: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt, scope: entry.scope },
           } as never
         }
         if (action === 'list') {
@@ -5941,14 +5975,17 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           const started = Date.now()
           let report: RunReport
           try {
-            report = await runAuthoredProgram({
-              program: entry.program,
-              tools: entry.tools,
-              input: request['input'] === undefined ? undefined : request['input'] as JsonValue,
-              runner: programRunner,
-              receiptId,
-              catalogRevision: revision,
-            })
+            report = await programAgentContext.run(
+              { agent: (exec as { agent?: unknown } | undefined)?.agent },
+              () => runAuthoredProgram({
+                program: entry.program,
+                tools: entry.tools,
+                input: request['input'] === undefined ? undefined : request['input'] as JsonValue,
+                runner: programRunner,
+                receiptId,
+                catalogRevision: revision,
+              }),
+            )
           } catch (error) {
             authoringLedger.record({
               operation: 'run', artifactKind: 'workflow', name: entry.name, version: entry.version,
@@ -6110,7 +6147,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           })
           return {
             cloned: true,
-            tool: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt, scope: entry.scope },
+                        ...scope.scopeReason === undefined ? {} : { scopeReason: scope.scopeReason },
+tool: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt, scope: entry.scope },
           } as never
         }
         if (action === 'from-run') {
@@ -6185,7 +6223,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           })
           return {
             defined: true,
-            tool: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt, scope: entry.scope },
+                        ...scope.scopeReason === undefined ? {} : { scopeReason: scope.scopeReason },
+tool: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt, scope: entry.scope },
             ...request['schemaInferred'] === true
               ? { schemaInferred: true, typed: false, parameterised: request['parameterised'] === true }
               : { parameterised: request['parameterised'] === true },

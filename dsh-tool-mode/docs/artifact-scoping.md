@@ -2,8 +2,10 @@
 
 Authored workflows (`workflow_<name>`) and tools (`agent_<name>`) can live at one of three
 scopes. Scoping is **on by default**; new artifacts are session-scoped, existing global rows
-remain resolvable, and a caller with no session identity falls back to global. Set
-`artifactScopes.enabled: false` for the pre-scoping global-only behaviour.
+remain resolvable, and Code Mode nested calls inherit the caller's session. A caller with no
+session identity is downgraded to global and told `scopeReason: "no-session-id"`; an explicit
+`scope: session` without a session is refused. Set `artifactScopes.enabled: false` for the
+pre-scoping global-only behaviour.
 
 ```yaml
 artifactScopes:
@@ -26,7 +28,7 @@ artifactScopes:
 Resolution is `session > workspace > global`; the first row with the name wins. A list row
 reports the winning `scope` and the nearest hidden lower row as `shadowing`, so the same
 name at two scopes is never silent. `tool_mode_describe` carries both fields for authored
-tools.
+tools and accepts either the artifact name or `workflow_<name>`.
 
 ## API
 

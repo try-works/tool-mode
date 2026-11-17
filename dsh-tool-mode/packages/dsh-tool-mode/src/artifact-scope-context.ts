@@ -148,6 +148,8 @@ export interface BuiltScopeContext {
   readonly scope: ArtifactScope
   /** The resolved workspace key, also present in `context.workspaceKey`. */
   readonly workspaceKey: string
+  /** Why the resolved scope differs from the requested/default scope, when it does. */
+  readonly scopeReason?: 'no-session-id' | undefined
 }
 
 /**
