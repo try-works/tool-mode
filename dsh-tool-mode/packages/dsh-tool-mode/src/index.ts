@@ -5499,10 +5499,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         action: {
           type: 'string',
           required: true,
-          enum: ['save', 'list', 'get', 'delete', 'run'],
-          description: 'save: create or update (bumps the version). list: summaries. get/delete/run: by name or id.',
+          enum: ['save', 'clone', 'list', 'get', 'delete', 'run'],
+          description: 'save: create or update (bumps the version). clone: copy an existing workflow to a new name. list: summaries. get/delete/run: by name or id.',
         },
         name: { type: 'string', description: 'Workflow name (lowercase kebab/snake, 2-64 chars) or its id.' },
+        target: { type: 'string', description: 'Clone only: the new workflow name.' },
         description: { type: 'string', description: 'What the workflow does; shown by list.' },
         program: { type: 'string', description: 'The Code Mode program body (async function body with top-level await/return).' },
         tools: {
@@ -5522,6 +5523,31 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         const sessionId = (exec.agent as { sessionId?: string } | undefined)?.sessionId
         const action = request['action']
         const nameOrId = typeof request['name'] === 'string' ? request['name'] : ''
+        if (action === 'clone') {
+          const target = typeof request['target'] === 'string' ? request['target'] : ''
+          if (target.length === 0) throw new Error('clone needs a target workflow name')
+          const source = authoringStore.getWorkflow(nameOrId)
+          if (source === undefined) throw new Error('unknown source workflow "' + nameOrId + '"')
+          if (authoringStore.getWorkflow(target) !== undefined) {
+            throw new Error('workflow "' + target + '" already exists; choose a new target name')
+          }
+          const entry = authoringStore.saveWorkflow({
+            name: target,
+            description: typeof request['description'] === 'string' ? request['description'] : source.description,
+            program: typeof request['program'] === 'string' ? request['program'] : source.program,
+            tools: Array.isArray(request['tools'])
+              ? request['tools'].filter((tool): tool is string => typeof tool === 'string')
+              : source.tools,
+            ...typeof request['inputSchema'] === 'object' && request['inputSchema'] !== null && !Array.isArray(request['inputSchema'])
+              ? { inputSchema: request['inputSchema'] as Record<string, JsonValue> }
+              : { inputSchema: source.inputSchema },
+            catalogRevision: authoringRevision(),
+          })
+          registerWorkflow(entry)
+          if (sessionId !== undefined) sessionLedger?.authored(sessionId)
+          authoringLedger.record({ operation: 'clone', artifactKind: 'workflow', name: entry.name, version: entry.version })
+          return { cloned: true, workflow: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt } } as never
+        }
         if (action === 'save') {
           const entry = authoringStore.saveWorkflow({
             name: nameOrId,
@@ -5610,8 +5636,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         action: {
           type: 'string',
           required: true,
-          enum: ['define', 'from-run', 'list', 'get', 'delete'],
-          description: 'define: create/update and register. from-run: scaffold a tool from a captured successful run. list/get/delete: by name or id.',
+          enum: ['define', 'clone', 'from-run', 'list', 'get', 'delete'],
+          description: 'define: create/update and register. clone: copy an existing tool to a new name. from-run: scaffold a tool from a captured successful run. list/get/delete: by name or id.',
         },
         name: { type: 'string', description: 'The authored tool name: agent_ followed by lowercase letters, digits or underscores.' },
         description: { type: 'string', description: 'What the tool does; shown to callers.' },
@@ -5622,6 +5648,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           items: { type: 'string' },
           description: 'The tool names the stored program will call; may be empty. Never the tool itself.',
         },
+        target: { type: 'string', description: 'Clone only: the new agent_* tool name.' },
         runId: { type: 'string', description: 'from-run: the run id to distill; no effect on other actions.' },
       } as unknown as ParameterSchemaSpec,
       output: {
@@ -5633,6 +5660,33 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         const sessionId = (exec.agent as { sessionId?: string } | undefined)?.sessionId
         let action = request['action']
         const nameOrId = typeof request['name'] === 'string' ? request['name'] : ''
+        if (action === 'clone') {
+          const target = typeof request['target'] === 'string' ? request['target'] : ''
+          if (target.length === 0) throw new Error('clone needs a target agent_* tool name')
+          const source = authoringStore.getTool(nameOrId)
+          if (source === undefined) throw new Error('unknown source tool "' + nameOrId + '"')
+          if (authoringStore.getTool(target) !== undefined) {
+            throw new Error('tool "' + target + '" already exists; choose a new target name')
+          }
+          const entry = authoringStore.saveTool({
+            name: target,
+            description: typeof request['description'] === 'string' ? request['description'] : source.description,
+            inputSchema: typeof request['inputSchema'] === 'object' && request['inputSchema'] !== null && !Array.isArray(request['inputSchema'])
+              ? request['inputSchema'] as Record<string, JsonValue>
+              : source.inputSchema,
+            program: typeof request['program'] === 'string' ? request['program'] : source.program,
+            tools: Array.isArray(request['tools'])
+              ? request['tools'].filter((tool): tool is string => typeof tool === 'string')
+              : source.tools,
+          })
+          if (!registerAuthored(entry)) {
+            authoringStore.deleteTool(entry.id)
+            throw new Error('the cloned tool could not be registered; see the host log')
+          }
+          if (sessionId !== undefined) sessionLedger?.authored(sessionId)
+          authoringLedger.record({ operation: 'clone', artifactKind: 'tool', name: entry.name, version: entry.version })
+          return { cloned: true, tool: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt } } as never
+        }
         if (action === 'from-run') {
           if (runCaptureStore === undefined) {
             throw new Error('from-run needs captureRunPrograms: true on this deployment')

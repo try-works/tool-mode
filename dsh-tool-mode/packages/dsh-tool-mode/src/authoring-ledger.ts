@@ -19,7 +19,7 @@ import { dirname } from 'node:path'
 export const MAX_AUTHORING_EVENTS = 200
 
 /** What happened to an artifact. */
-export type AuthoringOperation = 'define' | 'save' | 'delete' | 'run'
+export type AuthoringOperation = 'define' | 'save' | 'clone' | 'delete' | 'run'
 
 /** Which artifact family the event concerns. */
 export type ArtifactKind = 'tool' | 'workflow'
@@ -87,7 +87,7 @@ function isReceipt(value: unknown): value is AuthoringReceipt {
   const record = value as Record<string, unknown>
   return typeof record['receiptId'] === 'string'
     && typeof record['at'] === 'string'
-    && ['define', 'save', 'delete', 'run'].includes(String(record['operation']))
+    && ['define', 'save', 'clone', 'delete', 'run'].includes(String(record['operation']))
     && (record['artifactKind'] === 'tool' || record['artifactKind'] === 'workflow')
     && typeof record['name'] === 'string'
     && (record['outcome'] === 'ok' || record['outcome'] === 'failed')

@@ -32,7 +32,7 @@ All 28 workspace packages, not only the published host packages.
 
 | Package | Version | Role |
 | --- | --- | --- |
-| `@try-works/dsh-tool-mode` | 0.5.86 | DSH plugin: catalog, dispatch, discovery, MCP |
+| `@try-works/dsh-tool-mode` | 0.5.87 | DSH plugin: catalog, dispatch, discovery, MCP |
 | `@try-works/tool-mode-contracts` | 0.1.1 | Model-free contract identities, schemas, validation |
 | `@try-works/tool-mode-extension-sdk` | 0.1.5 | Extension authoring API and manifest validation |
 | `@try-works/tool-mode-recipes` | 0.1.0 | Recipe format and provider-neutral LLM broker |
@@ -233,15 +233,18 @@ verification/                     generated evidence, and FINAL-REPORT.md
 ## Agent-authored workflows and tools
 
 `tool_mode_workflows` saves, versions and re-runs a Code Mode program by name
-(`save`, `list`, `get`, `delete`, `run`). A saved workflow is also registered as a callable
-`workflow_<name>` tool, with the `inputSchema` supplied at save time, so another workflow can
-compose it through its normal `tools` binding. A recursion guard refuses a workflow that
-calls itself directly or indirectly.
+(`save`, `clone`, `list`, `get`, `delete`, `run`). A saved workflow is also registered as a
+callable `workflow_<name>` tool, with the `inputSchema` supplied at save time, so another
+workflow can compose it through its normal `tools` binding. A recursion guard refuses a
+workflow that calls itself directly or indirectly. `clone` copies a workflow to a new name
+with optional `program`, `tools` or `inputSchema` overrides, leaving the source untouched;
+the clone is immediately editable with `save`.
 
 `tool_mode_tools` defines persistent tools in
 the reserved `agent_*` namespace: it validates an input JSON Schema, persists the program
 and registers the tool immediately; deleting withdraws it, and stored tools are
-re-registered on the next host load.
+re-registered on the next host load. `clone` copies an `agent_*` tool to a new name with
+optional overrides; the source is unchanged and the clone is a normal editable tool.
 
 Authored code runs only through the same confined program runner as `tool_mode_run`:
 `tools` is a binding subset, never a grant, and execution is refused until the operator

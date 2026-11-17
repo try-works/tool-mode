@@ -359,6 +359,47 @@ describe('tool_mode_workflows', () => {
     assert.ok(names.includes('workflow_call_double'))
   })
 
+  it('clones a workflow into an editable independent copy', async () => {
+    const ctx = await mountHost({})
+    await callOk(ctx, 'tool_mode_workflows', {
+      action: 'save', name: 'double-value', program: 'return { doubled: input.value * 2 }', tools: [],
+      inputSchema: { type: 'object', properties: { value: { type: 'integer' } } },
+    })
+    const cloned = await callOk(ctx, 'tool_mode_workflows', {
+      action: 'clone', name: 'double-value', target: 'double-plus-one',
+      program: 'return { tripled: input.value * 3 }',
+    }) as { cloned: boolean; workflow: { name: string; version: number } }
+    assert.equal(cloned.cloned, true)
+    assert.equal(cloned.workflow.version, 1)
+    assert.equal((await callOk(ctx, 'tool_mode_workflows', { action: 'get', name: 'double-value' }) as { workflow: { program: string } }).workflow.program.includes('* 2'), true)
+    assert.equal((await callOk(ctx, 'tool_mode_workflows', { action: 'get', name: 'double-plus-one' }) as { workflow: { program: string } }).workflow.program.includes('* 3'), true)
+    const refused = await call(ctx, 'tool_mode_workflows', { action: 'clone', name: 'double-value', target: 'double-plus-one' })
+    assert.equal(refused.isError, true)
+    assert.match(JSON.stringify(refused), /already exists/)
+  })
+
+  it('clones an authored tool into an editable independent copy', async () => {
+    const ctx = await mountHost({})
+    const schema = { type: 'object', properties: { value: { type: 'integer' } }, required: ['value'] }
+    await callOk(ctx, 'tool_mode_tools', {
+      action: 'define', name: 'agent_double', description: 'Double.', inputSchema: schema,
+      program: 'return { doubled: input.value * 2 }', tools: [],
+    })
+    const cloned = await callOk(ctx, 'tool_mode_tools', {
+      action: 'clone', name: 'agent_double', target: 'agent_triple',
+      program: 'return { tripled: input.value * 3 }',
+    }) as { cloned: boolean; tool: { name: string; version: number } }
+    assert.equal(cloned.cloned, true)
+    assert.equal(cloned.tool.version, 1)
+    const source = await callOk(ctx, 'tool_mode_tools', { action: 'get', name: 'agent_double' }) as { tool: { program: string } }
+    assert.equal(source.tool.program.includes('* 2'), true)
+    const target = await callOk(ctx, 'tool_mode_tools', { action: 'get', name: 'agent_triple' }) as { tool: { program: string } }
+    assert.equal(target.tool.program.includes('* 3'), true)
+    const refused = await call(ctx, 'tool_mode_tools', { action: 'clone', name: 'agent_double', target: 'agent_triple' })
+    assert.equal(refused.isError, true)
+    assert.match(JSON.stringify(refused), /already exists/)
+  })
+
   it('refuses workflow recursion instead of running until the budget stops it', async () => {
     const ctx = await mountHost({}, { gateOpen: true })
     await callOk(ctx, 'tool_mode_workflows', {
