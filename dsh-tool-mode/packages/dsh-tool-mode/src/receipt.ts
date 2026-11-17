@@ -88,6 +88,8 @@ export interface InvocationReceipt {
   readonly parentReceiptId?: string | null
   /** The trace call id a nested receipt represents (joins it to `dataFlow` edges). */
   readonly callId?: string
+  /** Argument KEYS the call was given (dotted paths, never values). */
+  readonly argumentPaths?: readonly string[]
   /** On a composition receipt: which nested call's output reached which argument. */
   readonly dataFlow?: readonly DataFlowEdge[]
   /** How complete that graph is; value equality is never full provenance. */
@@ -214,6 +216,7 @@ export function buildInvocationReceipt(input: {
   readonly kind?: InvocationReceipt['kind']
   readonly parentReceiptId?: string | null
   readonly callId?: string
+  readonly argumentPaths?: readonly string[]
   readonly dataFlow?: readonly DataFlowEdge[]
   readonly dataFlowCoverage?: DataFlowCoverage
   /** Explicit composition identity; defaults to the parent, then to the receipt itself. */
@@ -251,6 +254,7 @@ export function buildInvocationReceipt(input: {
     kind: input.kind ?? 'invocation',
     parentReceiptId: input.parentReceiptId ?? null,
     ...input.callId === undefined ? {} : { callId: input.callId },
+    ...input.argumentPaths === undefined ? {} : { argumentPaths: [...input.argumentPaths] },
     ...input.dataFlow === undefined ? {} : { dataFlow: input.dataFlow },
     ...input.dataFlowCoverage === undefined ? {} : { dataFlowCoverage: input.dataFlowCoverage },
     ...input.outcome === undefined ? {} : { outcome: input.outcome },

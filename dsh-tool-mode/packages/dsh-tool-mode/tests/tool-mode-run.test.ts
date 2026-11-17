@@ -561,6 +561,7 @@ describe('CODE-02 — a run reports WHICH tools the program combined', () => {
     assert.equal(call?.name, 'fixture_echo')
     assert.equal(call?.ok, true)
     assert.match(call?.argumentsPreview ?? '', /token/, 'the arguments are previewed')
+    assert.deepEqual(call?.argumentPaths, ['token'], 'the trace carries argument keys without values')
     assert.match(call?.resultPreview ?? '', /echoed/, 'the result is previewed')
     assert.ok((call?.elapsedMs ?? -1) >= 0, 'each call carries how long it took')
   })

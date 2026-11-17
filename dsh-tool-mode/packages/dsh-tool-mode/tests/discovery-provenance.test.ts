@@ -51,6 +51,10 @@ interface Row {
   contract: string | null
   parameters: { name: string; type: string; description: string }[]
   returns: string
+  whenToUse?: string
+  limits?: string
+  example?: string
+  operations: { example?: string; whenToUse?: string; limits?: string }[]
   runtime: {
     windowsSupport: string
     verifiedRunnableOnWindows: boolean
@@ -65,6 +69,27 @@ async function listing(ctx: Context): Promise<Row[]> {
   if (result.isError) throw new Error(`expected success: ${result.error.message}`)
   return (result.value as { models: Row[] }).models
 }
+
+describe('capability-card prose', () => {
+  it('populates whenToUse, limits and example on every model and operation card', async () => {
+    const ctx = await mountPlugin()
+    const rows = await listing(ctx)
+    assert.ok(rows.length >= 18)
+    for (const row of rows) {
+      assert.equal(typeof row.whenToUse, 'string', `${row.id} model whenToUse`)
+      assert.ok((row.whenToUse ?? '').length > 0, `${row.id} model whenToUse non-empty`)
+      assert.equal(typeof row.limits, 'string', `${row.id} model limits`)
+      assert.ok((row.limits ?? '').length > 0, `${row.id} model limits non-empty`)
+      assert.equal(typeof row.example, 'string', `${row.id} model example`)
+      assert.ok((row.example ?? '').length > 0, `${row.id} model example non-empty`)
+      for (const operation of row.operations) {
+        assert.ok((operation.whenToUse ?? '').length > 0, `${row.id}/${operation.example} operation whenToUse`)
+        assert.ok((operation.limits ?? '').length > 0, `${row.id} operation limits`)
+        assert.ok((operation.example ?? '').length > 0, `${row.id} operation example`)
+      }
+    }
+  })
+})
 
 describe('EXT-32 — provenance is exposed for every model', () => {
   it('names the extension and model that implement a contract-bound model', async () => {

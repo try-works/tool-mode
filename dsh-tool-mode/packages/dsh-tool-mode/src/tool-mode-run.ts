@@ -175,6 +175,15 @@ export interface ProgramCall {
   readonly elapsedMs: number
   /** First {@link PREVIEW_CHARS} characters of the arguments, JSON-encoded. */
   readonly argumentsPreview: string
+  /**
+   * The argument KEYS this call was given, as dotted paths, never values.
+   *
+   * A trace that only previews arguments cannot say how a step was wired: a
+   * program that calls the same contract twice looks identical whether it passed
+   * `text` or `query` or a computed object. Paths are safe to retain and make the
+   * repeated-shape report carry the wiring.
+   */
+  readonly argumentPaths?: readonly string[]
   /** First {@link PREVIEW_CHARS} characters of the result; absent on failure. */
   readonly resultPreview?: string
   /** The failure message when the sub-call threw. */
@@ -187,6 +196,25 @@ export interface ProgramCall {
 const MAX_TRACE_CALLS = 50
 /** How much of one argument/result value a trace keeps. */
 const PREVIEW_CHARS = 160
+
+/** Collect dotted argument paths (keys only) up to a shallow depth. */
+function argumentPaths(value: unknown, prefix = '', depth = 0): string[] {
+  if (depth > 2 || value === null || typeof value !== 'object') return prefix.length === 0 ? [] : [prefix]
+  if (Array.isArray(value)) {
+    const element = value.length === 0 ? undefined : value[0]
+    const path = prefix.length === 0 ? '[]' : prefix + '[]'
+    if (element === null || typeof element !== 'object') return [path]
+    return argumentPaths(element, path, depth + 1)
+  }
+  const out: string[] = []
+  for (const key of Object.keys(value as Record<string, unknown>).sort()) {
+    const path = prefix.length === 0 ? key : prefix + '.' + key
+    const child = (value as Record<string, unknown>)[key]
+    if (child !== null && typeof child === 'object') out.push(...argumentPaths(child, path, depth + 1))
+    else out.push(path)
+  }
+  return out
+}
 
 /** A bounded, JSON-safe preview of one value. Never throws on a cycle. */
 function preview(value: unknown): string {
@@ -363,6 +391,7 @@ export function createProgramRunner(environment: RunnerEnvironment): ProgramRunn
                 ok: true,
                 elapsedMs: Date.now() - started,
                 argumentsPreview,
+                argumentPaths: argumentPaths(args),
                 resultPreview: preview(value),
                 ...input.length === 0 ? {} : { input },
               })
@@ -376,6 +405,7 @@ export function createProgramRunner(environment: RunnerEnvironment): ProgramRunn
                 ok: false,
                 elapsedMs: Date.now() - started,
                 argumentsPreview,
+                argumentPaths: argumentPaths(args),
                 error: error instanceof Error ? error.message : String(error),
                 ...input.length === 0 ? {} : { input },
               })

@@ -32,7 +32,7 @@ All 28 workspace packages, not only the published host packages.
 
 | Package | Version | Role |
 | --- | --- | --- |
-| `@try-works/dsh-tool-mode` | 0.5.87 | DSH plugin: catalog, dispatch, discovery, MCP |
+| `@try-works/dsh-tool-mode` | 0.5.88 | DSH plugin: catalog, dispatch, discovery, MCP |
 | `@try-works/tool-mode-contracts` | 0.1.1 | Model-free contract identities, schemas, validation |
 | `@try-works/tool-mode-extension-sdk` | 0.1.5 | Extension authoring API and manifest validation |
 | `@try-works/tool-mode-recipes` | 0.1.0 | Recipe format and provider-neutral LLM broker |
@@ -262,14 +262,20 @@ Discovery now publishes an `authoring` block: the stored tools/workflows, the mo
 authoring events (from `authoring-receipts.json`, value-free), a per-session adoption summary
 (`offered`, `called`, `authored`, `reused`; `stepsSaved` is null because no counterfactual
 exists), and a read-only
-`repeatedShapes` report. A shape is a sequence of contracts plus the argument paths a
-previous result reached; it never contains argument values or program source, and it is
-only a suggestion — defining a workflow remains the caller's decision.
+`repeatedShapes` report. A shape is a sequence of contracts plus each step's argument
+keys and the argument paths a previous result reached; it never contains argument values
+or program source, and it is only a suggestion — defining a workflow remains the caller's
+decision.
 
-`captureRunPrograms: true` opts into storing a successful `tool_mode_run` program plus a
-shape-only input schema (never the input values) in `run-captures.json`. With a capture
-present, `tool_mode_tools` action `from-run` creates an editable `agent_*` scaffold from
-that run; it is not a promise that the constants inside the program are parameterised.
+The `model_tools action="receipts"` result also exposes an `authoring` array of the
+value-free `define` / `save` / `clone` / `delete` / `run` events, so an authored change is
+auditable alongside invocation and lifecycle provenance.
+
+Successful `tool_mode_run` programs are captured by default in `run-captures.json`, with a
+shape-only input schema and never the input values; set `captureRunPrograms: false` to opt
+out. With a capture present, `tool_mode_tools` action `from-run` creates an editable
+`agent_*` scaffold from that run; it is not a promise that the constants inside the program
+are parameterised.
 
 ## Code Mode gate
 
@@ -359,7 +365,9 @@ than widening the grant.
   parameters and JSON input schema; a model with no explicit operations has one primary
   operation;
 - every accepted parameter with its JSON type;
-- what the tool returns, its limits and any example the catalog declares;
+- what the tool returns, a `whenToUse` trigger, `limits`, and an `example`; when the catalog
+  omits the latter three, the card derives them from the skill trigger, the measured
+  on-device size/modality, and the generated argument schema rather than leaving them blank;
 - runtime facts (platform support, verified-on-Windows, size, required runtime);
 - the contract it implements and the tool a caller actually invokes.
 

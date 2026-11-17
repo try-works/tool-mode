@@ -283,7 +283,7 @@ export interface Config {
   /** Where authored workflows/tools are stored; default is beside the state file. */
   agentAuthoringFile?: string
   /**
-   * Capture successful Code Mode run programs for define-from-run (default FALSE).
+   * Capture successful Code Mode run programs for define-from-run (default TRUE).
    * The capture stores the program and a shape-only input schema, never input values.
    */
   captureRunPrograms?: boolean
@@ -854,7 +854,7 @@ export const Config: z<Config> = z.object({
   hostedCode: z.boolean().default(false),
   allowAgentAuthoring: z.boolean().default(true),
   agentAuthoringFile: z.string().default(''),
-  captureRunPrograms: z.boolean().default(false),
+  captureRunPrograms: z.boolean().default(true),
   runCaptureFile: z.string().default(''),
   // Deliberately NO default: undefined selects the platform policy (the win32 DSH-home
   // default), while an explicit '' must be able to DISABLE the override.
@@ -1128,8 +1128,38 @@ function operationInputSchema(tool: ModelCatalogEntry['tool']): Record<string, J
   return { type: 'object', properties, required: [] }
 }
 
+/**
+ * The prose a card can honestly supply when the catalog declaration leaves it out.
+ *
+ * The model catalog carries the skill's `whenToUse` and the runtime envelope; it
+ * does not carry a hand-written example or quota prose for every model. Leaving
+ * those fields absent made every card look unpopulated, so derive them from facts
+ * the catalog already pins: the skill trigger, the measured on-device size, the
+ * declared input modality and the generated argument schema. This is a fallback,
+ * not invented capability: an explicit declaration always wins.
+ */
+function cardWhenToUse(entry: ModelCatalogEntry, tool: ModelCatalogEntry['tool']): string {
+  return tool.whenToUse ?? entry.skill.whenToUse ?? tool.description
+}
+
+function cardLimits(entry: ModelCatalogEntry, tool: ModelCatalogEntry['tool']): string {
+  if (tool.limits !== undefined) return tool.limits
+  const parts: string[] = []
+  if (entry.modelSizeMB !== null) parts.push(`${entry.modelSizeMB} MB on device`)
+  parts.push(`input: ${entry.input}`)
+  if (entry.languages !== null) parts.push(`${entry.languages} language(s)`)
+  parts.push(`Windows support: ${entry.windowsSupport}`)
+  if (entry.closedBeta) parts.push('closed beta')
+  return parts.join('; ')
+}
+
+function cardExample(tool: ModelCatalogEntry['tool']): string {
+  if (tool.example !== undefined) return tool.example
+  return JSON.stringify(exampleFromSchema(operationInputSchema(tool)))
+}
+
 /** Render one operation as a capability card. */
-function operationCard(_entry: ModelCatalogEntry, operation: ModelOperationSpec): ModelOperationCard {
+function operationCard(entry: ModelCatalogEntry, operation: ModelOperationSpec): ModelOperationCard {
   return {
     id: operation.id,
     tool: operation.tool.name,
@@ -1138,10 +1168,10 @@ function operationCard(_entry: ModelCatalogEntry, operation: ModelOperationSpec)
     parameters: parameterCards(operation.tool),
     inputSchema: operationInputSchema(operation.tool),
     returns: operation.tool.returns,
-    ...operation.tool.whenToUse === undefined ? {} : { whenToUse: operation.tool.whenToUse },
+    whenToUse: cardWhenToUse(entry, operation.tool),
     ...operation.tool.whenNotToUse === undefined ? {} : { whenNotToUse: operation.tool.whenNotToUse },
-    ...operation.tool.limits === undefined ? {} : { limits: operation.tool.limits },
-    ...operation.tool.example === undefined ? {} : { example: operation.tool.example },
+    limits: cardLimits(entry, operation.tool),
+    example: cardExample(operation.tool),
   }
 }
 
@@ -1173,10 +1203,10 @@ export function describeModels(resolved: readonly ResolvedModel[]): ModelDescrip
       modelSizeMB: entry.modelSizeMB,
       requiresRuntime: [...entry.requiresRuntime],
     },
-    ...entry.tool.whenToUse === undefined ? {} : { whenToUse: entry.tool.whenToUse },
+    whenToUse: cardWhenToUse(entry, entry.tool),
     ...entry.tool.whenNotToUse === undefined ? {} : { whenNotToUse: entry.tool.whenNotToUse },
-    ...entry.tool.limits === undefined ? {} : { limits: entry.tool.limits },
-    ...entry.tool.example === undefined ? {} : { example: entry.tool.example },
+    limits: cardLimits(entry, entry.tool),
+    example: cardExample(entry.tool),
   }))
 }
 
@@ -1306,7 +1336,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     readonly recent: AuthoringReceipt[]
     readonly repeatedShapes: RepeatedShape[]
   }) | undefined
-  /** Optional capture of successful run programs (disabled unless opted in). */
+  /** Authoring receipts for the receipts action (undefined when authoring is off). */
+  let authoringReceipts: (() => readonly AuthoringReceipt[]) | undefined
+  /** Run capture for define-from-run; on by default, disabled by config. */
   let runCaptureStore: RunCaptureStore | undefined
   /** Workflow tools registered from the durable workflow store. */
   const workflowToolNames = new Set<string>()
@@ -3604,6 +3636,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
                   },
                   /** The trace call id a nested receipt represents (joins it to dataFlow). */
                   callId: { type: 'string' },
+                  /** Argument keys the nested call received, dotted paths only. */
+                  argumentPaths: { type: 'array', items: { type: 'string' } },
                   /** Composition receipts only: how complete that graph is. */
                   dataFlowCoverage: {
                     type: 'object',
@@ -3715,6 +3749,28 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
                     },
                   },
                   at: { type: 'string', required: true },
+                },
+              },
+            },
+            /**
+             * Set by the receipts action: authored artifacts changed or reused
+             * (define/save/clone/delete/run). Separate from invocation and
+             * lifecycle provenance so "who changed the tool" is auditable.
+             */
+            authoring: {
+              type: 'array',
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  receiptId: { type: 'string', required: true },
+                  at: { type: 'string', required: true },
+                  operation: { type: 'string', required: true },
+                  artifactKind: { type: 'string', required: true },
+                  name: { type: 'string', required: true },
+                  version: { type: 'integer' },
+                  outcome: { type: 'string', required: true },
+                  durationMs: { type: 'number' },
                 },
               },
             },
@@ -3914,7 +3970,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
          * partial object would be refused — and a caller reading `readiness` should
          * get an answer for every model rather than having to handle its absence.
          */
-        const provenanceOf = async (entry: ModelCatalogEntry) => {
+        const provenanceOf = async (entry: ModelCatalogEntry, callable: boolean) => {
           const surface = await surfaceFor(entry)
           const published = surface?.tools[0]
           const notice = surface?.readiness.find(item => item.modelId === entry.id)
@@ -3935,7 +3991,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
               alternatives: [...(published?.alternatives ?? [])],
             },
             readiness: notice?.readiness ?? 'unknown',
-            callable: notice?.callable ?? false,
+            // The registry is the authority on callable; readiness is a separate fact.
+            // An extension-provided model has a callable tool but no catalog readiness
+            // notice, and copying the notice's absent verdict reported callable:false
+            // while the tool worked.
+            callable,
             ...withheld === undefined ? {} : {
               withheld: { code: withheld.code, message: withheld.message },
             },
@@ -3977,7 +4037,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             /** The catalog's stable tool identity; `tool` is the NAME actually registered. */
             toolName: item.entry.tool.name,
             ...record === undefined ? {} : { tool: record.toolName },
-            ...await provenanceOf(item.entry),
+            ...await provenanceOf(item.entry, surface.state === 'callable'),
             installed: record !== undefined,
             choice: choiceOf(item.entry.id),
           }
@@ -4004,6 +4064,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           kind: receipt.kind ?? 'invocation',
           parentReceiptId: receipt.parentReceiptId ?? null,
           ...receipt.callId === undefined ? {} : { callId: receipt.callId },
+          ...receipt.argumentPaths === undefined ? {} : { argumentPaths: [...receipt.argumentPaths] },
           ...receipt.dataFlow === undefined ? {} : { dataFlow: [...receipt.dataFlow] },
           ...receipt.dataFlowCoverage === undefined ? {} : { dataFlowCoverage: receipt.dataFlowCoverage },
           // Exposed as null when the lane genuinely cannot know: the schema declares the
@@ -4171,6 +4232,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
               ...accounting.clientId === undefined ? {} : { clientId: accounting.clientId },
             })),
             lifecycle: lifecycleRecords,
+            authoring: authoringReceipts?.() ?? [],
           } as never
         }
 
@@ -5122,6 +5184,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             runId: receiptId,
             // Joins this receipt to the data-flow edges, which name trace call ids.
             ...call.callId === undefined ? {} : { callId: call.callId },
+            // The wiring a preview cannot express: keys only, never values.
+            argumentPaths: [...(call.argumentPaths ?? [])],
             outcome: call.ok ? 'ok' : 'failed',
           }))
         }
@@ -5146,8 +5210,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           dataFlowCoverage: report.meta.dataFlowCoverage,
           outcome: 'ok',
         }))
-        // OPTIONAL run capture: the program and a shape-only input schema, never
-        // input values. Off unless captureRunPrograms is explicitly enabled.
+        // Run capture: the program and a shape-only input schema, never input
+        // values. On by default so define-from-run works out of the box; the
+        // profile can still turn it off with captureRunPrograms: false.
         if (runCaptureStore !== undefined) {
           const captured = args as { code?: unknown; tools?: unknown; input?: unknown }
           const program = typeof captured.code === 'string' ? captured.code : ''
@@ -5224,6 +5289,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     if (authoringLedger.issue !== undefined) {
       ctx.logger.warn('model-tools: authoring ledger: ' + authoringLedger.issue)
     }
+    authoringReceipts = () => authoringLedger.list()
     authoringSnapshot = () => ({
       tools: authoringStore.listTools(),
       workflows: authoringStore.listWorkflows(),

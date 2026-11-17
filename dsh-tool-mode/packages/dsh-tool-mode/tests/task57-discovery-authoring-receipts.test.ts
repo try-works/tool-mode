@@ -221,6 +221,12 @@ describe('task-57 (2b) — discovery publishes authored artifacts and their rece
     assert.equal(authoring.recent[0]?.artifactKind, 'tool')
     assert.equal(authoring.recent[0]?.name, 'agent_double')
     assert.equal(JSON.stringify(authoring).includes('doubled'), false, 'the program body must not leak')
+    const receipts = await call(ctx, 'model_tools', { action: 'receipts' })
+    const authored = (receipts as { value: { authoring?: { operation: string; name: string }[] } }).value.authoring
+    assert.ok(authored !== undefined, 'the receipts action must expose authored-artifact events')
+    assert.equal(authored[0]?.operation, 'define')
+    assert.equal(authored[0]?.name, 'agent_double')
+    assert.equal(JSON.stringify(authored).includes('doubled'), false, 'authoring receipts carry no program body')
   })
 })
 
@@ -249,6 +255,24 @@ describe('task-57 (2c) — optional run capture and define-from-run', () => {
     }
     assert.deepEqual(Object.keys(capture.captures[0]?.inputSchema.properties ?? {}), ['value'])
     assert.equal(JSON.stringify(capture).includes('21'), false, 'the input value must not be captured')
+  })
+
+  it('captures by default, so define-from-run is not gated off', async () => {
+    const dir = tempDir()
+    const ctx = await mountGateOpen({
+      agentAuthoringFile: join(dir, 'authoring.json'),
+      runCaptureFile: join(dir, 'run-captures.json'),
+    })
+    const run = await call(ctx, 'tool_mode_run', {
+      code: 'return { tripled: input.value * 3 }', tools: [], input: { value: 7 },
+    })
+    if (run.isError) throw new Error(JSON.stringify(run))
+    const runId = (run.value as { meta: { receiptId: string } }).meta.receiptId
+    const defined = await call(ctx, 'tool_mode_tools', { action: 'from-run', name: 'agent_default_capture', runId })
+    if (defined.isError) throw new Error(JSON.stringify(defined))
+    const executed = await call(ctx, 'agent_default_capture', { value: 2 })
+    if (executed.isError) throw new Error(JSON.stringify(executed))
+    assert.deepEqual(executed.value, { tripled: 6 })
   })
 })
 

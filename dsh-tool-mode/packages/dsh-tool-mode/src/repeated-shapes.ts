@@ -21,6 +21,12 @@ export interface ShapeStep {
   readonly implementationId: string
   /** Argument paths an earlier result reached, sorted; empty when none was observed. */
   readonly inputs: readonly string[]
+  /**
+   * Argument KEYS the step was invoked with, sorted. Unlike `inputs` this is
+   * available even when no value-equality edge was observed, so a repeated shape
+   * carries its wiring rather than only the contract name.
+   */
+  readonly arguments: readonly string[]
 }
 
 /** One repeated shape report row. */
@@ -53,6 +59,7 @@ function shapeOfRun(
       .filter(edge => receipt.callId !== undefined && edge.to === receipt.callId)
       .map(edge => edge.input)
       .sort(),
+    arguments: [...(receipt.argumentPaths ?? [])].sort(),
   }))
   return { steps, lastAt: composition?.at ?? nested[nested.length - 1]!.at }
 }

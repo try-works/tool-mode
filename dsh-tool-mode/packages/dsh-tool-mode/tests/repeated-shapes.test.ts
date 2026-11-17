@@ -17,6 +17,7 @@ function receipt(id: string, runId: string, contract: string, callId?: string): 
     runId,
     parentReceiptId: runId,
     callId,
+    argumentPaths: ['text'],
     contract,
     contractVersion: '1.0.0',
     implementationId: contract + '-impl',
@@ -62,6 +63,8 @@ describe('repeated-shape report', () => {
     assert.equal(shapes.length, 1)
     assert.equal(shapes[0]?.count, 2)
     assert.deepEqual(shapes[0]?.steps.map(step => step.contract), ['text.embed', 'text.embed'])
+    // Wiring is present even though the fixture's dataFlow points at no input.
+    assert.deepEqual(shapes[0]?.steps.map(step => step.arguments), [['text'], ['text']])
     assert.equal(JSON.stringify(shapes[0]).includes('secret'), false)
   })
 
