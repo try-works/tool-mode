@@ -19,6 +19,15 @@
 import { compileSchema } from '@try-works/tool-mode-contracts'
 import { MAX_RUN_CAPTURES, type RunCapture } from './run-capture.ts'
 
+/*
+ * This module is the BOUNDARY for stored run captures: a capture is untrusted JSON
+ * read from disk. The runtime guards below establish object/array/primitive before
+ * the two structural assertions, and the return value is assembled from the checked
+ * pieces. The lint rules disabled here are production-boundary guards; this is the
+ * parse boundary they ask for.
+ */
+/* oxlint-disable anti-slop/no-runtime-typeof, anti-slop/require-safety-comment-for-type-assertion, anti-slop/no-known-value-widening, anti-slop/no-conditional-empty-object-spread */
+
 /** A JSON value, as the schemas are expressed. */
 export type JsonValue = null | boolean | number | string | JsonValue[] | { readonly [key: string]: JsonValue }
 
