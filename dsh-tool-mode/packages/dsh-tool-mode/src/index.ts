@@ -295,8 +295,8 @@ export interface Config {
   /** Where run captures are stored; default is beside the authoring file. */
   runCaptureFile?: string
   /**
-   * Adoption experiments. All levers are OFF by default; enabling one is an
-   * explicit experiment arm choice, never an implicit prompt change.
+   * Adoption levers. The save offer and digest are ON by default; disable or
+   * override them with this object. The experiment arm is optional.
    */
   adoption?: {
     /** Offer a save after repeated identical calls. */
@@ -890,12 +890,12 @@ export const Config: z<Config> = z.object({
   captureRunPrograms: z.boolean().default(true),
   runCaptureFile: z.string().default(''),
   adoption: z.object({
-    saveOffer: z.boolean().default(false),
-    digest: z.boolean().default(false),
+    saveOffer: z.boolean().default(true),
+    digest: z.boolean().default(true),
     prewarmAfterEnable: z.boolean().default(false),
     maxRepeats: z.number().min(2).default(3),
     experimentArm: z.union([z.const('D'), z.const('G'), z.const('O')]).required(false),
-  }).default({ saveOffer: false, digest: false, prewarmAfterEnable: false, maxRepeats: 3 }),
+  }).default({ saveOffer: true, digest: true, prewarmAfterEnable: false, maxRepeats: 3 }),
   /**
    * Authored-artifact scoping. ENABLED by default: new artifacts are
    * session-scoped, existing global rows remain resolvable, and

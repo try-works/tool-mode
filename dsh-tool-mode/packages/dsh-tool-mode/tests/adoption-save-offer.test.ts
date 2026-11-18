@@ -25,7 +25,7 @@ async function enableTongue(ctx: Context) {
 
 describe('repetition save offer', () => {
   it('is absent when the flag is off', async () => {
-    const ctx = await mountPluginWithTongue()
+    const ctx = await mountPluginWithTongue({ adoption: { saveOffer: false } })
     await enableTongue(ctx)
     for (const text of ['a', 'b', 'c']) await callAs(ctx, 'lang_detect', { text }, 'session-a')
     const listed = await callAs(ctx, 'tool_mode_list', {}, 'session-a')
@@ -35,7 +35,7 @@ describe('repetition save offer', () => {
   })
 
   it('offers one actionable save after three identical shapes, without values', async () => {
-    const ctx = await mountPluginWithTongue({ adoption: { saveOffer: true } })
+    const ctx = await mountPluginWithTongue()
     await enableTongue(ctx)
     for (const text of ['SECRET-A', 'SECRET-B', 'SECRET-C']) {
       await callAs(ctx, 'lang_detect', { text }, 'session-a')
@@ -54,7 +54,7 @@ describe('repetition save offer', () => {
   })
 
   it('does not offer for a management or discovery tool', async () => {
-    const ctx = await mountPluginWithTongue({ adoption: { saveOffer: true } })
+    const ctx = await mountPluginWithTongue()
     for (let index = 0; index < 3; index += 1) await callAs(ctx, 'tool_mode_list', {}, 'session-a')
     const listed = await callAs(ctx, 'tool_mode_list', {}, 'session-a')
     const suggestions = (listed as { value?: { authoring?: { suggestions?: unknown[] } } }).value?.authoring?.suggestions ?? []

@@ -20,11 +20,11 @@ this checkout.
 - **Phase 2 — implemented.** `tool_mode_run` and workflow runs return a
   top-level `runId`; `from-run` accepts only that id, infers the name/schema and
   needs no Code Mode. The existing capture store is used unchanged.
-- **Phase 3 — implemented behind `adoption.saveOffer` (default off).** Three
+- **Phase 3 — implemented behind `adoption.saveOffer` (default ON; set false to disable).** Three
   identical argument shapes in one session produce one candidate with a
   shape-only schema and a runnable next command. The tracker stores no values;
   and the existing `tool_mode_list.authoring` surface carries the suggestion.
-- **Phase 4 — implemented behind `adoption.digest` (default off).** The
+- **Phase 4 — implemented behind `adoption.digest` (default ON; set false to disable).** The
   feasibility gate succeeded: `systemPrompt.section` accepts a provider function.
   The digest is assembled per turn from workspace/global artifacts with both
   names, evidence after five uses, four lines and 600 characters. Session-scoped
@@ -308,7 +308,7 @@ mid-task and is persisted in `pending[]` for the next turn.
 - Persist candidates in the session ledger with a bounded size.
 - Merge candidates into `authoringSnapshot`/`pending`; no schema change to
   the existing pending rows beyond additive fields.
-- Feature flag: `config.adoption.saveOffer` (default off until the experiment).
+- Feature flag: `config.adoption.saveOffer` (default ON; set false for the D baseline).
 
 **Verification**
 
@@ -354,7 +354,7 @@ prompt instruction.
 - `library-digest.ts`: pure `buildLibraryDigest(rows, options)`.
 - Source rows from `authoringStore` through the existing scope resolver.
 - Hook digest refresh into the save/delete/promote paths.
-- Feature flag `config.adoption.digest` (default off).
+- Feature flag `config.adoption.digest` (default ON; set false for the D baseline).
 
 **Verification**
 
@@ -434,8 +434,9 @@ characters added, false-positive save offers, and drafts that are never reused.
 
 **Implementation**
 
-- Feature flags: `adoption.digest`, `adoption.saveOffer`,
-  `adoption.prewarmAfterEnable` (all default off).
+- Feature flags: `adoption.digest` and `adoption.saveOffer` are ON by default;
+  `adoption.prewarmAfterEnable` remains off. The D arm sets the first two false
+  explicitly.
 - `scripts/adoption-report.mjs`: read the session ledger and artifact usage;
   emit per-arm counts and reuse rate. No model calls.
 - Document the run procedure and freeze the prompt text in the report.

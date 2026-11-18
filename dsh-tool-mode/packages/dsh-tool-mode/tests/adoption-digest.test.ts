@@ -17,13 +17,13 @@ function prompt(ctx: Awaited<ReturnType<typeof mountPluginWithTongue>>): PromptS
 
 describe('library digest', () => {
   it('is absent when the flag is off', async () => {
-    const ctx = await mountPluginWithTongue()
+    const ctx = await mountPluginWithTongue({ adoption: { digest: false } })
     const assembly = await prompt(ctx).assemble()
     assert.equal(assembly.sections.some(section => section.name === 'tool-mode:library'), false)
   })
 
   it('shows workspace artifacts with both names when enabled', async () => {
-    const ctx = await mountPluginWithTongue({ adoption: { digest: true } })
+    const ctx = await mountPluginWithTongue()
     await callTool(ctx, 'tool_mode_workflows', {
       action: 'save', name: 'digest-flow', description: 'Counts languages.',
       program: 'return 1', scope: 'workspace',
