@@ -18,6 +18,7 @@ already-extracted module. A split that needs a new circular import is not a refa
 | `src/receipt-surface.ts` | receipt store, id minting, bounded in-memory ring | ~70 |
 | `src/receipt-view.ts` | stable read shape for `model_tools` receipts | ~50 |
 | `src/discovery-binding.ts` | shared binding resolution for list/describe/preflight | ~105 |
+| `src/discovery-control.ts` | read-only `tool_mode_list` / `tool_mode_describe` | ~520 |
 | `src/tool-mode-run.ts` | authorized Code Mode runner and report | ~690 |
 | `src/agent-authoring.ts` | scoped artifact store and resolution | ~1.4k |
 | `src/extensions-service.ts` | extension install/prepare/lifecycle coordination | ~3.3k |
@@ -32,7 +33,10 @@ Extracted so far:
   ring; `receipt-view.ts` owns the stable per-row projection. External accounting
   still moves with `discovery-surface`.
 - `discovery-binding.ts` owns the one grant/registry/caller-scope resolver and the
-  `bindable` predicate. The discovery handlers still live in `index.ts`.
+  `bindable` predicate.
+- `discovery-control.ts` owns the read-only `tool_mode_list` / `tool_mode_describe`
+  pair, their contract facts and `discoveryBucket`. `model_tools` remains in
+  `index.ts`; its management/extension dependencies move with the lifecycle split.
 
 ## Target shape
 
@@ -42,7 +46,8 @@ interfaces, not closures over a 400-line `apply`.
 
     index.ts                     config -> services -> register modules -> teardown
       model-cards.ts             pure card formatting                 [done]
-      discovery-surface.ts       model_tools / list / describe
+      discovery-control.ts       list / describe                   [done]
+      discovery-surface.ts       model_tools
       discovery-binding.ts       list/describe/preflight resolution  [done]
       authoring-surface.ts       workflow + agent tool handlers
       extension-lifecycle.ts     restore, inspect, prepare, activate
@@ -56,10 +61,11 @@ interfaces, not closures over a 400-line `apply`.
 2. **receipt-surface** - done for the store/counter/ring. Invocation accounting and the
    usage projections still move with discovery because their read model is the
    `model_tools` receipts action.
-3. **discovery-surface** - `model_tools`, `tool_mode_list` and `tool_mode_describe`.
-   The shared binding resolution is already out (`discovery-binding.ts`). The remaining
-   handlers are the next extraction; their inputs are a `DiscoveryDeps` of live registry,
-   installed models, resolved catalog, external grant context and scope resolver.
+3. **discovery-surface** - partially done. `tool_mode_list` and `tool_mode_describe`
+   are out in `discovery-control.ts`; the binding resolver is in `discovery-binding.ts`.
+   `model_tools` remains because its management actions share extension lifecycle,
+   credentials and asset state; extract it with the lifecycle split rather than inventing
+   a second dependency graph for it.
 4. **authoring-surface** - `tool_mode_workflows` and `tool_mode_tools`. Inputs are
    `AuthoringDeps`: store, ledger, workflow/authored-name registries, scope resolver,
    session ledger. This is the largest cohesive block and the point where `index.ts`
