@@ -17,7 +17,10 @@ this checkout.
 - **Phase 1 — implemented.** Workflow summaries expose `callableName`; get/run/
   delete accept either the stored name or `workflow_<name>`; quality is published
   only after five uses and otherwise says `insufficientEvidence`.
-- Phases 2–6 remain pending.
+- **Phase 2 — implemented.** `tool_mode_run` and workflow runs return a
+  top-level `runId`; `from-run` accepts only that id, infers the name/schema and
+  needs no Code Mode. The existing capture store is used unchanged.
+- Phases 3–6 remain pending.
 
 ## Outcome
 

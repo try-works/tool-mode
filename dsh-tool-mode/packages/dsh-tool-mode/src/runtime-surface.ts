@@ -102,6 +102,8 @@ export function registerRuntimeTools(deps: RuntimeSurfaceDeps): void {
         additionalProperties: false,
         properties: {
           result: { type: 'json' },
+          /** The composition identity, so from-run can accept one value. */
+          runId: { type: 'string' },
           logs: { type: 'array', items: { type: 'string' } },
           /** probe:true only: one resolution per declared name, nothing executed. */
           preflight: { type: 'array' },
@@ -261,7 +263,7 @@ export function registerRuntimeTools(deps: RuntimeSurfaceDeps): void {
           })
         }
       }
-      return report as never
+      return { ...report, runId: report.meta.receiptId } as never
     },
   }))
 }

@@ -336,6 +336,7 @@ ctx.tools.register(defineTool({
         ...scope.rootSessionId === undefined ? {} : { sessionId: scope.rootSessionId },
       })
       return {
+        runId: receiptId,
         workflow: { id: entry.id, name: entry.name, version: entry.version, scope: entry.scope },
         result: report.result,
         logs: report.logs,

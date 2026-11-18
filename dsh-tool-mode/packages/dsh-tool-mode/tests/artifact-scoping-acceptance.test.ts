@@ -58,6 +58,7 @@ async function mountHost(options: {
   readonly gateOpen?: boolean
   readonly parents?: Readonly<Record<string, string>>
   readonly runtime?: ProgramRuntime
+  readonly captureRunPrograms?: boolean
 } = {}): Promise<Context> {
   const dir = tempDir()
   const ctx = new Context()
@@ -87,6 +88,7 @@ async function mountHost(options: {
       expireSessionArtifacts: true,
     },
     hostedCode: options.gateOpen === true,
+    ...options.captureRunPrograms === undefined ? {} : { captureRunPrograms: options.captureRunPrograms },
   })
   contexts.push(ctx)
   return ctx
@@ -564,6 +566,21 @@ describe('artifact scoping T1-T12', () => {
     assert.deepEqual(after.authoring?.workflows.find(row => row.name === 'quality-flow')?.quality, {
       uses: 5, sessions: 1, failures: 0,
     })
+  })
+
+  it('T8g: a run returns runId and from-run accepts only that id', async () => {
+    const ctx = await mountHost({ gateOpen: true, captureRunPrograms: true })
+    const run = await ok(ctx, 'tool_mode_run', {
+      code: 'return 7', tools: [],
+    }, 'session-a') as { runId: string; result: number; meta: { receiptId: string } }
+    assert.equal(run.result, 7)
+    assert.equal(run.runId, run.meta.receiptId)
+    const drafted = await ok(ctx, 'tool_mode_tools', {
+      action: 'from-run', runId: run.runId,
+    }, 'session-a') as { defined: boolean; tool: { name: string; version: number } }
+    assert.equal(drafted.defined, true)
+    assert.match(drafted.tool.name, /^agent_/)
+    assert.equal(drafted.tool.version, 1)
   })
 
   it('T9: deleting a workspace copy falls back to the global row', async () => {
