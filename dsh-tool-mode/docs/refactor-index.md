@@ -16,6 +16,7 @@ already-extracted module. A split that needs a new circular import is not a refa
 | `src/index.ts` | composition root and all remaining surfaces | ~8.6k |
 | `src/model-cards.ts` | capability-card projection (catalog/verdict to card) | ~210 |
 | `src/receipt-surface.ts` | receipt store, id minting, bounded in-memory ring | ~70 |
+| `src/receipt-view.ts` | stable read shape for `model_tools` receipts | ~50 |
 | `src/discovery-binding.ts` | shared binding resolution for list/describe/preflight | ~105 |
 | `src/tool-mode-run.ts` | authorized Code Mode runner and report | ~690 |
 | `src/agent-authoring.ts` | scoped artifact store and resolution | ~1.4k |
@@ -28,8 +29,8 @@ Extracted so far:
   `describeModelCard` and `describeModels` names re-exported from `index.ts` so
   existing imports and tests do not change.
 - `receipt-surface.ts` owns the receipt store, counter floor and bounded in-memory
-  ring. `index.ts` still owns the `model_tools` receipts projection and external
-  accounting, which move with `discovery-surface`.
+  ring; `receipt-view.ts` owns the stable per-row projection. External accounting
+  still moves with `discovery-surface`.
 - `discovery-binding.ts` owns the one grant/registry/caller-scope resolver and the
   `bindable` predicate. The discovery handlers still live in `index.ts`.
 
