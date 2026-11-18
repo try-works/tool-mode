@@ -19,6 +19,7 @@ already-extracted module. A split that needs a new circular import is not a refa
 | `src/receipt-view.ts` | stable read shape for `model_tools` receipts | ~50 |
 | `src/discovery-binding.ts` | shared binding resolution for list/describe/preflight | ~105 |
 | `src/discovery-control.ts` | read-only `tool_mode_list` / `tool_mode_describe` | ~520 |
+| `src/authoring-surface.ts` | workflow + authored-tool handlers | ~650 |
 | `src/tool-mode-run.ts` | authorized Code Mode runner and report | ~690 |
 | `src/agent-authoring.ts` | scoped artifact store and resolution | ~1.4k |
 | `src/extensions-service.ts` | extension install/prepare/lifecycle coordination | ~3.3k |
@@ -37,6 +38,10 @@ Extracted so far:
 - `discovery-control.ts` owns the read-only `tool_mode_list` / `tool_mode_describe`
   pair, their contract facts and `discoveryBucket`. `model_tools` remains in
   `index.ts`; its management/extension dependencies move with the lifecycle split.
+- `authoring-surface.ts` owns `tool_mode_workflows` and `tool_mode_tools`. The
+  store, ledger, registration/disposal hooks, scope resolver, receipts and
+  sandbox runner are injected; the registration helpers stay in `index.ts`
+  because boot restore calls them before the tools are registered.
 
 ## Target shape
 
@@ -49,7 +54,7 @@ interfaces, not closures over a 400-line `apply`.
       discovery-control.ts       list / describe                   [done]
       discovery-surface.ts       model_tools
       discovery-binding.ts       list/describe/preflight resolution  [done]
-      authoring-surface.ts       workflow + agent tool handlers
+      authoring-surface.ts       workflow + agent tool handlers  [done]
       extension-lifecycle.ts     restore, inspect, prepare, activate
       mcp-surface.ts             HTTP/stdio, auth, credentials, subscriptions
       runtime-surface.ts         adapters, provider bridge, model runtime lane
@@ -66,10 +71,10 @@ interfaces, not closures over a 400-line `apply`.
    `model_tools` remains because its management actions share extension lifecycle,
    credentials and asset state; extract it with the lifecycle split rather than inventing
    a second dependency graph for it.
-4. **authoring-surface** - `tool_mode_workflows` and `tool_mode_tools`. Inputs are
-   `AuthoringDeps`: store, ledger, workflow/authored-name registries, scope resolver,
-   session ledger. This is the largest cohesive block and the point where `index.ts`
-   should drop below ~4k lines.
+4. **authoring-surface** - done for the handlers. `AuthoringDeps` carries the store,
+   ledger, workflow/authored-name registries, scope resolver, receipts, promotion
+   settings and sandbox runner. Boot registration/restore still lives in `index.ts`;
+   extracting it is the next authoring step, not part of this move.
 5. **extension-lifecycle** - restore/inspect/prepare/activate. This is the riskiest split
    because ordering is a contract (integrity, asset restore, readiness, activation) and
    several maps are shared with dispatch. Extract it only after 2-4 have settled, with
