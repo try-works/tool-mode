@@ -63,7 +63,6 @@ import { PACKAGE_VERSION } from './version.ts'
 import { prepareDeclarative } from './harness-serving.ts'
 import type { InvocationAccounting } from './invocation-accounting.ts'
 import { createFileCredentialStore, defaultCredentialStoreFile } from './mcp/credential-store.ts'
-import { selectHttpAuth } from './mcp/auth-selection.ts'
 import {
   CustomToolRegistrar,
   CustomToolStore,
@@ -72,7 +71,6 @@ import {
   customToolPublishedTools,
   type CustomToolDispatchDeps,
 } from './custom-tools/index.ts'
-import { startHttpServer } from './mcp/http.ts'
 import { buildHarnessLlmProvider, discoverDefaultHarnessModel, resolveRunnableHarnessModel, type HarnessLlmRuntimeSurface, type HarnessModelConfig } from './harness-llm.ts'
 import { chooseWithJev, JEV_CHOOSE_CONTRACT, JEV_JUDGMENTS_CONTRACT, JevError, judgeWithJev, type JevConfig } from './jev.ts'
 import { combineDecision, DECISION_COMBINE_CONTRACT } from './decision-combine.ts'
@@ -113,6 +111,7 @@ import { TOOL_MODE_DESCRIBE_CONTRACT, TOOL_MODE_LIST_CONTRACT } from './discover
 import { createBindingResolver } from './discovery-binding.ts'
 import { registerDiscoveryControlTools } from './discovery-control.ts'
 import { restoreExtensions } from './extension-lifecycle.ts'
+import { startMcpSurface } from './mcp-surface.ts'
 export { discoveryBucket } from './discovery-control.ts'
 export { describeModelCard, describeModels } from './model-cards.ts'
 export type {
@@ -2758,90 +2757,16 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
    * scope (a double mount), and a context without `provide` must degrade with a
    * diagnostic rather than silently or loudly failing the mount.
    */
-  try {
-    ;(ctx as unknown as { provide?: (name: string, value: unknown) => void }).provide?.('model-tools.mcp-host', mcpHost)
-  } catch (error) {
-    ctx.logger?.warn?.(
-      `model-tools: could not expose the MCP host service: ${error instanceof Error ? error.message : String(error)}`,
-    )
-  }
-
-  /**
-   * SERVE the host's MCP surface on loopback when the operator enables it (MCP-02).
-   *
-   * The plugin has always EXPOSED `model-tools.mcp-host`; nothing bound a port, so an
-   * MCP client could only reach the separate headless composition. With
-   * `mcpV3.enabled` the SAME surface is served here, so dispatch, per-client grants and
-   * receipts stay in DSH. Credentials come from `DSH_TOOL_MODE_MCP_TOKEN` (the operator
-   * token) and, when present, the generated-credential store — the raw token is never
-   * configuration. A missing token or a port conflict is LOGGED and the host keeps
-   * running (RUN-06); it never takes the session down.
-   */
-  if (config.mcpV3?.enabled === true) {
-    /**
-     * The bearer token: the launch environment WINS (it is the explicit override), then
-     * the operator's token FILE. The file route exists because a desktop-launched host
-     * inherits an environment the operator cannot change; without it, enabling MCP in a
-     * profile had no effect until the app was launched with a special variable.
-     */
-    const envToken = process.env.DSH_TOOL_MODE_MCP_TOKEN
-    const configuredTokenFile = config.mcpV3.tokenFile ?? ''
-    let fileToken = ''
-    if (configuredTokenFile.length > 0) {
-      try {
-        fileToken = readFileSync(configuredTokenFile, 'utf8').trim()
-      } catch (error) {
-        ctx.logger.warn(
-          `model-tools: could not read mcpV3.tokenFile ${configuredTokenFile}: `
-          + `${error instanceof Error ? error.message : String(error)}`,
-        )
-      }
-    }
-    const mcpToken = envToken !== undefined && envToken.length > 0 ? envToken : fileToken
-    const authSelection = selectHttpAuth({
-      ...config.mcpV3.auth?.mode === undefined ? {} : { mode: config.mcpV3.auth.mode },
-      ...config.mcpV3.auth?.authorizationServerProfile === undefined
-        ? {}
-        : { profile: config.mcpV3.auth.authorizationServerProfile },
-      token: mcpToken,
-      ...credentialStore === undefined ? {} : { store: credentialStore },
-    })
-    if (!authSelection.ok) {
-      ctx.logger.warn(`model-tools: ${authSelection.reason}; no MCP endpoint is served`)
-    } else {
-      try {
-        const endpoint = await startHttpServer({
-          host: config.mcpV3.host ?? '127.0.0.1',
-          port: config.mcpV3.port ?? 3765,
-          path: config.mcpV3.path ?? '/mcp',
-          maxBodyBytes: 4 * 1024 * 1024,
-          allowedOrigins: config.mcpV3.allowedOrigins ?? [],
-          auth: authSelection.auth,
-          grants: config.mcpV3.grants ?? {},
-        }, mcpHost)
-        // TASK-13: the status surface reports the ACTUAL bound endpoint (port 0 is
-        // resolved to the OS-assigned port by startHttpServer), never the config.
-        mcpBoundEndpoint = endpoint
-        mcpStartedAt = Date.now()
-        ctx.effect(() => () => { void endpoint.close() })
-        try {
-          ;(ctx as unknown as { provide?: (name: string, value: unknown) => void })
-            .provide?.('model-tools.mcp-endpoint', endpoint)
-        } catch (error) {
-          ctx.logger?.warn?.(
-            `model-tools: could not expose the MCP endpoint service: `
-            + `${error instanceof Error ? error.message : String(error)}`,
-          )
-        }
-        ctx.logger.info(`model-tools: MCP endpoint ${endpoint.url}`)
-      } catch (error) {
-        ctx.logger.warn(
-          `model-tools: could not serve MCP on ${config.mcpV3.host ?? '127.0.0.1'}:`
-          + `${String(config.mcpV3.port ?? 3765)}: ${error instanceof Error ? error.message : String(error)}`,
-        )
-      }
-    }
-  }
+  await startMcpSurface({
+    ctx,
+    mcpV3: config.mcpV3 as never,
+    credentialStore,
+    mcpHost,
+    onStarted: endpoint => {
+      mcpBoundEndpoint = endpoint
+      mcpStartedAt = Date.now()
+    },
+  })
 
   /**
    * The publication decision for one catalog entry (EXT-24, EXT-32).

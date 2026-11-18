@@ -24,6 +24,7 @@ already-extracted module. A split that needs a new circular import is not a refa
 | `src/model-tools-schema.ts` | `model_tools` advertised schema and renderer | ~670 |
 | `src/discovery-surface.ts` | `model_tools` execution/management closure | ~620 |
 | `src/extension-lifecycle.ts` | integrity → assets → inspect → activate → auto-provision | ~475 |
+| `src/mcp-surface.ts` | MCP host service and loopback endpoint | ~140 |
 | `src/tool-mode-run.ts` | authorized Code Mode runner and report | ~690 |
 | `src/agent-authoring.ts` | scoped artifact store and resolution | ~1.4k |
 | `src/extensions-service.ts` | extension install/prepare/lifecycle coordination | ~3.3k |
@@ -67,7 +68,7 @@ interfaces, not closures over a 400-line `apply`.
       discovery-binding.ts       list/describe/preflight resolution  [done]
       authoring-surface.ts       workflow + agent tool handlers  [done]
       extension-lifecycle.ts     restore chain                [done]
-      mcp-surface.ts             HTTP/stdio, auth, credentials, subscriptions
+      mcp-surface.ts             host service + endpoint       [done]
       runtime-surface.ts         tool_mode_run + receipts        [partial]
       receipt-surface.ts         receipt stores, accounting, usage   [done]
 
@@ -90,8 +91,9 @@ interfaces, not closures over a 400-line `apply`.
    because ordering is a contract (integrity, asset restore, readiness, activation) and
    several maps are shared with dispatch. Extract it only after 2-4 have settled, with
    the restore chain tests run before and after.
-6. **mcp-surface** - HTTP/stdio setup, auth, credentials, subscriptions. It is already
-   mostly in `src/mcp/`; move the remaining server lifecycle and route wiring.
+6. **mcp-surface** - done for the lifecycle seam. HTTP/auth/subscriptions already live
+   in `src/mcp/`; `mcp-surface.ts` owns service exposure, token/OAuth selection and
+   binding the loopback endpoint.
 7. **runtime-surface** - partially done: `tool_mode_run` (probe, binding preflight,
    composition/nested receipts, run capture) is out in `runtime-surface.ts`. The
    adapters, provider bridge and model runtime lane are already separate modules; the
