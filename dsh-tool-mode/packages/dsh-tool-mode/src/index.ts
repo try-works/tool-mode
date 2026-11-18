@@ -60,7 +60,12 @@ import { createAuthoringLedger, type AuthoringReceipt } from './authoring-ledger
 import { createRunCaptureStore, schemaShape, type RunCaptureStore } from './run-capture.ts'
 import { createSessionLedger, type SessionLedger } from './session-ledger.ts'
 import { findRepeatedShapes, type RepeatedShape } from './repeated-shapes.ts'
-import { installSandboxTempRoot, resolveSandboxTempRoot } from './sandbox-temp.ts'
+import {
+  createSandboxTempScope,
+  DEFAULT_SANDBOX_TEMP_MAX_AGE_MS,
+  pruneSandboxTempRoot,
+  resolveSandboxTempRoot,
+} from './sandbox-temp.ts'
 import { buildDiagnostics } from './diagnostics.ts'
 import { PACKAGE_VERSION } from './version.ts'
 import { CAPTURE_PATH } from './capture-path.ts'
@@ -311,8 +316,8 @@ export interface Config {
    * On Windows the `windows-acl` sandbox creates a private temp directory with
    * `os.tmpdir()` and writes a DACL on it. An inherited TEMP/TMP on a volume that refuses
    * `SetNamedSecurityInfoW` (Win32 5) makes Code Mode fail with an AclSandbox error. When
-   * resolved, the plugin points TEMP/TMP at this directory for its lifetime and restores
-   * them on teardown.
+   * resolved, the plugin points TEMP/TMP at this directory for each Code Mode run and
+   * restores them afterwards; the host lifetime never owns the process-global override.
    *
    * RESOLUTION: unset -> on Windows `~/.dsh/tool-mode-sandbox/tmp`, elsewhere no override;
    * an absolute path -> use it; an empty string -> DISABLE the override explicitly.
@@ -1310,34 +1315,43 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   /**
    * THE PTC SANDBOX TEMP ROOT (task-58, Windows ACL fix).
    *
-   * Installed before any surface that can start a program, because DSH's sandbox-local
-   * resolves `os.tmpdir()` when it materializes its private temp. An unset value means the
-   * win32 DSH-home default (or no override on other platforms); '' disables it explicitly.
-   * A directory that cannot be created is reported and SKIPPED rather than failing plugin
-   * load: the rest of the host does not depend on the sandbox temp root.
+   * DSH's sandbox-local resolves `os.tmpdir()` when it materializes a private temp.
+   * TEMP/TMP are PROCESS-GLOBAL, so the override must not outlive the Code Mode run
+   * that needs it: keeping it for the host lifetime made every plugin inherit the
+   * sandbox tree and let that tree grow without bound. The scope installs it for a
+   * run and restores it when the last run ends. No directory is created at boot and
+   * the retention prune runs after the first program run, never on the boot path.
    */
-  {
-    const sandboxTemp = resolveSandboxTempRoot({ configured: config.sandboxTempRoot })
-    if (sandboxTemp.root.length > 0) {
+  const sandboxTemp = resolveSandboxTempRoot({ configured: config.sandboxTempRoot })
+  const sandboxTempScope = createSandboxTempScope(sandboxTemp.root, {
+    onError: (error) => {
+      ctx.logger.warn(
+        `model-tools: could not create the sandbox temp root ${sandboxTemp.root}: `
+        + `${error instanceof Error ? error.message : String(error)}; using the platform temp`,
+      )
+    },
+  })
+  let sandboxPruneScheduled = false
+  /** Prune once, a second after the FIRST program run (never during boot). */
+  const scheduleSandboxTempPrune = (): void => {
+    if (sandboxPruneScheduled || sandboxTemp.root.length === 0) return
+    sandboxPruneScheduled = true
+    const pruneTimer = setTimeout(() => {
       try {
-        const installed = installSandboxTempRoot(sandboxTemp.root)
-        if (installed.changed) {
-          ctx.logger.info(
-            `model-tools: TEMP/TMP point at ${installed.root} for the PTC sandbox `
-            + `(${sandboxTemp.source === 'configured' ? 'sandboxTempRoot' : 'the Windows default'}); `
-            + 'restored on teardown',
-          )
-          ctx.effect(() => () => {
-            installed.restore()
-          }, 'sandbox temp root restore')
+        const removed = pruneSandboxTempRoot(sandboxTemp.root, {
+          maxAgeMs: DEFAULT_SANDBOX_TEMP_MAX_AGE_MS,
+        })
+        if (removed > 0) {
+          ctx.logger.info(`model-tools: pruned ${removed} abandoned sandbox temp director${removed === 1 ? 'y' : 'ies'}`)
         }
       } catch (error) {
         ctx.logger.warn(
-          `model-tools: could not create the sandbox temp root ${sandboxTemp.root}: `
-          + `${error instanceof Error ? error.message : String(error)}; using the platform temp`,
+          `model-tools: could not prune the sandbox temp root ${sandboxTemp.root}: `
+          + `${error instanceof Error ? error.message : String(error)}`,
         )
       }
-    }
+    }, 1_000)
+    pruneTimer.unref()
   }
   const entries = loadCatalog(config.catalogFile)
   /**
@@ -5243,13 +5257,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         let report: Awaited<ReturnType<typeof serveProgram>>
         try {
           const agent = (exec as { agent?: unknown } | undefined)?.agent
-          report = await programAgentContext.run(
+          report = await sandboxTempScope.run(() => programAgentContext.run(
             agent === undefined ? {} : { agent },
             () => serveProgram(args as Record<string, unknown>, programRunner, {
               receiptId,
               catalogRevision: revision,
             }),
-          )
+          ))
+          scheduleSandboxTempPrune()
         } catch (error) {
           recordFailedComposition(receiptId, revision, 'tool_mode_run')
           throw error
@@ -5656,7 +5671,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
               const started = Date.now()
               let report: RunReport
               try {
-                report = await programAgentContext.run(
+                report = await sandboxTempScope.run(() => programAgentContext.run(
                   { agent: (exec as { agent?: unknown } | undefined)?.agent },
                   () => runAuthoredProgram({
                     program: resolved.program,
@@ -5666,7 +5681,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
                     receiptId,
                     catalogRevision: revision,
                   }),
-                )
+                ))
+                scheduleSandboxTempPrune()
               } catch (error) {
                 authoringLedger.record({
                   operation: 'run', artifactKind: 'workflow', name: resolved.name, version: resolved.version,
@@ -5778,7 +5794,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             const revision = authoringRevision()
             let report: RunReport
             try {
-              report = await programAgentContext.run(
+              report = await sandboxTempScope.run(() => programAgentContext.run(
                 { agent: (exec as { agent?: unknown } | undefined)?.agent },
                 () => runAuthoredProgram({
                   program: resolved.program,
@@ -5788,7 +5804,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
                   receiptId,
                   catalogRevision: revision,
                 }),
-              )
+              ))
+              scheduleSandboxTempPrune()
             } catch (error) {
               authoringLedger.record({
                 operation: 'run', artifactKind: 'tool', name: resolved.name, version: resolved.version,
@@ -6002,7 +6019,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           const started = Date.now()
           let report: RunReport
           try {
-            report = await programAgentContext.run(
+            report = await sandboxTempScope.run(() => programAgentContext.run(
               { agent: (exec as { agent?: unknown } | undefined)?.agent },
               () => runAuthoredProgram({
                 program: entry.program,
@@ -6012,7 +6029,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
                 receiptId,
                 catalogRevision: revision,
               }),
-            )
+            ))
+            scheduleSandboxTempPrune()
           } catch (error) {
             authoringLedger.record({
               operation: 'run', artifactKind: 'workflow', name: entry.name, version: entry.version,

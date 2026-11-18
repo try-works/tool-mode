@@ -12,7 +12,7 @@
 
 import { after, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, utimesSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -23,7 +23,9 @@ import SkillRegistry from '@deepseek-ai/dsh-skill'
 
 import * as plugin from '../src/index.ts'
 import {
+  createSandboxTempScope,
   installSandboxTempRoot,
+  pruneSandboxTempRoot,
   resolveSandboxTempRoot,
 } from '../src/sandbox-temp.ts'
 import { cleanup } from './helpers.ts'
@@ -112,9 +114,9 @@ describe('installSandboxTempRoot — set TEMP/TMP and restore them exactly', () 
   })
 })
 
-describe('the mounted plugin owns TEMP/TMP for its lifetime', () => {
-  it('points TEMP/TMP at the configured root while mounted and RESTORES them on disposal', async () => {
-    const dir = fixtureDir()
+describe('the mounted plugin does NOT own TEMP/TMP for its lifetime', () => {
+  it('leaves TEMP/TMP untouched while mounted and creates nothing at boot', async () => {
+    const dir = join(fixtureDir(), 'sandbox-tmp')
     const previousTemp = process.env['TEMP']
     const previousTmp = process.env['TMP']
     const stateDir = fixtureDir()
@@ -129,9 +131,9 @@ describe('the mounted plugin owns TEMP/TMP for its lifetime', () => {
         sandboxTempRoot: dir,
         allowAgentAuthoring: false,
       })
-      assert.equal(process.env['TEMP'], resolve(dir))
-      assert.equal(process.env['TMP'], resolve(dir))
-      assert.equal(existsSync(resolve(dir)), true)
+      assert.equal(process.env['TEMP'], previousTemp)
+      assert.equal(process.env['TMP'], previousTmp)
+      assert.equal(existsSync(resolve(dir)), false, 'the temp root is created on the first program run only')
     } finally {
       await ctx.fiber.dispose()
     }
@@ -139,7 +141,7 @@ describe('the mounted plugin owns TEMP/TMP for its lifetime', () => {
     assert.equal(process.env['TMP'], previousTmp)
   })
 
-  it('applies the win32 DSH-home default when the config leaves the root unset', async () => {
+  it('does not apply the win32 DSH-home default for the process lifetime', async () => {
     if (process.platform !== 'win32') return
     const previousTemp = process.env['TEMP']
     const previousTmp = process.env['TMP']
@@ -154,12 +156,72 @@ describe('the mounted plugin owns TEMP/TMP for its lifetime', () => {
         credentialsFile: join(stateDir, 'credentials.json'),
         allowAgentAuthoring: false,
       })
-      assert.equal(process.env['TEMP'], windowsDefault())
-      assert.equal(process.env['TMP'], windowsDefault())
+      assert.equal(process.env['TEMP'], previousTemp)
+      assert.equal(process.env['TMP'], previousTmp)
+      assert.equal(windowsDefault().length > 0, true)
     } finally {
       await ctx.fiber.dispose()
     }
-    assert.equal(process.env['TEMP'], previousTemp)
-    assert.equal(process.env['TMP'], previousTmp)
+  })
+})
+
+describe('createSandboxTempScope — the override lives for one run only', () => {
+  it('installs TEMP/TMP for the run and restores the previous values', async () => {
+    const dir = fixtureDir()
+    const env: NodeJS.ProcessEnv = { TEMP: 'E:\\tmp', TMP: 'E:\\tmp' }
+    const scope = createSandboxTempScope(dir, { env })
+    let seen: string | undefined
+    await scope.run(async () => {
+      seen = env['TEMP']
+      await Promise.resolve()
+      assert.equal(env['TMP'], dir)
+    })
+    assert.equal(seen, dir)
+    assert.equal(env['TEMP'], 'E:\\tmp')
+    assert.equal(env['TMP'], 'E:\\tmp')
+  })
+
+  it('reference-counts a nested run and restores only after the outermost', async () => {
+    const dir = fixtureDir()
+    const env: NodeJS.ProcessEnv = { TEMP: 'E:\\tmp', TMP: 'E:\\tmp' }
+    const scope = createSandboxTempScope(dir, { env })
+    await scope.run(async () => {
+      await scope.run(async () => {
+        assert.equal(env['TEMP'], dir)
+      })
+      assert.equal(env['TEMP'], dir, 'the outer run still owns the override')
+    })
+    assert.equal(env['TEMP'], 'E:\\tmp')
+  })
+
+  it('is a no-op when the root is disabled', async () => {
+    const env: NodeJS.ProcessEnv = { TEMP: 'E:\\tmp' }
+    const scope = createSandboxTempScope('', { env })
+    await scope.run(async () => {
+      assert.equal(env['TEMP'], 'E:\\tmp')
+    })
+    assert.equal(env['TEMP'], 'E:\\tmp')
+  })
+})
+
+describe('pruneSandboxTempRoot — bounded retention', () => {
+  it('removes only directories older than the retention window', () => {
+    const root = fixtureDir()
+    const old = join(root, 'abandoned')
+    const recent = join(root, 'active')
+    mkdirSync(old, { recursive: true })
+    mkdirSync(recent, { recursive: true })
+    const ancient = new Date(2020, 0, 1)
+    utimesSync(old, ancient, ancient)
+    const removed = pruneSandboxTempRoot(root, { maxAgeMs: 60_000 })
+    assert.equal(removed, 1)
+    assert.equal(existsSync(old), false)
+    assert.equal(existsSync(recent), true)
+  })
+
+  it('is a no-op for a missing or disabled root', () => {
+    const root = fixtureDir()
+    assert.equal(pruneSandboxTempRoot(join(root, 'missing')), 0)
+    assert.equal(pruneSandboxTempRoot(''), 0)
   })
 })

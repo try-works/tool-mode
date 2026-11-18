@@ -32,7 +32,7 @@ All 28 workspace packages, not only the published host packages.
 
 | Package | Version | Role |
 | --- | --- | --- |
-| `@try-works/dsh-tool-mode` | 0.5.92 | DSH plugin: catalog, dispatch, discovery, MCP |
+| `@try-works/dsh-tool-mode` | 0.5.93 | DSH plugin: catalog, dispatch, discovery, MCP |
 | `@try-works/tool-mode-contracts` | 0.1.1 | Model-free contract identities, schemas, validation |
 | `@try-works/tool-mode-extension-sdk` | 0.1.5 | Extension authoring API and manifest validation |
 | `@try-works/tool-mode-recipes` | 0.1.0 | Recipe format and provider-neutral LLM broker |
@@ -335,8 +335,10 @@ DSH's `windows-acl` sandbox creates a private temp directory with `os.tmpdir()` 
 writes a DACL on it. If the inherited `TEMP`/`TMP` is on a volume that refuses
 `SetNamedSecurityInfoW` (Win32 5), Code Mode fails with
 `AclSandbox init failed`. On Windows the plugin therefore points `TEMP`/`TMP` at
-`~/.dsh/tool-mode-sandbox/tmp` for its lifetime (creating it owner-only) and restores the
-previous values when the host unloads. Resolution:
+`~/.dsh/tool-mode-sandbox/tmp` **for the duration of a Code Mode run** (creating it
+owner-only), then restores the previous values exactly. It never owns `TEMP`/`TMP` for
+the host lifetime, so other plugins keep the platform temp. A background pass removes
+abandoned child directories older than 24 hours, off the boot path. Resolution:
 
 | `sandboxTempRoot` | Behavior |
 | --- | --- |
@@ -344,8 +346,9 @@ previous values when the host unloads. Resolution:
 | absolute path | point `TEMP`/`TMP` at that path |
 | `""` (explicit empty) | disable the override; use the platform temp |
 
-The override is process-wide for the plugin's lifetime; Code Mode's sandbox reads
-`os.tmpdir()` when it starts a program, so it takes effect without extra configuration.
+The override is reference-counted across concurrent/nested runs and removed after the
+last one. Code Mode's sandbox reads `os.tmpdir()` when it starts a program, so the
+override is in place before materialization without any extra configuration.
 
 ### Value-flow evidence: which output reached which argument (not full provenance)
 
