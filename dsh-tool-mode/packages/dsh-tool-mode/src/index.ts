@@ -3196,7 +3196,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       'credentials', 'extensions-pending', 'extensions-prepare-plan',
     ] as const
     const mutationActions = new Set([
-      'enable', 'disable', 'reset',
+      'enable', 'disable', 'reset', 'warm',
       'extensions-approve', 'extensions-deny', 'extensions-commit', 'extensions-rollback',
       'extensions-prepare', 'extensions-purge-assets', 'extensions-license-basis',
     ])
@@ -3282,6 +3282,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       workflowToolNames,
       authoredToolNames,
       ownedExtensionToolNames,
+      coldFor: extensionId => {
+        if (extensionId === undefined) return false
+        const state = extensionLifecycle?.stateOf(extensionId)
+        return state !== undefined && Object.values(state.readiness).includes('prepared-cold')
+      },
     })
   }
 

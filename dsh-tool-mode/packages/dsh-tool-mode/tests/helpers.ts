@@ -120,7 +120,7 @@ export async function mountPlugin(config: plugin.Config = {}): Promise<Context> 
 
 /** Actions that require the separate management tool (BASE-07/SEC-09). */
 const MANAGEMENT_ACTIONS = new Set([
-  'enable', 'disable', 'reset',
+  'enable', 'disable', 'reset', 'warm',
   'extensions-approve', 'extensions-deny', 'extensions-commit', 'extensions-rollback',
   'extensions-prepare', 'extensions-license-basis',
 ])

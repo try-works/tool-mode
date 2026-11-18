@@ -36,7 +36,7 @@ export const MODEL_TOOLS_SPEC: ModelToolsSpec = {
     action: {
       type: 'string',
       required: true,
-      enum: ['list', 'installed', 'describe', 'enable', 'disable', 'reset', 'receipts', 'mcp', 'diagnostics', 'credentials', 'extensions-pending', 'extensions-approve', 'extensions-deny', 'extensions-commit', 'extensions-rollback', 'extensions-prepare-plan', 'extensions-prepare', 'extensions-purge-assets', 'extensions-license-basis'],
+      enum: ['list', 'installed', 'describe', 'enable', 'disable', 'reset', 'warm', 'receipts', 'mcp', 'diagnostics', 'credentials', 'extensions-pending', 'extensions-approve', 'extensions-deny', 'extensions-commit', 'extensions-rollback', 'extensions-prepare-plan', 'extensions-prepare', 'extensions-purge-assets', 'extensions-license-basis'],
       description:
         'list: every catalogued model and whether it runs here. installed: only the models whose tools are '
         + 'registered. describe: full detail for one model. enable: install a model\'s tool and remember it. '
@@ -141,6 +141,8 @@ export const MODEL_TOOLS_SPEC: ModelToolsSpec = {
                 required: true,
                 oneOf: [{ type: 'string' }, { type: 'null' }],
               },
+              /** True for prepared-cold rows: the first call may block on load. */
+              cold: { type: 'boolean' },
               toolName: { type: 'string', required: true },
               skill: { type: 'string', required: true },
               runnable: { type: 'boolean', required: true },
@@ -599,6 +601,10 @@ export const MODEL_TOOLS_SPEC: ModelToolsSpec = {
         },
         /** Set by extensions-prepare: the acquired groups. */
         prepared: { type: 'boolean' },
+        /** Set by warm: the model was already prepared from disk. */
+        alreadyReady: { type: 'boolean' },
+        /** Set by warm: an explicit warm completed. */
+        warmed: { type: 'boolean' },
         /** Set by extensions-purge-assets: whether a group directory was removed. */
         purged: { type: 'boolean' },
         /** Set by extensions-license-basis: the recorded permission basis (LIC-03). */

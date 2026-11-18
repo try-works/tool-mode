@@ -544,6 +544,29 @@ export function createModelToolsControl(deps: ModelToolsDeps) {
       } as never
     }
 
+    if (action === 'warm') {
+      const surface = prepareAssetsSurface()
+      if (surface === undefined) {
+        throw new Error('warm requires the extension store (config.extensionStoreDir); it is not configured')
+      }
+      if (modelId === undefined) throw new Error('warm requires the model id in "model"')
+      try {
+        const restored = surface.restore(modelId)
+        if (restored.ok) {
+          return { models: [], ...counts(), action, warmed: true, alreadyReady: true } as never
+        }
+      } catch {
+        // No plan yet; a real prepare below reports the precise reason.
+      }
+      const outcome = await surface.prepare(modelId, {
+        source: config.assetSourceFactory?.() ?? createHttpSource(),
+        allowExecutable: args.allowExecutable === true,
+        signal: exec?.signal ?? new AbortController().signal,
+      })
+      if (!outcome.ok) throw new Error('the warm preparation failed: ' + outcome.reason)
+      return { models: [], ...counts(), action, warmed: true } as never
+    }
+
     if (action === 'extensions-prepare-plan' || action === 'extensions-prepare' || action === 'extensions-purge-assets') {
       /**
        * RES-02: the preparation plan is DISCLOSED (bytes, storage, license,

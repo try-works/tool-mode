@@ -74,6 +74,8 @@ export interface DiscoveryControlDeps {
   readonly workflowToolNames: ReadonlySet<string>
   readonly authoredToolNames: ReadonlySet<string>
   readonly ownedExtensionToolNames: ReadonlySet<string>
+  /** Whether this extension currently has a prepared-cold deployment. */
+  readonly coldFor?: ((extensionId: string | undefined) => boolean) | undefined
 }
 
 /**
@@ -106,6 +108,7 @@ export function registerDiscoveryControlTools(deps: DiscoveryControlDeps): void 
   const workflowToolNames = deps.workflowToolNames
   const authoredToolNames = deps.authoredToolNames
   const ownedExtensionToolNames = deps.ownedExtensionToolNames
+  const coldFor = deps.coldFor
   /**
    * DECL-07: the read-only discovery pair under the SPEC NAMES. Ordinary
    * tool-only clients get the permitted tools + readiness (list) and the
@@ -337,6 +340,7 @@ export function registerDiscoveryControlTools(deps: DiscoveryControlDeps): void 
           ...contractFactsFor(toolName),
           schemaAvailable: schemaAvailableFor(toolName),
           bindable: bindableName(toolName, bindableScope),
+          ...coldFor?.(item.entry.provider?.extension) === true ? { cold: true } : {},
         })
         // A model may declare more than its primary operation. Expose each
         // REGISTERED operation as its own discoverable row; an unregistered one

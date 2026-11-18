@@ -30,7 +30,12 @@ this checkout.
   names, evidence after five uses, four lines and 600 characters. Session-scoped
   artifacts are deliberately omitted because the prompt section has no caller
   session identity.
-- Phases 5–6 remain pending.
+- **Phase 5 — implemented for the explicit path.** `model_tools_manage` has a
+  management-only `warm` action that restores from disk when possible and
+  otherwise prepares; discovery rows carry `cold: true` when the extension's
+  recorded readiness is `prepared-cold`. `tool_mode_list`/`tool_mode_describe`
+  remain side-effect free. Optional background prewarm after enable is not wired.
+- Phase 6 remains pending.
 
 ## Outcome
 
