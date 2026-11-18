@@ -23,6 +23,7 @@ already-extracted module. A split that needs a new circular import is not a refa
 | `src/runtime-surface.ts` | `tool_mode_run`, probe and composition receipts | ~190 |
 | `src/model-tools-schema.ts` | `model_tools` advertised schema and renderer | ~670 |
 | `src/discovery-surface.ts` | `model_tools` execution/management closure | ~620 |
+| `src/extension-lifecycle.ts` | integrity → assets → inspect → activate → auto-provision | ~475 |
 | `src/tool-mode-run.ts` | authorized Code Mode runner and report | ~690 |
 | `src/agent-authoring.ts` | scoped artifact store and resolution | ~1.4k |
 | `src/extensions-service.ts` | extension install/prepare/lifecycle coordination | ~3.3k |
@@ -48,6 +49,9 @@ Extracted so far:
   store, ledger, registration/disposal hooks, scope resolver, receipts and
   sandbox runner are injected; the registration helpers stay in `index.ts`
   because boot restore calls them before the tools are registered.
+- `extension-lifecycle.ts` owns the restore chain: integrity, prepared-asset
+  handles, readiness inspection, activation and first-party auto-provision. The
+  order is the contract and is now reviewable as one function.
 
 ## Target shape
 
@@ -62,7 +66,7 @@ interfaces, not closures over a 400-line `apply`.
       discovery-surface.ts       model_tools execution           [done]
       discovery-binding.ts       list/describe/preflight resolution  [done]
       authoring-surface.ts       workflow + agent tool handlers  [done]
-      extension-lifecycle.ts     restore, inspect, prepare, activate
+      extension-lifecycle.ts     restore chain                [done]
       mcp-surface.ts             HTTP/stdio, auth, credentials, subscriptions
       runtime-surface.ts         tool_mode_run + receipts        [partial]
       receipt-surface.ts         receipt stores, accounting, usage   [done]
