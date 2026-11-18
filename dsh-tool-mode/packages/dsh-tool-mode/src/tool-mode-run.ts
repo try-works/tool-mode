@@ -468,21 +468,39 @@ export function createProgramRunner(environment: RunnerEnvironment): ProgramRunn
           // A cancelled run is NOT a failure, and the distinction reaches the caller rather
           // than being flattened.
           const kind = result.error.kind
+          const message = result.error.message ?? `the program ended with ${String(kind)}`
+          const undeclared = /^([A-Za-z_$][A-Za-z0-9_$]*) is not defined$/.exec(message)
+          if (undeclared !== null) {
+            const name = undeclared[1] ?? message
+            return {
+              ok: false,
+              code: 'unauthorized',
+              message: `tool "${name}" was not declared in this program's tools; add it to tools and rerun. `
+                + `Declared here: ${request.requested.length === 0 ? '(none)' : request.requested.join(', ')}.`,
+            }
+          }
           return {
             ok: false,
             code: kind === 'abort' ? 'cancelled' : 'failed',
-            message: result.error.message ?? `the program ended with ${String(kind)}`,
+            message,
           }
         }
         const dataFlow = calls.flatMap(call => call.input ?? [])
         const coverage = dataFlowCoverage(calls)
         return { ok: true, value: result.value, logs: result.logs ?? [], toolCalls, calls, dataFlow, dataFlowCoverage: coverage }
       } catch (error) {
-        return {
-          ok: false,
-          code: 'failed',
-          message: error instanceof Error ? error.message : String(error),
+        const message = error instanceof Error ? error.message : String(error)
+        const undeclared = /^([A-Za-z_$][A-Za-z0-9_$]*) is not defined$/.exec(message)
+        if (undeclared !== null) {
+          const name = undeclared[1] ?? message
+          return {
+            ok: false,
+            code: 'unauthorized',
+            message: `tool "${name}" was not declared in this program's tools; add it to tools and rerun. `
+              + `Declared here: ${request.requested.length === 0 ? '(none)' : request.requested.join(', ')}.`,
+          }
         }
+        return { ok: false, code: 'failed', message }
       }
     },
   }

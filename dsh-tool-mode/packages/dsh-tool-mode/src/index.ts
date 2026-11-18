@@ -1189,11 +1189,14 @@ function cardLimits(entry: ModelCatalogEntry, tool: ModelCatalogEntry['tool']): 
 }
 
 function cardExample(tool: ModelCatalogEntry['tool']): string | undefined {
-  // Never synthesize a placeholder: an example an agent can copy must be the
-  // author's real JSON and must satisfy the schema. Otherwise the field is absent.
+  const inputSchema = operationInputSchema(tool)
+  // An explicit example is authoritative. Without one, derive a candidate from
+  // the schema and publish it ONLY when it validates; an invalid candidate is
+  // omitted, never published as a plausible-looking lie.
+  const candidate = tool.example ?? JSON.stringify(exampleFromSchema(inputSchema))
   return verifiedCardExample({
-    inputSchema: operationInputSchema(tool),
-    ...tool.example === undefined ? {} : { example: tool.example },
+    inputSchema,
+    example: candidate,
   }).example
 }
 
@@ -1386,6 +1389,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   }) | undefined
   /** Authoring receipts for the receipts action (undefined when authoring is off). */
   let authoringReceipts: (() => readonly AuthoringReceipt[]) | undefined
+  /** The caller scope resolver, wired only when authoring is enabled. */
+  let scopeForAuthoringCaller: ((
+    exec: { agent?: unknown } | undefined,
+    requested?: string,
+  ) => BuiltScopeContext) | undefined
+  /** True unless the name is an authored tool absent from this caller's scope. */
+  let authoredToolVisibleAt: ((name: string, scope: BuiltScopeContext) => boolean) | undefined
   /** Run capture for define-from-run; on by default, disabled by config. */
   let runCaptureStore: RunCaptureStore | undefined
   /** Workflow tools registered from the durable workflow store. */
@@ -1989,6 +1999,50 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const exposeUnavailable = config.exposeUnavailable ?? false
   const registerSkills = config.registerSkills ?? true
   const confidentialTools = new Set(config.confidentialTools ?? [])
+  /**
+   * ONE resolution, used by discovery, preflight and a program's binding table.
+   * Callable, bindable and probe-resolved must never disagree: they are the same
+   * grant ∩ live-registry ∩ caller-scope question. Each refusal names the cause,
+   * the scope considered and the action that clears it (U27).
+   */
+  const bindingPreflight = (
+    name: string,
+    scope?: BuiltScopeContext,
+  ): { resolved: boolean; reason?: string; action?: string; scope: string; scopeKey: string } => {
+    const base = { scope: scope?.scope ?? 'global', scopeKey: scope?.workspaceKey ?? 'global' }
+    if (EXCLUDED_BINDINGS.includes(name)) {
+      return { ...base, resolved: false, reason: 'excluded', action: 'Call it directly, not from a program (CODE-07).' }
+    }
+    if (confidentialTools.has(name)) {
+      return { ...base, resolved: false, reason: 'confidential', action: 'The operator confidentiality policy blocks this value from crossing a program boundary.' }
+    }
+    const callerGrant = externalGrantContext.current()
+    if (callerGrant !== undefined && !callerGrant.includes(name)) {
+      return { ...base, resolved: false, reason: 'not-authorized', action: 'Request a caller grant that includes this name, or call it outside the program.' }
+    }
+    if (!ctx.tools.schemas().some(schema => schema.name === name)) {
+      return { ...base, resolved: false, reason: 'not-registered', action: 'Install or activate the tool, or check the spelling.' }
+    }
+    if (scope !== undefined && authoredToolVisibleAt?.(name, scope) === false) {
+      return {
+        ...base,
+        resolved: false,
+        reason: 'not-visible-at-scope',
+        action: `Save the artifact with scope "${scope.scope}" (or call it from the scope that owns it).`,
+      }
+    }
+    if (ctx.tools.get(name) === undefined) {
+      return { ...base, resolved: false, reason: 'not-registered', action: 'Install or activate the tool, or check the spelling.' }
+    }
+    return { ...base, resolved: true }
+  }
+  const bindableName = (name: string, scope?: BuiltScopeContext): boolean => {
+    if (scope === undefined) {
+      return !EXCLUDED_BINDINGS.includes(name) && !confidentialTools.has(name)
+    }
+    return bindingPreflight(name, scope).resolved
+  }
+
 
   // Persistence: the config states the deployment default, the store records the
   // user's choices on top of it, so enable/disable outlives the session.
@@ -4656,15 +4710,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       const output = ctx.tools.get(name)?.output.schema
       return Object.keys(parameters ?? {}).length > 0 || Object.keys(output ?? {}).length > 0
     }
-    /**
-     * PREFLIGHT (probe E): callable and bindable are different facts. A control tool is
-     * callable directly but never bindable in a program (CODE-07), and a confidential
-     * tool's value cannot cross the program boundary (MCP-11). Both discovery surfaces
-     * publish this bit so an agent can tell the difference WITHOUT provoking a refusal.
-     */
-    const bindableName = (name: string): boolean =>
-      !EXCLUDED_BINDINGS.includes(name) && !confidentialTools.has(name)
-    const describeOne = async (name: string) => {
+    const describeOne = async (name: string, scope?: BuiltScopeContext) => {
       const registrySchema = ctx.tools.schemas().find(schema => schema.name === name)
       const definition = ctx.tools.get(name)
       const modelItem = resolved.find(item => {
@@ -4707,7 +4753,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       return {
         name,
         callable: true as const,
-        bindable: bindableName(name),
+        bindable: bindableName(name, scope),
         ...contractFactsFor(name),
         description: registrySchema?.description ?? descriptor?.summary ?? '',
         parameters: inputSchema,
@@ -4768,6 +4814,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
       },
       async execute(args, exec) {
+        const bindableScope = scopeForAuthoringCaller?.(exec)
         const callerGrant = externalGrantContext.current()
         const permitted = callerGrant === undefined ? undefined : new Set(callerGrant)
         /**
@@ -4820,7 +4867,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             recipeDigest: declarativeRecipeDigests.get(toolName) ?? null,
             ...contractFactsFor(toolName),
             schemaAvailable: schemaAvailableFor(toolName),
-            bindable: bindableName(toolName),
+            bindable: bindableName(toolName, bindableScope),
           })
           // A model may declare more than its primary operation. Expose each
           // REGISTERED operation as its own discoverable row; an unregistered one
@@ -4842,7 +4889,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
               recipeDigest: declarativeRecipeDigests.get(operationName) ?? null,
               ...contractFactsFor(operationName),
               schemaAvailable: schemaAvailableFor(operationName),
-              bindable: bindableName(operationName),
+              bindable: bindableName(operationName, bindableScope),
             } as never)
           }
         }
@@ -4889,7 +4936,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             recipeDigest: null,
             ...contractFactsFor(schema.name),
             schemaAvailable: schemaAvailableFor(schema.name),
-            bindable: bindableName(schema.name),
+            bindable: bindableName(schema.name, bindableScope),
           } as never)
         }
         const sessionId = sessionIdOfAgent(exec.agent)
@@ -4964,6 +5011,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       async execute(args, exec) {
         const names = args.tools as string[]
         const authoring = authoringSnapshot?.(exec)
+        const bindableScope = scopeForAuthoringCaller?.(exec)
         const callerGrant = externalGrantContext.current()
         const permitted = callerGrant === undefined ? undefined : new Set(callerGrant)
         const entries = []
@@ -4981,7 +5029,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           const lookupName = row !== undefined && authoring?.workflows.includes(row) === true
             ? workflowToolName(row.name)
             : requestedName
-          const described = await describeOne(lookupName)
+          const described = await describeOne(lookupName, bindableScope)
           // A KNOWN catalog name that cannot be called is EXPLAINED, not refused (P4).
           if (described.callable === false) {
             entries.push(described)
@@ -5072,7 +5120,22 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
    * by Code Mode must carry the same root session as the program's own caller;
    * otherwise scoping sees no session and silently degrades to global (U24).
    */
-  const programAgentContext = new AsyncLocalStorage<{ readonly agent?: unknown }>()
+  const programAgentContext = new AsyncLocalStorage<{
+    readonly agent?: unknown
+    /**
+     * The HOST execution token of the call that started this program. Nested
+     * dispatch needs it as `parent`; without it, DSH's PTC mode treats every
+     * bound call as a model-direct call and refuses it (U27).
+     */
+    readonly token?: unknown
+  }>()
+  const programContextOf = (exec: unknown): { agent?: unknown; token?: unknown } => {
+    const source = exec as { readonly agent?: unknown; readonly token?: unknown } | undefined
+    return {
+      ...source?.agent === undefined ? {} : { agent: source.agent },
+      ...source?.token === undefined ? {} : { token: source.token },
+    }
+  }
   const programRunner = createProgramRunner({
     context: ctx as never,
     /**
@@ -5114,15 +5177,18 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     confidential: () => [...confidentialTools],
     resolve: name => async (args: Record<string, unknown>) => {      // A binding dispatches through the SAME registry pipeline a native call uses
       // (ARCH-01), so a program cannot reach a tool the registry would refuse.
-      const callerAgent = programAgentContext.getStore()?.agent
+      const caller = programAgentContext.getStore()
+      const callerAgent = caller?.agent
+      const callerToken = caller?.token
       const result = await ctx.tools.execute({
         signal: new AbortController().signal,
         callId: `ptc_${name}_${Date.now().toString(36)}` as never,
         name,
         arguments: args,
-        // SAFETY: the outer tool execution already validated this agent; this only
-        // forwards the SAME context to the nested call.
+        // SAFETY: the outer tool execution already validated this context; this
+        // only forwards the SAME agent and host token to the nested call.
         ...callerAgent === undefined ? {} : { agent: callerAgent as never },
+        ...callerToken === undefined ? {} : { parent: callerToken as never },
       })
       if (result.isError) throw new Error(result.error?.message ?? `${name} failed`)
       return result.value
@@ -5191,13 +5257,15 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         + 'and the whole request is refused when any name is unattainable. `tools` may be '
         + 'empty for a pure transform that computes only from `input`. Bindings are fixed when the run '
         + 'starts, so a tool defined during this run is available only to later runs. The report\'s '
-        + 'meta.calls carries the bounded trace and meta.dataFlow the observed output-to-argument edges.',
+        + 'meta.calls carries the bounded trace and meta.dataFlow the observed output-to-argument edges. '
+        + 'Set probe:true (and omit code) to resolve the declared tools without executing.',
       parameters: {
         // Advisory only, and optional: the program's code is what runs, and the
         // literal CODE-02 payload `{ code, tools }` must be callable as advertised.
         description: { type: 'string', description: 'What the program does (advisory).' },
-        code: { type: 'string', required: true, description: 'Body of an async TypeScript function.' },
+        code: { type: 'string', description: 'Body of an async TypeScript function. Omit only with probe:true.' },
         input: { type: 'json', description: 'Program data, bound structurally — never interpolated into source.' },
+        probe: { type: 'boolean', description: 'Resolve the declared tools without executing the program.' },
         tools: {
           type: 'array',
           required: true,
@@ -5213,6 +5281,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           properties: {
             result: { type: 'json' },
             logs: { type: 'array', items: { type: 'string' } },
+            /** probe:true only: one resolution per declared name, nothing executed. */
+            preflight: { type: 'array' },
+            gateOpen: { type: 'boolean' },
             meta: {
               type: 'object',
               additionalProperties: false,
@@ -5248,7 +5319,43 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
          * pipeline below is the same one the external surface would use.
          */
         const refusal = externalRefusal(programRunner)
-        if (refusal !== undefined) throw new Error(refusal.message)
+        if (refusal !== undefined) {
+          const refusalScope = scopeForAuthoringCaller?.(exec)
+          throw new Error(refusal.message
+            + (refusalScope === undefined ? '' : ` Caller scope: ${refusalScope.scope} (${refusalScope.workspaceKey}).`))
+        }
+        const request = args as {
+          readonly code?: string
+          readonly tools?: readonly string[]
+          readonly probe?: boolean
+        }
+        const declared = Array.isArray(request.tools) ? request.tools : []
+        const bindScope = scopeForAuthoringCaller?.(exec)
+        const preflight = declared.map(name => ({ name, ...bindingPreflight(name, bindScope) }))
+        if (request.probe === true) {
+          return {
+            result: null,
+            logs: [],
+            preflight,
+            gateOpen: config.hostedCode === true,
+            meta: {
+              receiptId: host.nextReceiptId(),
+              elapsedMs: 0,
+              toolCalls: 0,
+              catalogRevision: String(extensionLifecycle?.generation ?? host.activationGeneration),
+            },
+          } as never
+        }
+        const unresolved = preflight.filter(entry => !entry.resolved)
+        if (unresolved.length > 0) {
+          throw new Error('the program requested tools it cannot bind:\n'
+            + unresolved.map(entry =>
+              `  ${entry.name}: ${entry.reason} at ${entry.scope} scope (${entry.scopeKey}) — ${entry.action}`,
+            ).join('\n'))
+        }
+        if (typeof request.code !== 'string' || request.code.trim().length === 0) {
+          throw new Error('tool_mode_run needs a non-empty code body; use probe:true to resolve tools without executing')
+        }
         // The catalog revision is the LIVE extension-lifecycle generation when the
         // lifecycle is mounted (CODE-05 needs a revision that changes), falling
         // back to the host activation generation otherwise.
@@ -5256,9 +5363,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         const receiptId = host.nextReceiptId()
         let report: Awaited<ReturnType<typeof serveProgram>>
         try {
-          const agent = (exec as { agent?: unknown } | undefined)?.agent
           report = await sandboxTempScope.run(() => programAgentContext.run(
-            agent === undefined ? {} : { agent },
+            programContextOf(exec),
             () => serveProgram(args as Record<string, unknown>, programRunner, {
               receiptId,
               catalogRevision: revision,
@@ -5492,6 +5598,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       cwd: process.cwd(),
       ...scopeSettings.workspaceRoot === 'auto' ? {} : { workspaceRoot: scopeSettings.workspaceRoot },
     })
+    scopeForAuthoringCaller = scopeFor
+    authoredToolVisibleAt = (name, scope) =>
+      !authoredToolNames.has(name) || authoringStore.getTool(name, scope.context) !== undefined
     authoringReceipts = () => authoringLedger.list()
     authoringSnapshot = (exec) => {
       const scope = scopeFor(exec)
@@ -5672,7 +5781,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
               let report: RunReport
               try {
                 report = await sandboxTempScope.run(() => programAgentContext.run(
-                  { agent: (exec as { agent?: unknown } | undefined)?.agent },
+                  programContextOf(exec),
                   () => runAuthoredProgram({
                     program: resolved.program,
                     tools: resolved.tools,
@@ -5795,7 +5904,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             let report: RunReport
             try {
               report = await sandboxTempScope.run(() => programAgentContext.run(
-                { agent: (exec as { agent?: unknown } | undefined)?.agent },
+                programContextOf(exec),
                 () => runAuthoredProgram({
                   program: resolved.program,
                   tools: resolved.tools,
@@ -5923,7 +6032,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         const rawScope = typeof request['scope'] === 'string' ? request['scope'] : undefined
         const requestedScope = rawScope === 'all' ? undefined : rawScope
         const includeAll = rawScope === 'all' || request['all'] === true
-        const scope = scopeFor(exec, requestedScope)
+        // LIST reports the CALLER's resolution chain and filters it by scope; it must
+        // not narrow the context to the filter, or a session row shadowing the requested
+        // workspace row becomes invisible (U24/P1.2).
+        const scope = action === 'list' ? scopeFor(exec) : scopeFor(exec, requestedScope)
         if (action === 'clone') {
           const target = typeof request['target'] === 'string' ? request['target'] : ''
           if (target.length === 0) throw new Error('clone needs a target workflow name')
@@ -5983,7 +6095,19 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           const rows = authoringStore.listWorkflows(scope.context, { all: includeAll })
           const workflows = rawScope === undefined || rawScope === 'all'
             ? rows
-            : rows.filter(row => row.scope === rawScope)
+            : (() => {
+                const rank: Record<string, number> = { global: 1, workspace: 2, session: 3 }
+                const allRows = authoringStore.listWorkflows(scope.context, { all: true })
+                return allRows
+                  .filter(row => row.scope === rawScope)
+                  .map(row => {
+                    const hiddenBy = allRows.find(candidate =>
+                      candidate.name === row.name && (rank[candidate.scope] ?? 0) > (rank[row.scope] ?? 0))
+                    return hiddenBy === undefined
+                      ? row
+                      : { ...row, shadowedBy: { scope: hiddenBy.scope, version: hiddenBy.version } }
+                  })
+              })()
           return { workflows, scope: scope.scope, shadowing: 'reported per row' } as never
         }
         if (action === 'get') {
@@ -6020,7 +6144,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           let report: RunReport
           try {
             report = await sandboxTempScope.run(() => programAgentContext.run(
-              { agent: (exec as { agent?: unknown } | undefined)?.agent },
+              programContextOf(exec),
               () => runAuthoredProgram({
                 program: entry.program,
                 tools: entry.tools,
@@ -6162,7 +6286,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         const rawScope = typeof request['scope'] === 'string' ? request['scope'] : undefined
         const requestedScope = rawScope === 'all' ? undefined : rawScope
         const includeAll = rawScope === 'all' || request['all'] === true
-        const scope = scopeFor(exec, requestedScope)
+        // LIST reports the CALLER's resolution chain and filters it by scope; it must
+        // not narrow the context to the filter, or a session row shadowing the requested
+        // workspace row becomes invisible (U24/P1.2).
+        const scope = action === 'list' ? scopeFor(exec) : scopeFor(exec, requestedScope)
         if (action === 'clone') {
           const target = typeof request['target'] === 'string' ? request['target'] : ''
           if (target.length === 0) throw new Error('clone needs a target agent_* tool name')
@@ -6279,7 +6406,19 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           const rows = authoringStore.listTools(scope.context, { all: includeAll })
           const tools = rawScope === undefined || rawScope === 'all'
             ? rows
-            : rows.filter(row => row.scope === rawScope)
+            : (() => {
+                const rank: Record<string, number> = { global: 1, workspace: 2, session: 3 }
+                const allRows = authoringStore.listTools(scope.context, { all: true })
+                return allRows
+                  .filter(row => row.scope === rawScope)
+                  .map(row => {
+                    const hiddenBy = allRows.find(candidate =>
+                      candidate.name === row.name && (rank[candidate.scope] ?? 0) > (rank[row.scope] ?? 0))
+                    return hiddenBy === undefined
+                      ? row
+                      : { ...row, shadowedBy: { scope: hiddenBy.scope, version: hiddenBy.version } }
+                  })
+              })()
           return { tools, scope: scope.scope } as never
         }
         if (action === 'get') {

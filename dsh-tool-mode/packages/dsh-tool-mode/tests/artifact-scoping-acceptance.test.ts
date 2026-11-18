@@ -190,6 +190,93 @@ describe('artifact scoping T1-T12', () => {
     assert.equal(result.result.scope, 'session', 'the nested call must resolve the caller session, not global')
   })
 
+  it('T1f: bind preflight resolves names without executing and agrees with list bindable', async () => {
+    const ctx = await mountHost({ gateOpen: true })
+    await ok(ctx, 'tool_mode_tools', {
+      action: 'define', name: 'agent_probe_bind', description: 'Probe.', scope: 'session',
+      inputSchema: { type: 'object', properties: {} },
+      program: 'throw new Error("must not execute")', tools: [],
+    }, 'session-a')
+    const probed = await ok(ctx, 'tool_mode_run', {
+      probe: true, tools: ['agent_probe_bind', 'missing_bind'],
+    }, 'session-a') as {
+      preflight: { name: string; resolved: boolean; reason?: string; scope: string }[]
+      gateOpen: boolean
+    }
+    assert.equal(probed.gateOpen, true)
+    assert.equal(probed.preflight[0]?.resolved, true)
+    assert.equal(probed.preflight[0]?.scope, 'session')
+    assert.equal(probed.preflight[1]?.resolved, false)
+    assert.equal(probed.preflight[1]?.reason, 'not-registered')
+
+    const listed = await ok(ctx, 'tool_mode_list', {}, 'session-a') as {
+      tools: { name: string; bindable: boolean }[]
+    }
+    const row = listed.tools.find(tool => tool.name === 'agent_probe_bind')
+    assert.equal(row?.bindable, true, 'a bindable row must be resolvable by the same gate')
+    const rowProbe = await ok(ctx, 'tool_mode_run', {
+      probe: true, tools: ['agent_probe_bind'],
+    }, 'session-a') as { preflight: { resolved: boolean }[] }
+    assert.equal(rowProbe.preflight[0]?.resolved, row?.bindable)
+  })
+
+  it('T1i: a refused bind names the cause, the scope and the action', async () => {
+    const ctx = await mountHost({ gateOpen: true })
+    const missing = await failed(ctx, 'tool_mode_run', {
+      code: 'return 1', tools: ['missing_bind'],
+    }, 'session-a')
+    assert.match(missing, /not-registered/)
+    assert.match(missing, /session/)
+    assert.match(missing, /Install or activate/)
+
+    const undeclared = await failed(ctx, 'tool_mode_run', {
+      code: 'return await nope({})', tools: [],
+    }, 'session-a')
+    assert.match(undeclared, /was not declared/)
+    assert.match(undeclared, /Declared here: \(none\)/)
+
+    const closed = await mountHost()
+    const gate = await failed(closed, 'tool_mode_run', {
+      code: 'return 1', tools: [],
+    }, 'session-a')
+    assert.match(gate, /generated-code execution is disabled/)
+    assert.match(gate, /Caller scope: session/)
+    assert.match(gate, /hostedCode: true/)
+  })
+
+  it('T1g: a session artifact is not visible from another session', async () => {
+    const ctx = await mountHost({ gateOpen: true })
+    await ok(ctx, 'tool_mode_tools', {
+      action: 'define', name: 'agent_private', description: 'Private.', scope: 'session',
+      inputSchema: { type: 'object', properties: {} }, program: 'return 1', tools: [],
+    }, 'session-a')
+    const message = await failed(ctx, 'tool_mode_run', {
+      code: 'return await agent_private({})', tools: ['agent_private'],
+    }, 'session-b')
+    assert.match(message, /not-visible-at-scope/)
+    assert.match(message, /session/)
+    assert.match(message, /Save the artifact/)
+  })
+
+  it('T1h: listing one scope reports the row hidden by a higher scope', async () => {
+    const ctx = await mountHost({ gateOpen: true })
+    await ok(ctx, 'tool_mode_workflows', {
+      action: 'save', name: 'shadow-flow', program: 'return "workspace"', scope: 'workspace',
+    }, 'session-a')
+    await ok(ctx, 'tool_mode_workflows', {
+      action: 'save', name: 'shadow-flow', program: 'return "session"', scope: 'session',
+    }, 'session-a')
+    const hidden = await ok(ctx, 'tool_mode_workflows', {
+      action: 'list', scope: 'workspace',
+    }, 'session-a') as { workflows: { name: string; shadowedBy?: { scope: string } }[] }
+    assert.equal(hidden.workflows.find(row => row.name === 'shadow-flow')?.shadowedBy?.scope, 'session')
+    await ok(ctx, 'tool_mode_workflows', { action: 'delete', name: 'shadow-flow' }, 'session-a')
+    const visible = await ok(ctx, 'tool_mode_workflows', {
+      action: 'list', scope: 'workspace',
+    }, 'session-a') as { workflows: { name: string; shadowedBy?: unknown }[] }
+    assert.equal(visible.workflows.find(row => row.name === 'shadow-flow')?.shadowedBy, undefined)
+  })
+
   it('T2: a subagent writes into its root session scope', async () => {
     const ctx = await mountHost({ parents: { child: 'root' } })
     await ok(ctx, 'tool_mode_workflows', { action: 'save', name: 'subagent-flow', program: 'return 1' }, 'child')

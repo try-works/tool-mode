@@ -491,6 +491,55 @@ describe('tool_mode_tools', () => {
     assert.deepEqual(result.result, { echoed: 9 })
   })
 
+  it('forwards the host parent token to a nested bound call', async () => {
+    const ctx = await mountHost({}, { gateOpen: true })
+    await callOk(ctx, 'tool_mode_tools', {
+      action: 'define', name: 'agent_echo', description: 'Echo.',
+      inputSchema: { type: 'object', properties: { value: { type: 'integer' } }, required: ['value'] },
+      program: 'return { echoed: input.value }', tools: [],
+    })
+    const original = ctx.tools.execute.bind(ctx.tools)
+    let nestedParent: unknown
+    ;(ctx.tools as unknown as { execute: typeof ctx.tools.execute }).execute = async (input: never) => {
+      if ((input as { name?: string }).name === 'agent_echo') {
+        nestedParent = (input as { parent?: unknown }).parent
+      }
+      return original(input)
+    }
+    const result = await callOk(ctx, 'tool_mode_run', {
+      code: 'return await agent_echo({ value: 9 })', tools: ['agent_echo'], input: {},
+    }) as { result: unknown }
+    assert.deepEqual(result.result, { echoed: 9 })
+    assert.notEqual(nestedParent, undefined, 'a bound call must carry the host parent token (U27)')
+  })
+
+  it('binds a registered tool in both name forms and from a saved workflow', async () => {
+    const ctx = await mountHost({}, { gateOpen: true })
+    ctx.tools.register(defineTool({
+      name: 'fixture_bind_model',
+      description: 'A model-style host tool.',
+      parameters: {},
+      output: { schema: { type: 'object', additionalProperties: true }, render: () => [{ type: 'text', text: 'ok' }] },
+      async execute() { return { bound: true } as never },
+    }))
+    const bare = await callOk(ctx, 'tool_mode_run', {
+      code: 'return await fixture_bind_model({})', tools: ['fixture_bind_model'], input: {},
+    }) as { result: unknown }
+    assert.deepEqual(bare.result, { bound: true })
+    const namespaced = await callOk(ctx, 'tool_mode_run', {
+      code: 'return await tools.fixture_bind_model({})', tools: ['fixture_bind_model'], input: {},
+    }) as { result: unknown }
+    assert.deepEqual(namespaced.result, { bound: true })
+    await callOk(ctx, 'tool_mode_workflows', {
+      action: 'save', name: 'bind-model-flow',
+      program: 'return await fixture_bind_model({})', tools: ['fixture_bind_model'],
+    })
+    const ran = await callOk(ctx, 'tool_mode_workflows', {
+      action: 'run', name: 'bind-model-flow',
+    }) as { result: unknown }
+    assert.deepEqual(ran.result, { bound: true })
+  })
+
   it('lets a host program bind a registered catalog tool, not just authored tools', async () => {
     const ctx = await mountHost({}, { gateOpen: true })
     ctx.tools.register(defineTool({

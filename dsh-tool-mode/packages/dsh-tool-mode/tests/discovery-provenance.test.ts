@@ -71,13 +71,16 @@ async function listing(ctx: Context): Promise<Row[]> {
 }
 
 describe('capability-card prose', () => {
-  it('fills trigger/limits and never emits a generated placeholder example', async () => {
+  it('fills trigger/limits and publishes only parseable, validated examples', async () => {
     const ctx = await mountPlugin()
     const rows = await listing(ctx)
     assert.ok(rows.length >= 18)
     const assertExample = (example: string | undefined, label: string): void => {
       if (example === undefined) return
-      assert.equal(example.includes('"example"'), false, `${label} must not be a generated placeholder`)
+      // verifiedCardExample publishes a generated candidate only after the same
+      // schema validation an explicit example receives; parseability is the
+      // additional contract this test can check without duplicating the validator.
+      assert.doesNotThrow(() => JSON.parse(example) as unknown, `${label} example must be JSON`)
     }
     for (const row of rows) {
       assert.equal(typeof row.whenToUse, 'string', `${row.id} model whenToUse`)
