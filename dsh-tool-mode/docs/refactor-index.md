@@ -22,6 +22,7 @@ already-extracted module. A split that needs a new circular import is not a refa
 | `src/authoring-surface.ts` | workflow + authored-tool handlers | ~650 |
 | `src/runtime-surface.ts` | `tool_mode_run`, probe and composition receipts | ~190 |
 | `src/model-tools-schema.ts` | `model_tools` advertised schema and renderer | ~670 |
+| `src/discovery-surface.ts` | `model_tools` execution/management closure | ~620 |
 | `src/tool-mode-run.ts` | authorized Code Mode runner and report | ~690 |
 | `src/agent-authoring.ts` | scoped artifact store and resolution | ~1.4k |
 | `src/extensions-service.ts` | extension install/prepare/lifecycle coordination | ~3.3k |
@@ -39,9 +40,10 @@ Extracted so far:
   `bindable` predicate.
 - `discovery-control.ts` owns the read-only `tool_mode_list` / `tool_mode_describe`
   pair, their contract facts and `discoveryBucket`.
-- `model-tools-schema.ts` owns the `model_tools` advertised schema and renderer.
-  The execution closure still lives in `index.ts` because its management actions
-  share extension lifecycle, credentials and asset state.
+- `model-tools-schema.ts` owns the `model_tools` advertised schema and renderer;
+  `discovery-surface.ts` owns its execution/management closure. The closure receives
+  the live catalog/registry view, persisted state, credential store, receipts,
+  accounting, update surface and prepared-assets surface as dependencies.
 - `authoring-surface.ts` owns `tool_mode_workflows` and `tool_mode_tools`. The
   store, ledger, registration/disposal hooks, scope resolver, receipts and
   sandbox runner are injected; the registration helpers stay in `index.ts`
@@ -57,7 +59,7 @@ interfaces, not closures over a 400-line `apply`.
       model-cards.ts             pure card formatting                 [done]
       discovery-control.ts       list / describe                   [done]
       model-tools-schema.ts      model_tools contract              [done]
-      discovery-surface.ts       model_tools execution
+      discovery-surface.ts       model_tools execution           [done]
       discovery-binding.ts       list/describe/preflight resolution  [done]
       authoring-surface.ts       workflow + agent tool handlers  [done]
       extension-lifecycle.ts     restore, inspect, prepare, activate
