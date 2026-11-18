@@ -57,13 +57,14 @@ async function mountHost(options: {
   readonly enabled?: boolean
   readonly gateOpen?: boolean
   readonly parents?: Readonly<Record<string, string>>
+  readonly runtime?: ProgramRuntime
 } = {}): Promise<Context> {
   const dir = tempDir()
   const ctx = new Context()
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
   await ctx.plugin(SkillRegistry)
-  ctx.provide(PTC_SERVICE, fakeRuntime())
+  ctx.provide(PTC_SERVICE, options.runtime ?? fakeRuntime())
   if (options.parents !== undefined) {
     ctx.provide('sessions' as never, {
       get(id: string) {
@@ -340,6 +341,23 @@ describe('artifact scoping T1-T12', () => {
     assert.equal(missed.checkedScopes?.length, 1)
     assert.equal(missed.checkedScopes?.[0]?.scope, 'workspace')
     assert.ok((missed.checkedScopes?.[0]?.scopeKey ?? '').length > 0)
+  })
+
+  it('T1k2: a prefixed ReferenceError still reaches the declared-tools hint', async () => {
+    const ctx = await mountHost({
+      gateOpen: true,
+      runtime: {
+        resolve: request => request,
+        async run() {
+          throw new Error('ReferenceError: orbit_missing is not defined')
+        },
+      } as ProgramRuntime,
+    })
+    const message = await failed(ctx, 'tool_mode_run', {
+      code: 'return await orbit_missing({})', tools: [],
+    }, 'session-a')
+    assert.match(message, /orbit_missing/)
+    assert.match(message, /not declared in this program's tools/)
   })
 
   it('T1k: an unlisted bare tool name gets the declared-tools hint, not a raw ReferenceError', async () => {
