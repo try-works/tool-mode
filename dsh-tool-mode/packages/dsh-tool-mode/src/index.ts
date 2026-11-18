@@ -3917,8 +3917,12 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
          * partial object would be refused — and a caller reading `readiness` should
          * get an answer for every model rather than having to handle its absence.
          */
-        const provenanceOf = async (entry: ModelCatalogEntry, callable: boolean) => {
-          const surface = await surfaceFor(entry)
+        const provenanceOf = async (
+          entry: ModelCatalogEntry,
+          callable: boolean,
+          knownSurface?: CatalogGeneration,
+        ) => {
+          const surface = knownSurface ?? await surfaceFor(entry)
           const published = surface?.tools[0]
           const notice = surface?.readiness.find(item => item.modelId === entry.id)
           const withheld = surface === undefined
@@ -3969,7 +3973,15 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
            * ONE readiness derivation, shared with tool_mode_list: the two discovery
            * surfaces cannot disagree about whether this model tool is callable.
            */
-          const publishedName = record?.toolName ?? item.entry.tool?.name ?? item.entry.id
+          // The ACTUAL published name, not the catalog's model-specific alias: a
+          // contract-bound extension publishes the contract tool (stt_transcribe),
+          // while the catalog row is still named transcribe_audio. Using the alias
+          // made a working tool report unavailable (U22).
+          const publishedSurface = await surfaceFor(item.entry)
+          const publishedName = publishedSurface?.tools[0]?.name
+            ?? record?.toolName
+            ?? item.entry.tool?.name
+            ?? item.entry.id
           const surface = modelSurface(
             item.entry,
             item.verdict,
@@ -3983,8 +3995,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             extension: item.entry.provider?.extension ?? null,
             /** The catalog's stable tool identity; `tool` is the NAME actually registered. */
             toolName: item.entry.tool.name,
-            ...record === undefined ? {} : { tool: record.toolName },
-            ...await provenanceOf(item.entry, surface.state === 'callable'),
+            tool: publishedName,
+            ...await provenanceOf(item.entry, surface.state === 'callable', publishedSurface),
             installed: record !== undefined,
             choice: choiceOf(item.entry.id),
           }
