@@ -35,7 +35,12 @@ this checkout.
   otherwise prepares; discovery rows carry `cold: true` when the extension's
   recorded readiness is `prepared-cold`. `tool_mode_list`/`tool_mode_describe`
   remain side-effect free. Optional background prewarm after enable is not wired.
-- Phase 6 remains pending.
+- **Phase 6 — implemented for observation.** The session ledger records the
+  D/G/O arm once, save offers surfaced, authored count and reuse; the
+  `scripts/adoption-report.mjs` reads the ledger and prints per-arm sessions,
+  calls, sessions with reuse, reuse rate, authored artifacts and offers. Digest
+  impressions are not counted per session because the prompt section has no
+  session identity; the D/G/O arm label is the join key instead.
 
 ## Outcome
 

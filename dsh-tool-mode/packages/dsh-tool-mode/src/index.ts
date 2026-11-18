@@ -307,6 +307,8 @@ export interface Config {
     prewarmAfterEnable?: boolean
     /** Identical calls before a save offer (default 3). */
     maxRepeats?: number
+    /** D/G/O experiment arm; recorded once per session. */
+    experimentArm?: 'D' | 'G' | 'O'
   }
   /**
    * Authored-artifact scoping. Disabled by default: every artifact is global and
@@ -892,6 +894,7 @@ export const Config: z<Config> = z.object({
     digest: z.boolean().default(false),
     prewarmAfterEnable: z.boolean().default(false),
     maxRepeats: z.number().min(2).default(3),
+    experimentArm: z.union([z.const('D'), z.const('G'), z.const('O')]).required(false),
   }).default({ saveOffer: false, digest: false, prewarmAfterEnable: false, maxRepeats: 3 }),
   /**
    * Authored-artifact scoping. ENABLED by default: new artifacts are
@@ -3538,6 +3541,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   ) => {
     const sessionId = sessionIdOfAgent(exec.agent)
     if (sessionId !== undefined && sessionId.length > 0) {
+      if (config.adoption?.experimentArm !== undefined) sessionLedger?.markArm(sessionId, config.adoption.experimentArm)
       sessionLedger?.called(sessionId, exec.name)
     }
     const result = await next()

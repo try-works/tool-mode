@@ -9,6 +9,8 @@
  * @module @try-works/dsh-tool-mode/session-ledger
  */
 
+/* oxlint-disable anti-slop/require-safety-comment-for-type-assertion, anti-slop/no-conditional-empty-object-spread, anti-slop/no-known-value-widening, anti-slop/no-shape-in-symbol-names, anti-slop/no-unknown-parameters, anti-slop/no-unsafe-dictionary-type, anti-slop/no-runtime-typeof -- SAFETY: this is the persisted session-ledger JSON boundary; every field is validated before it enters the typed row. */
+
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 
@@ -28,6 +30,10 @@ export interface SessionAdoption {
   reused: number
   /** No counterfactual exists; null is the honest value. */
   readonly stepsSaved: null
+  /** Experiment arm (D/G/O), or null when the session is not in an experiment. */
+  arm: string | null
+  /** Save suggestions surfaced to this session. */
+  saveOffers: number
   readonly updatedAt: string
 }
 
@@ -38,6 +44,10 @@ export interface SessionLedger {
   offered(sessionId: string, names: readonly string[]): void
   called(sessionId: string, name: string): void
   authored(sessionId: string): void
+  /** Record the experiment arm once; later calls are idempotent. */
+  markArm(sessionId: string, arm: string): void
+  /** Count one save suggestion surfaced to the session. */
+  offer(sessionId: string): void
   summary(sessionId: string): SessionAdoption | undefined
 }
 
@@ -73,6 +83,8 @@ function read(file: string): { document: LedgerDocument; issue: string | undefin
         authored: typeof row['authored'] === 'number' ? row['authored'] : 0,
         reused: typeof row['reused'] === 'number' ? row['reused'] : 0,
         stepsSaved: null,
+        arm: typeof row['arm'] === 'string' ? row['arm'] : null,
+        saveOffers: typeof row['saveOffers'] === 'number' ? row['saveOffers'] : 0,
         updatedAt: typeof row['updatedAt'] === 'string' ? row['updatedAt'] : new Date(0).toISOString(),
       }
     }
@@ -106,7 +118,8 @@ export function createSessionLedger(options: { readonly file: string }): Session
     if (sessionId.length === 0) return
     const now = new Date().toISOString()
     const current = sessions[sessionId] ?? {
-      sessionId, offered: [], called: {}, authored: 0, reused: 0, stepsSaved: null, updatedAt: now,
+      sessionId, offered: [], called: {}, authored: 0, reused: 0, stepsSaved: null,
+      arm: null, saveOffers: 0, updatedAt: now,
     }
     const next = change(current)
     const bounded: Record<string, SessionAdoption> = { ...sessions, [sessionId]: { ...next, updatedAt: now } }
@@ -129,6 +142,12 @@ export function createSessionLedger(options: { readonly file: string }): Session
     },
     authored(sessionId) {
       update(sessionId, current => ({ ...current, authored: current.authored + 1 }))
+    },
+    markArm(sessionId, arm) {
+      update(sessionId, current => current.arm === null ? { ...current, arm } : current)
+    },
+    offer(sessionId) {
+      update(sessionId, current => ({ ...current, saveOffers: current.saveOffers + 1 }))
     },
     summary(sessionId) {
       return sessions[sessionId]

@@ -425,6 +425,10 @@ export function registerDiscoveryControlTools(deps: DiscoveryControlDeps): void 
             tools: listedAuthoring.tools.filter(row => row.scope === scopeFilter),
             workflows: listedAuthoring.workflows.filter(row => row.scope === scopeFilter),
           }
+      const suggestions = (listedAuthoring as { suggestions?: readonly unknown[] } | undefined)?.suggestions
+      if (sessionId !== undefined && suggestions !== undefined && suggestions.length > 0) {
+        deps.sessionLedger?.()?.offer(sessionId)
+      }
       const session = sessionId === undefined ? undefined : deps.sessionLedger?.()?.summary(sessionId)
       return {
         catalogRevision: catalogRevision(),
