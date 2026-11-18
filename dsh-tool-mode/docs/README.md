@@ -11,3 +11,4 @@ Start with:
 - [Installation](guide/getting-started/installation.md)
 - [Use your first tool](guide/getting-started/first-tool.md)
 - [Connect an MCP client](guide/guides/connect-an-mcp-client.md)
+- [Refactoring `index.ts`](refactor-index.md) (engineering plan)
