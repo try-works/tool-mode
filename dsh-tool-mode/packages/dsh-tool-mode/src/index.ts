@@ -1381,6 +1381,15 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const workflowCallStack = new AsyncLocalStorage<ReadonlySet<string>>()
   /** Per-session adoption ledger (offered/called/authored/reused). */
   let sessionLedger: SessionLedger | undefined
+  /**
+   * The session identity on a DSH Agent. The live Agent has `id`; simple hosts and
+   * older fixtures used `sessionId`, so both are accepted. Reading only the latter
+   * made every live scoping decision look session-less (U24).
+   */
+  const sessionIdOfAgent = (agent: unknown): string | undefined => {
+    const candidate = agent as { readonly id?: string; readonly sessionId?: string } | undefined
+    return candidate?.sessionId ?? candidate?.id
+  }
 
   /**
    * TASK-117: the catalogue-vs-extension tool-name reconciliation.
@@ -4869,7 +4878,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             bindable: bindableName(schema.name),
           } as never)
         }
-        const sessionId = (exec.agent as { sessionId?: string } | undefined)?.sessionId
+        const sessionId = sessionIdOfAgent(exec.agent)
         if (sessionId !== undefined) sessionLedger?.offered(sessionId, tools.map(tool => tool.name))
         const listedAuthoring = authoringSnapshot?.(exec)
         const scopeFilter = typeof (args as { scope?: unknown }).scope === 'string'
@@ -5337,11 +5346,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     ctx.logger.warn('model-tools: session ledger: ' + sessionLedger.issue)
   }
   ctx.on('tools/post-execute' as never, (async (
-    exec: { agent?: { sessionId?: string }; name: string },
+    exec: { agent?: unknown; name: string },
     _result: unknown,
     next: () => Promise<unknown>,
   ) => {
-    const sessionId = exec.agent?.sessionId
+    const sessionId = sessionIdOfAgent(exec.agent)
     if (sessionId !== undefined && sessionId.length > 0) {
       sessionLedger?.called(sessionId, exec.name)
     }
@@ -5411,7 +5420,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
      * helper walks to the root so subagents share their parent's session artifacts.
      */
     const scopeFor = (exec: { agent?: unknown } | undefined, requested?: string): BuiltScopeContext => {
-      const sessionId = (exec?.agent as { sessionId?: string } | undefined)?.sessionId
+      const sessionId = sessionIdOfAgent(exec?.agent)
       if (!scopingEnabled && requested !== undefined && requested !== 'global') {
         throw new Error('E_SCOPE_DISABLED: artifactScopes.enabled is false, so only global scope is available '
           + '(requested "' + requested + '"; allowed: global)')
@@ -5437,12 +5446,30 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           cwd: sessionId === undefined ? process.cwd() : cwdOfSession(sessionId),
           ...scopeSettings.workspaceRoot === 'auto' ? {} : { workspaceRoot: scopeSettings.workspaceRoot },
         })
-        return implicitSessionWithoutId ? { ...built, scopeReason: 'no-session-id' } : built
+        const requestedScope = (requested ?? scopeSettings.defaultScope ?? 'session') as BuiltScopeContext['scope']
+        return {
+          ...built,
+          requestedScope,
+          ...implicitSessionWithoutId ? { scopeReason: 'no-session-id' as const } : {},
+        }
       } catch (error) {
         if (error instanceof ArtifactScopeError) throw new Error(error.code + ': ' + error.message)
         throw error
       }
     }
+    /**
+     * The disclosure every AUTHORING WRITE returns when the request could not be
+     * honored at its requested scope. A save that silently lands at global is
+     * otherwise indistinguishable from a deliberate global save, so echo both the
+     * requested scope and the reason next to the effective `scope`.
+     */
+    const scopeDisclosure = (scope: BuiltScopeContext): Record<string, string> =>
+      scope.requestedScope === undefined || scope.requestedScope === scope.scope
+        ? {}
+        : {
+            requestedScope: scope.requestedScope,
+            ...scope.scopeReason === undefined ? {} : { scopeReason: scope.scopeReason },
+          }
     /** The workspace-only context used to register durable rows at boot. */
     const workspaceScope = buildScopeContext({
       config: { enabled: true, defaultScope: 'workspace' },
@@ -5873,7 +5900,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       },
       async execute(args, exec) {
         const request = args as Record<string, unknown>
-        const sessionId = (exec.agent as { sessionId?: string } | undefined)?.sessionId
+        const sessionId = sessionIdOfAgent(exec.agent)
         const action = request['action']
         const nameOrId = typeof request['name'] === 'string' ? request['name'] : ''
         const rawScope = typeof request['scope'] === 'string' ? request['scope'] : undefined
@@ -5908,8 +5935,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           })
           return {
             cloned: true,
-                        ...scope.scopeReason === undefined ? {} : { scopeReason: scope.scopeReason },
-workflow: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt, scope: entry.scope },
+            ...scopeDisclosure(scope),
+            workflow: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt, scope: entry.scope },
           } as never
         }
         if (action === 'save') {
@@ -5931,8 +5958,8 @@ workflow: { id: entry.id, name: entry.name, version: entry.version, updatedAt: e
           })
           return {
             saved: true,
-                        ...scope.scopeReason === undefined ? {} : { scopeReason: scope.scopeReason },
-workflow: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt, scope: entry.scope },
+            ...scopeDisclosure(scope),
+            workflow: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt, scope: entry.scope },
           } as never
         }
         if (action === 'list') {
@@ -5965,7 +5992,7 @@ workflow: { id: entry.id, name: entry.name, version: entry.version, updatedAt: e
               operation: 'delete', artifactKind: 'workflow', name: entry.name, version: entry.version, scope: entry.scope,
             })
           }
-          return { deleted } as never
+          return { deleted, ...scopeDisclosure(scope) } as never
         }
         if (action === 'run') {
           const entry = authoringStore.getWorkflow(nameOrId, scope.context)
@@ -6111,7 +6138,7 @@ workflow: { id: entry.id, name: entry.name, version: entry.version, updatedAt: e
       },
       async execute(args, exec) {
         let request = args as Record<string, unknown>
-        const sessionId = (exec.agent as { sessionId?: string } | undefined)?.sessionId
+        const sessionId = sessionIdOfAgent(exec.agent)
         let action = request['action']
         let nameOrId = typeof request['name'] === 'string' ? request['name'] : ''
         const rawScope = typeof request['scope'] === 'string' ? request['scope'] : undefined
@@ -6147,8 +6174,8 @@ workflow: { id: entry.id, name: entry.name, version: entry.version, updatedAt: e
           })
           return {
             cloned: true,
-                        ...scope.scopeReason === undefined ? {} : { scopeReason: scope.scopeReason },
-tool: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt, scope: entry.scope },
+            ...scopeDisclosure(scope),
+            tool: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt, scope: entry.scope },
           } as never
         }
         if (action === 'from-run') {
@@ -6223,8 +6250,8 @@ tool: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry
           })
           return {
             defined: true,
-                        ...scope.scopeReason === undefined ? {} : { scopeReason: scope.scopeReason },
-tool: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt, scope: entry.scope },
+            ...scopeDisclosure(scope),
+            tool: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry.updatedAt, scope: entry.scope },
             ...request['schemaInferred'] === true
               ? { schemaInferred: true, typed: false, parameterised: request['parameterised'] === true }
               : { parameterised: request['parameterised'] === true },
@@ -6254,7 +6281,7 @@ tool: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry
               operation: 'delete', artifactKind: 'tool', name: entry.name, version: entry.version, scope: entry.scope,
             })
           }
-          return { deleted } as never
+          return { deleted, ...scopeDisclosure(scope) } as never
         }
         if (action === 'promote' || action === 'demote') {
           const from = typeof request['from'] === 'string' ? request['from'] : undefined
@@ -8185,6 +8212,39 @@ tool: { id: entry.id, name: entry.name, version: entry.version, updatedAt: entry
        * inspection for exactly that execution kind and leave the recorded readiness
        * to the asset surface.
        */
+      /**
+       * A RESTART MUST NOT RE-INSPECT WHAT THE LAST RUN ALREADY VERIFIED.
+       *
+       * Inspection imports the extension and creates its provider, which is the
+       * expensive part of a cold start. If every declared deployment already has a
+       * callable persisted readiness AND the asset restore above succeeded, the
+       * previous process's inspection is still sound; re-running it serializes the
+       * boot on work that cannot change the answer. A failed or missing readiness
+       * still inspects (the honest re-check), and a manifest change adds a declared
+       * id that has no callable value, which also forces inspection.
+       */
+      const persistedReadiness = lifecycle.states()
+        .find(candidate => candidate.extensionId === extensionId)?.readiness ?? {}
+      const callableReadiness = new Set<ModelReadiness>([
+        'prepared-cold', 'loading', 'ready', 'busy',
+      ])
+      const declaredForInspection = (() => {
+        const record = installedRecords.find(candidate => candidate.extensionId === extensionId)
+        if (record === undefined) return [] as string[]
+        try {
+          return discoverExtension(record.installPath).manifest.models.map(model => model.id)
+        } catch {
+          return [] as string[]
+        }
+      })()
+      if (declaredForInspection.length > 0
+        && declaredForInspection.every(modelId => callableReadiness.has(persistedReadiness[modelId] as ModelReadiness))) {
+        ctx.logger.info(
+          `model-tools: ${extensionId} readiness is already callable (prepared-cold or better); `
+          + 'provider inspection is deferred to the first explicit check',
+        )
+        return
+      }
       const installedForInspection = installedRecords.find(
         candidate => candidate.extensionId === extensionId,
       )

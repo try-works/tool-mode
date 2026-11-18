@@ -32,7 +32,7 @@ All 28 workspace packages, not only the published host packages.
 
 | Package | Version | Role |
 | --- | --- | --- |
-| `@try-works/dsh-tool-mode` | 0.5.91 | DSH plugin: catalog, dispatch, discovery, MCP |
+| `@try-works/dsh-tool-mode` | 0.5.92 | DSH plugin: catalog, dispatch, discovery, MCP |
 | `@try-works/tool-mode-contracts` | 0.1.1 | Model-free contract identities, schemas, validation |
 | `@try-works/tool-mode-extension-sdk` | 0.1.5 | Extension authoring API and manifest validation |
 | `@try-works/tool-mode-recipes` | 0.1.0 | Recipe format and provider-neutral LLM broker |
@@ -255,10 +255,11 @@ inherit), `workspace` (git root, else cwd), or `global`. Resolution is
 `session > workspace > global`; `list` reports the winning `scope` plus the lower row it
 hides as `shadowing`, and `tool_mode_describe` reports both (accepting either the
 artifact name or `workflow_<name>`). Code Mode nested calls inherit the caller's session.
-A caller with no session identity is downgraded to global but the result and
-`authoring.scope.reason` say `no-session-id`; an explicit `scope: session` without a
-session is refused. Scope is data, never part of the artifact name: `workflow_x` and
-`agent_x` stay callable after promotion.
+A caller with no session identity is downgraded to global, and every authoring write
+response carries `requestedScope` and `scopeReason: "no-session-id"` when the effective
+scope differs from the one asked for. An explicit `scope: session` without a session is
+refused. Scope is data, never part of the artifact name: `workflow_x` and `agent_x`
+stay callable after promotion.
 
 `scope` is accepted on `save`/`define`/`clone` (and `from-run`); `promote` and `demote`
 move an artifact. Promotion copies under the same name with `version` 1 and a

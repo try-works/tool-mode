@@ -97,7 +97,7 @@ function callAs(ctx: Context, name: string, args: unknown, sessionId: string) {
     callId: ToolCallId(`scope-${++counter}`),
     name,
     arguments: args,
-    agent: { id: sessionId, sessionId } as never,
+    agent: { id: sessionId } as never,
   } as never)
 }
 
@@ -137,13 +137,39 @@ describe('artifact scoping T1-T12', () => {
     const ctx = await mountHost()
     const saved = await ok(ctx, 'tool_mode_workflows', {
       action: 'save', name: 'no-session-flow', program: 'return 1',
-    }, undefined as never) as { workflow: { scope: string }; scopeReason?: string }
+    }, undefined as never) as {
+      workflow: { scope: string }
+      requestedScope?: string
+      scopeReason?: string
+    }
     assert.equal(saved.workflow.scope, 'global')
+    assert.equal(saved.requestedScope, 'session', 'the response must say which scope was asked for')
     assert.equal(saved.scopeReason, 'no-session-id')
+
+    const explicit = await ok(ctx, 'tool_mode_workflows', {
+      action: 'save', name: 'explicit-global-flow', program: 'return 1', scope: 'global',
+    }, undefined as never) as { requestedScope?: string; scopeReason?: string }
+    assert.equal('requestedScope' in explicit, false, 'an honored request needs no disclosure')
+    assert.equal('scopeReason' in explicit, false)
     const listed = await ok(ctx, 'tool_mode_list', {}, undefined as never) as {
       authoring?: { scope?: { reason?: string } }
     }
     assert.equal(listed.authoring?.scope?.reason, 'no-session-id')
+  })
+
+  it('T1e: a tool define without a session discloses the downgrade', async () => {
+    const ctx = await mountHost()
+    const defined = await ok(ctx, 'tool_mode_tools', {
+      action: 'define', name: 'agent_no_session', description: 'No session.', program: 'return 1', tools: [],
+      inputSchema: { type: 'object', properties: {} },
+    }, undefined as never) as {
+      tool: { scope: string }
+      requestedScope?: string
+      scopeReason?: string
+    }
+    assert.equal(defined.tool.scope, 'global')
+    assert.equal(defined.requestedScope, 'session')
+    assert.equal(defined.scopeReason, 'no-session-id')
   })
 
   it('T1c: a Code Mode nested call carries the caller session', async () => {

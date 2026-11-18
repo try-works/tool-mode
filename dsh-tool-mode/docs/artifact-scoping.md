@@ -3,9 +3,10 @@
 Authored workflows (`workflow_<name>`) and tools (`agent_<name>`) can live at one of three
 scopes. Scoping is **on by default**; new artifacts are session-scoped, existing global rows
 remain resolvable, and Code Mode nested calls inherit the caller's session. A caller with no
-session identity is downgraded to global and told `scopeReason: "no-session-id"`; an explicit
-`scope: session` without a session is refused. Set `artifactScopes.enabled: false` for the
-pre-scoping global-only behaviour.
+session identity is downgraded to global, and every authoring write response echoes
+`requestedScope` plus `scopeReason: "no-session-id"` whenever the effective scope differs
+from the request; an explicit `scope: session` without a session is refused. Set
+`artifactScopes.enabled: false` for the pre-scoping global-only behaviour.
 
 ```yaml
 artifactScopes:

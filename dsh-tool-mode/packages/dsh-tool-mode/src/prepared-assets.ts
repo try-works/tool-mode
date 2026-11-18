@@ -468,7 +468,14 @@ export function createPreparedAssetRegistry(options: PreparedAssetRegistryOption
 
   function recordOwnership(extensionId: string, groups: readonly PreparedGroup[]): void {
     const owners = readOwners()
-    owners[extensionId] = [...new Set(groups.flatMap(group => group.files.map(file => file.digest)))]
+    const next = [...new Set(groups.flatMap(group => group.files.map(file => file.digest)))]
+    const previous = owners[extensionId]
+    // A restore is a stat walk; rewriting an UNCHANGED ownership index every boot
+    // made a cold start look busy for no new fact. Only a change is persisted.
+    if (previous !== undefined && previous.length === next.length && previous.every((digest, index) => digest === next[index])) {
+      return
+    }
+    owners[extensionId] = next
     writeOwners(owners)
   }
 
