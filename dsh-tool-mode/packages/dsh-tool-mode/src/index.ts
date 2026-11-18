@@ -47,6 +47,7 @@ import { ArtifactScopeError, buildScopeContext, type BuiltScopeContext } from '.
 import { registerAuthoringTools } from './authoring-surface.ts'
 import { createArtifactUsageStore } from './artifact-usage.ts'
 import { createRepetitionTracker, type RepetitionTracker } from './adoption-candidates.ts'
+import { buildLibraryDigest } from './library-digest.ts'
 import { registerRuntimeTools } from './runtime-surface.ts'
 import { createModelToolsControl } from './discovery-surface.ts'
 import { captureDisclosure } from './authoring-quality.ts'
@@ -3301,7 +3302,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       readonly section: (section: {
         readonly name: string
         readonly order: number
-        readonly text: string
+        readonly text: string | ((context: unknown) => string)
       }) => () => void
       readonly getSectionOrder: (name: string) => number
     }
@@ -3749,6 +3750,36 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           ...config.runCaptureFile === undefined ? {} : { runCaptureFile: config.runCaptureFile },
         }),
       }
+    }
+    if (config.adoption?.digest === true && promptService !== undefined) {
+      const order = promptService.getSectionOrder('MCP_SERVERS') + 101
+      ctx.effect(() => promptService.section({
+        name: 'tool-mode:library',
+        order,
+        text: () => {
+          const rows = [
+            ...authoringStore.listWorkflows(workspaceScope.context).map(workflow => {
+              const evidence = artifactUsage.evidence(workflow.name, workflow.digest)
+              return {
+                name: workflow.name,
+                callableName: workflow.callableName,
+                description: workflow.description,
+                ...evidence,
+              }
+            }),
+            ...authoringStore.listTools(workspaceScope.context).map(tool => {
+              const evidence = artifactUsage.evidence(tool.name, tool.digest)
+              return {
+                name: tool.name,
+                callableName: tool.callableName,
+                description: tool.description,
+                ...evidence,
+              }
+            }),
+          ]
+          return buildLibraryDigest(rows)
+        },
+      }), 'tool-mode library digest')
     }
     // Root-session end: receive the expired rows BEFORE deleting so the evidence
     // can be attached to the expire receipt. A crash cannot emit this event; the

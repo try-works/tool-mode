@@ -24,7 +24,13 @@ this checkout.
   identical argument shapes in one session produce one candidate with a
   shape-only schema and a runnable next command. The tracker stores no values;
   and the existing `tool_mode_list.authoring` surface carries the suggestion.
-- Phases 4–6 remain pending.
+- **Phase 4 — implemented behind `adoption.digest` (default off).** The
+  feasibility gate succeeded: `systemPrompt.section` accepts a provider function.
+  The digest is assembled per turn from workspace/global artifacts with both
+  names, evidence after five uses, four lines and 600 characters. Session-scoped
+  artifacts are deliberately omitted because the prompt section has no caller
+  session identity.
+- Phases 5–6 remain pending.
 
 ## Outcome
 
