@@ -146,13 +146,8 @@ import { planPreparation } from './deployment-coordinator.ts'
 import { createHttpSource } from './http-acquisition.ts'
 import type { AcquisitionSource } from './asset-acquisition.ts'
 import { buildSurface, type CatalogGeneration, type ImplementationCandidate } from './publication.ts'
-import { admitsLogRecord, buildInvocationReceipt, buildLifecycleRecord, DEFAULT_LOG_POLICY, MAX_RETAINED_RECEIPTS, type InvocationReceipt, type LifecycleRecord } from './receipt.ts'
-import {
-  createFileReceiptStore,
-  createMemoryReceiptStore,
-  receiptCounterFloor,
-  receiptStorePathFor,
-} from './receipt-store.ts'
+import { admitsLogRecord, buildInvocationReceipt, buildLifecycleRecord, DEFAULT_LOG_POLICY, MAX_RETAINED_RECEIPTS, type LifecycleRecord } from './receipt.ts'
+import { createReceiptSurface } from './receipt-surface.ts'
 import { admit } from './resource-governance.ts'
 import { createMcpHost, type PublishedTool } from './mcp/host-binding.ts'
 import { normalizeCachePolicy } from './mcp/protocol.ts'
@@ -1887,14 +1882,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
    * enable/disable state document: provenance and operator choices have different
    * lifetimes and different corruption consequences.
    */
-  const receiptStore = persist
-    ? createFileReceiptStore(receiptStorePathFor(config.stateFile ?? defaultStateFile()), {
-        limit: MAX_RETAINED_RECEIPTS,
-        onQuarantine: diagnostic => ctx.logger.warn(
-          `model-tools: receipt store was malformed (${diagnostic.reason}); moved to ${diagnostic.quarantinePath}`,
-        ),
-      })
-    : createMemoryReceiptStore({ limit: MAX_RETAINED_RECEIPTS })
+  const receiptSurface = createReceiptSurface({
+    persistent: persist,
+    stateFile: config.stateFile ?? defaultStateFile(),
+    onQuarantine: diagnostic => ctx.logger.warn(
+      `model-tools: receipt store was malformed (${diagnostic.reason}); moved to ${diagnostic.quarantinePath}`,
+    ),
+    limit: MAX_RETAINED_RECEIPTS,
+  })
 
   /**
    * BASE-09/10 LEGACY MIGRATION (one-time, per profile — task-26).
@@ -2328,14 +2323,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
    * choose a model.
    */
   // The host owns provenance and authority: `extension`/`version` name THIS
-  // package, the receipt counter lives here, and the grant is built from operator
-  // configuration, so an implementation can forge neither (BASE-05, DECL-03).
-  // Start the counter ABOVE every persisted id, so a receipt id is never reused
-  // after a restart (EXT-35). The in-memory ring is the read cache; the file is
-  // the durable record.
-  let receiptCounter = receiptCounterFloor(receiptStore.records)
-  /** The most recent invocation receipts (EXT-35), bounded so retention cannot grow without limit. */
-  const invocationReceipts: InvocationReceipt[] = [...receiptStore.records]
+  // package, and the grant is built from operator configuration, so an
+  // implementation can forge neither (BASE-05, DECL-03).
+  /** The most recent invocation receipts (EXT-35), bounded by the surface. */
+  const invocationReceipts = receiptSurface.receipts
   /** Host-known contract/implementation identity for a tool name (OBS-01). */
   const receiptIdentityByTool = new Map<string, {
     readonly contract: string
@@ -2455,7 +2446,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     extension: '@try-works/dsh-tool-mode',
     extensionVersion: HOST_VERSION,
     activationGeneration: 1,
-    nextReceiptId: () => `rcpt_${(++receiptCounter).toString(36).padStart(6, '0')}`,
+    nextReceiptId: () => receiptSurface.nextReceiptId(),
     grant,
     callerKind: 'interactive',
     // EXT-35: bounded in-memory retention. A receipt is provenance, not a log of
@@ -2464,9 +2455,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     recordReceipt: receipt => {
       // Persist FIRST, then update the read cache. A failed write throws out of the
       // call path rather than presenting a receipt that would vanish on restart.
-      receiptStore.append(receipt)
-      invocationReceipts.push(receipt)
-      if (invocationReceipts.length > MAX_RETAINED_RECEIPTS) invocationReceipts.shift()
+      receiptSurface.record(receipt)
     },
   }
 

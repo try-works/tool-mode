@@ -13,16 +13,22 @@ already-extracted module. A split that needs a new circular import is not a refa
 
 | Module | Responsibility | Lines |
 | --- | --- | ---: |
-| `src/index.ts` | composition root and all remaining surfaces | ~8.65k |
+| `src/index.ts` | composition root and all remaining surfaces | ~8.6k |
 | `src/model-cards.ts` | capability-card projection (catalog/verdict to card) | ~210 |
+| `src/receipt-surface.ts` | receipt store, id minting, bounded in-memory ring | ~70 |
 | `src/tool-mode-run.ts` | authorized Code Mode runner and report | ~690 |
 | `src/agent-authoring.ts` | scoped artifact store and resolution | ~1.4k |
 | `src/extensions-service.ts` | extension install/prepare/lifecycle coordination | ~3.3k |
 
-Extracted so far (commit `acfcf9f`): `model-cards.ts` is pure catalog/verdict formatting,
-with the public `ModelDescriptor`, `ModelOperationCard`, `ModelRuntimeCard`,
-`describeModelCard` and `describeModels` names re-exported from `index.ts` so existing
-imports and tests do not change.
+Extracted so far:
+
+- `model-cards.ts` (commit `acfcf9f`) is pure catalog/verdict formatting, with the
+  public `ModelDescriptor`, `ModelOperationCard`, `ModelRuntimeCard`,
+  `describeModelCard` and `describeModels` names re-exported from `index.ts` so
+  existing imports and tests do not change.
+- `receipt-surface.ts` owns the receipt store, counter floor and bounded in-memory
+  ring. `index.ts` still owns the `model_tools` receipts projection and external
+  accounting, which move with `discovery-surface`.
 
 ## Target shape
 
@@ -37,13 +43,14 @@ interfaces, not closures over a 400-line `apply`.
       extension-lifecycle.ts     restore, inspect, prepare, activate
       mcp-surface.ts             HTTP/stdio, auth, credentials, subscriptions
       runtime-surface.ts         adapters, provider bridge, model runtime lane
-      receipt-surface.ts         receipt stores, accounting, usage
+      receipt-surface.ts         receipt stores, accounting, usage   [done]
 
 ## Extraction order
 
 1. **model-cards** - done. No plugin context; re-exported public types.
-2. **receipt-surface** - receipt stores, invocation accounting and usage projections are
-   already separate modules; `index.ts` only wires them. Move the wiring next.
+2. **receipt-surface** - done for the store/counter/ring. Invocation accounting and the
+   usage projections still move with discovery because their read model is the
+   `model_tools` receipts action.
 3. **discovery-surface** - `model_tools`, `tool_mode_list` and `tool_mode_describe`.
    Inputs are a small `DiscoveryDeps`: live registry, installed models, resolved catalog,
    external grant context, scope resolver, binding preflight. This is where the
