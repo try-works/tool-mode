@@ -16,6 +16,7 @@ already-extracted module. A split that needs a new circular import is not a refa
 | `src/index.ts` | composition root and all remaining surfaces | ~8.6k |
 | `src/model-cards.ts` | capability-card projection (catalog/verdict to card) | ~210 |
 | `src/receipt-surface.ts` | receipt store, id minting, bounded in-memory ring | ~70 |
+| `src/discovery-binding.ts` | shared binding resolution for list/describe/preflight | ~105 |
 | `src/tool-mode-run.ts` | authorized Code Mode runner and report | ~690 |
 | `src/agent-authoring.ts` | scoped artifact store and resolution | ~1.4k |
 | `src/extensions-service.ts` | extension install/prepare/lifecycle coordination | ~3.3k |
@@ -29,6 +30,8 @@ Extracted so far:
 - `receipt-surface.ts` owns the receipt store, counter floor and bounded in-memory
   ring. `index.ts` still owns the `model_tools` receipts projection and external
   accounting, which move with `discovery-surface`.
+- `discovery-binding.ts` owns the one grant/registry/caller-scope resolver and the
+  `bindable` predicate. The discovery handlers still live in `index.ts`.
 
 ## Target shape
 
@@ -39,6 +42,7 @@ interfaces, not closures over a 400-line `apply`.
     index.ts                     config -> services -> register modules -> teardown
       model-cards.ts             pure card formatting                 [done]
       discovery-surface.ts       model_tools / list / describe
+      discovery-binding.ts       list/describe/preflight resolution  [done]
       authoring-surface.ts       workflow + agent tool handlers
       extension-lifecycle.ts     restore, inspect, prepare, activate
       mcp-surface.ts             HTTP/stdio, auth, credentials, subscriptions
@@ -52,10 +56,9 @@ interfaces, not closures over a 400-line `apply`.
    usage projections still move with discovery because their read model is the
    `model_tools` receipts action.
 3. **discovery-surface** - `model_tools`, `tool_mode_list` and `tool_mode_describe`.
-   Inputs are a small `DiscoveryDeps`: live registry, installed models, resolved catalog,
-   external grant context, scope resolver, binding preflight. This is where the
-   `bindable`/probe agreement now lives and is the highest-value extraction because the
-   latest U27 work made it the busiest read surface.
+   The shared binding resolution is already out (`discovery-binding.ts`). The remaining
+   handlers are the next extraction; their inputs are a `DiscoveryDeps` of live registry,
+   installed models, resolved catalog, external grant context and scope resolver.
 4. **authoring-surface** - `tool_mode_workflows` and `tool_mode_tools`. Inputs are
    `AuthoringDeps`: store, ledger, workflow/authored-name registries, scope resolver,
    session ledger. This is the largest cohesive block and the point where `index.ts`

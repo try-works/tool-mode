@@ -33,7 +33,6 @@ import { createAdapter } from './adapters/index.ts'
 import { registerModelTool, shouldDeferHeavySchema, toolSchemaBytes } from './registrar.ts'
 import { registerContractTool, registerContractImplementationTool, type ContractBinding, type HostIdentity } from './bindings.ts'
 import { canonicalExampleFor, contractToolDescription, extensionToolDescription } from './tool-description.ts'
-import { EXCLUDED_BINDINGS } from './ptc-authority.ts'
 import { appendFileSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, resolve, sep } from 'node:path'
 import { AsyncLocalStorage } from 'node:async_hooks'
@@ -120,6 +119,7 @@ import { createUpdateHostSurface, type UpdateHostSurface } from './update-surfac
 import { SubscriptionRegistry, deliverCatalogChange, MemoryDeliverySink } from './mcp/subscriptions.ts'
 import { TOOL_MODE_DESCRIBE_CONTRACT, TOOL_MODE_LIST_CONTRACT } from './discovery-contracts.ts'
 import { describeSkill, exampleFromSchema, typescriptBindings } from './discovery-describe.ts'
+import { createBindingResolver } from './discovery-binding.ts'
 import {
   describeModelCard,
   describeModels,
@@ -1824,49 +1824,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const exposeUnavailable = config.exposeUnavailable ?? false
   const registerSkills = config.registerSkills ?? true
   const confidentialTools = new Set(config.confidentialTools ?? [])
-  /**
-   * ONE resolution, used by discovery, preflight and a program's binding table.
-   * Callable, bindable and probe-resolved must never disagree: they are the same
-   * grant ∩ live-registry ∩ caller-scope question. Each refusal names the cause,
-   * the scope considered and the action that clears it (U27).
-   */
-  const bindingPreflight = (
-    name: string,
-    scope?: BuiltScopeContext,
-  ): { resolved: boolean; reason?: string; action?: string; scope: string; scopeKey: string } => {
-    const base = { scope: scope?.scope ?? 'global', scopeKey: scope?.workspaceKey ?? 'global' }
-    if (EXCLUDED_BINDINGS.includes(name)) {
-      return { ...base, resolved: false, reason: 'excluded', action: 'Call it directly, not from a program (CODE-07).' }
-    }
-    if (confidentialTools.has(name)) {
-      return { ...base, resolved: false, reason: 'confidential', action: 'The operator confidentiality policy blocks this value from crossing a program boundary.' }
-    }
-    const callerGrant = externalGrantContext.current()
-    if (callerGrant !== undefined && !callerGrant.includes(name)) {
-      return { ...base, resolved: false, reason: 'not-authorized', action: 'Request a caller grant that includes this name, or call it outside the program.' }
-    }
-    if (!ctx.tools.schemas().some(schema => schema.name === name)) {
-      return { ...base, resolved: false, reason: 'not-registered', action: 'Install or activate the tool, or check the spelling.' }
-    }
-    if (scope !== undefined && authoredToolVisibleAt?.(name, scope) === false) {
-      return {
-        ...base,
-        resolved: false,
-        reason: 'not-visible-at-scope',
-        action: `Save the artifact with scope "${scope.scope}" (or call it from the scope that owns it).`,
-      }
-    }
-    if (ctx.tools.get(name) === undefined) {
-      return { ...base, resolved: false, reason: 'not-registered', action: 'Install or activate the tool, or check the spelling.' }
-    }
-    return { ...base, resolved: true }
-  }
-  const bindableName = (name: string, scope?: BuiltScopeContext): boolean => {
-    if (scope === undefined) {
-      return !EXCLUDED_BINDINGS.includes(name) && !confidentialTools.has(name)
-    }
-    return bindingPreflight(name, scope).resolved
-  }
+  const { resolve: bindingPreflight, bindable: bindableName } = createBindingResolver({
+    toolNames: () => ctx.tools.schemas().map(schema => schema.name),
+    toolExists: name => ctx.tools.get(name) !== undefined,
+    confidential: () => confidentialTools,
+    externalGrant: () => externalGrantContext.current(),
+    authoredVisibleAt: (name, scope) => authoredToolVisibleAt?.(name, scope) ?? true,
+  })
 
 
   // Persistence: the config states the deployment default, the store records the
