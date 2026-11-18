@@ -28,8 +28,11 @@ artifactScopes:
 
 Resolution is `session > workspace > global`; the first row with the name wins. A list row
 reports the winning `scope` and the nearest hidden lower row as `shadowing`, so the same
-name at two scopes is never silent. `tool_mode_describe` carries both fields for authored
-tools and accepts either the artifact name or `workflow_<name>`.
+name at two scopes is never silent. When a list includes hidden rows (`all: true` or
+`scope: "all"`), each hidden row instead carries `shadowedBy: {scope, scopeKey, version}`
+naming the nearest higher row that hides it. `scopeKey` is the exact session id, workspace
+key or `host`, not the workspace path. `tool_mode_describe` carries `scope`/`shadowing`
+for authored tools and accepts either the artifact name or `workflow_<name>`.
 
 ## API
 
@@ -37,7 +40,13 @@ Optional `scope` on `tool_mode_tools {define, clone, from-run}` and
 `tool_mode_workflows {save, clone}`. `promote` copies to `to` under the same name and resets
 `version` to 1; `keepSource` defaults true and `false` removes the source after the copy.
 `demote` removes the row at `from` (default: the caller scope); the next lower row resolves.
-`list` accepts `scope: session | workspace | global | all`.
+`delete` removes only the row at the caller's resolved scope (or the explicit `scope`),
+never reaches through to a lower row, and returns `deleted: false` plus `reason` and
+`checkedScopes` when that scope holds no row. `from` is demote-only and is ignored by
+`delete`. `list` accepts `scope: session | workspace | global | all`.
+
+A probe's `scopeKey` is the key for the resolved scope, so a session preflight is
+identifiable by its root session id rather than by the workspace path.
 
 Promotion requires `uses >= promoteMinUses` and `failures == 0`. `force: true` bypasses the
 evidence floor only for a workspace promotion. A global promotion additionally requires the

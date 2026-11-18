@@ -277,6 +277,80 @@ describe('artifact scoping T1-T12', () => {
     assert.equal(visible.workflows.find(row => row.name === 'shadow-flow')?.shadowedBy, undefined)
   })
 
+  it('T1h2: all-row listing annotates the hidden row on both kinds (U26)', async () => {
+    const ctx = await mountHost({ gateOpen: true })
+    await ok(ctx, 'tool_mode_workflows', {
+      action: 'save', name: 'union-flow', program: 'return "workspace"', scope: 'workspace',
+    }, 'session-a')
+    await ok(ctx, 'tool_mode_workflows', {
+      action: 'save', name: 'union-flow', program: 'return "session"', scope: 'session',
+    }, 'session-a')
+    const all = await ok(ctx, 'tool_mode_workflows', { action: 'list', all: true }, 'session-a') as {
+      workflows: { name: string; scope: string; scopeKey: string; shadowedBy?: { scope: string; scopeKey: string } }[]
+    }
+    const hiddenFlow = all.workflows.find(row => row.name === 'union-flow' && row.scope === 'workspace')
+    const winnerFlow = all.workflows.find(row => row.name === 'union-flow' && row.scope === 'session')
+    assert.deepEqual(hiddenFlow?.shadowedBy, { scope: 'session', scopeKey: 'session-a', version: 1 })
+    assert.equal(winnerFlow?.shadowedBy, undefined)
+
+    const scopedAll = await ok(ctx, 'tool_mode_workflows', { action: 'list', scope: 'all' }, 'session-a') as {
+      workflows: { name: string; scope: string; shadowedBy?: unknown }[]
+    }
+    assert.ok(scopedAll.workflows.find(row => row.scope === 'workspace')?.shadowedBy)
+
+    await ok(ctx, 'tool_mode_tools', {
+      action: 'define', name: 'agent_union_tool', description: 'Workspace.', scope: 'workspace',
+      inputSchema: { type: 'object', properties: {} }, program: 'return 1', tools: [],
+    }, 'session-a')
+    await ok(ctx, 'tool_mode_tools', {
+      action: 'define', name: 'agent_union_tool', description: 'Session.', scope: 'session',
+      inputSchema: { type: 'object', properties: {} }, program: 'return 2', tools: [],
+    }, 'session-a')
+    const tools = await ok(ctx, 'tool_mode_tools', { action: 'list', all: true }, 'session-a') as {
+      tools: { name: string; scope: string; shadowedBy?: { scope: string } }[]
+    }
+    assert.equal(tools.tools.find(row => row.scope === 'workspace')?.shadowedBy?.scope, 'session')
+    assert.equal(tools.tools.find(row => row.scope === 'session')?.shadowedBy, undefined)
+  })
+
+  it('T1i: probe scopeKey names the session key, not the workspace path (U25)', async () => {
+    const ctx = await mountHost({ gateOpen: true })
+    await ok(ctx, 'tool_mode_tools', {
+      action: 'define', name: 'agent_key_probe', description: 'Probe.', scope: 'session',
+      inputSchema: { type: 'object', properties: {} }, program: 'return 1', tools: [],
+    }, 'session-a')
+    const probed = await ok(ctx, 'tool_mode_run', {
+      probe: true, tools: ['agent_key_probe'],
+    }, 'session-a') as { preflight: { scope: string; scopeKey: string }[] }
+    assert.equal(probed.preflight[0]?.scope, 'session')
+    assert.equal(probed.preflight[0]?.scopeKey, 'session-a')
+  })
+
+  it('T1j: delete at a scope that holds no row explains the scopes checked', async () => {
+    const ctx = await mountHost()
+    await ok(ctx, 'tool_mode_workflows', {
+      action: 'save', name: 'only-global', program: 'return 1',
+    }, 'session-a')
+    const missed = await ok(ctx, 'tool_mode_workflows', {
+      action: 'delete', name: 'only-global', scope: 'workspace',
+    }, 'session-a') as { deleted: boolean; reason?: string; checkedScopes?: { scope: string }[] }
+    assert.equal(missed.deleted, false)
+    assert.match(missed.reason ?? '', /workspace/)
+    assert.match(missed.reason ?? '', /from.*demote-only/)
+    assert.equal(missed.checkedScopes?.length, 1)
+    assert.equal(missed.checkedScopes?.[0]?.scope, 'workspace')
+    assert.ok((missed.checkedScopes?.[0]?.scopeKey ?? '').length > 0)
+  })
+
+  it('T1k: an unlisted bare tool name gets the declared-tools hint, not a raw ReferenceError', async () => {
+    const ctx = await mountHost({ gateOpen: true })
+    const message = await failed(ctx, 'tool_mode_run', {
+      code: 'return await lang_detect({ text: "hi" })', tools: [],
+    }, 'session-a')
+    assert.match(message, /lang_detect/)
+    assert.match(message, /not declared in this program's tools/)
+  })
+
   it('T2: a subagent writes into its root session scope', async () => {
     const ctx = await mountHost({ parents: { child: 'root' } })
     await ok(ctx, 'tool_mode_workflows', { action: 'save', name: 'subagent-flow', program: 'return 1' }, 'child')

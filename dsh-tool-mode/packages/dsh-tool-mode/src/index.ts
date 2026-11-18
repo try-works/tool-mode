@@ -5863,21 +5863,12 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         }
         if (action === 'list') {
           const rows = authoringStore.listWorkflows(scope.context, { all: includeAll })
+          // Scope filtering selects rows from the annotated union: every hidden row
+          // carries shadowedBy from the store, in "all" mode as well (U26).
           const workflows = rawScope === undefined || rawScope === 'all'
             ? rows
-            : (() => {
-                const rank: Record<string, number> = { global: 1, workspace: 2, session: 3 }
-                const allRows = authoringStore.listWorkflows(scope.context, { all: true })
-                return allRows
-                  .filter(row => row.scope === rawScope)
-                  .map(row => {
-                    const hiddenBy = allRows.find(candidate =>
-                      candidate.name === row.name && (rank[candidate.scope] ?? 0) > (rank[row.scope] ?? 0))
-                    return hiddenBy === undefined
-                      ? row
-                      : { ...row, shadowedBy: { scope: hiddenBy.scope, version: hiddenBy.version } }
-                  })
-              })()
+            : authoringStore.listWorkflows(scope.context, { all: true })
+              .filter(row => row.scope === rawScope)
           return { workflows, scope: scope.scope, shadowing: 'reported per row' } as never
         }
         if (action === 'get') {
@@ -5887,7 +5878,25 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         }
         if (action === 'delete') {
           const entry = authoringStore.getWorkflow(nameOrId, scope.context)
+          if (entry === undefined) {
+            return {
+              deleted: false,
+              reason: `no workflow "${nameOrId}" at the caller's ${scope.scope} scope (${scope.context.scopeKey}); `
+                + 'delete removes only a row at the caller\'s resolved scope -- pass scope:"session"|"workspace"|"global" '
+                + 'to target another one ("from" is demote-only and is ignored here).',
+              checkedScopes: [{ scope: scope.scope, scopeKey: scope.context.scopeKey }],
+            } as never
+          }
           const deleted = authoringStore.deleteWorkflow(nameOrId, scope.context)
+          if (!deleted) {
+            return {
+              deleted: false,
+              reason: `no workflow "${nameOrId}" at the caller's ${scope.scope} scope (${scope.context.scopeKey}); `
+                + 'delete removes only a row at the caller\'s resolved scope -- pass scope:"session"|"workspace"|"global" '
+                + 'to target another one ("from" is demote-only and is ignored here).',
+              checkedScopes: [{ scope: scope.scope, scopeKey: scope.context.scopeKey }],
+            } as never
+          }
           if (deleted && entry !== undefined) {
             // Keep the published dispatcher while any scope still holds this name;
             // deleting one row must unshadow, not withdraw the callable.
@@ -6174,21 +6183,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         }
         if (action === 'list') {
           const rows = authoringStore.listTools(scope.context, { all: includeAll })
+          // Scope filtering selects rows from the annotated union (U26).
           const tools = rawScope === undefined || rawScope === 'all'
             ? rows
-            : (() => {
-                const rank: Record<string, number> = { global: 1, workspace: 2, session: 3 }
-                const allRows = authoringStore.listTools(scope.context, { all: true })
-                return allRows
-                  .filter(row => row.scope === rawScope)
-                  .map(row => {
-                    const hiddenBy = allRows.find(candidate =>
-                      candidate.name === row.name && (rank[candidate.scope] ?? 0) > (rank[row.scope] ?? 0))
-                    return hiddenBy === undefined
-                      ? row
-                      : { ...row, shadowedBy: { scope: hiddenBy.scope, version: hiddenBy.version } }
-                  })
-              })()
+            : authoringStore.listTools(scope.context, { all: true })
+              .filter(row => row.scope === rawScope)
           return { tools, scope: scope.scope } as never
         }
         if (action === 'get') {
@@ -6198,8 +6197,25 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         }
         if (action === 'delete') {
           const entry = authoringStore.getTool(nameOrId, scope.context)
-          if (entry === undefined) return { deleted: false } as never
+          if (entry === undefined) {
+            return {
+              deleted: false,
+              reason: `no authored tool "${nameOrId}" at the caller's ${scope.scope} scope (${scope.context.scopeKey}); `
+                + 'delete removes only a row at the caller\'s resolved scope -- pass scope:"session"|"workspace"|"global" '
+                + 'to target another one ("from" is demote-only and is ignored here).',
+              checkedScopes: [{ scope: scope.scope, scopeKey: scope.context.scopeKey }],
+            } as never
+          }
           const deleted = authoringStore.deleteTool(nameOrId, scope.context)
+          if (!deleted) {
+            return {
+              deleted: false,
+              reason: `no authored tool "${nameOrId}" at the caller's ${scope.scope} scope (${scope.context.scopeKey}); `
+                + 'delete removes only a row at the caller\'s resolved scope -- pass scope:"session"|"workspace"|"global" '
+                + 'to target another one ("from" is demote-only and is ignored here).',
+              checkedScopes: [{ scope: scope.scope, scopeKey: scope.context.scopeKey }],
+            } as never
+          }
           if (deleted) {
             const stillThere = authoringStore.getTool(nameOrId, scope.context) !== undefined
               || authoringStore.getTool(nameOrId) !== undefined

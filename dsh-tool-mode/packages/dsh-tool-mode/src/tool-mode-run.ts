@@ -469,7 +469,9 @@ export function createProgramRunner(environment: RunnerEnvironment): ProgramRunn
           // than being flattened.
           const kind = result.error.kind
           const message = result.error.message ?? `the program ended with ${String(kind)}`
-          const undeclared = /^([A-Za-z_$][A-Za-z0-9_$]*) is not defined$/.exec(message)
+          // Some runtimes prefix the message with "ReferenceError: "; accept both the bare
+          // and prefixed forms so the declared-tools hint is reachable for the common typo.
+          const undeclared = /(?:^|\bReferenceError:\s*)([A-Za-z_$][A-Za-z0-9_$]*) is not defined\b/.exec(message)
           if (undeclared !== null) {
             const name = undeclared[1] ?? message
             return {
@@ -490,7 +492,7 @@ export function createProgramRunner(environment: RunnerEnvironment): ProgramRunn
         return { ok: true, value: result.value, logs: result.logs ?? [], toolCalls, calls, dataFlow, dataFlowCoverage: coverage }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
-        const undeclared = /^([A-Za-z_$][A-Za-z0-9_$]*) is not defined$/.exec(message)
+        const undeclared = /(?:^|\bReferenceError:\s*)([A-Za-z_$][A-Za-z0-9_$]*) is not defined\b/.exec(message)
         if (undeclared !== null) {
           const name = undeclared[1] ?? message
           return {

@@ -48,7 +48,12 @@ export interface BindingResolver {
  */
 export function createBindingResolver(deps: DiscoveryBindingDeps): BindingResolver {
   const resolve = (name: string, scope?: BuiltScopeContext): BindingResolution => {
-    const base = { scope: scope?.scope ?? 'global', scopeKey: scope?.workspaceKey ?? 'global' }
+    const base = {
+      scope: scope?.scope ?? 'global',
+      // The scope's OWN key, not the workspace key: a session preflight must identify
+      // session-… so a caller can prove which session the grant belongs to.
+      scopeKey: scope?.context.scopeKey ?? 'global',
+    }
     if (EXCLUDED_BINDINGS.includes(name)) {
       return { ...base, resolved: false, reason: 'excluded', action: 'Call it directly, not from a program (CODE-07).' }
     }

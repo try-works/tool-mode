@@ -149,6 +149,12 @@ export interface ArtifactShadow {
   readonly version: number
 }
 
+/** The nearest HIGHER-scope row that hides this one (U26). */
+export interface ArtifactShadowedBy extends ArtifactShadow {
+  /** The exact key of the hiding row: session id, workspace key, or host. */
+  readonly scopeKey: string
+}
+
 /** How a list call reports rows. */
 export interface ListOptions {
   /** Report every row visible to the context, not only the winning row per name. */
@@ -260,6 +266,8 @@ export interface AgentWorkflowSummary {
   readonly createdBySession?: string | undefined
   /** The nearest lower-scope row this one hides, or null when it hides nothing. */
   readonly shadowing: ArtifactShadow | null
+  /** The nearest higher-scope row that hides this one; absent when it is a winner. */
+  readonly shadowedBy?: ArtifactShadowedBy
 }
 
 /** One persisted authored tool. */
@@ -308,6 +316,8 @@ export interface AgentToolSummary {
   readonly createdBySession?: string | undefined
   /** The nearest lower-scope row this one hides, or null when it hides nothing. */
   readonly shadowing: ArtifactShadow | null
+  /** The nearest higher-scope row that hides this one; absent when it is a winner. */
+  readonly shadowedBy?: ArtifactShadowedBy
 }
 
 /** What a caller supplies to save a workflow. */
@@ -965,8 +975,36 @@ function shadowingFor<T extends ScopedRow>(entries: readonly T[], row: T, contex
   return null
 }
 
+/**
+ * The nearest HIGHER-scope row that hides this one (U26).
+ *
+ * The inverse of {@link shadowingFor}: a winner reports what it hides, a hidden row
+ * reports what hides it. Both are derived from the same caller chain so one list call
+ * can explain every row, including when `all: true` returns the whole union.
+ * @param entries - every row of this kind in the document.
+ * @param row - the row being annotated.
+ * @param context - the caller's chain.
+ * @returns the hiding row, or null when this row is a winner.
+ */
+function shadowedByFor<T extends ScopedRow>(entries: readonly T[], row: T, context: ArtifactScopeContext | undefined): ArtifactShadowedBy | null {
+  const chain = visibleChain(context)
+  const index = chain.findIndex(key => key.scope === row.scope && key.key === row.scopeKey)
+  if (index <= 0) return null
+  // chain is nearest-first; walk its higher rows nearest-first so global reports the
+  // workspace row hiding it, not a session row three levels up.
+  for (const key of chain.slice(0, index).reverse()) {
+    const higher = entries.find(entry =>
+      entry.name === row.name && entry.scope === key.scope && entry.scopeKey === key.key)
+    if (higher !== undefined) {
+      return { scope: higher.scope, scopeKey: higher.scopeKey, version: higher.version }
+    }
+  }
+  return null
+}
+
 /** Render one saved workflow as its summary. */
 function summarizeWorkflow(workflow: AgentWorkflow, entries: readonly AgentWorkflow[], context: ArtifactScopeContext | undefined): AgentWorkflowSummary {
+  const hiddenBy = shadowedByFor(entries, workflow, context)
   return {
     id: workflow.id, name: workflow.name, description: workflow.description, version: workflow.version,
     tools: workflow.tools, inputSchema: workflow.inputSchema, createdAt: workflow.createdAt, updatedAt: workflow.updatedAt,
@@ -974,11 +1012,13 @@ function summarizeWorkflow(workflow: AgentWorkflow, entries: readonly AgentWorkf
     ...(workflow.promotedFrom === undefined ? {} : { promotedFrom: workflow.promotedFrom }),
     ...(workflow.createdBySession === undefined ? {} : { createdBySession: workflow.createdBySession }),
     shadowing: shadowingFor(entries, workflow, context),
+    ...(hiddenBy === null ? {} : { shadowedBy: hiddenBy }),
   }
 }
 
 /** Render one authored tool as its summary. */
 function summarizeTool(tool: AgentToolDefinition, entries: readonly AgentToolDefinition[], context: ArtifactScopeContext | undefined): AgentToolSummary {
+  const hiddenBy = shadowedByFor(entries, tool, context)
   return {
     id: tool.id, name: tool.name, description: tool.description, inputSchema: tool.inputSchema,
     tools: tool.tools, version: tool.version, createdAt: tool.createdAt, updatedAt: tool.updatedAt,
@@ -986,6 +1026,7 @@ function summarizeTool(tool: AgentToolDefinition, entries: readonly AgentToolDef
     ...(tool.promotedFrom === undefined ? {} : { promotedFrom: tool.promotedFrom }),
     ...(tool.createdBySession === undefined ? {} : { createdBySession: tool.createdBySession }),
     shadowing: shadowingFor(entries, tool, context),
+    ...(hiddenBy === null ? {} : { shadowedBy: hiddenBy }),
   }
 }
 
