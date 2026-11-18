@@ -13,7 +13,7 @@ already-extracted module. A split that needs a new circular import is not a refa
 
 | Module | Responsibility | Lines |
 | --- | --- | ---: |
-| `src/index.ts` | composition root and all remaining surfaces | ~8.6k |
+| `src/index.ts` | composition root and remaining wiring | ~5.9k |
 | `src/model-cards.ts` | capability-card projection (catalog/verdict to card) | ~210 |
 | `src/receipt-surface.ts` | receipt store, id minting, bounded in-memory ring | ~70 |
 | `src/receipt-view.ts` | stable read shape for `model_tools` receipts | ~50 |
@@ -69,7 +69,7 @@ interfaces, not closures over a 400-line `apply`.
       authoring-surface.ts       workflow + agent tool handlers  [done]
       extension-lifecycle.ts     restore chain                [done]
       mcp-surface.ts             host service + endpoint       [done]
-      runtime-surface.ts         tool_mode_run + receipts        [partial]
+      runtime-surface.ts         tool_mode_run + receipts        [done]
       receipt-surface.ts         receipt stores, accounting, usage   [done]
 
 ## Extraction order
@@ -78,26 +78,23 @@ interfaces, not closures over a 400-line `apply`.
 2. **receipt-surface** - done for the store/counter/ring. Invocation accounting and the
    usage projections still move with discovery because their read model is the
    `model_tools` receipts action.
-3. **discovery-surface** - partially done. `tool_mode_list` and `tool_mode_describe`
-   are out in `discovery-control.ts`; the binding resolver is in `discovery-binding.ts`.
-   `model_tools` remains because its management actions share extension lifecycle,
-   credentials and asset state; extract it with the lifecycle split rather than inventing
-   a second dependency graph for it.
+3. **discovery-surface** - done. `tool_mode_list` / `tool_mode_describe` live in
+   `discovery-control.ts`; the binding resolver is in `discovery-binding.ts`; the
+   `model_tools` contract and execution/management closure live in
+   `model-tools-schema.ts` and `discovery-surface.ts`.
 4. **authoring-surface** - done for the handlers. `AuthoringDeps` carries the store,
    ledger, workflow/authored-name registries, scope resolver, receipts, promotion
    settings and sandbox runner. Boot registration/restore still lives in `index.ts`;
    extracting it is the next authoring step, not part of this move.
-5. **extension-lifecycle** - restore/inspect/prepare/activate. This is the riskiest split
-   because ordering is a contract (integrity, asset restore, readiness, activation) and
-   several maps are shared with dispatch. Extract it only after 2-4 have settled, with
-   the restore chain tests run before and after.
+5. **extension-lifecycle** - done. `extension-lifecycle.ts` owns integrity, prepared-asset
+   restore, readiness inspection, activation and auto-provisioning in one ordered chain;
+   the restore-chain tests passed before and after the move.
 6. **mcp-surface** - done for the lifecycle seam. HTTP/auth/subscriptions already live
    in `src/mcp/`; `mcp-surface.ts` owns service exposure, token/OAuth selection and
    binding the loopback endpoint.
-7. **runtime-surface** - partially done: `tool_mode_run` (probe, binding preflight,
+7. **runtime-surface** - done: `tool_mode_run` (probe, binding preflight,
    composition/nested receipts, run capture) is out in `runtime-surface.ts`. The
-   adapters, provider bridge and model runtime lane are already separate modules; the
-   remaining wiring stays in the composition root until the lifecycle split lands.
+   adapters, provider bridge and model runtime lane are already separate modules.
 
 ## Dependency rules
 
@@ -134,6 +131,7 @@ commit so the refactor can be reviewed and reverted independently.
 
 ## Next step
 
-Extract `receipt-surface` and `discovery-surface` in that order. Both have explicit inputs
-and existing tests; together they remove the most-read ~1.2k lines from the composition
-root without touching extension restore ordering.
+All planned surfaces are extracted. `index.ts` is now wiring plus the model install/teardown
+and publication helpers. The remaining optional split is the model install/registrar block
+(`install`, deferred catalogue restore, adapters and provider bridge construction), which
+should keep the same dependency-object method. No further split is required for this plan.
