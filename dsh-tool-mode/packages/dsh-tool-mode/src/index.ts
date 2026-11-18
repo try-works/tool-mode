@@ -46,6 +46,7 @@ import {
 import { ArtifactScopeError, buildScopeContext, type BuiltScopeContext } from './artifact-scope-context.ts'
 import { registerAuthoringTools } from './authoring-surface.ts'
 import { createArtifactUsageStore } from './artifact-usage.ts'
+import { createRepetitionTracker, type RepetitionTracker } from './adoption-candidates.ts'
 import { registerRuntimeTools } from './runtime-surface.ts'
 import { createModelToolsControl } from './discovery-surface.ts'
 import { captureDisclosure } from './authoring-quality.ts'
@@ -292,6 +293,20 @@ export interface Config {
   captureRunPrograms?: boolean
   /** Where run captures are stored; default is beside the authoring file. */
   runCaptureFile?: string
+  /**
+   * Adoption experiments. All levers are OFF by default; enabling one is an
+   * explicit experiment arm choice, never an implicit prompt change.
+   */
+  adoption?: {
+    /** Offer a save after repeated identical calls. */
+    saveOffer?: boolean
+    /** Show a bounded caller-scoped artifact digest. */
+    digest?: boolean
+    /** Prewarm the top listed tool after enable. */
+    prewarmAfterEnable?: boolean
+    /** Identical calls before a save offer (default 3). */
+    maxRepeats?: number
+  }
   /**
    * Authored-artifact scoping. Disabled by default: every artifact is global and
    * behaviour is byte-identical to the pre-scoping store.
@@ -871,6 +886,12 @@ export const Config: z<Config> = z.object({
   agentAuthoringFile: z.string().default(''),
   captureRunPrograms: z.boolean().default(true),
   runCaptureFile: z.string().default(''),
+  adoption: z.object({
+    saveOffer: z.boolean().default(false),
+    digest: z.boolean().default(false),
+    prewarmAfterEnable: z.boolean().default(false),
+    maxRepeats: z.number().min(2).default(3),
+  }).default({ saveOffer: false, digest: false, prewarmAfterEnable: false, maxRepeats: 3 }),
   /**
    * Authored-artifact scoping. ENABLED by default: new artifacts are
    * session-scoped, existing global rows remain resolvable, and
@@ -1202,6 +1223,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const workflowCallStack = new AsyncLocalStorage<ReadonlySet<string>>()
   /** Per-session adoption ledger (offered/called/authored/reused). */
   let sessionLedger: SessionLedger | undefined
+  /** Repetition candidates for the optional save offer (flag default off). */
+  let repetitionTracker: RepetitionTracker | undefined
   /**
    * The session identity on a DSH Agent. The live Agent has `id`; simple hosts and
    * older fixtures used `sessionId`, so both are accepted. Reading only the latter
@@ -3496,8 +3519,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   if (sessionLedger.issue !== undefined) {
     ctx.logger.warn('model-tools: session ledger: ' + sessionLedger.issue)
   }
+  const NON_OFFERABLE_TOOLS = new Set([
+    'tool_mode_list', 'tool_mode_describe', 'tool_mode_workflows', 'tool_mode_tools', 'model_tools',
+  ])
+  repetitionTracker = config.adoption?.saveOffer === true
+    ? createRepetitionTracker({ threshold: config.adoption.maxRepeats ?? 3 })
+    : undefined
   ctx.on('tools/post-execute' as never, (async (
-    exec: { agent?: unknown; name: string },
+    exec: { agent?: unknown; name: string; arguments?: unknown },
     _result: unknown,
     next: () => Promise<unknown>,
   ) => {
@@ -3505,7 +3534,23 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     if (sessionId !== undefined && sessionId.length > 0) {
       sessionLedger?.called(sessionId, exec.name)
     }
-    return next()
+    const result = await next()
+    if (repetitionTracker !== undefined
+      && sessionId !== undefined
+      && sessionId.length > 0
+      && !NON_OFFERABLE_TOOLS.has(exec.name)) {
+      const value = (result as { value?: unknown } | undefined)?.value
+      const runId = typeof value === 'object' && value !== null && typeof (value as { runId?: unknown }).runId === 'string'
+        ? (value as { runId: string }).runId
+        : undefined
+      repetitionTracker.record({
+        sessionId,
+        toolName: exec.name,
+        args: exec.arguments,
+        ...runId === undefined ? {} : { runId },
+      })
+    }
+    return result
   }) as never)
 
   if (config.captureRunPrograms === true) {
@@ -3625,6 +3670,42 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       evidence.uses >= 5
         ? { uses: evidence.uses, sessions: evidence.sessions, failures: evidence.failures }
         : { insufficientEvidence: true as const }
+    /** Turn a repetition shape into a runnable next command. */
+    const suggestionFor = (candidate: {
+      readonly id: string
+      readonly toolName: string
+      readonly calls: number
+      readonly inputSchema: Record<string, unknown>
+      readonly parameterPaths: readonly string[]
+      readonly runId?: string
+    }) => {
+      const suffix = candidate.toolName.replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40)
+      const name = 'repeat_' + (suffix.length > 0 ? suffix : 'tool')
+      const runId = candidate.runId
+      return {
+        id: candidate.id,
+        toolName: candidate.toolName,
+        calls: candidate.calls,
+        artifactKind: 'workflow',
+        name,
+        callableName: workflowToolName(name),
+        why: candidate.calls + ' calls with the same argument shape',
+        parameterPaths: candidate.parameterPaths,
+        inputSchema: candidate.inputSchema,
+        ...runId === undefined ? {} : { runId },
+        command: runId === undefined
+          ? {
+              tool: 'tool_mode_workflows',
+              arguments: {
+                action: 'save', name,
+                program: 'return await ' + candidate.toolName + '(input)',
+                tools: [candidate.toolName],
+                inputSchema: candidate.inputSchema,
+              },
+            }
+          : { tool: 'tool_mode_tools', arguments: { action: 'from-run', runId } },
+      }
+    }
     authoringSnapshot = (exec) => {
       const scope = scopeFor(exec)
       const root = scope.rootSessionId
@@ -3650,6 +3731,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           return { ...workflow, ...evidence, quality: qualityOf(evidence) }
         }),
         recent: authoringLedger.list().slice(-20),
+        ...repetitionTracker === undefined ? {} : {
+          suggestions: (scope.rootSessionId ?? sessionIdOfAgent(exec.agent)) === undefined
+            ? []
+            : repetitionTracker.suggestions((scope.rootSessionId ?? sessionIdOfAgent(exec.agent)) as string).map(suggestionFor),
+        },
         repeatedShapes: findRepeatedShapes(invocationReceipts),
         scope: {
           enabled: scopingEnabled,

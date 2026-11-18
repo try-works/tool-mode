@@ -20,7 +20,11 @@ this checkout.
 - **Phase 2 — implemented.** `tool_mode_run` and workflow runs return a
   top-level `runId`; `from-run` accepts only that id, infers the name/schema and
   needs no Code Mode. The existing capture store is used unchanged.
-- Phases 3–6 remain pending.
+- **Phase 3 — implemented behind `adoption.saveOffer` (default off).** Three
+  identical argument shapes in one session produce one candidate with a
+  shape-only schema and a runnable next command. The tracker stores no values;
+  and the existing `tool_mode_list.authoring` surface carries the suggestion.
+- Phases 4–6 remain pending.
 
 ## Outcome
 
