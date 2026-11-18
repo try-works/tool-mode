@@ -1,0 +1,15 @@
+- id: model-tools
+  config:
+    stateFile: 'E:\tmp\adoption-run\arm-D\state.json'
+    agentAuthoringFile: 'E:\tmp\adoption-run\arm-D\agent-authoring.json'
+    runCaptureFile: 'E:\tmp\adoption-run\arm-D\run-captures.json'
+    hostedCode: true
+    captureRunPrograms: true
+    adoption:
+      saveOffer: false
+      digest: false
+      experimentArm: D
+    artifactScopes:
+      enabled: true
+      defaultScope: workspace
+      workspaceRoot: 'E:\tmp\adoption-run'

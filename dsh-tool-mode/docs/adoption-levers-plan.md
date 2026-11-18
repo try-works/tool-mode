@@ -35,6 +35,13 @@ this checkout.
   otherwise prepares; discovery rows carry `cold: true` when the extension's
   recorded readiness is `prepared-cold`. `tool_mode_list`/`tool_mode_describe`
   remain side-effect free. Optional background prewarm after enable is not wired.
+- **Experiment run (2026-11-19) — completed, null result.** A real
+  30-session run (10 per arm, one call per session) produced 100% reuse and 100%
+  correctness in D, G and O; no save offers were triggered. The pre-registered
+  kill rule therefore fires for the digest (0 pp lift). The save offer was not
+  exercised. Evidence and limitations: [REPORT.md](../research/adoption-dgo-2026-11-19/REPORT.md).
+  The digest remains default-on only because the operator explicitly requested
+  that configuration; the experiment does not support it as a measured win.
 - **Phase 6 — implemented for observation.** The session ledger records the
   D/G/O arm once, save offers surfaced, authored count and reuse; the
   `scripts/adoption-report.mjs` reads the ledger and prints per-arm sessions,

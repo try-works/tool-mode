@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "rows": [
+    {
+      "name": "g1_invoice_total",
+      "digest": "1ba8fd3586e43f9bb9ea7525a39130f1ff3d41ea2808ecb130fbfdbd345aafe8",
+      "uses": 10,
+      "failures": 0,
+      "sessions": [
+        "session-30c64a24-d7d5-40b4-a9c2-45759afb72ef",
+        "session-83fcc73c-9169-40f9-b275-5530382163f4",
+        "session-bd973215-1598-4663-b5d7-8b7bfb52124c",
+        "session-1e25b893-f928-44c0-8ae9-b0e1aba2b6aa",
+        "session-e36d4200-707f-4c67-9508-b51519e33266",
+        "session-0ab7547c-ebe7-4b9c-acf4-8b59ad5c4945",
+        "session-9c697080-fdbe-44f3-8ee1-c4dabd4d84ff",
+        "session-9d9e239e-acd4-44d1-8970-625f097144d9",
+        "session-04ecedcf-d388-479a-bb9d-41ef16a6ef2a",
+        "session-888486d8-b7a7-48dc-b5bd-2ceb7426fa93"
+      ],
+      "sessionTotal": 10,
+      "lastAt": "2026-11-18T23:33:43.934Z",
+      "receiptIds": [
+        "rcpt_000001",
+        "rcpt_000002",
+        "rcpt_000003",
+        "rcpt_000004",
+        "rcpt_000005",
+        "rcpt_000006",
+        "rcpt_000007",
+        "rcpt_000008",
+        "rcpt_000009",
+        "rcpt_00000a"
+      ]
+    }
+  ]
+}
