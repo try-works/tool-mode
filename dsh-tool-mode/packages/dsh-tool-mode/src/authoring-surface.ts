@@ -115,6 +115,16 @@ export function registerAuthoringTools(deps: AuthoringSurfaceDeps): void {
   const authoringRevision = deps.authoringRevision
   const evidenceFor = deps.evidenceFor
   const recordArtifactFailure = deps.recordArtifactFailure
+  /** Accept either the stored name or workflow_<name>; stored name wins. */
+  const getWorkflowByEitherName = (key: string, context: BuiltScopeContext['context']) => {
+    const direct = authoringStore.getWorkflow(key, context)
+    if (direct !== undefined) return direct
+    // Callable names replace hyphens with underscores; invert via the visible rows
+    // rather than string surgery, which would corrupt legitimate underscores.
+    const match = authoringStore.listWorkflows(context, { all: true })
+      .find(row => row.callableName === key)
+    return match === undefined ? undefined : authoringStore.getWorkflow(match.name, context)
+  }
   const scopeSettings = deps.scopeSettings
   const globalApprovalGranted = deps.globalApprovalGranted
   const sandboxTempScope = deps.sandboxTempScope
@@ -240,12 +250,12 @@ ctx.tools.register(defineTool({
       return { workflows, scope: scope.scope, shadowing: 'reported per row' } as never
     }
     if (action === 'get') {
-      const entry = authoringStore.getWorkflow(nameOrId, scope.context)
+      const entry = getWorkflowByEitherName(nameOrId, scope.context)
       if (entry === undefined) throw new Error('unknown workflow "' + nameOrId + '"; list the workflows to see what exists')
       return { workflow: entry, scope: entry.scope } as never
     }
     if (action === 'delete') {
-      const entry = authoringStore.getWorkflow(nameOrId, scope.context)
+      const entry = getWorkflowByEitherName(nameOrId, scope.context)
       if (entry === undefined) {
         return {
           deleted: false,
@@ -255,7 +265,7 @@ ctx.tools.register(defineTool({
           checkedScopes: [{ scope: scope.scope, scopeKey: scope.context.scopeKey }],
         } as never
       }
-      const deleted = authoringStore.deleteWorkflow(nameOrId, scope.context)
+      const deleted = authoringStore.deleteWorkflow(entry.name, scope.context)
       if (!deleted) {
         return {
           deleted: false,
@@ -268,8 +278,8 @@ ctx.tools.register(defineTool({
       if (deleted && entry !== undefined) {
         // Keep the published dispatcher while any scope still holds this name;
         // deleting one row must unshadow, not withdraw the callable.
-        const stillThere = authoringStore.getWorkflow(nameOrId, scope.context) !== undefined
-          || authoringStore.getWorkflow(nameOrId) !== undefined
+        const stillThere = authoringStore.getWorkflow(entry.name, scope.context) !== undefined
+          || authoringStore.getWorkflow(entry.name) !== undefined
         if (!stillThere) {
           const toolName = workflowToolName(entry.name)
           workflowDisposers.get(toolName)?.()
@@ -283,7 +293,7 @@ ctx.tools.register(defineTool({
       return { deleted, ...scopeDisclosure(scope) } as never
     }
     if (action === 'run') {
-      const entry = authoringStore.getWorkflow(nameOrId, scope.context)
+      const entry = getWorkflowByEitherName(nameOrId, scope.context)
       if (entry === undefined) throw new Error('unknown workflow "' + nameOrId + '"; list the workflows to see what exists')
       const receiptId = host.nextReceiptId()
       const revision = authoringRevision()
@@ -335,20 +345,20 @@ ctx.tools.register(defineTool({
     if (action === 'promote' || action === 'demote') {
       const from = typeof request['from'] === 'string' ? request['from'] : undefined
       const sourceScope = action === 'demote' && from !== undefined ? scopeFor(exec, from) : scope
-      const entry = authoringStore.getWorkflow(nameOrId, sourceScope.context)
+      const entry = getWorkflowByEitherName(nameOrId, sourceScope.context)
       if (entry === undefined) throw new Error('unknown workflow "' + nameOrId + '"')
       if (action === 'demote') {
         if (entry.scope === 'global' && !globalApprovalGranted) {
           throw new Error('E_APPROVAL_REQUIRED: removing a global artifact requires a human decision '
             + '(DSH_ARTIFACT_GLOBAL_APPROVAL=1 in the host environment)')
         }
-        authoringStore.demote(nameOrId, sourceScope.context)
+        authoringStore.demote(entry.name, sourceScope.context)
         authoringLedger.record({
           operation: 'demote', artifactKind: 'workflow', name: entry.name, version: entry.version,
           scope: entry.scope,
           ...requestedScope === undefined ? {} : { targetScope: requestedScope as ArtifactScope },
         })
-        return { demoted: true, workflow: authoringStore.getWorkflow(nameOrId, scope.context) ?? null } as never
+        return { demoted: true, workflow: authoringStore.getWorkflow(entry.name, scope.context) ?? null } as never
       }
       const to = typeof request['to'] === 'string' ? request['to'] : ''
       const target = scopeFor(exec, to)
@@ -364,7 +374,7 @@ ctx.tools.register(defineTool({
       })
       if (!decision.ok) throw new Error(decision.code + ': ' + decision.message)
       const promoted = authoringStore.promote(
-        nameOrId,
+        entry.name,
         scope.context,
         target.context,
         {
@@ -610,7 +620,7 @@ ctx.tools.register(defineTool({
           throw new Error('E_APPROVAL_REQUIRED: removing a global artifact requires a human decision '
             + '(DSH_ARTIFACT_GLOBAL_APPROVAL=1 in the host environment)')
         }
-        authoringStore.demote(nameOrId, sourceScope.context)
+        authoringStore.demote(entry.name, sourceScope.context)
         authoringLedger.record({
           operation: 'demote', artifactKind: 'tool', name: entry.name, version: entry.version, scope: entry.scope,
         })
@@ -630,7 +640,7 @@ ctx.tools.register(defineTool({
       })
       if (!decision.ok) throw new Error(decision.code + ': ' + decision.message)
       const promoted = authoringStore.promote(
-        nameOrId,
+        entry.name,
         scope.context,
         target.context,
         {

@@ -14,7 +14,10 @@ this checkout.
   caller session; discovery calls emit `discovery` receipts; artifact usage is
   durable per `(name, digest)` and survives receipt-ring pressure; five sessions
   and failed runs are covered by tests.
-- Phases 1–6 remain pending.
+- **Phase 1 — implemented.** Workflow summaries expose `callableName`; get/run/
+  delete accept either the stored name or `workflow_<name>`; quality is published
+  only after five uses and otherwise says `insufficientEvidence`.
+- Phases 2–6 remain pending.
 
 ## Outcome
 

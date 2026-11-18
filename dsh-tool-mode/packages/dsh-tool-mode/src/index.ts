@@ -3620,6 +3620,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     authoredToolVisibleAt = (name, scope) =>
       !authoredToolNames.has(name) || authoringStore.getTool(name, scope.context) !== undefined
     authoringReceipts = () => authoringLedger.list()
+    /** Quality is published only once the evidence can support it. */
+    const qualityOf = (evidence: { readonly uses: number; readonly sessions: number; readonly failures: number }) =>
+      evidence.uses >= 5
+        ? { uses: evidence.uses, sessions: evidence.sessions, failures: evidence.failures }
+        : { insufficientEvidence: true as const }
     authoringSnapshot = (exec) => {
       const scope = scopeFor(exec)
       const root = scope.rootSessionId
@@ -3636,14 +3641,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             }),
           ]
       return {
-        tools: authoringStore.listTools(scope.context).map(tool => ({
-          ...tool,
-          ...artifactUsage.evidence(tool.name, tool.digest),
-        })),
-        workflows: authoringStore.listWorkflows(scope.context).map(workflow => ({
-          ...workflow,
-          ...artifactUsage.evidence(workflow.name, workflow.digest),
-        })),
+        tools: authoringStore.listTools(scope.context).map(tool => {
+          const evidence = artifactUsage.evidence(tool.name, tool.digest)
+          return { ...tool, ...evidence, quality: qualityOf(evidence) }
+        }),
+        workflows: authoringStore.listWorkflows(scope.context).map(workflow => {
+          const evidence = artifactUsage.evidence(workflow.name, workflow.digest)
+          return { ...workflow, ...evidence, quality: qualityOf(evidence) }
+        }),
         recent: authoringLedger.list().slice(-20),
         repeatedShapes: findRepeatedShapes(invocationReceipts),
         scope: {

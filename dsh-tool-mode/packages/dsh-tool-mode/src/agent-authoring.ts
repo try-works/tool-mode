@@ -248,6 +248,8 @@ export interface AgentWorkflow {
 export interface AgentWorkflowSummary {
   readonly id: string
   readonly name: string
+  /** The name a caller invokes (workflow_<name>). */
+  readonly callableName: string
   readonly description: string
   readonly version: number
   readonly tools: readonly string[]
@@ -298,6 +300,8 @@ export interface AgentToolDefinition {
 export interface AgentToolSummary {
   readonly id: string
   readonly name: string
+  /** Authored tools are callable under their stored name. */
+  readonly callableName: string
   readonly description: string
   readonly inputSchema: Record<string, JsonValue>
   readonly tools: readonly string[]
@@ -1006,7 +1010,8 @@ function shadowedByFor<T extends ScopedRow>(entries: readonly T[], row: T, conte
 function summarizeWorkflow(workflow: AgentWorkflow, entries: readonly AgentWorkflow[], context: ArtifactScopeContext | undefined): AgentWorkflowSummary {
   const hiddenBy = shadowedByFor(entries, workflow, context)
   return {
-    id: workflow.id, name: workflow.name, description: workflow.description, version: workflow.version,
+    id: workflow.id, name: workflow.name, callableName: workflowToolName(workflow.name),
+    description: workflow.description, version: workflow.version,
     tools: workflow.tools, inputSchema: workflow.inputSchema, createdAt: workflow.createdAt, updatedAt: workflow.updatedAt,
     scope: workflow.scope, scopeKey: workflow.scopeKey, digest: workflow.digest,
     ...(workflow.promotedFrom === undefined ? {} : { promotedFrom: workflow.promotedFrom }),
@@ -1020,7 +1025,8 @@ function summarizeWorkflow(workflow: AgentWorkflow, entries: readonly AgentWorkf
 function summarizeTool(tool: AgentToolDefinition, entries: readonly AgentToolDefinition[], context: ArtifactScopeContext | undefined): AgentToolSummary {
   const hiddenBy = shadowedByFor(entries, tool, context)
   return {
-    id: tool.id, name: tool.name, description: tool.description, inputSchema: tool.inputSchema,
+    id: tool.id, name: tool.name, callableName: tool.name,
+    description: tool.description, inputSchema: tool.inputSchema,
     tools: tool.tools, version: tool.version, createdAt: tool.createdAt, updatedAt: tool.updatedAt,
     scope: tool.scope, scopeKey: tool.scopeKey, digest: tool.digest,
     ...(tool.promotedFrom === undefined ? {} : { promotedFrom: tool.promotedFrom }),

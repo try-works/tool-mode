@@ -527,6 +527,45 @@ describe('artifact scoping T1-T12', () => {
     )
   })
 
+  it('T8e: list shows both names and get/run/delete accept the callable name', async () => {
+    const ctx = await mountHost({ gateOpen: true })
+    await ok(ctx, 'tool_mode_workflows', { action: 'save', name: 'alias-flow', program: 'return 1' }, 'session-a')
+    const listed = await ok(ctx, 'tool_mode_workflows', { action: 'list' }, 'session-a') as {
+      workflows: { name: string; callableName: string }[]
+    }
+    const row = listed.workflows.find(candidate => candidate.name === 'alias-flow')
+    assert.equal(row?.callableName, 'workflow_alias_flow')
+    const got = await ok(ctx, 'tool_mode_workflows', { action: 'get', name: 'workflow_alias_flow' }, 'session-a') as {
+      workflow: { name: string }
+    }
+    assert.equal(got.workflow.name, 'alias-flow')
+    const ran = await ok(ctx, 'tool_mode_workflows', { action: 'run', name: 'workflow_alias_flow', input: {} }, 'session-a')
+    assert.ok(ran)
+    await ok(ctx, 'tool_mode_workflows', { action: 'delete', name: 'workflow_alias_flow' }, 'session-a')
+    const after = await ok(ctx, 'tool_mode_workflows', { action: 'list' }, 'session-a') as { workflows: { name: string }[] }
+    assert.equal(after.workflows.some(candidate => candidate.name === 'alias-flow'), false)
+  })
+
+  it('T8f: quality appears only after five uses', async () => {
+    const ctx = await mountHost({ gateOpen: true })
+    await ok(ctx, 'tool_mode_workflows', {
+      action: 'save', name: 'quality-flow', program: 'return 1', scope: 'workspace',
+    }, 'session-a')
+    const before = await ok(ctx, 'tool_mode_list', { scope: 'workspace' }, 'session-a') as {
+      authoring?: { workflows: { name: string; quality?: { insufficientEvidence?: boolean } }[] }
+    }
+    assert.equal(before.authoring?.workflows.find(row => row.name === 'quality-flow')?.quality?.insufficientEvidence, true)
+    for (let index = 0; index < 5; index += 1) {
+      await ok(ctx, 'tool_mode_workflows', { action: 'run', name: 'quality-flow', input: {} }, 'session-a')
+    }
+    const after = await ok(ctx, 'tool_mode_list', { scope: 'workspace' }, 'session-a') as {
+      authoring?: { workflows: { name: string; quality?: { uses: number; failures: number } }[] }
+    }
+    assert.deepEqual(after.authoring?.workflows.find(row => row.name === 'quality-flow')?.quality, {
+      uses: 5, sessions: 1, failures: 0,
+    })
+  })
+
   it('T9: deleting a workspace copy falls back to the global row', async () => {
     const ctx = await mountHost()
     await ok(ctx, 'tool_mode_workflows', {
