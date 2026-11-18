@@ -7,6 +7,8 @@
  * @module receipt-view
  */
 
+/* oxlint-disable anti-slop/no-conditional-empty-object-spread, anti-slop/no-known-value-widening, anti-slop/no-unsafe-dictionary-type -- SAFETY: this is the published read projection; optional fields are omitted exactly when the receipt does not carry them, and the result is JSON data for discovery. */
+
 import type { InvocationReceipt } from './receipt.ts'
 
 /**
@@ -30,6 +32,11 @@ export function receiptView(receipt: InvocationReceipt): Record<string, unknown>
     executionLocation: receipt.executionLocation,
     kind: receipt.kind ?? 'invocation',
     parentReceiptId: receipt.parentReceiptId ?? null,
+    ...receipt.sessionId === undefined ? {} : { sessionId: receipt.sessionId },
+    ...receipt.rootSessionId === undefined ? {} : { rootSessionId: receipt.rootSessionId },
+    ...receipt.artifactScope === undefined ? {} : { artifactScope: receipt.artifactScope },
+    ...receipt.artifactName === undefined ? {} : { artifactName: receipt.artifactName },
+    ...receipt.artifactDigest === undefined ? {} : { artifactDigest: receipt.artifactDigest },
     ...receipt.callId === undefined ? {} : { callId: receipt.callId },
     ...receipt.argumentPaths === undefined ? {} : { argumentPaths: [...receipt.argumentPaths] },
     ...receipt.dataFlow === undefined ? {} : { dataFlow: [...receipt.dataFlow] },

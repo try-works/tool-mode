@@ -472,6 +472,61 @@ describe('artifact scoping T1-T12', () => {
     assert.deepEqual(row?.evidence, { uses: 2, sessions: 1, failures: 0 })
   })
 
+  it('T8b: durable evidence counts five sessions of agent runs', async () => {
+    const ctx = await mountHost({ gateOpen: true })
+    await ok(ctx, 'tool_mode_workflows', {
+      action: 'save', name: 'durable-flow', program: 'return { ok: true }', scope: 'workspace',
+    }, 'session-a')
+    for (const session of ['session-a', 'session-b', 'session-c', 'session-d', 'session-e']) {
+      await ok(ctx, 'tool_mode_workflows', {
+        action: 'run', name: 'durable-flow', input: {},
+      }, session)
+    }
+    const listed = await ok(ctx, 'tool_mode_list', { scope: 'workspace' }, 'session-a') as {
+      authoring?: { workflows: { name: string; uses: number; sessions: number; failures: number }[] }
+    }
+    const row = listed.authoring?.workflows.find(candidate => candidate.name === 'durable-flow')
+    assert.deepEqual(
+      { uses: row?.uses, sessions: row?.sessions, failures: row?.failures },
+      { uses: 5, sessions: 5, failures: 0 },
+    )
+  })
+
+  it('T8c: discovery calls emit discovery receipts with the caller session', async () => {
+    const ctx = await mountHost()
+    await ok(ctx, 'tool_mode_list', { scope: 'all' }, 'session-a')
+    await ok(ctx, 'tool_mode_describe', { tools: ['tool_mode_list'] }, 'session-a')
+    const receipts = await ok(ctx, 'model_tools', { action: 'receipts' }, 'session-a') as {
+      receipts: { kind: string; contract: string; rootSessionId?: string; sessionId?: string }[]
+    }
+    const discovery = receipts.receipts.filter(row => row.kind === 'discovery')
+    assert.equal(discovery.length, 2)
+    assert.equal(discovery.every(row => row.rootSessionId === 'session-a' && row.sessionId === 'session-a'), true)
+    assert.deepEqual(discovery.map(row => row.contract).sort(), ['tool_mode_describe', 'tool_mode_list'])
+  })
+
+  it('T8d: a failed agent run counts as a use and a failure', async () => {
+    const ctx = await mountHost({ gateOpen: true })
+    await ok(ctx, 'tool_mode_workflows', {
+      action: 'save', name: 'failing-flow', program: 'throw new Error("boom")', scope: 'workspace',
+    }, 'session-a')
+    await ctx.tools.execute({
+      signal: new AbortController().signal,
+      callId: 'failing-run' as never,
+      name: 'tool_mode_workflows',
+      arguments: { action: 'run', name: 'failing-flow', input: {} },
+      agent: { id: 'session-a' } as never,
+    } as never)
+    const listed = await ok(ctx, 'tool_mode_list', { scope: 'workspace' }, 'session-a') as {
+      authoring?: { workflows: { name: string; uses: number; sessions: number; failures: number }[] }
+    }
+    const row = listed.authoring?.workflows.find(candidate => candidate.name === 'failing-flow')
+    assert.deepEqual(
+      { uses: row?.uses, sessions: row?.sessions, failures: row?.failures },
+      { uses: 1, sessions: 1, failures: 1 },
+    )
+  })
+
   it('T9: deleting a workspace copy falls back to the global row', async () => {
     const ctx = await mountHost()
     await ok(ctx, 'tool_mode_workflows', {

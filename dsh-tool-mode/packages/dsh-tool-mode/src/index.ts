@@ -45,10 +45,10 @@ import {
 } from './agent-authoring.ts'
 import { ArtifactScopeError, buildScopeContext, type BuiltScopeContext } from './artifact-scope-context.ts'
 import { registerAuthoringTools } from './authoring-surface.ts'
+import { createArtifactUsageStore } from './artifact-usage.ts'
 import { registerRuntimeTools } from './runtime-surface.ts'
 import { createModelToolsControl } from './discovery-surface.ts'
 import { captureDisclosure } from './authoring-quality.ts'
-import { evidenceFromReceipts } from './artifact-promotion.ts'
 import { createAuthoringLedger, type AuthoringReceipt } from './authoring-ledger.ts'
 import { createRunCaptureStore, type RunCaptureStore } from './run-capture.ts'
 import { createSessionLedger, type SessionLedger } from './session-ledger.ts'
@@ -2393,6 +2393,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       // call path rather than presenting a receipt that would vanish on restart.
       receiptSurface.record(receipt)
     },
+    receiptSession: exec => {
+      const sessionId = sessionIdOfAgent((exec as { agent?: unknown }).agent)
+      const scope = scopeForAuthoringCaller?.(exec as { agent?: unknown })
+      return {
+        ...sessionId === undefined ? {} : { sessionId, rootSessionId: scope?.rootSessionId ?? sessionId },
+        ...(exec as { parent?: unknown }).parent === undefined ? {} : { nested: true },
+      }
+    },
   }
 
   /** Record one auxiliary harness-model call as a native-shaped receipt (OBS-01). */
@@ -3219,6 +3227,30 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       scopeFor: exec => scopeForAuthoringCaller?.(exec),
       sessionIdOfAgent,
       externalGrant: () => externalGrantContext.current(),
+      recordDiscovery: (contract, exec) => {
+        const receiptId = host.nextReceiptId()
+        const sessionId = sessionIdOfAgent(exec.agent)
+        const scope = scopeForAuthoringCaller?.(exec)
+        host.recordReceipt?.(buildInvocationReceipt({
+          receiptId,
+          contract,
+          contractVersion: contract === 'tool_mode_list'
+            ? TOOL_MODE_LIST_CONTRACT.version
+            : TOOL_MODE_DESCRIBE_CONTRACT.version,
+          implementationId: 'hosted-discovery',
+          extension: host.extension,
+          extensionVersion: host.extensionVersion,
+          activationGeneration: extensionLifecycle?.generation ?? host.activationGeneration,
+          executionLocation: 'host',
+          modelIdentity: 'none',
+          kind: 'discovery',
+          runId: receiptId,
+          parentReceiptId: null,
+          outcome: 'ok',
+          ...sessionId === undefined ? {} : { sessionId },
+          ...scope?.rootSessionId === undefined ? {} : { rootSessionId: scope.rootSessionId },
+        }))
+      },
       authoringSnapshot: exec => authoringSnapshot?.(exec),
       sessionLedger: () => sessionLedger,
       toolContracts: () => toolContracts,
@@ -3513,6 +3545,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     if (authoringStore.issue !== undefined) {
       ctx.logger.warn('model-tools: agent authoring: ' + authoringStore.issue)
     }
+    const artifactUsage = createArtifactUsageStore(join(dirname(authoringFile), 'artifact-usage.json'))
     const authoringLedger = createAuthoringLedger({
       file: join(dirname(authoringFile), 'authoring-receipts.json'),
     })
@@ -3594,22 +3627,22 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         ? []
         : [
             ...authoringStore.sessionWorkflows(root).map(workflow => {
-              const evidence = evidenceFromReceipts(invocationReceipts, { name: workflow.name, digest: workflow.digest })
+              const evidence = artifactUsage.evidence(workflow.name, workflow.digest)
               return { artifactKind: 'workflow', name: workflow.name, scope: 'session', ...evidence, eligibleFor: ['workspace'] }
             }),
             ...authoringStore.sessionTools(root).map(tool => {
-              const evidence = evidenceFromReceipts(invocationReceipts, { name: tool.name, digest: tool.digest })
+              const evidence = artifactUsage.evidence(tool.name, tool.digest)
               return { artifactKind: 'tool', name: tool.name, scope: 'session', ...evidence, eligibleFor: ['workspace'] }
             }),
           ]
       return {
         tools: authoringStore.listTools(scope.context).map(tool => ({
           ...tool,
-          ...evidenceFromReceipts(invocationReceipts, { name: tool.name, digest: tool.digest }),
+          ...artifactUsage.evidence(tool.name, tool.digest),
         })),
         workflows: authoringStore.listWorkflows(scope.context).map(workflow => ({
           ...workflow,
-          ...evidenceFromReceipts(invocationReceipts, { name: workflow.name, digest: workflow.digest }),
+          ...artifactUsage.evidence(workflow.name, workflow.digest),
         })),
         recent: authoringLedger.list().slice(-20),
         repeatedShapes: findRepeatedShapes(invocationReceipts),
@@ -3636,14 +3669,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       const root = String(id)
       const expired = authoringStore.expireSession(root)
       for (const workflow of expired.workflows) {
-        const evidence = evidenceFromReceipts(invocationReceipts, { name: workflow.name, digest: workflow.digest })
+        const evidence = artifactUsage.evidence(workflow.name, workflow.digest)
         authoringLedger.record({
           operation: 'expire', artifactKind: 'workflow', name: workflow.name, version: workflow.version,
           scope: 'session', uses: evidence.uses, sessions: evidence.sessions,
         })
       }
       for (const tool of expired.tools) {
-        const evidence = evidenceFromReceipts(invocationReceipts, { name: tool.name, digest: tool.digest })
+        const evidence = artifactUsage.evidence(tool.name, tool.digest)
         authoringLedger.record({
           operation: 'expire', artifactKind: 'tool', name: tool.name, version: tool.version,
           scope: 'session', uses: evidence.uses, sessions: evidence.sessions,
@@ -3680,6 +3713,15 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           ...call.callId === undefined ? {} : { callId: call.callId },
           outcome: call.ok ? 'ok' : 'failed',
         }))
+      }
+      if (artifact !== undefined) {
+        artifactUsage.record({
+          receiptId,
+          name: artifact.name,
+          digest: artifact.digest,
+          ...artifact.sessionId === undefined ? {} : { sessionId: artifact.sessionId },
+          outcome: 'ok',
+        })
       }
       host.recordReceipt?.(buildInvocationReceipt({
         receiptId,
@@ -3986,7 +4028,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       workflowToolNames,
       authoredToolNames,
       authoringRevision,
-      invocationReceipts,
+      evidenceFor: (name, digest) => artifactUsage.evidence(name, digest),
+      recordArtifactFailure: input => artifactUsage.record({ ...input, outcome: 'failed' }),
       scopeSettings,
       globalApprovalGranted,
       sandboxTempScope,

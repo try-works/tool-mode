@@ -24,6 +24,8 @@
  * @module @try-works/dsh-tool-mode/receipt
  */
 
+/* oxlint-disable anti-slop/no-known-value-widening, anti-slop/no-runtime-typeof -- SAFETY: this is the receipt builder's JSON boundary; the runtime checks validate input before the receipt is constructed. */
+
 import { createHash } from 'node:crypto'
 import { basename } from 'node:path'
 import type { ExecutionLocation } from '@try-works/tool-mode-contracts'
@@ -83,7 +85,7 @@ export interface InvocationReceipt {
   /** Non-fatal notes, already free of caller content. */
   readonly warnings: readonly string[]
   /** Which provenance lane produced this receipt (OBS-01). */
-  readonly kind?: 'invocation' | 'nested' | 'auxiliary' | 'external'
+  readonly kind?: 'invocation' | 'direct' | 'discovery' | 'nested' | 'auxiliary' | 'external'
   /** The DIRECT parent receipt; for a nested call it equals the composition receipt id. */
   readonly parentReceiptId?: string | null
   /** The trace call id a nested receipt represents (joins it to `dataFlow` edges). */

@@ -312,6 +312,13 @@ export const MODEL_TOOLS_SPEC: ModelToolsSpec = {
               receiptId: { type: 'string', required: true },
               /** When the host authored the receipt, ISO 8601. */
               at: { type: 'string', required: true },
+              /** Set by the native/discovery lanes: the caller's session identity. */
+              sessionId: { type: 'string' },
+              /** The root session, for cross-subagent adoption counting. */
+              rootSessionId: { type: 'string' },
+              artifactScope: { type: 'string' },
+              artifactName: { type: 'string' },
+              artifactDigest: { type: 'string' },
               /** The composition run this receipt belongs to. */
               runId: { type: 'string', required: true },
               contract: { type: 'string', required: true },

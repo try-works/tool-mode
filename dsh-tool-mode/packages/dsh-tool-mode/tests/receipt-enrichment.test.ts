@@ -56,6 +56,8 @@ interface ReceiptRow {
   readonly runId: string
   readonly parentReceiptId: string | null
   readonly outcome: string | null
+  readonly sessionId?: string
+  readonly rootSessionId?: string
   readonly callId?: string
   readonly dataFlow?: readonly { from: string; to: string; input: string; evidence: string }[]
   readonly dataFlowCoverage?: {
@@ -151,6 +153,24 @@ async function call(ctx: Context, name: string, args: unknown) {
 }
 
 describe('task-53 — a direct contract call records an enriched receipt', () => {
+  it('carries the direct lane and the caller session when invoked by an agent', async () => {
+    const ctx = await mountPluginWithTongue({ stateFile: isolatedStateFile() })
+    const called = await ctx.tools.execute({
+      signal: new AbortController().signal,
+      callId: ToolCallId('receipt-direct-session'),
+      name: 'lang_detect',
+      arguments: { text: 'hallo wereld' },
+      agent: { id: 'session-a' } as never,
+    } as never)
+    assert.equal(called.isError, false, JSON.stringify(called))
+    const rows = await receiptsOf(ctx)
+    const direct = rows.find(row => row.contract === 'text.language_detect')
+    assert.ok(direct)
+    assert.equal(direct.kind, 'direct')
+    assert.equal(direct.sessionId, 'session-a')
+    assert.equal(direct.rootSessionId, 'session-a')
+  })
+
   it('carries an ISO at, runId === receiptId, outcome ok and a null parent', async () => {
     const ctx = await mountPluginWithTongue({ stateFile: isolatedStateFile() })
     const called = await callTool(ctx, 'lang_detect', { text: 'hallo wereld' })

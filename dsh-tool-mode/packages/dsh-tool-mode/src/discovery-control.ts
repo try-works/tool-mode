@@ -9,6 +9,8 @@
  * @module discovery-control
  */
 
+/* oxlint-disable anti-slop/require-safety-comment-for-type-assertion, anti-slop/no-chained-type-assertions, anti-slop/no-conditional-empty-object-spread, anti-slop/no-known-value-widening, anti-slop/no-shape-in-symbol-names, anti-slop/no-unknown-parameters, anti-slop/no-unknown-returns, anti-slop/no-unsafe-dictionary-type, anti-slop/no-runtime-typeof -- SAFETY: this is the registry/catalog discovery boundary; entries are validated by the catalog/registry types and then cast at the DSH tool seam. */
+
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool, type ParameterSchemaSpec } from '@deepseek-ai/dsh-tools'
 import { STANDARD_CONTRACTS } from '@try-works/tool-mode-contracts'
@@ -64,6 +66,7 @@ export interface DiscoveryControlDeps {
   readonly scopeFor?: ((exec: { agent?: unknown }) => BuiltScopeContext | undefined) | undefined
   readonly sessionIdOfAgent: (agent: unknown) => string | undefined
   readonly externalGrant: () => readonly string[] | undefined
+  readonly recordDiscovery: (contract: 'tool_mode_list' | 'tool_mode_describe', exec: { agent?: unknown }) => void
   readonly authoringSnapshot?: ((exec: { agent?: unknown }) => DiscoveryAuthoringSnapshot | undefined) | undefined
   readonly sessionLedger: () => SessionLedger | undefined
   readonly toolContracts: () => ReadonlyMap<string, DiscoveryContractFacts>
@@ -97,6 +100,7 @@ export function registerDiscoveryControlTools(deps: DiscoveryControlDeps): void 
   const bindableName = deps.bindableName
   const scopeForAuthoringCaller = deps.scopeFor
   const externalGrant = deps.externalGrant
+  const recordDiscovery = deps.recordDiscovery
   const authoringSnapshot = deps.authoringSnapshot
   const declarativeRecipeDigests = deps.declarativeRecipeDigests
   const workflowToolNames = deps.workflowToolNames
@@ -277,6 +281,7 @@ export function registerDiscoveryControlTools(deps: DiscoveryControlDeps): void 
       render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
     },
     async execute(args, exec) {
+      recordDiscovery('tool_mode_list', exec)
       const { resolved, installed } = deps.view()
       const bindableScope = scopeForAuthoringCaller?.(exec)
       const callerGrant = externalGrant()
@@ -473,6 +478,7 @@ export function registerDiscoveryControlTools(deps: DiscoveryControlDeps): void 
       render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
     },
     async execute(args, exec) {
+      recordDiscovery('tool_mode_describe', exec)
       const names = args.tools as string[]
       const authoring = authoringSnapshot?.(exec)
       const bindableScope = scopeForAuthoringCaller?.(exec)

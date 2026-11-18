@@ -26,8 +26,7 @@ import {
 import { inferRunInputSchema, suggestAgentName } from './authoring-quality.ts'
 import type { AuthoringLedger } from './authoring-ledger.ts'
 import type { BuiltScopeContext } from './artifact-scope-context.ts'
-import { evaluatePromotion, evidenceFromReceipts } from './artifact-promotion.ts'
-import type { InvocationReceipt } from './receipt.ts'
+import { evaluatePromotion } from './artifact-promotion.ts'
 import type { RunCaptureStore } from './run-capture.ts'
 import type { SandboxTempScope } from './sandbox-temp.ts'
 import type { SessionLedger } from './session-ledger.ts'
@@ -57,7 +56,13 @@ export interface AuthoringSurfaceDeps {
   readonly workflowToolNames: Set<string>
   readonly authoredToolNames: Set<string>
   readonly authoringRevision: () => string
-  readonly invocationReceipts: readonly InvocationReceipt[]
+  readonly evidenceFor: (name: string, digest?: string) => { readonly uses: number; readonly sessions: number; readonly failures: number }
+  readonly recordArtifactFailure: (input: {
+    readonly receiptId: string
+    readonly name: string
+    readonly digest: string
+    readonly sessionId?: string
+  }) => void
   readonly scopeSettings: AuthoringScopeSettings
   readonly globalApprovalGranted: boolean
   readonly sandboxTempScope: SandboxTempScope
@@ -108,7 +113,8 @@ export function registerAuthoringTools(deps: AuthoringSurfaceDeps): void {
   const workflowToolNames = deps.workflowToolNames
   const authoredToolNames = deps.authoredToolNames
   const authoringRevision = deps.authoringRevision
-  const invocationReceipts = deps.invocationReceipts
+  const evidenceFor = deps.evidenceFor
+  const recordArtifactFailure = deps.recordArtifactFailure
   const scopeSettings = deps.scopeSettings
   const globalApprovalGranted = deps.globalApprovalGranted
   const sandboxTempScope = deps.sandboxTempScope
@@ -301,6 +307,12 @@ ctx.tools.register(defineTool({
           operation: 'run', artifactKind: 'workflow', name: entry.name, version: entry.version,
           outcome: 'failed', durationMs: Date.now() - started,
         })
+        recordArtifactFailure({
+          receiptId,
+          name: entry.name,
+          digest: entry.digest,
+          ...scope.rootSessionId === undefined ? {} : { sessionId: scope.rootSessionId },
+        })
         throw error
       }
       authoringLedger.record({
@@ -340,7 +352,7 @@ ctx.tools.register(defineTool({
       }
       const to = typeof request['to'] === 'string' ? request['to'] : ''
       const target = scopeFor(exec, to)
-      const evidence = evidenceFromReceipts(invocationReceipts, { name: entry.name, digest: entry.digest })
+      const evidence = evidenceFor(entry.name, entry.digest)
       const decision = evaluatePromotion({
         from: entry.scope,
         to: target.scope,
@@ -606,7 +618,7 @@ ctx.tools.register(defineTool({
       }
       const to = typeof request['to'] === 'string' ? request['to'] : ''
       const target = scopeFor(exec, to)
-      const evidence = evidenceFromReceipts(invocationReceipts, { name: entry.name, digest: entry.digest })
+      const evidence = evidenceFor(entry.name, entry.digest)
       const decision = evaluatePromotion({
         from: entry.scope,
         to: target.scope,

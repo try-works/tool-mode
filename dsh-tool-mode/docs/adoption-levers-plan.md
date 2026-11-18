@@ -8,6 +8,14 @@ The findings are treated as **hypotheses to reproduce**, not as settled facts.
 Phase 0 fails loudly if the reported counter behaviour cannot be reproduced on
 this checkout.
 
+## Implementation status
+
+- **Phase 0 — implemented.** Direct contract calls carry the `direct` lane and
+  caller session; discovery calls emit `discovery` receipts; artifact usage is
+  durable per `(name, digest)` and survives receipt-ring pressure; five sessions
+  and failed runs are covered by tests.
+- Phases 1–6 remain pending.
+
 ## Outcome
 
 An agent that already uses Tool Mode tools should be able to:

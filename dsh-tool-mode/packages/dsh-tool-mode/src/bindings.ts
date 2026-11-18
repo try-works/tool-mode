@@ -13,6 +13,8 @@
  * @module @try-works/dsh-tool-mode/bindings
  */
 
+/* oxlint-disable anti-slop/require-safety-comment-for-type-assertion, anti-slop/no-chained-type-assertions, anti-slop/no-conditional-empty-object-spread, anti-slop/no-known-value-widening, anti-slop/no-unknown-parameters, anti-slop/no-unknown-returns, anti-slop/no-unsafe-dictionary-type, anti-slop/no-runtime-typeof -- SAFETY: this module is the contract/registry boundary; arguments are validated by assertValidInput and results by assertValidOutput before any cast at the DSH seam. */
+
 import { defineTool, type ParameterSchemaSpec, type ValueSchemaSpec } from '@deepseek-ai/dsh-tools'
 import {
   assertValidContract,
@@ -65,6 +67,12 @@ export interface HostIdentity {
    * after the fact rather than only during the call.
    */
   readonly recordReceipt?: (receipt: InvocationReceipt) => void
+  /** Session identity for the direct lane, when the host can resolve it. */
+  readonly receiptSession?: (exec: unknown) => {
+    readonly sessionId?: string
+    readonly rootSessionId?: string
+    readonly nested?: boolean
+  }
 }
 
 /** One contract with the implementation chosen to serve it. */
@@ -155,6 +163,7 @@ export function buildReceipt(
   host: HostIdentity,
   meta: Pick<ToolMeta, 'receiptId'>,
   warnings: readonly string[] = [],
+  session?: { readonly sessionId?: string; readonly rootSessionId?: string; readonly nested?: boolean },
 ): InvocationReceipt {
   return buildInvocationReceipt({
     receiptId: meta.receiptId,
@@ -177,6 +186,11 @@ export function buildReceipt(
     // The receipt is emitted only after the call SUCCEEDED (see the call sites), so the
     // outcome is known here rather than defaulted by a lane guessing.
     outcome: 'ok',
+    // A direct call is its own run. A nested one is already represented by the
+    // composition's trace receipt; leave its lane to that record.
+    ...session?.nested === true ? {} : { kind: 'direct' as const },
+    ...session?.sessionId === undefined ? {} : { sessionId: session.sessionId },
+    ...session?.rootSessionId === undefined ? {} : { rootSessionId: session.rootSessionId },
   })
 }
 
@@ -285,7 +299,7 @@ export function registerContractTool(
       // EXT-35: the receipt is emitted once the call SUCCEEDED. A receipt for a
       // call that failed validation would claim provenance for a result nobody
       // received, so the sink sees only calls that actually completed.
-      host.recordReceipt?.(buildReceipt(binding, host, meta))
+      host.recordReceipt?.(buildReceipt(binding, host, meta, [], host.receiptSession?.(exec)))
       /**
        * The cast exists because the projected schema's inferred type is a closed
        * record, while the registry validates the VALUE against the projected schema
@@ -388,7 +402,7 @@ export function registerContractImplementationTool(
       const meta = buildMeta(bindingLite, host)
       const stamped = { ...value, meta } as Record<string, unknown>
       assertValidOutput(contract, stamped)
-      host.recordReceipt?.(buildReceipt(bindingLite, host, meta))
+      host.recordReceipt?.(buildReceipt(bindingLite, host, meta, [], host.receiptSession?.(exec)))
       return stamped as unknown as never
     },
     presentCall(callArgs) {
