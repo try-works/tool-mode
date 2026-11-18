@@ -20,6 +20,7 @@ already-extracted module. A split that needs a new circular import is not a refa
 | `src/discovery-binding.ts` | shared binding resolution for list/describe/preflight | ~105 |
 | `src/discovery-control.ts` | read-only `tool_mode_list` / `tool_mode_describe` | ~520 |
 | `src/authoring-surface.ts` | workflow + authored-tool handlers | ~650 |
+| `src/runtime-surface.ts` | `tool_mode_run`, probe and composition receipts | ~190 |
 | `src/tool-mode-run.ts` | authorized Code Mode runner and report | ~690 |
 | `src/agent-authoring.ts` | scoped artifact store and resolution | ~1.4k |
 | `src/extensions-service.ts` | extension install/prepare/lifecycle coordination | ~3.3k |
@@ -57,7 +58,7 @@ interfaces, not closures over a 400-line `apply`.
       authoring-surface.ts       workflow + agent tool handlers  [done]
       extension-lifecycle.ts     restore, inspect, prepare, activate
       mcp-surface.ts             HTTP/stdio, auth, credentials, subscriptions
-      runtime-surface.ts         adapters, provider bridge, model runtime lane
+      runtime-surface.ts         tool_mode_run + receipts        [partial]
       receipt-surface.ts         receipt stores, accounting, usage   [done]
 
 ## Extraction order
@@ -81,8 +82,10 @@ interfaces, not closures over a 400-line `apply`.
    the restore chain tests run before and after.
 6. **mcp-surface** - HTTP/stdio setup, auth, credentials, subscriptions. It is already
    mostly in `src/mcp/`; move the remaining server lifecycle and route wiring.
-7. **runtime-surface** - adapters, provider bridge, model runtime lane. Keep the catalog
-   and adapter contract types where they are.
+7. **runtime-surface** - partially done: `tool_mode_run` (probe, binding preflight,
+   composition/nested receipts, run capture) is out in `runtime-surface.ts`. The
+   adapters, provider bridge and model runtime lane are already separate modules; the
+   remaining wiring stays in the composition root until the lifecycle split lands.
 
 ## Dependency rules
 
