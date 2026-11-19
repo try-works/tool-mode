@@ -188,3 +188,12 @@ describe('prompt-section wiring (Phase 3 in index.ts)', () => {
     assert.match(text, /workflow_later_flow/)
   })
 })
+describe('F8 grammar — session counts read naturally', () => {
+  it('says "across 1 session", never "1 sessions"', () => {
+    const one = buildDirectiveDigest([candidate({ name: 'flow', uses: 5, failures: 0, sessions: 1 })])
+    assert.match(one, /across 1 session\b(?!s)/)
+    assert.doesNotMatch(one, /1 sessions/)
+    const two = buildDirectiveDigest([candidate({ name: 'flow', uses: 5, failures: 0, sessions: 2 })])
+    assert.match(two, /across 2 sessions/)
+  })
+})

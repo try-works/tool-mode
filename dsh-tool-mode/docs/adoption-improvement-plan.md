@@ -374,13 +374,19 @@ finished subagent accepting a message (U34).
 **Goal:** test directive framing and auto-draft against a genuine silent baseline,
 not a visible-tool ceiling.
 
-**Arms** (10 sessions each, fresh solver, same tasks):
+**Arms** (10 sessions each, fresh solver, same tasks). All three arms are the same
+build, selected by config; `adoption.digestMode` defaults to `directive`.
 
-- **D — silent.** Artifact exists and is registered, but no digest, no offer, no
-  auto-draft announcement.
-- **G — neutral.** Current neutral digest, no offer.
+- **D — unannounced.** Artifact exists and is callable, but no digest, no offer, no
+  auto-draft announcement. Config: `adoption.digest: false`, `saveOffer: false`,
+  `autoDraft: false`. If its tool name/description already matches the task, this is
+  a ceiling check, not a silent baseline; record that in the report.
+- **G — neutral.** The old neutral list, no offer. Config: `adoption.digestMode: "neutral"`,
+  `saveOffer: false`, `autoDraft: false`.
 - **O — directive + auto-draft.** Directive names the artifact and its failure mode;
-  successful runs leave a draft; promote is one call.
+  successful runs leave a draft; promote is one call. Config: `digestMode: "directive"`,
+  `saveOffer: true`, `autoDraft: true` (explicit until the Phase 8 gate flips the
+  shipped default).
 
 **Task design requirements**
 

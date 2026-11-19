@@ -83,7 +83,7 @@ function evidenceLine(candidate: AdoptionDigestCandidate): string {
   // Only claim sessions when the caller actually observed some: an unknown or zero count
   // printed as "0 sessions" would assert a fact from no data.
   const sessions = candidate.sessions !== undefined && candidate.sessions > 0
-    ? ' across ' + String(candidate.sessions) + ' sessions'
+    ? ' across ' + String(candidate.sessions) + (candidate.sessions === 1 ? ' session' : ' sessions')
     : ''
   return 'Evidence: ' + String(candidate.uses) + ' uses, ' + String(candidate.failures) + ' ' + plural
     + sessions + percent + '.'

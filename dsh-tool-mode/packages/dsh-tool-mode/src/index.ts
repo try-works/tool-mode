@@ -49,7 +49,7 @@ import { ArtifactScopeError, buildScopeContext, type BuiltScopeContext } from '.
 import { registerAuthoringTools } from './authoring-surface.ts'
 import { createArtifactUsageStore, failureClassOf } from './artifact-usage.ts'
 import { createRepetitionTracker, type RepetitionCandidate, type RepetitionTracker } from './adoption-candidates.ts'
-import { buildDirectiveDigest } from './library-digest.ts'
+import { buildDirectiveDigest, buildLibraryDigest } from './library-digest.ts'
 import type { AdoptionDigestCandidate } from './adoption-digest-ranking.ts'
 import { registerRuntimeTools } from './runtime-surface.ts'
 import { createModelToolsControl } from './discovery-surface.ts'
@@ -306,6 +306,12 @@ export interface Config {
     saveOffer?: boolean
     /** Show a bounded caller-scoped artifact digest. */
     digest?: boolean
+    /**
+     * Which digest the prompt carries: `directive` (default) names ONE artifact
+     * imperatively; `neutral` emits the old neutral list, which is the G arm of the
+     * Phase 8 experiment. Ignored when `digest` is false.
+     */
+    digestMode?: 'neutral' | 'directive'
     /** Prewarm the top listed tool after enable. */
     prewarmAfterEnable?: boolean
     /** Identical calls before a save offer (default 3). */
@@ -899,12 +905,13 @@ export const Config: z<Config> = z.object({
   adoption: z.object({
     saveOffer: z.boolean().default(true),
     digest: z.boolean().default(true),
+    digestMode: z.union([z.const('neutral'), z.const('directive')]).default('directive'),
     prewarmAfterEnable: z.boolean().default(false),
     maxRepeats: z.number().min(2).default(3),
     experimentArm: z.union([z.const('D'), z.const('G'), z.const('O')]).required(false),
     autoDraft: z.boolean().default(false),
     draftTtlMs: z.number().min(0).default(86_400_000),
-  }).default({ saveOffer: true, digest: true, prewarmAfterEnable: false, maxRepeats: 3, autoDraft: false, draftTtlMs: 86_400_000 }),
+  }).default({ saveOffer: true, digest: true, digestMode: 'directive', prewarmAfterEnable: false, maxRepeats: 3, autoDraft: false, draftTtlMs: 86_400_000 }),
   /**
    * Authored-artifact scoping. ENABLED by default: new artifacts are
    * session-scoped, existing global rows remain resolvable, and
@@ -4051,9 +4058,18 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       ctx.effect(() => promptService.section({
         name: 'tool-mode:library',
         order,
-        text: () => buildDirectiveDigest(digestRows(), {
-          enabled: config.adoption?.digest !== false,
-        }),
+        /**
+         * TWO ARMS, one section: `directive` (default) names ONE artifact imperatively;
+         * `neutral` emits the old list, which is what the Phase 8 G arm measures against
+         * the D/O arms. `digest:false` stays a hard off for both.
+         */
+        text: () => {
+          if (config.adoption?.digest === false) return ''
+          const rows = digestRows()
+          return config.adoption?.digestMode === 'neutral'
+            ? buildLibraryDigest(rows)
+            : buildDirectiveDigest(rows)
+        },
       }), 'tool-mode library digest')
     }
     // Root-session end: receive the expired rows BEFORE deleting so the evidence
