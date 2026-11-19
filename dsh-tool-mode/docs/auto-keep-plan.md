@@ -403,6 +403,19 @@ The installed package and the source agree after a restart; a real run produces 
 callable artifact without a save call; the post-restart persistence and delete checks are
 recorded; the report states what was and was not measured.
 
+## Phase 7 run result (2026-11-20)
+
+Recorded in [REPORT.md](../research/auto-keep-phase7/REPORT.md). The packed **0.5.97**
+build was installed, restarted, and probed: two identical runs produced a workspace draft
+on the second success; the draft survived a restart; delete reported complete and the
+next restart listed zero rows.
+
+The A/B was 10 sessions per arm. Both arms answered correctly in 10/10. Auto-keep made
+the draft available, but the solver still used `from-run` in 8/10 A sessions; only 2/10
+reused the draft directly. A used 39 calls vs B's 30. The storage/lifecycle behavior is
+verified; the task did not produce a save-call reduction. The next step is a directive
+that points at the existing draft, or a task that explicitly forbids re-saving.
+
 ## Verification matrix
 
 ```text
