@@ -607,8 +607,20 @@ export const MODEL_TOOLS_SPEC: ModelToolsSpec = {
         alreadyReady: { type: 'boolean' },
         /** Set by warm: an explicit warm completed. */
         warmed: { type: 'boolean' },
-        /** Set by enable: whether the optional post-enable prewarm was started. */
-        prewarm: { type: 'string' },
+        /** Set by warm: this caller JOINED a preparation already in flight instead of starting one. */
+        coalesced: { type: 'boolean' },
+        /**
+         * Set by enable: what the optional post-enable prewarm ACTUALLY did.
+         *
+         * - started: a real preparation attempt began (its failure is logged);
+         * - coalesced: it joined an attempt already in flight for the same model;
+         * - skipped: the adoption.prewarmAfterEnable flag is off;
+         * - unavailable: this deployment has no preparation surface, so nothing began.
+         */
+        prewarm: {
+          type: 'string',
+          enum: ['started', 'coalesced', 'skipped', 'unavailable'],
+        },
         /** Set by warm: how many REAL preparations this process started (coalescing evidence). */
         warmAttempts: { type: 'integer' },
         /** Set by extensions-purge-assets: whether a group directory was removed. */

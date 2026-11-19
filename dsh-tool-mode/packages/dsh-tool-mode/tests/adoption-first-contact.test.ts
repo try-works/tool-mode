@@ -8,12 +8,20 @@
  *
  * @module tests/adoption-first-contact
  */
+
+/*
+ * This suite is the registry/logger BOUNDARY: tool results are `unknown` and are cast to
+ * the row under test, and the logger spy patches a prototype method to observe the host's
+ * log line. The rules disabled here are production-boundary guards; these assertions are
+ * the alternative evidence.
+ */
+/* oxlint-disable anti-slop/require-safety-comment-for-type-assertion, anti-slop/no-unknown-parameters -- SAFETY: registry values are validated by the host and cast here for assertions; the logger spy takes untyped arguments by design. */
 import assert from 'node:assert/strict'
 import { after, describe, it } from 'node:test'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
 
 import type { Context } from '@deepseek-ai/cordis'
-import { callTool, cleanup, mountPluginWithTongue } from './helpers.ts'
+import { callTool, cleanup, mountPlugin, mountPluginWithTongue } from './helpers.ts'
 
 after(async () => { await cleanup() })
 
@@ -34,6 +42,22 @@ interface Row {
   readonly readiness: string
   readonly cold?: boolean
   readonly firstCall?: string
+}
+
+/**
+ * Invoke a tool DIRECTLY on the read-only surface.
+ *
+ * `callTool` deliberately reroutes management actions to `model_tools_manage` in the test
+ * harness; a read-only refusal test must reach the actual `model_tools` clone, so it bypasses
+ * that ergonomic rewrite.
+ */
+async function direct(ctx: Context, name: string, args: unknown) {
+  return ctx.tools.execute({
+    signal: new AbortController().signal,
+    callId: ToolCallId('first-contact-direct-' + (++counter)),
+    name,
+    arguments: args,
+  } as never)
 }
 
 async function rows(ctx: Context): Promise<Row[]> {
@@ -105,6 +129,88 @@ describe('Phase 6 — first contact', () => {
     } finally {
       process.off('unhandledRejection', onUnhandled)
     }
+  })
+
+
+  it('reports an UNAVAILABLE prewarm when the deployment has no preparation surface (F6)', async () => {
+    // No extension store means there is nothing to prepare: claiming 'started' would be a
+    // lie about work that never began.
+    const ctx = await mountPlugin({ adoption: { prewarmAfterEnable: true } })
+    const enabled = await callTool(ctx, 'model_tools', { action: 'enable', model: 'tongue' })
+    assert.equal(enabled.isError, false, JSON.stringify(enabled))
+    assert.equal((enabled as { value?: { prewarm?: string } }).value?.prewarm, 'unavailable')
+  })
+
+  it('LOGS a failed prewarm and never marks the model ready (F6)', async () => {
+    const ctx = await mountPluginWithTongue({ adoption: { prewarmAfterEnable: true } })
+    // The logger's methods live on the prototype; patch it for the duration of this case and
+    // prove the spy works with a sentinel before trusting it for the host's log line.
+    const proto = Object.getPrototypeOf(ctx.logger) as {
+      warn(...args: unknown[]): void
+    } // SAFETY: cordis's logger exposes warn on the prototype; this is the observable the host writes to.
+    const logs: string[] = []
+    const original = proto.warn
+    proto.warn = function (this: unknown, ...args: unknown[]) {
+      logs.push(args.map(String).join(' '))
+      return original.apply(this, args)
+    }
+    try {
+      ctx.logger.warn('sentinel prewarm spy')
+      assert.deepEqual(logs, ['sentinel prewarm spy'], 'the logger spy must observe a direct call')
+
+      // `voz` has no installed implementation, so its preparation deterministically FAILS
+      // (no plan); `tongue` declares no assets, so its restore legitimately reports ready.
+      const enabled = await callTool(ctx, 'model_tools', { action: 'enable', model: 'voz' })
+      assert.equal(enabled.isError, false, JSON.stringify(enabled))
+      assert.equal((enabled as { value?: { prewarm?: string } }).value?.prewarm, 'started')
+      // The prewarm is fire-and-forget: poll briefly for its log instead of guessing a delay.
+      const deadline = Date.now() + 5_000
+      while (Date.now() < deadline
+        && !logs.some(line => line.includes('prewarm after enable failed'))) {
+        await new Promise(resolve => setTimeout(resolve, 25))
+      }
+
+      const failure = logs.find(line => line.includes('prewarm after enable failed') && line.includes('voz'))
+      assert.ok(failure !== undefined, `expected a logged prewarm failure, saw ${JSON.stringify(logs)}`)
+      assert.match(failure, /no preparation plan for @try-works\/extension-desert-ant-voz/, 'the log names the bounded reason')
+
+      const voz = (await rows(ctx)).find(row => row.id === 'voz')
+      assert.ok(voz !== undefined)
+      assert.equal(voz.readiness, 'prepared-cold', 'a failed prewarm must not mark the model ready')
+      assert.equal(voz.cold, true)
+      // ONE prewarm per enable call: a single call must not log the failure twice.
+      const failures = (): number => logs.filter(line => line.includes('prewarm after enable failed for voz')).length
+      assert.equal(failures(), 1, 'exactly one prewarm attempt per enable')
+
+      // A SECOND enable is a separate call: it truthfully reports its own attempt (started)
+      // and logs its own failure once, rather than silently inheriting the first outcome.
+      const again = await callTool(ctx, 'model_tools', { action: 'enable', model: 'voz' })
+      assert.equal(again.isError, false, JSON.stringify(again))
+      assert.equal((again as { value?: { prewarm?: string } }).value?.prewarm, 'started')
+      const deadline2 = Date.now() + 5_000
+      while (Date.now() < deadline2 && failures() < 2) {
+        await new Promise(resolve => setTimeout(resolve, 25))
+      }
+      assert.equal(failures(), 2, 'the second enable logs exactly one more failure')
+    } finally {
+      proto.warn = original
+    }
+  })
+
+  it('refuses warm on the READ-ONLY model_tools surface, with no state change (F7)', async () => {
+    const ctx = await mountPluginWithTongue({ managementGrant: false })
+    const before = await direct(ctx, 'model_tools', { action: 'list' })
+    assert.equal(before.isError, false, JSON.stringify(before))
+
+    const refused = await direct(ctx, 'model_tools', { action: 'warm', model: 'tongue' })
+    assert.equal(refused.isError, true, 'warm is a MUTATION and must not be served by the read-only tool')
+    const message = refused.error?.message ?? ''
+    assert.match(message, /model_tools_manage/, 'the refusal points at the management tool')
+    assert.match(message, /managementGrant|read-only/, 'and at the missing grant')
+    assert.equal(message.includes('"warm"'), true, 'the refusal names the refused action')
+
+    const afterward = await direct(ctx, 'model_tools', { action: 'list' })
+    assert.deepEqual(afterward.value, before.value, 'a refused warm must not change model state')
   })
 
   it('reports a SKIPPED prewarm when the flag is off', async () => {

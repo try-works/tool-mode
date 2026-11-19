@@ -119,6 +119,8 @@ export function createModelToolsControl(deps: ModelToolsDeps) {
   const WARM_TIMEOUT_MS = 30_000
   let warmAttempts = 0
   const warmsInFlight = new Map<string, Promise<{ readonly ok: boolean; readonly alreadyReady: boolean; readonly reason?: string }>>()
+  /** What starting a warm actually did (F6): a real attempt, a join, or no surface at all. */
+  type WarmStart = 'started' | 'coalesced' | 'unavailable'
   const warmControllers = new Set<AbortController>()
   ctx.effect(() => () => {
     for (const controller of warmControllers) controller.abort()
@@ -134,14 +136,15 @@ export function createModelToolsControl(deps: ModelToolsDeps) {
   const warmOnce = (
     id: string,
     options: { readonly allowExecutable?: boolean } = {},
-  ): { readonly promise: Promise<{ readonly ok: boolean; readonly alreadyReady: boolean; readonly reason?: string }>; readonly coalesced: boolean } => {
+  ): { readonly promise: Promise<{ readonly ok: boolean; readonly alreadyReady: boolean; readonly reason?: string }>; readonly coalesced: boolean; readonly start: WarmStart } => {
     const existing = warmsInFlight.get(id)
-    if (existing !== undefined) return { promise: existing, coalesced: true }
+    if (existing !== undefined) return { promise: existing, coalesced: true, start: 'coalesced' }
     const surface = prepareAssetsSurface()
     if (surface === undefined) {
       return {
         promise: Promise.resolve({ ok: false, alreadyReady: false, reason: 'warm requires the extension store (config.extensionStoreDir); it is not configured' }),
         coalesced: false,
+        start: 'unavailable',
       }
     }
     warmAttempts += 1
@@ -177,7 +180,7 @@ export function createModelToolsControl(deps: ModelToolsDeps) {
       }
     })()
     warmsInFlight.set(id, promise)
-    return { promise, coalesced: false }
+    return { promise, coalesced: false, start: 'started' }
   }
   return defineTool({
   ...MODEL_TOOLS_SPEC,
@@ -516,16 +519,27 @@ export function createModelToolsControl(deps: ModelToolsDeps) {
        * must not be retried here, and must not claim the model is ready. The failure is LOGGED
        * and the row keeps its cold marker.
        */
-      let prewarm: 'started' | 'skipped' | 'unavailable' = 'skipped'
+      let prewarm: 'started' | 'coalesced' | 'skipped' | 'unavailable' = 'skipped'
       if (action === 'enable' && deps.prewarmAfterEnable === true) {
-        const started = warmOnce(item.entry.provider?.extension ?? item.entry.id)
-        prewarm = started.coalesced ? 'started' : 'started'
-        void started.promise.catch(error => {
-          ctx.logger.warn(
-            'model-tools: prewarm after enable failed for ' + modelId + ': '
-            + (error instanceof Error ? error.message : String(error)),
-          )
-        })
+        const attempt = warmOnce(item.entry.provider?.extension ?? item.entry.id)
+        // F6: report what the attempt DID. The previous ternary reported 'started' for both
+        // branches, including when there was no preparation surface at all.
+        prewarm = attempt.start
+        /**
+         * F6: warmOnce RESOLVES an outcome; it never rejects (every failure is caught inside).
+         * An attached `.catch` was therefore unreachable and a failed prewarm was silent. The
+         * attempt that STARTED the work logs its own failure; a coalesced caller leaves the
+         * log to the call it joined, and 'unavailable' is already told to the caller above.
+         */
+        if (attempt.start === 'started') {
+          void attempt.promise.then(outcome => {
+            if (outcome.ok) return
+            ctx.logger.warn(
+              'model-tools: prewarm after enable failed for ' + modelId + ': '
+              + (outcome.reason ?? 'unknown reason'),
+            )
+          })
+        }
       }
       return {
         models: await snapshot([item]),
