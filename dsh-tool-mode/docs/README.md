@@ -13,3 +13,4 @@ Start with:
 - [Connect an MCP client](guide/guides/connect-an-mcp-client.md)
 - [Refactoring `index.ts`](refactor-index.md) (engineering plan)
 - [Adoption levers: implementation plan](adoption-levers-plan.md) (TDD + experiment)
+- [Adoption improvement plan](adoption-improvement-plan.md) (2026-11-19 findings; TDD + verification)
