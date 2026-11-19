@@ -16,3 +16,6 @@ Start with:
 - [Adoption improvement plan](adoption-improvement-plan.md) (2026-11-19 findings; TDD + verification)
 - [Adoption red-first evidence](adoption-red-evidence.md) (reported red counts and gaps)
 - [Adoption verification findings](adoption-verification-report.md) (independent FAIL report)
+- [Adoption re-verification](adoption-reverification-report.md) (PASS WITH FINDINGS)
+- [Final adoption verification](adoption-final-verification.md) (PASS WITH FINDINGS)
+- [Silent Phase 8 run](<../research/adoption-dgo-2026-11-19-silent/REPORT.md>) (D 10% vs G/O 100%)
