@@ -66,6 +66,45 @@ successful tool_mode_run
 - No unbounded tool registration from every run.
 - No secret or one-off constant persisted without a check.
 
+## TDD protocol
+
+Every behavioral phase follows the same order:
+
+1. Write the test file and the smallest failing cases before touching source.
+2. Run only those tests and record the red output. The failure must be the intended
+   missing behavior — not a setup, import or type error.
+3. Implement the minimum that makes those cases pass.
+4. Re-run the phase tests plus the adjacent regression suites.
+5. Run the full gate: typecheck, host integration, build, built-artifact check, docs.
+6. Commit the tests and the implementation together. Never weaken an assertion to make a
+   phase pass; move the unresolved case to a later phase and say so.
+
+A test that passes before the implementation is a regression test, not red evidence.
+Record the command, the red count and the green count in the commit or the phase report.
+
+Every phase also needs a **verification section** with the exact commands it ran. A plan
+phase is not done because the code compiles; it is done when its tests are green and its
+gate output is recorded.
+
+## Restart boundary
+
+DSH loads plugin host code at boot. A packed-plugin update is not fully testable from the
+old host process, and client HMR is not a host restart. Every release/install step must:
+
+1. install the packed artifact into the target profile;
+2. stop DSH completely;
+3. start DSH again;
+4. verify the loaded package version;
+5. run a real `tool_mode_run` and confirm the resulting draft is callable;
+6. restart again and confirm the intended persistence:
+   - a session draft is gone with its session;
+   - a workspace auto-kept row survives and is discoverable;
+   - a deleted row stays deleted;
+7. record the before/after output.
+
+The restart is mandatory for Phase 0 and Phase 7. A no-restart test only proves the old
+process still works.
+
 ## Phase 0 — Release hygiene and the real baseline
 
 **Goal:** make the installed build match the source before changing behavior.
@@ -75,21 +114,42 @@ successful tool_mode_run
 - Package version is bumped for the release.
 - The packed artifact contains `autoDraft`, `draftTtlMs`, purpose handling, and the
   auto-draft runtime hook.
-- A clean install into the isolated web profile starts and lists a draft after a real
-  `tool_mode_run`.
+- A clean install into a disposable profile is followed by a **full DSH restart**, then
+  lists a draft after a real `tool_mode_run`.
+- A second restart keeps a workspace auto-kept row (when Phase 4 exists) and removes a
+  session-only row; until then, the restart probe at least proves the new plugin build is
+  the one running.
 - The installed `lib/index.js` is byte-identical to the packed build.
 
 **Implementation**
 
 - Bump the workspace/plugin version.
 - `npm run build`, `npm run verify:built`, `npm pack`.
-- Install the packed tarball into a disposable profile and run the probe.
-- Record the exact version and probe output in the release notes.
+- Install the packed tarball into a disposable profile.
+- **Stop and restart DSH** before probing; the old process keeps the old module graph.
+- Run the probe, then restart once more and repeat the persistence check.
+- Record the exact version, restart timestamps and probe output in the release notes.
+
+**Verification**
+
+```text
+npm run typecheck
+npm run build
+npm run verify:built
+npm run plugin:pack
+# install packed artifact into the disposable profile
+# stop DSH, start DSH, verify loaded version
+# run tool_mode_run, list the draft, call it
+# restart, re-check persistence and delete
+```
+
+The restart output is the evidence, not a code review claim.
 
 **Exit criterion**
 
-The installed build reports `autoDraft:true` and leaves a callable draft. No product
-decision is made from `0.5.95`.
+The restarted installed build reports `autoDraft:true` and leaves a callable draft. The
+second restart proves the intended persistence boundary. No product decision is made from
+`0.5.95`.
 
 ## Phase 1 — Deprecate `autoDraft` (one release)
 
@@ -318,8 +378,10 @@ one-off as a trusted workspace tool.
 
 **Tests / checks**
 
-- Pack, install into a disposable profile, run a real `tool_mode_run`, verify a callable
-  draft.
+- Pack, install into a disposable profile, **stop and restart DSH**, then verify the
+  loaded version and run a real `tool_mode_run` with a callable draft.
+- Restart again and check the persistence boundary: session row gone, workspace auto row
+  survives, deleted row stays deleted.
 - Run a 10-session A/B: session auto-keep vs explicit `from-run` (same tasks).
 - Measure same-session reuse, time-to-first-reuse, duplicate rows, delete/expiry, and
   correctness.
@@ -337,8 +399,9 @@ npm run verify:docs
 
 **Exit criterion**
 
-The installed package and the source agree; a real run produces a callable artifact
-without a save call; the report states what was and was not measured.
+The installed package and the source agree after a restart; a real run produces a
+callable artifact without a save call; the post-restart persistence and delete checks are
+recorded; the report states what was and was not measured.
 
 ## Verification matrix
 
@@ -353,6 +416,15 @@ npm run verify:docs
 
 Run `npm run verify` only at release. If an output schema changes, run
 `npm run verify:mcp`. Call the `anti_slop_lint` tool on changed src.
+
+Restart probe (mandatory for Phase 0 and Phase 7, recorded manually):
+
+```text
+install packed artifact -> stop DSH -> start DSH
+  verify loaded package version
+  tool_mode_run -> draft listed and callable
+  restart -> session row gone; workspace auto row survives; delete persists
+```
 
 ## Definition of done
 
