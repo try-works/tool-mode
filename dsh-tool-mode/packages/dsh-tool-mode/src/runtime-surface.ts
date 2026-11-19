@@ -14,6 +14,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { AsyncLocalStorage } from 'node:async_hooks'
 import { defineTool, type ParameterSchemaSpec, type ValueSchemaSpec } from '@deepseek-ai/dsh-tools'
 import type { AgentAuthoringStore, AgentToolDefinition, ArtifactScopeContext } from './agent-authoring.ts'
+import { containsSecretLikeLiteral, hasSideEffectTools } from './artifact-safety.ts'
 import type { BuiltScopeContext } from './artifact-scope-context.ts'
 import { buildInvocationReceipt, type InvocationReceipt } from './receipt.ts'
 import { schemaShape, type RunCapture, type RunCaptureStore } from './run-capture.ts'
@@ -288,7 +289,10 @@ export function registerRuntimeTools(deps: RuntimeSurfaceDeps): void {
       if (adoption !== undefined && adoption.autoKeep !== 'off' && draftStore !== undefined && recorded !== undefined) {
         const drafted = args as { description?: unknown }
         const draftScope = deps.scopeForDraft?.(exec)?.context ?? scopeForAuthoringCaller(exec)?.context
-        try {
+        const draftText = recorded.program + '\n' + (typeof drafted.description === 'string' ? drafted.description : '')
+        if (containsSecretLikeLiteral(draftText)) {
+          ctx.logger.warn('tool_mode_run: draft not recorded because the program contains a credential-shaped literal')
+        } else try {
           const draft = draftStore.saveDraft(
             {
               // The RECORDED capture is the single source of truth for content identity,
@@ -314,6 +318,7 @@ export function registerRuntimeTools(deps: RuntimeSurfaceDeps): void {
             )
           } else if (adoption.autoKeep === 'session'
             && draft.version >= 2
+            && !hasSideEffectTools(draft.tools)
             && Object.keys((draft.inputSchema['properties'] as Record<string, unknown> | undefined) ?? {}).length > 0) {
             // Second successful run of the same content is the evidence threshold for a
             // workspace copy. A constant/no-input program never qualifies: it is a one-off.
