@@ -421,16 +421,18 @@ paths. No results without the files.
 
 ## Phase 8 run result (2026-11-19)
 
-The run is recorded in [REPORT.md](../research/adoption-dgo-2026-11-19-phase8/REPORT.md).
-Outcome: 30 real sessions, 10/arm; D/G/O all 10/10 correct and 100% reuse; zero
-offers, zero drafts, zero authored artifacts.
+The silent run is recorded in
+[REPORT.md](../research/adoption-dgo-2026-11-19-silent/REPORT.md). Outcome: 30 real
+sessions, 10/arm. D **0/10** tool calls; G and O **10/10**; all 30 answers correct.
 
-That is a **ceiling effect**, not a framing result. D was not silent: the artifact was
-a registered tool whose name and description matched the task. The pre-registered
-rules fire arithmetically (0 pp lift) but cannot justify dropping either digest mode,
-and the auto-draft/offer levers were not exercised. The shipped `autoDraft` default
-therefore remains **false** (opt-in) until a run with a genuinely hidden artifact and
-a real `tool_mode_run` task set exists. The report records the required design.
+D was genuinely silent: an opaque tool name/description and opaque `a`/`b` arguments,
+with the purpose visible only in the digest. The digest is the lever (+100 pp for both
+G and O over D). O and G tie at 100%, so the single-artifact run supports the neutral
+list and does not show an incremental directive lift. Offers and auto-draft were not
+exercised (one call per session; no `tool_mode_run`); their defaults are decided by the
+functional suites, not this run. `autoDraft` shipped on by default after its suite passed;
+this run does not claim an adoption lift for it. The earlier visible-tool ceiling is retained at
+[adoption-dgo-2026-11-19-phase8](../research/adoption-dgo-2026-11-19-phase8/REPORT.md).
 
 ## Verification matrix (every phase)
 

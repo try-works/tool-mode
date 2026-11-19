@@ -318,7 +318,7 @@ export interface Config {
     maxRepeats?: number
     /** D/G/O experiment arm; recorded once per session. */
     experimentArm?: 'D' | 'G' | 'O'
-    /** Phase 4: leave a callable draft after every successful run (off until the gate). */
+    /** Phase 4: leave a callable draft after every successful run (default true). */
     autoDraft?: boolean
     /** Phase 4: lifetime of an unkept draft in milliseconds (default 86400000). */
     draftTtlMs?: number
@@ -909,9 +909,9 @@ export const Config: z<Config> = z.object({
     prewarmAfterEnable: z.boolean().default(false),
     maxRepeats: z.number().min(2).default(3),
     experimentArm: z.union([z.const('D'), z.const('G'), z.const('O')]).required(false),
-    autoDraft: z.boolean().default(false),
+    autoDraft: z.boolean().default(true),
     draftTtlMs: z.number().min(0).default(86_400_000),
-  }).default({ saveOffer: true, digest: true, digestMode: 'directive', prewarmAfterEnable: false, maxRepeats: 3, autoDraft: false, draftTtlMs: 86_400_000 }),
+  }).default({ saveOffer: true, digest: true, digestMode: 'directive', prewarmAfterEnable: false, maxRepeats: 3, autoDraft: true, draftTtlMs: 86_400_000 }),
   /**
    * Authored-artifact scoping. ENABLED by default: new artifacts are
    * session-scoped, existing global rows remain resolvable, and

@@ -708,12 +708,22 @@ ctx.tools.register(defineTool({
           authoringStore.deleteTool(tool.name, scope.context)
           throw new Error('the promoted tool "' + tool.name + '" could not be registered; the promotion was rolled back')
         }
+        // Keep the from-run response shape stable whether the row came from a
+        // draft or the define fallback: callers rely on defined/schemaInferred/
+        // typed/parameterised to understand what was created.
+        const explicitSchema = typeof request['inputSchema'] === 'object'
+          && request['inputSchema'] !== null
+          && !Array.isArray(request['inputSchema'])
+        const inferred = inferRunInputSchema(capture)
+        const parameterised = /\binput\b/.test(capture.program) && (explicitSchema || inferred.parameterised)
         return {
           promoted: true,
+          defined: true,
           ...scopeDisclosure(scope),
           tool: tool === undefined
             ? null
             : { id: tool.id, name: tool.name, version: tool.version, updatedAt: tool.updatedAt, scope: tool.scope },
+          ...explicitSchema ? { parameterised } : { schemaInferred: true, typed: false, parameterised },
         } as never
       } catch (error) {
         const code = typeof error === 'object' && error !== null && 'code' in error ? String(error['code']) : ''

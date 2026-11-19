@@ -4,8 +4,8 @@
  * Phase 4 makes authoring ambient: the agent runs a program, and the run itself leaves a
  * DRAFT it can keep with one `from-run`. These cases are behavioural, through the mounted
  * plugin and a fake PTC runtime, so they pin the plumbing (capture -> draft -> promote) and
- * not the sandbox. Drafts are opt-in while Phase 4 is being validated (`adoption.autoDraft`
- * defaults to false), so every case enables the feature explicitly.
+ * not the sandbox. Drafts are ON by default (`adoption.autoDraft` defaults to true); the
+ * explicit opt-in cases remain to prove the flag still works.
  *
  * @module tests/adoption-auto-draft
  */
@@ -136,6 +136,13 @@ describe('auto-draft after a successful run', () => {
     // contains digit pairs like "21" and would make a whole-row search flaky.
     assert.equal(JSON.stringify(draft['inputSchema']).includes('21'), false, 'schema must hold shapes, never values')
     assert.equal(String(draft['program']).includes('21'), false, 'the program carries no input values')
+  })
+
+  it('ships with auto-draft enabled by default', async () => {
+    const { ctx, authoringFile } = await mountHost()
+    await call(ctx, 'tool_mode_run', { description: 'double', code: 'return { doubled: input.value * 2 }', tools: [], input: { value: 3 } })
+    const drafts = storedTools(authoringFile).filter(row => row['status'] === 'draft')
+    assert.equal(drafts.length, 1, 'the shipped default leaves one draft without opt-in')
   })
 
   it('leaves no draft when the run fails', async () => {
