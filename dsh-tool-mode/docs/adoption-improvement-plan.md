@@ -64,7 +64,10 @@ description. This plan fixes both the product and the experiment.
 - Never fabricate a session result or a metric.
 - Each phase starts with a failing test, then the minimum implementation.
 - Every phase keeps the flag-off path byte-identical where a flag exists.
-- Read-only discovery stays side-effect free.
+- Read-only discovery is free of ARTIFACT state: `tool_mode_list`/`tool_mode_describe`
+  never warm, prepare, register or mutate the authoring or usage stores. Their durable
+  `discovery` receipts are observability records (measurement), not artifact state —
+  keeping them is what lets "looked and declined" differ from "never looked".
 
 ## TDD protocol
 

@@ -47,7 +47,7 @@ import {
 } from './agent-authoring.ts'
 import { ArtifactScopeError, buildScopeContext, type BuiltScopeContext } from './artifact-scope-context.ts'
 import { registerAuthoringTools } from './authoring-surface.ts'
-import { createArtifactUsageStore } from './artifact-usage.ts'
+import { createArtifactUsageStore, failureClassOf } from './artifact-usage.ts'
 import { createRepetitionTracker, type RepetitionCandidate, type RepetitionTracker } from './adoption-candidates.ts'
 import { buildDirectiveDigest } from './library-digest.ts'
 import type { AdoptionDigestCandidate } from './adoption-digest-ranking.ts'
@@ -3613,7 +3613,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     sessionLedger?.forget(String(id))
   }) as never)
   const NON_OFFERABLE_TOOLS = new Set([
-    'tool_mode_list', 'tool_mode_describe', 'tool_mode_workflows', 'tool_mode_tools', 'model_tools',
+    'tool_mode_list', 'tool_mode_describe', 'tool_mode_workflows', 'tool_mode_tools',
+    'model_tools', 'model_tools_manage',
   ])
   repetitionTracker = config.adoption?.saveOffer === true
     ? createRepetitionTracker({ threshold: config.adoption.maxRepeats ?? 3 })
@@ -3642,7 +3643,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     if (repetitionTracker !== undefined
       && sessionId !== undefined
       && sessionId.length > 0
-      && !NON_OFFERABLE_TOOLS.has(exec.name)) {
+      && !NON_OFFERABLE_TOOLS.has(exec.name)
+      // F9: decision_* is a FAMILY, not a finite list; a hand-listed set silently
+      // omitted new host tools and offered "save this shape" for a management call.
+      && !exec.name.startsWith('decision_')) {
       const value = (result as { value?: unknown } | undefined)?.value
       const runId = typeof value === 'object' && value !== null && typeof (value as { runId?: unknown }).runId === 'string'
         ? (value as { runId: string }).runId
@@ -4222,9 +4226,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
                 })
                 // TASK-65: a failed run is still a USE and a FAILURE; it is not a new
                 // session (the same caller session), so the durable evidence stays honest.
+                // F3: the failure CLASS is evidence the digest can render (never prose).
                 artifactUsage.record(scope.rootSessionId === undefined
-                  ? { receiptId, name: resolved.name, digest: resolved.digest, outcome: 'failed' }
-                  : { receiptId, name: resolved.name, digest: resolved.digest, outcome: 'failed', sessionId: scope.rootSessionId })
+                  ? { receiptId, name: resolved.name, digest: resolved.digest, outcome: 'failed', failureClass: failureClassOf(error) }
+                  : { receiptId, name: resolved.name, digest: resolved.digest, outcome: 'failed', failureClass: failureClassOf(error), sessionId: scope.rootSessionId })
                 recordFailedComposition(receiptId, revision, 'workflow.' + resolved.name)
                 throw error
               }
@@ -4349,9 +4354,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
                 outcome: 'failed', durationMs: Date.now() - started,
               })
               // TASK-65: a failed run is a USE and a FAILURE, not a new session.
+              // F3: record the bounded failure class so the digest can cite it.
               artifactUsage.record(scope.rootSessionId === undefined
-                ? { receiptId, name: resolved.name, digest: resolved.digest, outcome: 'failed' }
-                : { receiptId, name: resolved.name, digest: resolved.digest, outcome: 'failed', sessionId: scope.rootSessionId })
+                ? { receiptId, name: resolved.name, digest: resolved.digest, outcome: 'failed', failureClass: failureClassOf(error) }
+                : { receiptId, name: resolved.name, digest: resolved.digest, outcome: 'failed', failureClass: failureClassOf(error), sessionId: scope.rootSessionId })
               recordFailedComposition(receiptId, revision, resolved.name)
               throw error
             }
@@ -4436,7 +4442,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       authoredToolNames,
       authoringRevision,
       evidenceFor: (name, digest) => artifactUsage.evidence(name, digest),
-      recordArtifactFailure: input => artifactUsage.record({ ...input, outcome: 'failed' }),
+      // F3: the authoring surface reports a failure WITHOUT the error object, so the
+      // bounded fallback is recorded; the two index catches pass the derived class.
+      recordArtifactFailure: input => artifactUsage.record({
+        ...input, outcome: 'failed', failureClass: failureClassOf(undefined),
+      }),
       scopeSettings,
       globalApprovalGranted,
       sandboxTempScope,

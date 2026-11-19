@@ -252,6 +252,30 @@ describe('Phase 2 — one execution is one receipt tree', () => {
     assert.equal(row.sessions, 1, 'the same session is one session, not one per failure')
   })
 
+it('read-only discovery leaves the artifact and usage stores untouched (F11)', async () => {
+    const { ctx, dir } = await mountHost({ gateOpen: true })
+    await defineTool(ctx, 'agent_probe', 'return 1')
+    const first = await callAs(ctx, 'agent_probe', {}, 'session-a')
+    assert.equal(first.isError, false, JSON.stringify(first))
+
+    const authoringPath = join(dir, 'agent-authoring.json')
+    const usagePath = join(dir, 'artifact-usage.json')
+    const authoringBefore = readFileSync(authoringPath, 'utf8')
+    const usageBefore = readFileSync(usagePath, 'utf8')
+
+    // Read-only discovery: identical answers, no artifact/usage mutation.
+    await ok(ctx, 'tool_mode_list', {}, 'session-a')
+    await ok(ctx, 'tool_mode_describe', { tools: ['agent_probe'] }, 'session-a')
+
+    assert.equal(readFileSync(authoringPath, 'utf8'), authoringBefore, 'the authoring store must not change')
+    assert.equal(readFileSync(usagePath, 'utf8'), usageBefore, 'the usage store must not change')
+
+    // The discovery RECEIPT is measurement, which the clarified rule allows.
+    const discovery = (await receiptsOf(ctx)).filter(row => row.kind === 'discovery')
+    assert.equal(discovery.some(row => row.contract === 'tool_mode_list'), true)
+    assert.equal(discovery.some(row => row.contract === 'tool_mode_describe'), true)
+  })
+
   it('a failed receipt is not lost when the tool throws before returning', async () => {
     const { ctx } = await mountHost({ gateOpen: true })
     await defineTool(ctx, 'agent_throws', 'throw new Error("secret-caller-text")')

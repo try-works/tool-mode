@@ -12,7 +12,7 @@
  * @module artifact-usage
  */
 
-/* oxlint-disable anti-slop/require-safety-comment-for-type-assertion, anti-slop/no-known-value-widening, anti-slop/no-runtime-typeof, anti-slop/no-unsafe-dictionary-type -- SAFETY: this is the persisted JSON boundary; the reader validates every field before accepting a row, then narrows into the typed row. */
+/* oxlint-disable anti-slop/require-safety-comment-for-type-assertion, anti-slop/no-known-value-widening, anti-slop/no-runtime-typeof, anti-slop/no-unknown-parameters, anti-slop/no-unsafe-dictionary-type -- SAFETY: this is the persisted JSON boundary and the CAUGHT-VALUE boundary; the reader validates every field before accepting a row, and `failureClassOf` inspects an arbitrary caught value field by field before accepting any of it. */
 
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
@@ -97,7 +97,38 @@ function normalizeFailureClass(value: string | undefined): string | undefined {
   if (value === undefined) return undefined
   const trimmed = value.trim()
   if (trimmed.length === 0 || trimmed.length > MAX_FAILURE_CLASS_LENGTH) return undefined
-  return /^[A-Za-z][A-Za-z0-9_.:-]*$/u.test(trimmed) ? trimmed : undefined
+  return FAILURE_CLASS_PATTERN.test(trimmed) ? trimmed : undefined
+}
+
+/** A failure class: a code-shaped identifier, never prose (same shape rows persist). */
+export const FAILURE_CLASS_PATTERN = /^[A-Za-z][A-Za-z0-9_.:-]{0,63}$/u
+
+/** Builtin error names carry no failure meaning, so they are not accepted as a class. */
+const GENERIC_ERROR_NAMES = new Set([
+  'Error', 'TypeError', 'RangeError', 'SyntaxError', 'ReferenceError', 'EvalError', 'URIError', 'AggregateError',
+])
+
+/**
+ * Derive a bounded failure class from a caught error (F3).
+ *
+ * The directive digest may render this as `Known failure: ...`, so it must be a code-shaped
+ * identifier from the error itself — never prose, never a fabricated diagnosis. An `error.code`
+ * wins over `error.name`; a generic builtin name is rejected; a wrapper's `cause` is followed.
+ * @param error - the caught value.
+ * @returns the bounded class; `run.failed` when the error carries no code-shaped identity.
+ */
+export function failureClassOf(error: unknown): string {
+  if (typeof error === 'object' && error !== null) {
+    const record = error as { readonly code?: unknown; readonly name?: unknown; readonly cause?: unknown }
+    if (typeof record.code === 'string' && FAILURE_CLASS_PATTERN.test(record.code)) return record.code
+    if (typeof record.name === 'string'
+      && FAILURE_CLASS_PATTERN.test(record.name)
+      && !GENERIC_ERROR_NAMES.has(record.name)) {
+      return record.name
+    }
+    if (record.cause !== undefined && record.cause !== error) return failureClassOf(record.cause)
+  }
+  return 'run.failed'
 }
 
 function read(file: string): { document: UsageDocument; issue: string | undefined } {
