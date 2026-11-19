@@ -4045,13 +4045,15 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           add(workflow, 'workspace', workflow.digest)
         }
         for (const tool of authoringStore.listTools(workspaceScope.context)) {
-          add(tool, 'workspace', tool.digest)
+          // Phase 8: purpose is DIGEST-ONLY. The callable tool keeps its (possibly opaque)
+          // description; the digest is the one surface that may say what the artifact is for.
+          add({ ...tool, description: tool.purpose ?? tool.description }, 'workspace', tool.digest)
         }
         for (const workflow of authoringStore.listWorkflows(globalScope.context)) {
           add(workflow, 'global', workflow.digest)
         }
         for (const tool of authoringStore.listTools(globalScope.context)) {
-          add(tool, 'global', tool.digest)
+          add({ ...tool, description: tool.purpose ?? tool.description }, 'global', tool.digest)
         }
         return rows
       }

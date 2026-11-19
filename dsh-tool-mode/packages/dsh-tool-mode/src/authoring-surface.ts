@@ -610,6 +610,12 @@ ctx.tools.register(defineTool({
     },
     name: { type: 'string', description: 'The authored tool name: agent_ followed by lowercase letters, digits or underscores.' },
     description: { type: 'string', description: 'What the tool does; shown to callers.' },
+    /**
+     * DIGEST-ONLY purpose (Phase 8). It never becomes the callable tool's description; the
+     * artifact digest renders it so the experiment's digest arms see a meaningful purpose
+     * while its silent arm sees only the opaque name/description.
+     */
+    purpose: { type: 'string', description: 'Optional purpose shown ONLY in the artifact digest, never as the tool description.' },
     inputSchema: { type: 'json', description: 'JSON Schema for the call arguments (object root with declared properties).' },
     program: { type: 'string', description: 'The Code Mode program body; the call arguments arrive as the input variable.' },
     tools: {
@@ -757,9 +763,11 @@ ctx.tools.register(defineTool({
       if (stored === undefined && !authoredToolNames.has(nameOrId) && ctx.tools.schemas().some(schema => schema.name === nameOrId)) {
         throw new Error('a tool named "' + nameOrId + '" is already registered; choose another agent_* name')
       }
+      const purpose = typeof request['purpose'] === 'string' ? request['purpose'] : undefined
       const entry = authoringStore.saveTool({
         name: nameOrId,
         description: typeof request['description'] === 'string' ? request['description'] : '',
+        ...purpose === undefined ? {} : { purpose },
         inputSchema: inputSchema as Record<string, JsonValue>,
         program: typeof request['program'] === 'string' ? request['program'] : '',
         tools: Array.isArray(request['tools']) ? request['tools'].filter((tool): tool is string => typeof tool === 'string') : [],

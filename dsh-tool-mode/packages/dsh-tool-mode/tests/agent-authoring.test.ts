@@ -631,3 +631,47 @@ describe('allowAgentAuthoring:false', () => {
     assert.equal(names.includes('agent_hidden'), false, 'the whole surface is off')
   })
 })
+describe('purpose metadata is digest-only (Phase 8)', () => {
+  const SCHEMA = { type: 'object', properties: { base: { type: 'number' }, rate: { type: 'number' } }, required: ['base', 'rate'] }
+  const PURPOSE = 'Computes the amount due from a base and a proportional assessment rate, rounded to cents.'
+
+  it('persists purpose without requiring it and reloads it from disk', () => {
+    const file = authoringFile()
+    const store = createAgentAuthoringStore({ file })
+    const saved = store.saveTool({
+      name: 'agent_a7f3', description: 'A helper.', purpose: PURPOSE,
+      inputSchema: SCHEMA, program: 'return { due: input.base * input.rate }', tools: [],
+    })
+    assert.equal(saved.description, 'A helper.', 'the description is unchanged')
+    assert.equal(saved.purpose, PURPOSE)
+    // Reload from the bytes: the additive field survives.
+    const reloaded = createAgentAuthoringStore({ file })
+    assert.equal(reloaded.toolEntries()[0]?.purpose, PURPOSE)
+    // Omitting purpose is legal, and the field stays absent (not an empty string).
+    const plain = store.saveTool({
+      name: 'agent_plain', description: 'No purpose.', inputSchema: SCHEMA, program: 'return 1', tools: [],
+    })
+    assert.equal(plain.purpose, undefined)
+  })
+
+  it('define accepts purpose, list returns it, and the PUBLISHED tool description stays opaque', async () => {
+    const ctx = await mountHost()
+    const defined = await callOk(ctx, 'tool_mode_tools', {
+      action: 'define', name: 'agent_a7f3', description: 'A helper.', purpose: PURPOSE,
+      inputSchema: SCHEMA, program: 'return { due: input.base * input.rate }', tools: [],
+    }) as { defined: boolean }
+    assert.equal(defined.defined, true)
+    const listed = await callOk(ctx, 'tool_mode_tools', { action: 'list' }) as {
+      tools: { name: string; description: string; purpose?: string }[]
+    }
+    const row = listed.tools.find(tool => tool.name === 'agent_a7f3')
+    assert.ok(row !== undefined)
+    assert.equal(row.description, 'A helper.')
+    assert.equal(row.purpose, PURPOSE)
+    // THE POINT: purpose must never become the callable tool's description.
+    const schema = ctx.tools.schemas().find(candidate => candidate.name === 'agent_a7f3')
+    assert.ok(schema !== undefined)
+    assert.equal(schema.description, 'A helper.')
+    assert.equal((schema.description ?? '').includes('proportional assessment rate'), false)
+  })
+})

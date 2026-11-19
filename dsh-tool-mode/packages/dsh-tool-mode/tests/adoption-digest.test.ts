@@ -81,3 +81,28 @@ describe('digest mode — the neutral G arm (Phase 8)', () => {
     }
   })
 })
+describe('purpose metadata in the neutral digest (Phase 8)', () => {
+  const PURPOSE = 'Computes the amount due from a base and a proportional assessment rate, rounded to cents.'
+
+  it('neutral lists the PURPOSE, never the opaque description', async () => {
+    const ctx = await mountPluginWithTongue({ adoption: { digestMode: 'neutral' } as never })
+    const defined = await callTool(ctx, 'tool_mode_tools', {
+      action: 'define', name: 'agent_a7f3', description: 'A helper.', purpose: PURPOSE,
+      inputSchema: { type: 'object', properties: { base: { type: 'number' }, rate: { type: 'number' } } },
+      program: 'return { due: input.base * input.rate }', tools: [],
+    })
+    assert.equal(defined.isError, false, JSON.stringify(defined))
+    const text = await sectionOf2(ctx)
+    assert.match(text, /agent_a7f3/)
+    assert.ok(text.includes(PURPOSE), 'the neutral digest shows the purpose')
+    assert.equal(text.includes('A helper.'), false, 'the opaque description must not be the digest purpose')
+    assert.doesNotMatch(text, /^Use /m)
+  })
+
+  async function sectionOf2(ctx: Awaited<ReturnType<typeof mountPluginWithTongue>>): Promise<string> {
+    const service = ctx.get('systemPrompt') as { assemble(): Promise<{ sections: { name: string; text: string }[] }> } | undefined
+    assert.ok(service)
+    const assembly = await service.assemble()
+    return assembly.sections.find(section => section.name === 'tool-mode:library')?.text ?? ''
+  }
+})

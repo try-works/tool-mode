@@ -303,6 +303,8 @@ export interface AgentToolDefinition {
   readonly id: string
   readonly name: string
   readonly description: string
+  /** Digest-only purpose (Phase 8); never published as the tool description. */
+  readonly purpose?: string
   /** The JSON Schema the caller's arguments are validated against. */
   readonly inputSchema: Record<string, JsonValue>
   readonly program: string
@@ -333,6 +335,8 @@ export interface AgentToolSummary {
   /** Authored tools are callable under their stored name. */
   readonly callableName: string
   readonly description: string
+  /** Digest-only purpose (Phase 8); never published as the tool description. */
+  readonly purpose?: string
   readonly inputSchema: Record<string, JsonValue>
   readonly tools: readonly string[]
   readonly version: number
@@ -447,6 +451,15 @@ export interface SaveWorkflowInput {
 export interface SaveToolInput {
   readonly name: string
   readonly description: string
+  /**
+   * OPTIONAL digest-only purpose (Phase 8).
+   *
+   * It is stored with the artifact and rendered by the artifact DIGEST, but it is NEVER
+   * published as the callable tool's description: the description stays whatever the author
+   * chose to expose on the tool surface. That separation is what lets the experiment's silent
+   * arm see an opaque tool while the digest arms see a meaningful purpose.
+   */
+  readonly purpose?: string | undefined
   readonly inputSchema: Record<string, JsonValue>
   readonly program: string
   readonly tools?: readonly string[]
@@ -717,17 +730,27 @@ export function requireInputSchema(inputSchema: Record<string, JsonValue>): Reco
 interface NormalizedTool {
   readonly name: string
   readonly description: string
+  readonly purpose?: string
   readonly inputSchema: Record<string, JsonValue>
   readonly program: string
   readonly tools: readonly string[]
 }
 
 /** Validate and normalize one authored tool definition. */
+/** Normalize an OPTIONAL digest-only purpose: absent and blank both mean "none". */
+function normalizePurpose(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined
+  const purpose = value.trim()
+  return purpose.length === 0 ? undefined : purpose
+}
+
 function normalizeTool(input: SaveToolInput): NormalizedTool {
   const name = requireAgentToolName(input.name)
+  const purpose = normalizePurpose(input.purpose)
   return {
     name,
     description: requireDescription(input.description, name),
+    ...purpose === undefined ? {} : { purpose },
     inputSchema: requireInputSchema(input.inputSchema),
     program: requireProgram(input.program, name),
     tools: requireToolNames(input.tools, name),
@@ -836,9 +859,11 @@ function parseToolEntry(raw: JsonValue): AgentToolDefinition | undefined {
   if (typeof createdAt !== 'string' || typeof updatedAt !== 'string') return undefined
   const provenance = parseProvenance(raw)
   if (provenance === undefined) return undefined
+  const purpose = typeof raw['purpose'] === 'string' ? normalizePurpose(raw['purpose']) : undefined
   return {
     ...draftFields(raw),
-    id, name, description, inputSchema, program, tools: toolNames, version, createdAt, updatedAt,
+    id, name, description, ...purpose === undefined ? {} : { purpose },
+    inputSchema, program, tools: toolNames, version, createdAt, updatedAt,
     scope: provenance.scope,
     scopeKey: provenance.scopeKey,
     digest: artifactDigest({ description, program, tools: toolNames, inputSchema }),
@@ -1193,6 +1218,7 @@ function summarizeTool(tool: AgentToolDefinition, entries: readonly AgentToolDef
   return {
     id: tool.id, name: tool.name, callableName: tool.name,
     description: tool.description, inputSchema: tool.inputSchema,
+    ...(tool.purpose === undefined ? {} : { purpose: tool.purpose }),
     tools: tool.tools, version: tool.version, createdAt: tool.createdAt, updatedAt: tool.updatedAt,
     scope: tool.scope, scopeKey: tool.scopeKey, digest: tool.digest,
     ...(tool.status === undefined ? {} : { status: tool.status }),
@@ -1497,6 +1523,7 @@ export function createAgentAuthoringStore(options: { readonly file: string; read
         id: source.id,
         name,
         description: source.description,
+        ...(source.purpose === undefined ? {} : { purpose: source.purpose }),
         inputSchema: source.inputSchema,
         program: source.program,
         tools: source.tools,
@@ -1517,6 +1544,7 @@ export function createAgentAuthoringStore(options: { readonly file: string; read
       id: 'agent_' + randomUUID(),
       name,
       description: source.description,
+      ...(source.purpose === undefined ? {} : { purpose: source.purpose }),
       inputSchema: source.inputSchema,
       program: source.program,
       tools: source.tools,
@@ -1547,10 +1575,15 @@ export function createAgentAuthoringStore(options: { readonly file: string; read
       const createdBySession = existing?.createdBySession
         ?? resolved?.sessionId
         ?? (target.scope === 'session' ? target.key : undefined)
+      // An update that omits purpose must not silently erase it; an explicit purpose
+      // replaces it. (An explicitly empty purpose normalizes to absent and falls back to
+      // the stored value for the same reason.)
+      const purpose = normalized.purpose ?? existing?.purpose
       const entry: AgentToolDefinition = {
         id: existing?.id ?? 'agent_' + randomUUID(),
         name: normalized.name,
         description: normalized.description,
+        ...purpose === undefined ? {} : { purpose },
         inputSchema: normalized.inputSchema,
         program: normalized.program,
         tools: normalized.tools,
@@ -1606,6 +1639,7 @@ export function createAgentAuthoringStore(options: { readonly file: string; read
           id: 'agent_' + randomUUID(),
           name: source.name,
           description: source.description,
+          ...(source.purpose === undefined ? {} : { purpose: source.purpose }),
           inputSchema: source.inputSchema,
           program: source.program,
           tools: source.tools,

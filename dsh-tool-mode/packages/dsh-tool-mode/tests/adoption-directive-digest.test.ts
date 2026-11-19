@@ -197,3 +197,24 @@ describe('F8 grammar — session counts read naturally', () => {
     assert.match(two, /across 2 sessions/)
   })
 })
+describe('purpose metadata in the directive digest (Phase 8)', () => {
+  const PURPOSE = 'Computes the amount due from a base and a proportional assessment rate, rounded to cents.'
+
+  it('directive names agent_a7f3 with the PURPOSE, while the published description stays opaque', async () => {
+    const ctx = await mountPluginWithTongue()
+    const defined = await callTool(ctx, 'tool_mode_tools', {
+      action: 'define', name: 'agent_a7f3', description: 'A helper.', purpose: PURPOSE,
+      inputSchema: { type: 'object', properties: { base: { type: 'number' }, rate: { type: 'number' } } },
+      program: 'return { due: input.base * input.rate }', tools: [],
+    })
+    assert.equal(defined.isError, false, JSON.stringify(defined))
+    const service = ctx.get('systemPrompt') as { assemble(): Promise<{ sections: { name: string; text: string }[] }> } | undefined
+    assert.ok(service)
+    const assembly = await service.assemble()
+    const text = assembly.sections.find(section => section.name === 'tool-mode:library')?.text ?? ''
+    assert.match(text, /^Use agent_a7f3\b/m)
+    assert.ok(text.includes(PURPOSE), 'the directive states the purpose')
+    const schema = ctx.tools.schemas().find(candidate => candidate.name === 'agent_a7f3')
+    assert.equal(schema?.description, 'A helper.', 'the callable tool keeps its opaque description')
+  })
+})
