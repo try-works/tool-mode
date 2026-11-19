@@ -40,6 +40,8 @@ export interface AdoptionDigestCandidate {
   readonly knownFailure?: string
   /** The caller session, required to make a session-scope row visible. */
   readonly sessionId?: string
+  /** True for an auto-kept row that has not been verified by a human. */
+  readonly unverified?: boolean
 }
 
 /** Higher wins. Session is the caller's own scope. */

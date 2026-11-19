@@ -4010,8 +4010,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
               return { artifactKind: 'tool', name: tool.name, scope: 'session', ...evidence, eligibleFor: ['workspace'] }
             }),
           ]
+      const allTools = authoringStore.listTools(scope.context)
+      const TOOL_LIST_LIMIT = 20
       return {
-        tools: authoringStore.listTools(scope.context).map(tool => {
+        tools: allTools.slice(0, TOOL_LIST_LIMIT).map(tool => {
           const evidence = artifactUsage.evidence(tool.name, tool.digest)
           /**
            * task-80: `purpose` is DIGEST-ONLY. The discovery surface must not expose it —
@@ -4021,6 +4023,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           void purpose
           return { ...visible, ...evidence, quality: qualityOf(evidence) }
         }),
+        toolsTotal: allTools.length,
+        toolsLimit: TOOL_LIST_LIMIT,
         workflows: authoringStore.listWorkflows(scope.context).map(workflow => {
           const evidence = artifactUsage.evidence(workflow.name, workflow.digest)
           return { ...workflow, ...evidence, quality: qualityOf(evidence) }
@@ -4069,7 +4073,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         const seen = new Set<string>()
         const rows: AdoptionDigestCandidate[] = []
         const add = (
-          row: { name: string; callableName: string; description: string },
+          row: { name: string; callableName: string; description: string; status?: string },
           scope: 'workspace' | 'global',
           digest: string,
         ): void => {
@@ -4088,6 +4092,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             sessions: evidence.sessions,
             ...usage?.lastAt === undefined ? {} : { lastUsedAt: usage.lastAt },
             ...quality.knownFailure === undefined ? {} : { knownFailure: quality.knownFailure },
+            ...row.status === 'draft' ? { unverified: true } : {},
           })
         }
         for (const workflow of authoringStore.listWorkflows(workspaceScope.context)) {

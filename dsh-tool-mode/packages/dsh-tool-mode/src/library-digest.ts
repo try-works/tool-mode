@@ -122,9 +122,10 @@ export function buildDirectiveDigest(
    * stored name would make the new digest strictly less useful for lookup.
    */
   const stored = top.name === top.callableName ? '' : ' (stored ' + truncate(oneLine(top.name), 60) + ')'
+  const unverified = top.unverified === true ? ' (auto-kept, unverified)' : ''
   const lines: string[] = [purpose.length === 0
-    ? 'Use ' + callableName + stored + '.'
-    : 'Use ' + callableName + stored + ' — ' + sentence(purpose)]
+    ? 'Use ' + callableName + stored + unverified + '.'
+    : 'Use ' + callableName + stored + unverified + ' — ' + sentence(purpose)]
   const knownFailure = top.knownFailure === undefined ? undefined : truncate(oneLine(top.knownFailure), FRAGMENT_MAX_CHARS)
   // The five-use rule gates the caveat and its counts together: a one-use failure is real
   // evidence, but it is not enough to advertise a "known failure" mode yet.

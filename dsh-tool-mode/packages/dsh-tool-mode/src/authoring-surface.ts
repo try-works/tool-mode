@@ -372,6 +372,8 @@ ctx.tools.register(defineTool({
     force: { type: 'boolean', description: 'promote only: bypass evidence for a workspace promotion; never valid for global.' },
     keepSource: { type: 'boolean', description: 'promote only: keep the source row (default true).' },
     all: { type: 'boolean', description: 'list only: include shadowed rows as well as the winners.' },
+    limit: { type: 'number', description: 'list only: page size (default 20, max 100).' },
+    cursor: { type: 'string', description: 'list only: nextCursor from a previous page.' },
   } as unknown as ParameterSchemaSpec,
   output: {
     schema: AUTHORING_DELETE_OUTPUT_SCHEMA,
@@ -646,6 +648,8 @@ ctx.tools.register(defineTool({
     force: { type: 'boolean', description: 'promote only: bypass evidence for a workspace promotion; never valid for global.' },
     keepSource: { type: 'boolean', description: 'promote only: keep the source row (default true).' },
     all: { type: 'boolean', description: 'list only: include shadowed rows as well as the winners.' },
+    limit: { type: 'number', description: 'list only: page size (default 20, max 100).' },
+    cursor: { type: 'string', description: 'list only: nextCursor from a previous page.' },
   } as unknown as ParameterSchemaSpec,
   output: {
     schema: AUTHORING_DELETE_OUTPUT_SCHEMA,
@@ -824,9 +828,20 @@ ctx.tools.register(defineTool({
         : authoringStore.listTools(scope.context, { all: true })
           .filter(row => row.scope === rawScope)
       // A draft is listable and callable; `draft` makes that visible without changing
-      // how it is named or resolved, and `retention` states the policy in force.
-      const tools = listed.map(row => ({ ...visibleToolRow(row), draft: row.status === 'draft' }))
-      return { tools, scope: scope.scope, retention: { draftTtlMs: draftTtl() } } as never
+      // how it is named or resolved, and `retention` states the policy in force. The page
+      // is bounded so a large auto-kept library cannot become a large control-tool result.
+      const requestedLimit = typeof request['limit'] === 'number' ? request['limit'] : 20
+      const limit = Math.min(100, Math.max(1, Math.floor(requestedLimit)))
+      const rawCursor = typeof request['cursor'] === 'string' ? Number(request['cursor']) : 0
+      const cursor = Number.isFinite(rawCursor) ? Math.max(0, Math.floor(rawCursor)) : 0
+      const page = listed.slice(cursor, cursor + limit)
+      const tools = page.map(row => ({ ...visibleToolRow(row), draft: row.status === 'draft' }))
+      const nextCursor = cursor + limit < listed.length ? String(cursor + limit) : undefined
+      return {
+        tools, total: listed.length, limit,
+        ...(nextCursor === undefined ? {} : { nextCursor }),
+        scope: scope.scope, retention: { draftTtlMs: draftTtl() },
+      } as never
     }
     if (action === 'get') {
       const entry = authoringStore.getTool(nameOrId, scope.context)
