@@ -95,6 +95,190 @@ export function scopeDisclosure(scope: BuiltScopeContext): Record<string, string
       }
 }
 
+/** One visible artifact row a delete reports (scope, key and version). */
+export interface ArtifactRowScope {
+  readonly scope: ArtifactScope
+  readonly scopeKey: string
+  readonly version: number
+}
+
+/** The per-scope truth of one delete (U37). */
+export interface ArtifactDeleteOutcome {
+  /** True only when the requested row went AND no visible row of that name survives. */
+  readonly deleted: boolean
+  /** The same fact under the name the plan uses: the cleanup is complete. */
+  readonly complete: boolean
+  /** The rows this call actually removed. */
+  readonly deletedScopes: readonly ArtifactRowScope[]
+  /** The rows that still answer the name from the caller's resolution chain. */
+  readonly remainingScopes: readonly ArtifactRowScope[]
+  /** Present when nothing was removed: why the target scope had no row. */
+  readonly reason?: string
+}
+
+/**
+ * The published DELETE contract (U37).
+ *
+ * Additive (`additionalProperties: true`) because the same two tools publish every other
+ * action's result; the declared keys are the delete ones a caller must be able to rely on.
+ */
+const AUTHORING_DELETE_OUTPUT_SCHEMA = {
+  type: 'object',
+  additionalProperties: true,
+  properties: {
+    deleted: { type: 'boolean' },
+    complete: { type: 'boolean' },
+    deletedScopes: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: true,
+        properties: {
+          scope: { type: 'string' },
+          scopeKey: { type: 'string' },
+          version: { type: 'number' },
+        },
+      },
+    },
+    remainingScopes: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: true,
+        properties: {
+          scope: { type: 'string' },
+          scopeKey: { type: 'string' },
+          version: { type: 'number' },
+        },
+      },
+    },
+    reason: { type: 'string' },
+  },
+} as unknown as ValueSchemaSpec
+
+/** Every visible row for one name in one artifact kind, nearest scope first. */
+function visibleRowScopes(
+  store: AgentAuthoringStore,
+  kind: 'workflow' | 'tool',
+  name: string,
+  context: BuiltScopeContext['context'],
+): ArtifactRowScope[] {
+  const rows = kind === 'workflow'
+    ? store.listWorkflows(context, { all: true })
+    : store.listTools(context, { all: true })
+  return rows
+    .filter(row => row.name === name)
+    .map(row => ({ scope: row.scope, scopeKey: row.scopeKey, version: row.version }))
+}
+
+/**
+ * Does this name belong to the OTHER artifact kind?
+ *
+ * The wrong verb used to answer `{deleted:false}` with no reason naming the right tool
+ * (U40). This resolver answers that question so the handler can POINT; it never mutates.
+ * @param store - the authoring store.
+ * @param kind - the kind the caller's verb deletes.
+ * @param name - the requested name (stored or callable).
+ * @param context - the caller's resolution chain.
+ * @returns the other kind and its callable name, when the name belongs to it.
+ */
+function otherKindFor(
+  store: AgentAuthoringStore,
+  kind: 'workflow' | 'tool',
+  name: string,
+  context: BuiltScopeContext['context'],
+): { readonly kind: 'workflow' | 'tool'; readonly callableName: string } | undefined {
+  if (name.length === 0) return undefined
+  if (kind === 'tool') {
+    const workflow = store.getWorkflow(name, context)
+    if (workflow !== undefined) return { kind: 'workflow', callableName: workflowToolName(workflow.name) }
+    const callable = store.listWorkflows(context, { all: true }).find(row => row.callableName === name)
+    return callable === undefined ? undefined : { kind: 'workflow', callableName: callable.callableName }
+  }
+  const tool = store.getTool(name, context)
+  return tool === undefined ? undefined : { kind: 'tool', callableName: tool.name }
+}
+
+/** The pointing refusal a delete gets when the name belongs to the other kind. */
+function wrongKindDelete(
+  requestedKind: 'workflow' | 'tool',
+  name: string,
+  other: { readonly kind: 'workflow' | 'tool'; readonly callableName: string },
+): Error {
+  const verb = other.kind === 'workflow' ? 'tool_mode_workflows' : 'tool_mode_tools'
+  const actual = other.kind === 'workflow' ? 'a workflow' : 'an authored tool'
+  const requested = requestedKind === 'workflow' ? 'workflow' : 'authored tool'
+  return new Error(
+    `E_WRONG_ARTIFACT_KIND: "${name}" is ${actual}, not a ${requested}. `
+    + `Delete it with ${verb} action "delete" (name "${other.callableName}"); `
+    + `${requestedKind === 'workflow' ? 'tool_mode_workflows' : 'tool_mode_tools'} deletes only its own artifact kind and changed nothing.`,
+  )
+}
+
+/**
+ * Delete ONE scope-exact row and report what remained (U37).
+ *
+ * `deleted` is true only when the row went AND no visible row of that name survives: a
+ * default delete that leaves a promoted copy is a PARTIAL cleanup, and saying otherwise
+ * made an agent believe a cleanup had happened when it had not.
+ * @param store - the authoring store.
+ * @param kind - which artifact kind to delete.
+ * @param entry - the resolved row (its name is the delete key).
+ * @param target - the scope-exact target context the delete writes at.
+ * @param caller - the CALLER's full resolution chain, for what remains VISIBLE.
+ * @returns the per-scope outcome.
+ */
+function deleteArtifactRows(
+  store: AgentAuthoringStore,
+  kind: 'workflow' | 'tool',
+  entry: { readonly name: string },
+  target: BuiltScopeContext['context'],
+  caller: BuiltScopeContext['context'],
+): ArtifactDeleteOutcome {
+  // BEFORE is read from the caller's chain: a workspace-scoped delete must still report
+  // the session row that survives and keeps answering the name.
+  const before = visibleRowScopes(store, kind, entry.name, caller)
+  const removed = kind === 'workflow'
+    ? store.deleteWorkflow(entry.name, target)
+    : store.deleteTool(entry.name, target)
+  const remaining = visibleRowScopes(store, kind, entry.name, caller)
+  const deletedScopes = removed
+    ? before.filter(row => !remaining.some(left => left.scope === row.scope && left.scopeKey === row.scopeKey))
+    : []
+  const deleted = removed && remaining.length === 0
+  return {
+    deleted,
+    complete: deleted,
+    deletedScopes,
+    remainingScopes: remaining,
+    ...removed ? {} : {
+      reason: `no ${kind} row named "${entry.name}" exists at the caller's target scope; `
+        + 'delete is scope-exact: pass scope:"session"|"workspace"|"global" to choose the row. '
+        + 'The remainingScopes field lists the rows that still answer the name.',
+    },
+  }
+}
+
+/** The delete result plus the scope-disclosure fields the write path may add. */
+export interface ArtifactDeleteDisclosure extends ArtifactDeleteOutcome {
+  readonly requestedScope?: string
+  readonly scopeReason?: string
+}
+
+/** Render one delete outcome as the tool result. */
+function deleteDisclosure(outcome: ArtifactDeleteOutcome, scope: BuiltScopeContext): ArtifactDeleteDisclosure {
+  const disclosure = scopeDisclosure(scope)
+  return {
+    deleted: outcome.deleted,
+    complete: outcome.complete,
+    deletedScopes: [...outcome.deletedScopes],
+    remainingScopes: [...outcome.remainingScopes],
+    ...outcome.reason === undefined ? {} : { reason: outcome.reason },
+    ...disclosure['requestedScope'] === undefined ? {} : { requestedScope: disclosure['requestedScope'] },
+    ...disclosure['scopeReason'] === undefined ? {} : { scopeReason: disclosure['scopeReason'] },
+  }
+}
+
 /**
  * Register the authoring tools.
  * @param deps - store, ledger, registration hooks and execution callbacks.
@@ -148,7 +332,7 @@ ctx.tools.register(defineTool({
       type: 'string',
       required: true,
       enum: ['save', 'clone', 'list', 'get', 'delete', 'run', 'promote', 'demote'],
-      description: 'save: create or update (bumps the version). clone: copy to a new name. list/get/delete/run: by name or id. promote/demote: move the artifact between scopes.',
+      description: 'save: create or update (bumps the version). clone: copy to a new name. list/get/delete/run: by name or id. delete is scope-exact and reports deletedScopes/remainingScopes; a wrong-kind name POINTS at its own tool. promote/demote: move the artifact between scopes.',
     },
     name: { type: 'string', description: 'Workflow name (lowercase kebab/snake, 2-64 chars) or its id.' },
     target: { type: 'string', description: 'Clone only: the new workflow name.' },
@@ -169,7 +353,7 @@ ctx.tools.register(defineTool({
     all: { type: 'boolean', description: 'list only: include shadowed rows as well as the winners.' },
   } as unknown as ParameterSchemaSpec,
   output: {
-    schema: { type: 'object', additionalProperties: true } as unknown as ValueSchemaSpec,
+    schema: AUTHORING_DELETE_OUTPUT_SCHEMA,
     render: (_args: Record<string, unknown>, value: unknown) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
   },
   async execute(args, exec) {
@@ -255,27 +439,24 @@ ctx.tools.register(defineTool({
       return { workflow: entry, scope: entry.scope } as never
     }
     if (action === 'delete') {
+      const callerScope = scopeFor(exec)
       const entry = getWorkflowByEitherName(nameOrId, scope.context)
       if (entry === undefined) {
+        const other = otherKindFor(authoringStore, 'workflow', nameOrId, scope.context)
+        if (other !== undefined) throw wrongKindDelete('workflow', nameOrId, other)
         return {
           deleted: false,
+          complete: false,
+          deletedScopes: [],
+          remainingScopes: [],
           reason: `no workflow "${nameOrId}" at the caller's ${scope.scope} scope (${scope.context.scopeKey}); `
             + 'delete removes only a row at the caller\'s resolved scope -- pass scope:"session"|"workspace"|"global" '
             + 'to target another one ("from" is demote-only and is ignored here).',
           checkedScopes: [{ scope: scope.scope, scopeKey: scope.context.scopeKey }],
         } as never
       }
-      const deleted = authoringStore.deleteWorkflow(entry.name, scope.context)
-      if (!deleted) {
-        return {
-          deleted: false,
-          reason: `no workflow "${nameOrId}" at the caller's ${scope.scope} scope (${scope.context.scopeKey}); `
-            + 'delete removes only a row at the caller\'s resolved scope -- pass scope:"session"|"workspace"|"global" '
-            + 'to target another one ("from" is demote-only and is ignored here).',
-          checkedScopes: [{ scope: scope.scope, scopeKey: scope.context.scopeKey }],
-        } as never
-      }
-      if (deleted && entry !== undefined) {
+      const outcome = deleteArtifactRows(authoringStore, 'workflow', entry, scope.context, callerScope.context)
+      if (outcome.deletedScopes.length > 0) {
         // Keep the published dispatcher while any scope still holds this name;
         // deleting one row must unshadow, not withdraw the callable.
         const stillThere = authoringStore.getWorkflow(entry.name, scope.context) !== undefined
@@ -287,10 +468,11 @@ ctx.tools.register(defineTool({
           workflowToolNames.delete(toolName)
         }
         authoringLedger.record({
-          operation: 'delete', artifactKind: 'workflow', name: entry.name, version: entry.version, scope: entry.scope,
+          operation: 'delete', artifactKind: 'workflow', name: entry.name, version: entry.version,
+          scope: outcome.deletedScopes[0]?.scope ?? entry.scope,
         })
       }
-      return { deleted, ...scopeDisclosure(scope) } as never
+      return deleteDisclosure(outcome, scope) as never
     }
     if (action === 'run') {
       const entry = getWorkflowByEitherName(nameOrId, scope.context)
@@ -418,7 +600,7 @@ ctx.tools.register(defineTool({
       type: 'string',
       required: true,
       enum: ['define', 'clone', 'from-run', 'list', 'get', 'delete', 'promote', 'demote'],
-      description: 'define: create/update and register. clone: copy to a new name. from-run: scaffold a tool from a captured successful run. list/get/delete: by name or id. promote/demote: move between scopes.',
+      description: 'define: create/update and register. clone: copy to a new name. from-run: scaffold a tool from a captured successful run. list/get/delete: by name or id. delete is scope-exact and reports deletedScopes/remainingScopes; a wrong-kind name POINTS at its own tool. promote/demote: move between scopes.',
     },
     name: { type: 'string', description: 'The authored tool name: agent_ followed by lowercase letters, digits or underscores.' },
     description: { type: 'string', description: 'What the tool does; shown to callers.' },
@@ -439,7 +621,7 @@ ctx.tools.register(defineTool({
     all: { type: 'boolean', description: 'list only: include shadowed rows as well as the winners.' },
   } as unknown as ParameterSchemaSpec,
   output: {
-    schema: { type: 'object', additionalProperties: true } as unknown as ValueSchemaSpec,
+    schema: AUTHORING_DELETE_OUTPUT_SCHEMA,
     render: (_args: Record<string, unknown>, value: unknown) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
   },
   async execute(args, exec) {
@@ -581,35 +763,33 @@ ctx.tools.register(defineTool({
       return { tool: entry, scope: entry.scope } as never
     }
     if (action === 'delete') {
+      const callerScope = scopeFor(exec)
       const entry = authoringStore.getTool(nameOrId, scope.context)
       if (entry === undefined) {
+        const other = otherKindFor(authoringStore, 'tool', nameOrId, scope.context)
+        if (other !== undefined) throw wrongKindDelete('tool', nameOrId, other)
         return {
           deleted: false,
+          complete: false,
+          deletedScopes: [],
+          remainingScopes: [],
           reason: `no authored tool "${nameOrId}" at the caller's ${scope.scope} scope (${scope.context.scopeKey}); `
             + 'delete removes only a row at the caller\'s resolved scope -- pass scope:"session"|"workspace"|"global" '
             + 'to target another one ("from" is demote-only and is ignored here).',
           checkedScopes: [{ scope: scope.scope, scopeKey: scope.context.scopeKey }],
         } as never
       }
-      const deleted = authoringStore.deleteTool(nameOrId, scope.context)
-      if (!deleted) {
-        return {
-          deleted: false,
-          reason: `no authored tool "${nameOrId}" at the caller's ${scope.scope} scope (${scope.context.scopeKey}); `
-            + 'delete removes only a row at the caller\'s resolved scope -- pass scope:"session"|"workspace"|"global" '
-            + 'to target another one ("from" is demote-only and is ignored here).',
-          checkedScopes: [{ scope: scope.scope, scopeKey: scope.context.scopeKey }],
-        } as never
-      }
-      if (deleted) {
-        const stillThere = authoringStore.getTool(nameOrId, scope.context) !== undefined
-          || authoringStore.getTool(nameOrId) !== undefined
-        if (!stillThere) unregisterAuthored(entry.name)
+      const outcome = deleteArtifactRows(authoringStore, 'tool', entry, scope.context, callerScope.context)
+      if (outcome.deletedScopes.length > 0) {
+        if (outcome.remainingScopes.length === 0 && authoringStore.getTool(entry.name) === undefined) {
+          unregisterAuthored(entry.name)
+        }
         authoringLedger.record({
-          operation: 'delete', artifactKind: 'tool', name: entry.name, version: entry.version, scope: entry.scope,
+          operation: 'delete', artifactKind: 'tool', name: entry.name, version: entry.version,
+          scope: outcome.deletedScopes[0]?.scope ?? entry.scope,
         })
       }
-      return { deleted, ...scopeDisclosure(scope) } as never
+      return deleteDisclosure(outcome, scope) as never
     }
     if (action === 'promote' || action === 'demote') {
       const from = typeof request['from'] === 'string' ? request['from'] : undefined

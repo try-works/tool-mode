@@ -478,6 +478,11 @@ export function registerDiscoveryControlTools(deps: DiscoveryControlDeps): void 
                 unsupported: { type: 'array', items: { type: 'string' } },
                 scope: { type: 'string' },
                 shadowing: { type: 'object', additionalProperties: true },
+                // Phase 0 (U37): an authored workflow is STORED under one name and
+                // CALLED under another. Describe reports both instead of losing the
+                // stored identity behind the callable spelling it echoes.
+                storedName: { type: 'string' },
+                callableName: { type: 'string' },
               },
             },
           },
@@ -520,9 +525,18 @@ export function registerDiscoveryControlTools(deps: DiscoveryControlDeps): void 
           && described.model === undefined) {
           throw new Error(`unknown tool ${JSON.stringify(requestedName)}`)
         }
+        const isWorkflowRow = row !== undefined && authoring?.workflows.includes(row) === true
         entries.push(row === undefined
           ? described
-          : { ...described, scope: row.scope, ...row.shadowing === null ? {} : { shadowing: row.shadowing } })
+          : {
+              ...described,
+              scope: row.scope,
+              ...row.shadowing === null ? {} : { shadowing: row.shadowing },
+              // U37: report the STORED artifact name beside the callable one. A workflow
+              // resolved by either spelling keeps both; an authored tool's are equal.
+              storedName: row.name,
+              callableName: isWorkflowRow ? workflowToolName(row.name) : row.name,
+            })
       }
       return { catalogRevision: catalogRevision(), tools: entries } as never
     },
