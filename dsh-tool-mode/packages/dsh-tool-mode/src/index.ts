@@ -3601,11 +3601,21 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     registerDraft: (definition: AgentToolDefinition) => registerAuthoredRef?.(definition) ?? false,
     promoteWorkspaceDraft: (draft, from) => {
       const store = authoringStoreRef
-      const workspace = workspaceScopeRef
-      if (store === undefined || workspace === undefined) return false
+      if (store === undefined) return false
+      // The target is the CALLER's workspace, never the host process cwd: a session in
+      // another repository must not publish into the host's checkout, and a workspace
+      // draft published there is invisible to the caller that earned it.
+      const workspaceKey = from.workspaceKey ?? workspaceScopeRef?.workspaceKey
+      if (workspaceKey === undefined) return false
+      const target = {
+        scope: 'workspace' as const,
+        scopeKey: workspaceKey,
+        workspaceKey,
+        sessionId: from.sessionId,
+      }
       const expiresAt = new Date(Date.now() + (config.adoption?.draftTtlMs ?? DEFAULT_DRAFT_TTL_MS)).toISOString()
       const promoted = store.promoteDraft(draft.name, {
-        from, to: workspace.context, status: 'draft', expiresAt,
+        from, to: target, status: 'draft', expiresAt,
       })
       if (promoted.kind !== 'tool') return false
       unregisterAuthoredRef?.(draft.name)
@@ -3614,8 +3624,21 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     scopeForDraft: exec => {
       const keep = config.adoption?.autoKeep ?? 'session'
       if (keep === 'off') return undefined
-      if (keep === 'workspace') return workspaceScopeRef ?? scopeForAuthoringCaller?.(exec)
-      return scopeForAuthoringCaller?.(exec)
+      const caller = scopeForAuthoringCaller?.(exec)
+      if (keep === 'workspace') {
+        if (caller === undefined) return workspaceScopeRef
+        return {
+          ...caller,
+          scope: 'workspace' as const,
+          requestedScope: 'workspace' as const,
+          context: {
+            ...caller.context,
+            scope: 'workspace' as const,
+            scopeKey: caller.workspaceKey,
+          },
+        }
+      }
+      return caller
     },
     adoption: () => ({
       autoKeep: config.adoption?.autoKeep ?? 'session',

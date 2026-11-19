@@ -438,6 +438,8 @@ export interface SaveDraftInput {
   readonly tools?: readonly string[]
   readonly inputSchema: Record<string, JsonValue>
   readonly description?: string | undefined
+  /** Digest-only purpose (Phase 8); the automatic path copies the run description here. */
+  readonly purpose?: string | undefined
   readonly catalogRevision?: string | undefined
 }
 
@@ -1424,6 +1426,7 @@ export function createAgentAuthoringStore(options: { readonly file: string; read
     const tools = requireToolNames(input.tools, input.runId)
     const inputSchema = requireInputSchema(input.inputSchema)
     const description = input.description?.trim() ?? 'Distilled from successful run ' + input.runId + '.'
+    const purpose = normalizePurpose(input.purpose)
     // Deterministic identity from the CONTENT, then deterministic collision handling: a
     // KEPT row owns the base name, so the draft takes the first free numeric suffix. A
     // re-run of the same content finds its own row here and updates it in place.
@@ -1444,6 +1447,7 @@ export function createAgentAuthoringStore(options: { readonly file: string; read
       id: existing?.id ?? 'agent_' + randomUUID(),
       name,
       description,
+      ...purpose === undefined ? {} : { purpose },
       inputSchema,
       program,
       tools,

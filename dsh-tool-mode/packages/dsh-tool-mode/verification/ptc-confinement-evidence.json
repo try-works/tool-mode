@@ -2,18 +2,23 @@
   "kind": "ptc-confinement-evidence",
   "version": 1,
   "passed": true,
-  "generatedAt": "2026-11-19T22:16:49.390Z",
-  "packageVersion": "0.5.98",
+  "generatedAt": "2026-11-19T23:17:02.697Z",
+  "packageVersion": "0.5.99",
   "platform": "win32",
   "node": "v24.11.0",
   "tests": [
-    "packages/dsh-tool-mode/tests/ptc-sandbox.test.ts"
+    "packages/dsh-tool-mode/tests/ptc-sandbox.test.ts",
+    "packages/dsh-tool-mode/tests/code09-probes.test.ts"
   ],
-  "command": "node --import tsx --test packages/dsh-tool-mode/tests/ptc-sandbox.test.ts",
+  "command": "C:\\Program Files\\nodejs\\node.exe D:\\DEV\\tool-mode\\dsh-tool-mode\\node_modules\\tsx\\dist\\cli.mjs --test packages/dsh-tool-mode/tests/ptc-sandbox.test.ts packages/dsh-tool-mode/tests/code09-probes.test.ts",
   "counts": {
-    "tests": 5,
-    "pass": 5,
+    "tests": 6,
+    "pass": 6,
     "fail": 0,
     "skipped": 0
+  },
+  "environment": {
+    "tmp": "D:\\DEV\\dsh-temp",
+    "os": "win32 10.0.26200"
   }
 }

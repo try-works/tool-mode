@@ -1,6 +1,6 @@
 # Auto-keep and the `autoDraft` deprecation plan
 
-Status: proposed. This plan turns the accepted direction — **runs are stored and reusable by
+Status: implemented (0.5.98; lifecycle corrections in 0.5.99). This plan turns the accepted direction — **runs are stored and reusable by
 default; delete is the only required curation action** — into a sequenced, test-first
 change.
 
@@ -425,6 +425,29 @@ the draft available, but the solver still used `from-run` in 8/10 A sessions; on
 reused the draft directly. A used 39 calls vs B's 30. The storage/lifecycle behavior is
 verified; the task did not produce a save-call reduction. The next step is a directive
 that points at the existing draft, or a task that explicitly forbids re-saving.
+
+## Lifecycle correction result (0.5.99)
+
+A later live check found the second-capture promotion "missing" and a draft-of-a-draft
+amplification. Both were real, and both were fixed test-first:
+
+- **Promotion was mis-targeted, not absent.** It used the host process cwd
+  (`workspaceScopeRef`) as the workspace. The live row was written at
+  `d:\deepseek-harness` while the caller's workspace was `d:\dev\tool-mode`, so the
+  caller's `list` could not see it. Promotion now targets `from.workspaceKey`.
+  `autoKeep:'workspace'` has the same caller-workspace rule.
+- **U41: no draft of a draft.** A run whose declared tools include a row with
+  `status:'draft'` is still captured for `from-run`, but does not mint another draft. This
+  keeps the 20-tool budget from filling with one-shot reuse artifacts.
+- **Purpose.** The automatic draft copies the run description into the digest-only
+  `purpose` field; the callable description is unchanged.
+
+Red/green: 4 new tests in `tests/auto-keep-lifecycle.test.ts`; **0/4 red -> 4/4 green**.
+Adjacent auto-keep suite: **28/28**. Typecheck: exit 0. Evidence:
+[REPORT.md](../research/auto-keep-lifecycle/REPORT.md).
+
+The E14/E15 discovery result is unchanged: auto-keep moves authoring to the host, not
+adoption. A directive is still required.
 
 ## Verification matrix
 

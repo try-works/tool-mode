@@ -290,8 +290,21 @@ export function registerRuntimeTools(deps: RuntimeSurfaceDeps): void {
         const drafted = args as { description?: unknown }
         const draftScope = deps.scopeForDraft?.(exec)?.context ?? scopeForAuthoringCaller(exec)?.context
         const draftText = recorded.program + '\n' + (typeof drafted.description === 'string' ? drafted.description : '')
+        // U41: a run whose program only reuses an existing draft must not mint another
+        // draft. Otherwise every successful reuse adds a row and, with the 20-tool cap,
+        // fills the session's tool surface with one-shot artifacts.
+        const callsDraft = recorded.tools.some(name => {
+          try {
+            return draftStore.getTool(name, draftScope)?.status === 'draft'
+          } catch {
+            return false
+          }
+        })
         if (containsSecretLikeLiteral(draftText)) {
           ctx.logger.warn('tool_mode_run: draft not recorded because the program contains a credential-shaped literal')
+        } else if (callsDraft) {
+          // The run is still captured for `from-run`; it simply does not become a
+          // first-class draft of its own.
         } else try {
           const draft = draftStore.saveDraft(
             {
@@ -301,8 +314,10 @@ export function registerRuntimeTools(deps: RuntimeSurfaceDeps): void {
               program: recorded.program,
               tools: recorded.tools,
               inputSchema: recorded.inputSchema,
+              // The digest may say what the artifact is for; the tool surface keeps the
+              // run's human-facing description.
               ...(typeof drafted.description === 'string' && drafted.description.length > 0
-                ? { description: drafted.description }
+                ? { description: drafted.description, purpose: drafted.description }
                 : {}),
             },
             draftScope,
