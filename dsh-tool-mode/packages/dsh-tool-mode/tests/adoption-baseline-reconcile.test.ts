@@ -3,8 +3,9 @@
  * internal findings against THIS build, before changing any behaviour.
  *
  * Each block maps one reported issue to an executable observation. A block that passes
- * refutes the report for this build (it stays as a regression test); a block that fails
- * reproduces it and is marked as moved to the phase that owns the fix.
+ * refutes the report for this build (it stays as a regression test); a block that failed
+ * was moved to the phase that owned the fix (task-65) and is now unskipped: the receipt
+ * tree and the root-session reach landed in af70dbb, and every block below runs.
  *
  * @module tests/adoption-baseline-reconcile
  */
@@ -154,10 +155,10 @@ describe('Phase 0 — receipts for a direct call and inside a program', () => {
     assert.equal(rows[0]?.runId, rows[0]?.receiptId)
   })
 
-  // MOVED TO PHASE 2 (task-65): reproduced red on this build (orphan `text.language_detect`
-  // invocation receipt beside the composition). The assertion is kept intact so the owning
-  // phase flips the skip, not the expectation.
-  it('U35/U36 (reproduced; moved to task-65): a call inside a program adds NO second top-level receipt', { skip: 'moved to Phase 2 (task-65): the program sub-call is recorded twice' }, async () => {
+  // Was RED before Phase 2 (an orphan `text.language_detect` invocation receipt beside the
+  // composition). af70dbb suppressed the nested tool's own receipt, so the assertion now
+  // runs unchanged.
+  it('U36 (fixed in af70dbb): a call inside a program adds NO second top-level receipt', async () => {
     const ctx = await mountHost({ tongue: true, gateOpen: true })
     const run = await ok(ctx, 'tool_mode_run', {
       code: 'return await lang_detect({ text: "hallo" })',
@@ -193,9 +194,9 @@ describe('Phase 0 — receipts for a direct call and inside a program', () => {
     assert.ok(children.length >= 1, 'the workflow sub-call must be parented to that receipt')
   })
 
-  // MOVED TO PHASE 2 (task-65): reproduced red (the sub-call's own receipt is orphaned,
-  // parent null). Same assertion, owned by the receipt-tree phase.
-  it('U35 (children, reproduced; moved to task-65): the workflow sub-call leaves no orphan receipt of its own', { skip: 'moved to Phase 2 (task-65): the workflow sub-call receipt is orphaned' }, async () => {
+  // Was RED before Phase 2 (the sub-call's own receipt was orphaned, parent null).
+  // af70dbb records exactly one receipt tree for the run.
+  it('U35 (children, fixed in af70dbb): the workflow sub-call leaves no orphan receipt of its own', async () => {
     const ctx = await mountHost({ gateOpen: true })
     await ok(ctx, 'tool_mode_tools', {
       action: 'define', name: 'agent_probe', description: 'Probe.', inputSchema: SCHEMA,
@@ -214,15 +215,23 @@ describe('Phase 0 — receipts for a direct call and inside a program', () => {
 })
 
 describe('Phase 0 — session-tree reach (U29)', () => {
-  // MOVED TO PHASE 2 (task-65): reproduced red (the ledger keys by LEAF session id).
-  it('U29 (reproduced; moved to task-65): a subagent call is visible in the ROOT session reach counter', { skip: 'moved to Phase 2 (task-65): session-tree reach is the receipt-tree task' }, async () => {
+  // Was RED before Phase 2 (the ledger keyed by the LEAF session id). af70dbb added the
+  // ROOT session's tree reach; `authoring.session.called` stays the leaf-only counter.
+  it('U29 (fixed in af70dbb): a subagent call is visible in the ROOT session reach counter', async () => {
     const ctx = await mountHost({ tongue: true, parents: { child: 'root' } })
     await ok(ctx, 'lang_detect', { text: 'hallo wereld' }, 'child')
     const root = await ok(ctx, 'tool_mode_list', {}, 'root') as {
-      authoring?: { session?: { called?: Record<string, number> } }
+      authoring?: {
+        session?: {
+          called?: Record<string, number>
+          reach?: { called?: Record<string, number>; agents?: Record<string, number> }
+        }
+      }
     }
-    const called = root.authoring?.session?.called ?? {}
-    assert.equal(called['lang_detect'], 1, 'the root session must see the subagent call in reach.called')
+    const reach = root.authoring?.session?.reach
+    assert.ok(reach, 'the root session must publish its tree reach')
+    assert.equal(reach.called?.['lang_detect'], 1, 'the root session must see the subagent call in reach.called')
+    assert.equal(reach.agents?.['child'], 1, 'and the call must be attributed to the child that made it')
   })
 })
 
