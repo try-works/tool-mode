@@ -5,8 +5,9 @@
  * the receipts that prove an artifact was used. This store keeps one compacted
  * row per (name, digest) and is updated when an authored run completes.
  *
- * It records COUNTS and session identities only. No arguments, results or program
- * bodies are accepted by the API.
+ * It records COUNTS, session identities and bounded FAILURE CLASSES only. A failure
+ * class must be a code-shaped value supplied from a failed receipt or an authoring error
+ * code; free prose is rejected, because the digest renders a caveat only from evidence.
  *
  * @module artifact-usage
  */
@@ -24,6 +25,18 @@ export const DEFAULT_MAX_SESSIONS = 100
 export const DEFAULT_MAX_RECEIPTS = 500
 /** Default artifact rows retained. */
 export const DEFAULT_MAX_ROWS = 500
+/** Distinct failure classes retained per artifact. */
+export const DEFAULT_MAX_FAILURE_CLASSES = 3
+/** Longest accepted failure class, in characters. */
+export const MAX_FAILURE_CLASS_LENGTH = 64
+
+/** The evidence-backed quality fields the directive digest may render. */
+export interface ArtifactQualityEvidence {
+  /** De-duplicated, bounded failure classes; empty when no failed run named one. */
+  readonly failureClasses: readonly string[]
+  /** The first failure class, only when there is failed-run evidence. */
+  readonly knownFailure?: string
+}
 
 /** One artifact's compacted usage. */
 export interface ArtifactUsageRow {
@@ -36,6 +49,8 @@ export interface ArtifactUsageRow {
   /** Total distinct sessions observed, including ones no longer retained. */
   readonly sessionTotal: number
   readonly lastAt: string
+  /** Evidence-backed failure classes (code-shaped), bounded and de-duplicated. */
+  readonly failureClasses: readonly string[]
   /** Receipt ids already counted, bounded. */
   readonly receiptIds: readonly string[]
 }
@@ -47,6 +62,8 @@ export interface ArtifactUsageInput {
   readonly digest: string
   readonly sessionId?: string | undefined
   readonly outcome: 'ok' | 'failed'
+  /** A bounded, code-shaped failure class; ignored unless the outcome is failed. */
+  readonly failureClass?: string | undefined
   readonly at?: string | undefined
 }
 
@@ -63,6 +80,8 @@ export interface ArtifactUsageStore {
   readonly issue: string | undefined
   record(input: ArtifactUsageInput): void
   evidence(name: string, digest?: string): PromotionEvidence
+  /** The evidence-backed failure evidence (never model prose). */
+  quality(name: string, digest?: string): ArtifactQualityEvidence
   rows(): readonly ArtifactUsageRow[]
 }
 
@@ -72,6 +91,14 @@ interface UsageDocument {
 }
 
 function empty(): UsageDocument { return { version: 1, rows: [] } }
+
+/** Accept only a bounded, code-shaped identifier: no spaces, no prose. */
+function normalizeFailureClass(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined
+  const trimmed = value.trim()
+  if (trimmed.length === 0 || trimmed.length > MAX_FAILURE_CLASS_LENGTH) return undefined
+  return /^[A-Za-z][A-Za-z0-9_.:-]*$/u.test(trimmed) ? trimmed : undefined
+}
 
 function read(file: string): { document: UsageDocument; issue: string | undefined } {
   if (!existsSync(file)) return { document: empty(), issue: undefined }
@@ -93,6 +120,13 @@ function read(file: string): { document: UsageDocument; issue: string | undefine
         sessions: Array.isArray(row['sessions']) ? row['sessions'].filter((id): id is string => typeof id === 'string') : [],
         sessionTotal: typeof row['sessionTotal'] === 'number' ? row['sessionTotal'] : 0,
         lastAt: typeof row['lastAt'] === 'string' ? row['lastAt'] : new Date(0).toISOString(),
+        failureClasses: Array.isArray(row['failureClasses'])
+          ? row['failureClasses']
+            .filter((value): value is string => typeof value === 'string')
+            .map(value => normalizeFailureClass(value))
+            .filter((value): value is string => value !== undefined)
+            .slice(0, DEFAULT_MAX_FAILURE_CLASSES)
+          : [],
         receiptIds: Array.isArray(row['receiptIds']) ? row['receiptIds'].filter((id): id is string => typeof id === 'string') : [],
       })
     }
@@ -153,6 +187,11 @@ export function createArtifactUsageStore(file: string, options: ArtifactUsageOpt
       const sessionTotal = existing === undefined
         ? (input.sessionId === undefined ? 0 : 1)
         : (input.sessionId !== undefined && !seenSession ? existing.sessionTotal + 1 : existing.sessionTotal)
+      const failureClass = input.outcome === 'failed' ? normalizeFailureClass(input.failureClass) : undefined
+      const existingClasses = existing?.failureClasses ?? []
+      const nextClasses = failureClass !== undefined && !existingClasses.includes(failureClass)
+        ? [...existingClasses, failureClass].slice(-DEFAULT_MAX_FAILURE_CLASSES)
+        : existingClasses
       const next: ArtifactUsageRow = {
         name: input.name,
         digest: input.digest,
@@ -161,6 +200,7 @@ export function createArtifactUsageStore(file: string, options: ArtifactUsageOpt
         sessions: nextSessions,
         sessionTotal,
         lastAt: input.at ?? new Date().toISOString(),
+        failureClasses: nextClasses,
         receiptIds: [...(existing?.receiptIds ?? []), input.receiptId].slice(-maxReceipts),
       }
       const rows = [...document.rows]
@@ -187,6 +227,22 @@ export function createArtifactUsageStore(file: string, options: ArtifactUsageOpt
         failures += row.failures
       }
       return { uses, sessions, failures }
+    },
+    quality(name, digest) {
+      const classes: string[] = []
+      let failures = 0
+      for (const row of document.rows) {
+        if (row.name !== name) continue
+        if (digest !== undefined && row.digest !== digest) continue
+        failures += row.failures
+        for (const failureClass of row.failureClasses) {
+          if (!classes.includes(failureClass)) classes.push(failureClass)
+        }
+      }
+      const bounded = classes.slice(0, DEFAULT_MAX_FAILURE_CLASSES)
+      return failures > 0 && bounded[0] !== undefined
+        ? { failureClasses: bounded, knownFailure: bounded[0] }
+        : { failureClasses: bounded }
     },
     rows() {
       return [...document.rows]
