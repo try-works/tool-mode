@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "rows": [
+    {
+      "name": "agent_assess_due",
+      "digest": "8867b5ce91859f86c4b0675100294dd446597111e5256f6cd9b9767c448e4473",
+      "uses": 10,
+      "failures": 0,
+      "sessions": [
+        "session-0ebfe299-dcbf-4a94-9518-0e6518c530e0",
+        "session-8831cb5b-a4fa-4029-a89c-cac420216ded",
+        "session-6a5a7969-6a42-4011-9b6f-6a8693f709fe",
+        "session-2324182b-92aa-4230-86d6-ee516355fd10",
+        "session-be6989a2-1f52-4ea5-9071-3ce0cbfbc935",
+        "session-7821a34c-4eb0-4470-a717-ae4f4545610a",
+        "session-edeacea4-2419-476a-abb2-2208773b5c2c",
+        "session-6e0ecd3d-4bed-40e2-80ff-16a3b2f6c21e",
+        "session-cda19978-e9b7-455a-ba32-545556c93da1",
+        "session-ed078c33-9f21-42a4-95f2-797e8fc4e7c9"
+      ],
+      "sessionTotal": 10,
+      "lastAt": "2026-11-19T14:09:54.586Z",
+      "failureClasses": [],
+      "receiptIds": [
+        "rcpt_000001",
+        "rcpt_000002",
+        "rcpt_000003",
+        "rcpt_000004",
+        "rcpt_000005",
+        "rcpt_000006",
+        "rcpt_000007",
+        "rcpt_000008",
+        "rcpt_000009",
+        "rcpt_00000a"
+      ]
+    }
+  ]
+}

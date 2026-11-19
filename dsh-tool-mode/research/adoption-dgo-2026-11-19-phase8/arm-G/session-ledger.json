@@ -1,0 +1,225 @@
+{
+  "version": 1,
+  "sessions": {
+    "session-ed078c33-9f21-42a4-95f2-797e8fc4e7c9": {
+      "sessionId": "session-ed078c33-9f21-42a4-95f2-797e8fc4e7c9",
+      "offered": [],
+      "called": {
+        "agent_assess_due": 1
+      },
+      "reach": {
+        "called": {
+          "agent_assess_due": 1
+        },
+        "agents": {
+          "session-ed078c33-9f21-42a4-95f2-797e8fc4e7c9": 1
+        },
+        "total": 1
+      },
+      "authored": 0,
+      "reused": 1,
+      "stepsSaved": null,
+      "arm": "G",
+      "saveOffers": 0,
+      "updatedAt": "2026-11-19T14:09:54.600Z"
+    },
+    "session-cda19978-e9b7-455a-ba32-545556c93da1": {
+      "sessionId": "session-cda19978-e9b7-455a-ba32-545556c93da1",
+      "offered": [],
+      "called": {
+        "agent_assess_due": 1
+      },
+      "reach": {
+        "called": {
+          "agent_assess_due": 1
+        },
+        "agents": {
+          "session-cda19978-e9b7-455a-ba32-545556c93da1": 1
+        },
+        "total": 1
+      },
+      "authored": 0,
+      "reused": 1,
+      "stepsSaved": null,
+      "arm": "G",
+      "saveOffers": 0,
+      "updatedAt": "2026-11-19T14:09:38.605Z"
+    },
+    "session-6e0ecd3d-4bed-40e2-80ff-16a3b2f6c21e": {
+      "sessionId": "session-6e0ecd3d-4bed-40e2-80ff-16a3b2f6c21e",
+      "offered": [],
+      "called": {
+        "agent_assess_due": 1
+      },
+      "reach": {
+        "called": {
+          "agent_assess_due": 1
+        },
+        "agents": {
+          "session-6e0ecd3d-4bed-40e2-80ff-16a3b2f6c21e": 1
+        },
+        "total": 1
+      },
+      "authored": 0,
+      "reused": 1,
+      "stepsSaved": null,
+      "arm": "G",
+      "saveOffers": 0,
+      "updatedAt": "2026-11-19T14:09:23.299Z"
+    },
+    "session-edeacea4-2419-476a-abb2-2208773b5c2c": {
+      "sessionId": "session-edeacea4-2419-476a-abb2-2208773b5c2c",
+      "offered": [],
+      "called": {
+        "agent_assess_due": 1
+      },
+      "reach": {
+        "called": {
+          "agent_assess_due": 1
+        },
+        "agents": {
+          "session-edeacea4-2419-476a-abb2-2208773b5c2c": 1
+        },
+        "total": 1
+      },
+      "authored": 0,
+      "reused": 1,
+      "stepsSaved": null,
+      "arm": "G",
+      "saveOffers": 0,
+      "updatedAt": "2026-11-19T14:09:03.091Z"
+    },
+    "session-7821a34c-4eb0-4470-a717-ae4f4545610a": {
+      "sessionId": "session-7821a34c-4eb0-4470-a717-ae4f4545610a",
+      "offered": [],
+      "called": {
+        "agent_assess_due": 1
+      },
+      "reach": {
+        "called": {
+          "agent_assess_due": 1
+        },
+        "agents": {
+          "session-7821a34c-4eb0-4470-a717-ae4f4545610a": 1
+        },
+        "total": 1
+      },
+      "authored": 0,
+      "reused": 1,
+      "stepsSaved": null,
+      "arm": "G",
+      "saveOffers": 0,
+      "updatedAt": "2026-11-19T14:08:47.270Z"
+    },
+    "session-be6989a2-1f52-4ea5-9071-3ce0cbfbc935": {
+      "sessionId": "session-be6989a2-1f52-4ea5-9071-3ce0cbfbc935",
+      "offered": [],
+      "called": {
+        "agent_assess_due": 1
+      },
+      "reach": {
+        "called": {
+          "agent_assess_due": 1
+        },
+        "agents": {
+          "session-be6989a2-1f52-4ea5-9071-3ce0cbfbc935": 1
+        },
+        "total": 1
+      },
+      "authored": 0,
+      "reused": 1,
+      "stepsSaved": null,
+      "arm": "G",
+      "saveOffers": 0,
+      "updatedAt": "2026-11-19T14:08:31.610Z"
+    },
+    "session-2324182b-92aa-4230-86d6-ee516355fd10": {
+      "sessionId": "session-2324182b-92aa-4230-86d6-ee516355fd10",
+      "offered": [],
+      "called": {
+        "agent_assess_due": 1
+      },
+      "reach": {
+        "called": {
+          "agent_assess_due": 1
+        },
+        "agents": {
+          "session-2324182b-92aa-4230-86d6-ee516355fd10": 1
+        },
+        "total": 1
+      },
+      "authored": 0,
+      "reused": 1,
+      "stepsSaved": null,
+      "arm": "G",
+      "saveOffers": 0,
+      "updatedAt": "2026-11-19T14:08:16.519Z"
+    },
+    "session-6a5a7969-6a42-4011-9b6f-6a8693f709fe": {
+      "sessionId": "session-6a5a7969-6a42-4011-9b6f-6a8693f709fe",
+      "offered": [],
+      "called": {
+        "agent_assess_due": 1
+      },
+      "reach": {
+        "called": {
+          "agent_assess_due": 1
+        },
+        "agents": {
+          "session-6a5a7969-6a42-4011-9b6f-6a8693f709fe": 1
+        },
+        "total": 1
+      },
+      "authored": 0,
+      "reused": 1,
+      "stepsSaved": null,
+      "arm": "G",
+      "saveOffers": 0,
+      "updatedAt": "2026-11-19T14:08:00.356Z"
+    },
+    "session-8831cb5b-a4fa-4029-a89c-cac420216ded": {
+      "sessionId": "session-8831cb5b-a4fa-4029-a89c-cac420216ded",
+      "offered": [],
+      "called": {
+        "agent_assess_due": 1
+      },
+      "reach": {
+        "called": {
+          "agent_assess_due": 1
+        },
+        "agents": {
+          "session-8831cb5b-a4fa-4029-a89c-cac420216ded": 1
+        },
+        "total": 1
+      },
+      "authored": 0,
+      "reused": 1,
+      "stepsSaved": null,
+      "arm": "G",
+      "saveOffers": 0,
+      "updatedAt": "2026-11-19T14:07:41.913Z"
+    },
+    "session-0ebfe299-dcbf-4a94-9518-0e6518c530e0": {
+      "sessionId": "session-0ebfe299-dcbf-4a94-9518-0e6518c530e0",
+      "offered": [],
+      "called": {
+        "agent_assess_due": 1
+      },
+      "reach": {
+        "called": {
+          "agent_assess_due": 1
+        },
+        "agents": {
+          "session-0ebfe299-dcbf-4a94-9518-0e6518c530e0": 1
+        },
+        "total": 1
+      },
+      "authored": 0,
+      "reused": 1,
+      "stepsSaved": null,
+      "arm": "G",
+      "saveOffers": 0,
+      "updatedAt": "2026-11-19T14:07:26.229Z"
+    }
+  }
+}

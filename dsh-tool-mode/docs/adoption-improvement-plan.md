@@ -419,6 +419,19 @@ shown/accepted, first-call latency, digest characters.
 The report must include per-arm reuse, correctness, offers, drafts and the raw ledger
 paths. No results without the files.
 
+## Phase 8 run result (2026-11-19)
+
+The run is recorded in [REPORT.md](../research/adoption-dgo-2026-11-19-phase8/REPORT.md).
+Outcome: 30 real sessions, 10/arm; D/G/O all 10/10 correct and 100% reuse; zero
+offers, zero drafts, zero authored artifacts.
+
+That is a **ceiling effect**, not a framing result. D was not silent: the artifact was
+a registered tool whose name and description matched the task. The pre-registered
+rules fire arithmetically (0 pp lift) but cannot justify dropping either digest mode,
+and the auto-draft/offer levers were not exercised. The shipped `autoDraft` default
+therefore remains **false** (opt-in) until a run with a genuinely hidden artifact and
+a real `tool_mode_run` task set exists. The report records the required design.
+
 ## Verification matrix (every phase)
 
 ```
