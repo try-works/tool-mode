@@ -10,7 +10,9 @@
 
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
+import { ToolCallId } from '@deepseek-ai/dsh-llm'
 
+import { callTool, mountPluginWithTongue } from './helpers.ts'
 import { buildDirectiveDigest } from '../src/library-digest.ts'
 import type { AdoptionDigestCandidate } from '../src/adoption-digest-ranking.ts'
 
@@ -108,5 +110,58 @@ describe('directive digest', () => {
   it('emits no text at all when the flag is off', () => {
     assert.equal(buildDirectiveDigest([candidate({ name: 'flow' })], { enabled: false }), '')
     assert.equal(buildDirectiveDigest([], { enabled: true }), '')
+  })
+})
+describe('prompt-section wiring (Phase 3 in index.ts)', () => {
+  interface PromptService {
+    assemble(): Promise<{ sections: { name: string; text: string }[] }>
+  }
+  const sectionText = async (ctx: Awaited<ReturnType<typeof mountPluginWithTongue>>): Promise<string> => {
+    const service = ctx.get('systemPrompt') as PromptService | undefined
+    assert.ok(service)
+    const assembly = await service.assemble()
+    return assembly.sections.find(section => section.name === 'tool-mode:library')?.text ?? ''
+  }
+
+  it('uses the directive digest: one imperative line with both names and the purpose', async () => {
+    const ctx = await mountPluginWithTongue()
+    await callTool(ctx, 'tool_mode_workflows', {
+      action: 'save', name: 'digest-flow', description: 'Counts languages across a list.',
+      program: 'return 1', scope: 'workspace',
+    })
+    const text = await sectionText(ctx)
+    assert.match(text, /^Use workflow_digest_flow \(stored digest-flow\) — Counts languages across a list\.$/m)
+    assert.equal(text.split('\n').filter(line => line.startsWith('Use ')).length, 1)
+    assert.ok(text.length <= 600, 'length ' + String(text.length))
+  })
+
+  it('documents the limitation: a SESSION artifact never reaches the prompt (no caller)', async () => {
+    const ctx = await mountPluginWithTongue()
+    const saved = await ctx.tools.execute({
+      signal: new AbortController().signal,
+      callId: ToolCallId('digest-session-1'),
+      name: 'tool_mode_workflows',
+      arguments: {
+        action: 'save', name: 'private-flow', description: 'Private session work.',
+        program: 'return 2', scope: 'session',
+      },
+      agent: { id: 'session-private' } as never,
+    } as never)
+    assert.equal(saved.isError, false, JSON.stringify(saved))
+    const text = await sectionText(ctx)
+    assert.doesNotMatch(text, /private-flow|workflow_private_flow/)
+    // Not fake isolation: there is genuinely no caller identity at assembly time.
+    assert.match(text, /^$|^Use /)
+  })
+
+  it('is recomputed per assembly, not frozen at mount', async () => {
+    const ctx = await mountPluginWithTongue()
+    assert.equal(await sectionText(ctx), '')
+    await callTool(ctx, 'tool_mode_workflows', {
+      action: 'save', name: 'later-flow', description: 'Saved after the first assembly.',
+      program: 'return 3', scope: 'workspace',
+    })
+    const text = await sectionText(ctx)
+    assert.match(text, /workflow_later_flow/)
   })
 })

@@ -143,6 +143,8 @@ export const MODEL_TOOLS_SPEC: ModelToolsSpec = {
               },
               /** True for prepared-cold rows: the first call may block on load. */
               cold: { type: 'boolean' },
+              /** Phase 6: what a caller should expect on the first cold call. */
+              firstCall: { type: 'string' },
               toolName: { type: 'string', required: true },
               skill: { type: 'string', required: true },
               runnable: { type: 'boolean', required: true },
@@ -605,6 +607,10 @@ export const MODEL_TOOLS_SPEC: ModelToolsSpec = {
         alreadyReady: { type: 'boolean' },
         /** Set by warm: an explicit warm completed. */
         warmed: { type: 'boolean' },
+        /** Set by enable: whether the optional post-enable prewarm was started. */
+        prewarm: { type: 'string' },
+        /** Set by warm: how many REAL preparations this process started (coalescing evidence). */
+        warmAttempts: { type: 'integer' },
         /** Set by extensions-purge-assets: whether a group directory was removed. */
         purged: { type: 'boolean' },
         /** Set by extensions-license-basis: the recorded permission basis (LIC-03). */

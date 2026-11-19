@@ -48,8 +48,9 @@ import {
 import { ArtifactScopeError, buildScopeContext, type BuiltScopeContext } from './artifact-scope-context.ts'
 import { registerAuthoringTools } from './authoring-surface.ts'
 import { createArtifactUsageStore } from './artifact-usage.ts'
-import { createRepetitionTracker, type RepetitionTracker } from './adoption-candidates.ts'
-import { buildLibraryDigest } from './library-digest.ts'
+import { createRepetitionTracker, type RepetitionCandidate, type RepetitionTracker } from './adoption-candidates.ts'
+import { buildDirectiveDigest } from './library-digest.ts'
+import type { AdoptionDigestCandidate } from './adoption-digest-ranking.ts'
 import { registerRuntimeTools } from './runtime-surface.ts'
 import { createModelToolsControl } from './discovery-surface.ts'
 import { captureDisclosure } from './authoring-quality.ts'
@@ -1244,6 +1245,38 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   let sessionLedger: SessionLedger | undefined
   /** Repetition candidates for the optional save offer (flag default off). */
   let repetitionTracker: RepetitionTracker | undefined
+  /** One repeated-shape offer; bounded and session-scoped (Phase 5). */
+  interface PendingOffer {
+    readonly id: string
+    readonly sessionId: string
+    readonly toolName: string
+    readonly calls: number
+    readonly name: string
+    readonly callableName: string
+    readonly why: string
+    readonly command: { readonly tool: string; readonly arguments: Record<string, unknown> }
+    /** The single bounded line appended to the tool result. */
+    readonly line: string
+    presentations: number
+  }
+  /** Offers waiting for the next tool_mode_list, bounded per process. */
+  const pendingOffers = new Map<string, PendingOffer>()
+  /** Offers OBSERVED as accepted (an equivalent artifact now exists). */
+  let saveOffersAccepted = 0
+  const MAX_PENDING_OFFERS = 5
+  /** How many lists may show an ignored offer before it expires. */
+  const MAX_OFFER_PRESENTATIONS = 3
+  /**
+   * The offer channel's authoring-half, installed only when authoring is enabled.
+   *
+   * The post-execute listener is registered BEFORE the authoring block (it also serves the
+   * session ledger), so it cannot lexically reach the store or the scopes. This seam is
+   * assigned inside that block and read at call time.
+   */
+  let offerSupport: {
+    build(candidate: RepetitionCandidate, sessionId: string, exec: { agent?: unknown }): (PendingOffer & { presentations: number }) | undefined
+    equivalentToolExists(toolName: string, exec: { agent?: unknown }): boolean
+  } | undefined
   /**
    * The session identity on a DSH Agent. The live Agent has `id`; simple hosts and
    * older fixtures used `sessionId`, so both are accepted. Reading only the latter
@@ -3214,6 +3247,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       notifyCatalogChange,
       updateSurface: () => updateSurface,
       prepareAssetsSurface: () => prepareAssetsSurface,
+      prewarmAfterEnable: config.adoption?.prewarmAfterEnable === true,
     })
 
     /**
@@ -3579,7 +3613,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     : undefined
   ctx.on('tools/post-execute' as never, (async (
     exec: { agent?: unknown; name: string; arguments?: unknown },
-    _result: unknown,
+    preResult: {
+      readonly isError?: boolean
+      readonly content?: readonly { type: string; text?: string }[]
+      readonly value?: unknown
+    },
     next: () => Promise<unknown>,
   ) => {
     const sessionId = sessionIdOfAgent(exec.agent)
@@ -3602,12 +3640,44 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       const runId = typeof value === 'object' && value !== null && typeof (value as { runId?: unknown }).runId === 'string'
         ? (value as { runId: string }).runId
         : undefined
-      repetitionTracker.record({
+      const candidate = repetitionTracker.record({
         sessionId,
         toolName: exec.name,
         args: exec.arguments,
         ...runId === undefined ? {} : { runId },
       })
+      /**
+       * PHASE 5: THE OFFER REACHES THE CALLER IN THE RESULT.
+       *
+       * A finished subagent cannot accept a message, so the threshold crossing appends ONE
+       * bounded line to the rendered content (`tools/post-execute` accepts a replacement
+       * content array). The value is untouched, the offer is recorded for the next
+       * `tool_mode_list`, and the tracker returns the candidate only once — so it cannot
+       * repeat. Flag-off leaves this listener out of the offer path entirely.
+       */
+      if (candidate !== undefined && offerSupport !== undefined) {
+        const offer = offerSupport.build(candidate, sessionId, exec)
+        if (offer !== undefined) {
+          pendingOffers.set(offer.id, offer)
+          while (pendingOffers.size > MAX_PENDING_OFFERS) {
+            const oldest = pendingOffers.keys().next().value
+            if (oldest === undefined) break
+            pendingOffers.delete(oldest)
+          }
+          /**
+           * `preResult` is the normalized result BEFORE policy, and it already carries the
+           * definition's rendered content — so appending the offer preserves everything the
+           * tool itself rendered (that is what makes flag-off byte-identical).
+           */
+          const failed = preResult.isError === true
+          if (!failed && Array.isArray(preResult.content)) {
+            return {
+              kind: 'accept',
+              content: [...preResult.content, { type: 'text', text: offer.line }],
+            }
+          }
+        }
+      }
     }
     return result
   }) as never)
@@ -3744,6 +3814,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       cwd: process.cwd(),
       ...scopeSettings.workspaceRoot === 'auto' ? {} : { workspaceRoot: scopeSettings.workspaceRoot },
     })
+    /** The global-scope context: no caller, used for boot-time rows and prompt/offer scans. */
+    const globalScope = buildScopeContext({
+      config: { enabled: true, defaultScope: 'global' },
+      parentOf: () => undefined,
+      cwd: process.cwd(),
+      ...scopeSettings.workspaceRoot === 'auto' ? {} : { workspaceRoot: scopeSettings.workspaceRoot },
+    })
     scopeForAuthoringCaller = scopeFor
     authoredToolVisibleAt = (name, scope) =>
       !authoredToolNames.has(name) || authoringStore.getTool(name, scope.context) !== undefined
@@ -3789,9 +3866,77 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           : { tool: 'tool_mode_tools', arguments: { action: 'from-run', runId } },
       }
     }
+    /**
+     * Whether an artifact already WRAPS this tool (Phase 5 suppression).
+     *
+     * A single-tool wrapper is the artifact the offer would create, so its existence means
+     * the offer is redundant. Scanned across the caller's scope, workspace and global: any
+     * of them is visible to the caller and satisfies the need.
+     */
+    const equivalentToolExists = (toolName: string, exec: { agent?: unknown }): boolean => {
+      for (const context of [scopeFor(exec).context, workspaceScope.context, globalScope.context]) {
+        for (const workflow of authoringStore.listWorkflows(context)) {
+          if (workflow.tools.length === 1 && workflow.tools[0] === toolName) return true
+        }
+        for (const tool of authoringStore.listTools(context)) {
+          if (tool.tools.length === 1 && tool.tools[0] === toolName) return true
+        }
+      }
+      return false
+    }
+    offerSupport = {
+      equivalentToolExists,
+      build(candidate, sessionId, exec) {
+        // The tracker has already flagged this shape as offered; these two checks make the
+        // ONE-shot property independent of that state.
+        if (equivalentToolExists(candidate.toolName, exec)) return undefined
+        if (pendingOffers.has(candidate.id)) return undefined
+        const suggestion = suggestionFor(candidate)
+        // The RESULT line is bounded, so the captured schema stays in the pending record.
+        const compact: Record<string, unknown> = { ...suggestion.command.arguments }
+        delete compact['inputSchema']
+        const line = 'Offer: ' + candidate.toolName + ' repeated ' + String(candidate.calls)
+          + '× with the same shape. Save it once with ' + suggestion.command.tool + ' '
+          + JSON.stringify(compact)
+          + '; the input schema is in tool_mode_list authoring.pendingOffers.'
+        return {
+          id: candidate.id,
+          sessionId,
+          toolName: candidate.toolName,
+          calls: candidate.calls,
+          name: suggestion.name,
+          callableName: suggestion.callableName,
+          why: suggestion.why,
+          command: suggestion.command,
+          line,
+          presentations: 0,
+        }
+      },
+    }
     authoringSnapshot = (exec) => {
       const scope = scopeFor(exec)
       const root = scope.rootSessionId
+      /**
+       * PHASE 5 MAINTENANCE, done where the list is built: an offer whose artifact now exists
+       * is ACCEPTED (counted, cleared); an ignored one is shown a bounded number of times and
+       * then expires. Neither path ever writes a draft.
+       */
+      const sessionKey = root ?? sessionIdOfAgent(exec.agent)
+      const visibleOffers: PendingOffer[] = []
+      for (const offer of pendingOffers.values()) {
+        if (sessionKey === undefined || offer.sessionId !== sessionKey) continue
+        if (equivalentToolExists(offer.toolName, exec)) {
+          pendingOffers.delete(offer.id)
+          saveOffersAccepted += 1
+          continue
+        }
+        offer.presentations += 1
+        if (offer.presentations > MAX_OFFER_PRESENTATIONS) {
+          pendingOffers.delete(offer.id)
+          continue
+        }
+        visibleOffers.push(offer)
+      }
       const pending = root === undefined
         ? []
         : [
@@ -3819,6 +3964,18 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             ? []
             : repetitionTracker.suggestions((scope.rootSessionId ?? sessionIdOfAgent(exec.agent)) as string).map(suggestionFor),
         },
+        /** Phase 5: the offers awaiting the next list (bounded, session-scoped). */
+        pendingOffers: visibleOffers.map(offer => ({
+          id: offer.id,
+          toolName: offer.toolName,
+          calls: offer.calls,
+          name: offer.name,
+          callableName: offer.callableName,
+          why: offer.why,
+          command: offer.command,
+        })),
+        /** Phase 5: offers OBSERVED as accepted in this process. */
+        saveOffersAccepted,
         repeatedShapes: findRepeatedShapes(invocationReceipts),
         scope: {
           enabled: scopingEnabled,
@@ -3835,32 +3992,57 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     }
     if (config.adoption?.digest === true && promptService !== undefined) {
       const order = promptService.getSectionOrder('MCP_SERVERS') + 101
+      /**
+       * The prompt section has NO caller identity: assembly happens before any tool call,
+       * so there is no session to resolve. Session-scope artifacts are therefore INVISIBLE
+       * here (never faked as another caller's), and the digest is limited to workspace and
+       * global rows. That limitation is deliberate and tested.
+       */
+      const digestRows = (): AdoptionDigestCandidate[] => {
+        const seen = new Set<string>()
+        const rows: AdoptionDigestCandidate[] = []
+        const add = (
+          row: { name: string; callableName: string; description: string },
+          scope: 'workspace' | 'global',
+          digest: string,
+        ): void => {
+          if (seen.has(row.callableName)) return
+          seen.add(row.callableName)
+          const evidence = artifactUsage.evidence(row.name, digest)
+          const quality = artifactUsage.quality(row.name, digest)
+          const usage = artifactUsage.rows().find(candidate => candidate.name === row.name && candidate.digest === digest)
+          rows.push({
+            name: row.name,
+            callableName: row.callableName,
+            description: row.description,
+            scope,
+            uses: evidence.uses,
+            failures: evidence.failures,
+            sessions: evidence.sessions,
+            ...usage?.lastAt === undefined ? {} : { lastUsedAt: usage.lastAt },
+            ...quality.knownFailure === undefined ? {} : { knownFailure: quality.knownFailure },
+          })
+        }
+        for (const workflow of authoringStore.listWorkflows(workspaceScope.context)) {
+          add(workflow, 'workspace', workflow.digest)
+        }
+        for (const tool of authoringStore.listTools(workspaceScope.context)) {
+          add(tool, 'workspace', tool.digest)
+        }
+        for (const workflow of authoringStore.listWorkflows(globalScope.context)) {
+          add(workflow, 'global', workflow.digest)
+        }
+        for (const tool of authoringStore.listTools(globalScope.context)) {
+          add(tool, 'global', tool.digest)
+        }
+        return rows
+      }
       ctx.effect(() => promptService.section({
         name: 'tool-mode:library',
         order,
-        text: () => {
-          const rows = [
-            ...authoringStore.listWorkflows(workspaceScope.context).map(workflow => {
-              const evidence = artifactUsage.evidence(workflow.name, workflow.digest)
-              return {
-                name: workflow.name,
-                callableName: workflow.callableName,
-                description: workflow.description,
-                ...evidence,
-              }
-            }),
-            ...authoringStore.listTools(workspaceScope.context).map(tool => {
-              const evidence = artifactUsage.evidence(tool.name, tool.digest)
-              return {
-                name: tool.name,
-                callableName: tool.callableName,
-                description: tool.description,
-                ...evidence,
-              }
-            }),
-          ]
-          return buildLibraryDigest(rows)
-        },
+        text: () => buildDirectiveDigest(digestRows(), {
+          enabled: config.adoption?.digest !== false,
+        }),
       }), 'tool-mode library digest')
     }
     // Root-session end: receive the expired rows BEFORE deleting so the evidence

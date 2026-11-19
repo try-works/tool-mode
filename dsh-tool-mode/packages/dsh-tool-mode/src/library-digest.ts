@@ -111,7 +111,15 @@ export function buildDirectiveDigest(
 
   const callableName = oneLine(top.callableName)
   const purpose = truncate(oneLine(top.description), FRAGMENT_MAX_CHARS)
-  const lines: string[] = [purpose.length === 0 ? 'Use ' + callableName + '.' : 'Use ' + callableName + ' — ' + sentence(purpose)]
+  /**
+   * Name BOTH identities when they differ: the caller invokes `callableName`, but the
+   * stored row is `name`, and the existing neutral section showed both. Dropping the
+   * stored name would make the new digest strictly less useful for lookup.
+   */
+  const stored = top.name === top.callableName ? '' : ' (stored ' + truncate(oneLine(top.name), 60) + ')'
+  const lines: string[] = [purpose.length === 0
+    ? 'Use ' + callableName + stored + '.'
+    : 'Use ' + callableName + stored + ' — ' + sentence(purpose)]
   const knownFailure = top.knownFailure === undefined ? undefined : truncate(oneLine(top.knownFailure), FRAGMENT_MAX_CHARS)
   if (knownFailure !== undefined && knownFailure.length > 0) lines.push('Known failure: ' + sentence(knownFailure))
   if (top.uses >= 5) lines.push(evidenceLine(top))

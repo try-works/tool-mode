@@ -76,6 +76,8 @@ export interface ModelToolsDeps {
   readonly notifyCatalogChange: () => void
   readonly updateSurface: () => UpdateHostSurface | undefined
   readonly prepareAssetsSurface: () => PrepareAssetsSurface | undefined
+  /** Phase 6: warm the model once after a successful enable (adoption.prewarmAfterEnable). */
+  readonly prewarmAfterEnable?: boolean | undefined
 }
 
 /**
@@ -107,6 +109,76 @@ export function createModelToolsControl(deps: ModelToolsDeps) {
   const notifyCatalogChange = deps.notifyCatalogChange
   const updateSurface = deps.updateSurface
   const prepareAssetsSurface = deps.prepareAssetsSurface
+  /**
+   * PHASE 6: FIRST CONTACT.
+   *
+   * Warming is a MODEL-SPECIFIC preparation bounded in time, coalesced by model/extension id,
+   * and cancelled when the plugin tears down. A failure is logged, never thrown into a read
+   * path and never treated as "callable": callability stays a registry fact.
+   */
+  const WARM_TIMEOUT_MS = 30_000
+  let warmAttempts = 0
+  const warmsInFlight = new Map<string, Promise<{ readonly ok: boolean; readonly alreadyReady: boolean; readonly reason?: string }>>()
+  const warmControllers = new Set<AbortController>()
+  ctx.effect(() => () => {
+    for (const controller of warmControllers) controller.abort()
+    warmControllers.clear()
+    warmsInFlight.clear()
+  }, 'model-tools warm teardown')
+  /**
+   * Run one preparation, or join the one already in flight.
+   *
+   * Returns the shared promise and whether this call COALESCED onto it, so a caller can
+   * report that it joined an existing warm instead of starting a second one.
+   */
+  const warmOnce = (
+    id: string,
+    options: { readonly allowExecutable?: boolean } = {},
+  ): { readonly promise: Promise<{ readonly ok: boolean; readonly alreadyReady: boolean; readonly reason?: string }>; readonly coalesced: boolean } => {
+    const existing = warmsInFlight.get(id)
+    if (existing !== undefined) return { promise: existing, coalesced: true }
+    const surface = prepareAssetsSurface()
+    if (surface === undefined) {
+      return {
+        promise: Promise.resolve({ ok: false, alreadyReady: false, reason: 'warm requires the extension store (config.extensionStoreDir); it is not configured' }),
+        coalesced: false,
+      }
+    }
+    warmAttempts += 1
+    const controller = new AbortController()
+    warmControllers.add(controller)
+    const bounded = setTimeout(() => controller.abort(), WARM_TIMEOUT_MS)
+    const promise = (async () => {
+      try {
+        try {
+          const restored = surface.restore(id)
+          if (restored.ok) return { ok: true, alreadyReady: true }
+        } catch {
+          // No restoration plan yet; the prepare below reports the precise reason.
+        }
+        try {
+          const outcome = await surface.prepare(id, {
+            source: config.assetSourceFactory?.() ?? createHttpSource(),
+            allowExecutable: options.allowExecutable === true,
+            signal: controller.signal,
+          })
+          return outcome.ok
+            ? { ok: true, alreadyReady: false }
+            : { ok: false, alreadyReady: false, reason: outcome.reason }
+        } catch (error) {
+          // A THROWING prepare (no plan, aborted signal) is an outcome too: every caller
+          // joining this warm must observe the same reason rather than an unhandled throw.
+          return { ok: false, alreadyReady: false, reason: error instanceof Error ? error.message : String(error) }
+        }
+      } finally {
+        clearTimeout(bounded)
+        warmControllers.delete(controller)
+        warmsInFlight.delete(id)
+      }
+    })()
+    warmsInFlight.set(id, promise)
+    return { promise, coalesced: false }
+  }
   return defineTool({
   ...MODEL_TOOLS_SPEC,
   async execute(args, exec): Promise<never> {
@@ -200,6 +272,13 @@ export function createModelToolsControl(deps: ModelToolsDeps) {
         record !== undefined,
         publishedToolNames.has(publishedName),
       )
+      const provenance = await provenanceOf(item.entry, surface.state === 'callable', publishedSurface)
+      /**
+       * A prepared-cold row is CALLABLE but not WARM: the first call loads the engine and may
+       * exceed the advertised timeout. Saying so up front is what keeps a cold first call
+       * from reading as abandonment; nothing here warms, so list/describe stay read-only.
+       */
+      const cold = provenance.readiness === 'prepared-cold'
       return {
         ...(describeModels([item])[0] as ModelDescriptor),
         state: surface.state,
@@ -208,7 +287,10 @@ export function createModelToolsControl(deps: ModelToolsDeps) {
         /** The catalog's stable tool identity; `tool` is the NAME actually registered. */
         toolName: item.entry.tool.name,
         tool: publishedName,
-        ...await provenanceOf(item.entry, surface.state === 'callable', publishedSurface),
+        ...provenance,
+        ...cold
+          ? { cold: true, firstCall: 'The first call loads the model and may exceed the advertised timeout; retry once before concluding it is unavailable.' }
+          : { cold: false },
         installed: record !== undefined,
         choice: choiceOf(item.entry.id),
       }
@@ -427,12 +509,31 @@ export function createModelToolsControl(deps: ModelToolsDeps) {
       // Only remember a choice that actually took effect: persisting a
       // failed enable would install it silently on the next start.
       const remembered = remember(modelId, action === 'enable')
+      /**
+       * PHASE 6: one bounded prewarm after enable.
+       *
+       * Fire-and-forget with a catch: a slow or failing preparation must not fail the enable,
+       * must not be retried here, and must not claim the model is ready. The failure is LOGGED
+       * and the row keeps its cold marker.
+       */
+      let prewarm: 'started' | 'skipped' | 'unavailable' = 'skipped'
+      if (action === 'enable' && deps.prewarmAfterEnable === true) {
+        const started = warmOnce(item.entry.provider?.extension ?? item.entry.id)
+        prewarm = started.coalesced ? 'started' : 'started'
+        void started.promise.catch(error => {
+          ctx.logger.warn(
+            'model-tools: prewarm after enable failed for ' + modelId + ': '
+            + (error instanceof Error ? error.message : String(error)),
+          )
+        })
+      }
       return {
         models: await snapshot([item]),
         ...counts(),
         changed,
         action,
         persisted: remembered,
+        ...action === 'enable' ? { prewarm } : {},
       } as never
     }
 
@@ -545,26 +646,31 @@ export function createModelToolsControl(deps: ModelToolsDeps) {
     }
 
     if (action === 'warm') {
-      const surface = prepareAssetsSurface()
-      if (surface === undefined) {
+      if (modelId === undefined) throw new Error('warm requires the model id in "model"')
+      if (prepareAssetsSurface() === undefined) {
         throw new Error('warm requires the extension store (config.extensionStoreDir); it is not configured')
       }
-      if (modelId === undefined) throw new Error('warm requires the model id in "model"')
-      try {
-        const restored = surface.restore(modelId)
-        if (restored.ok) {
-          return { models: [], ...counts(), action, warmed: true, alreadyReady: true } as never
-        }
-      } catch {
-        // No plan yet; a real prepare below reports the precise reason.
+      const warm = warmOnce(modelId, { allowExecutable: args.allowExecutable === true })
+      const outcome = await warm.promise
+      if (!outcome.ok) {
+        // The attempt count is diagnostic evidence, not decoration: a coalesced caller must
+        // see the SAME count as the call it joined, which is what proves one attempt ran.
+        throw new Error('the warm preparation failed: ' + (outcome.reason ?? 'unknown reason')
+          + ' (attempts so far: ' + String(warmAttempts) + ')')
       }
-      const outcome = await surface.prepare(modelId, {
-        source: config.assetSourceFactory?.() ?? createHttpSource(),
-        allowExecutable: args.allowExecutable === true,
-        signal: exec?.signal ?? new AbortController().signal,
-      })
-      if (!outcome.ok) throw new Error('the warm preparation failed: ' + outcome.reason)
-      return { models: [], ...counts(), action, warmed: true } as never
+      /**
+       * Resolving `alreadyReady` truthfully matters: a coalesced caller did NOT prepare the
+       * model itself, and the attempts counter is how coalescing is observable at all.
+       */
+      return {
+        models: [],
+        ...counts(),
+        action,
+        warmed: true,
+        ...outcome.alreadyReady || warm.coalesced ? { alreadyReady: true } : {},
+        ...warm.coalesced ? { coalesced: true } : {},
+        warmAttempts,
+      } as never
     }
 
     if (action === 'extensions-prepare-plan' || action === 'extensions-prepare' || action === 'extensions-purge-assets') {
