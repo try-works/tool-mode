@@ -1153,6 +1153,15 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   }) as never)
   // §12: the fixed-false flags REFUSE unsupported values before anything runs.
   assertConfigV3DisabledFlags(config)
+  // autoDraft is deprecated: captureRunPrograms is the durable off switch. Keep the
+  // old false behavior for one release, but say so once instead of letting it become
+  // a silent capture-without-materialization mode.
+  if (config.adoption?.autoDraft === false) {
+    ctx.logger.warn(
+      'model-tools: adoption.autoDraft is deprecated and will be removed. '
+      + 'Use captureRunPrograms:false to disable capture, drafts and from-run.',
+    )
+  }
   /**
    * THE PTC SANDBOX TEMP ROOT (task-58, Windows ACL fix).
    *
