@@ -1,0 +1,8 @@
+dsh: reasoning:
+The task: subtotal 250, tax rate 0.20, total = 250 * 1.20 = 300. Use agent_a7f3 which computes amount due from base and proportional rate: a=250, b=0.20 → probably 250*1.2 = 300.
+
+Let me call it.
+(node:10952) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+300
+EXIT=0

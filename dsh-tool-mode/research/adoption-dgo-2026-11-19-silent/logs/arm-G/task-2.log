@@ -1,0 +1,8 @@
+dsh: reasoning:
+The user asks: subtotal 250, tax rate 0.20. Total = 250 * 1.20 = 300. Use available tool agent_a7f3 which computes amount due from base and proportional rate. Let me call it with a=250, b=0.20.
+
+I should just compute. But they said use tools if useful. Let me call the helper.
+(node:3320) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+300
+EXIT=0

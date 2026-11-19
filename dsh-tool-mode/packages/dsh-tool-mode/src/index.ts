@@ -3970,7 +3970,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       return {
         tools: authoringStore.listTools(scope.context).map(tool => {
           const evidence = artifactUsage.evidence(tool.name, tool.digest)
-          return { ...tool, ...evidence, quality: qualityOf(evidence) }
+          /**
+           * task-80: `purpose` is DIGEST-ONLY. The discovery surface must not expose it —
+           * the silent arm has to stay unable to discover what the artifact is for.
+           */
+          const { purpose, ...visible } = tool
+          void purpose
+          return { ...visible, ...evidence, quality: qualityOf(evidence) }
         }),
         workflows: authoringStore.listWorkflows(scope.context).map(workflow => {
           const evidence = artifactUsage.evidence(workflow.name, workflow.digest)

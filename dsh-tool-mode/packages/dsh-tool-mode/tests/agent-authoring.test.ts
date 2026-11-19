@@ -667,7 +667,28 @@ describe('purpose metadata is digest-only (Phase 8)', () => {
     const row = listed.tools.find(tool => tool.name === 'agent_a7f3')
     assert.ok(row !== undefined)
     assert.equal(row.description, 'A helper.')
-    assert.equal(row.purpose, PURPOSE)
+    /**
+     * THE SILENT-BASELINE CONTRACT (task-80): the STORE keeps purpose (asserted in the
+     * persistence test above), and the DIGEST renders it, but no discovery/authoring response
+     * may expose it — otherwise the silent arm can discover the purpose and the experiment's
+     * ceiling returns.
+     */
+    assert.equal('purpose' in row, false, 'tool_mode_tools list must not return purpose')
+    assert.equal(JSON.stringify(listed).includes(PURPOSE), false, 'purpose must not appear anywhere in list output')
+
+    const got = await callOk(ctx, 'tool_mode_tools', { action: 'get', name: 'agent_a7f3' }) as { tool?: { purpose?: string } }
+    assert.equal(got.tool?.purpose, undefined, 'tool_mode_tools get must not return purpose')
+    assert.equal(JSON.stringify(got).includes(PURPOSE), false, 'purpose must not appear anywhere in get output')
+
+    const discovery = await callOk(ctx, 'tool_mode_list', {}) as {
+      authoring?: { tools?: { name: string; purpose?: string }[] }
+    }
+    const authoringRow = discovery.authoring?.tools?.find(tool => tool.name === 'agent_a7f3')
+    assert.ok(authoringRow !== undefined, 'the authored tool is still listed')
+    assert.equal(authoringRow.purpose, undefined, 'tool_mode_list authoring must not return purpose')
+    assert.equal(JSON.stringify(discovery.authoring).includes(PURPOSE), false,
+      'purpose must not appear anywhere in the tool_mode_list authoring block')
+
     // THE POINT: purpose must never become the callable tool's description.
     const schema = ctx.tools.schemas().find(candidate => candidate.name === 'agent_a7f3')
     assert.ok(schema !== undefined)

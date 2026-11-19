@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "rows": [
+    {
+      "name": "agent_a7f3",
+      "digest": "66e4b164a7c9f78f9b2490268a4bef579fbba1fe0b3f49e184393184ea8c1bb6",
+      "uses": 1,
+      "failures": 0,
+      "sessions": [
+        "session-c2313012-948a-47f7-bdc2-331c88179f3d"
+      ],
+      "sessionTotal": 1,
+      "lastAt": "2026-11-19T15:30:37.337Z",
+      "failureClasses": [],
+      "receiptIds": [
+        "rcpt_000001"
+      ]
+    }
+  ]
+}

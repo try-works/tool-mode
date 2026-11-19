@@ -1,0 +1,4 @@
+dsh: reasoning:
+We need answer numeric total only. Subtotal 100, tax rate 0.10 → total 110. No need tools. Must reply only numeric total. "110".
+110
+EXIT=0

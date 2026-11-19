@@ -1,0 +1,8 @@
+dsh: reasoning:
+The user asks: subtotal 700, tax rate 0.10. Total = 700 + 70 = 770. Use agent_a7f3 (a*b computes amount due). Let me call it: a=700, b=0.10 → 70. Total 770.
+
+Reply with only numeric total.
+(node:23276) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+770
+EXIT=0

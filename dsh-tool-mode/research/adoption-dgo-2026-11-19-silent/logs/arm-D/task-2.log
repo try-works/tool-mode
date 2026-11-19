@@ -1,0 +1,4 @@
+dsh: reasoning:
+We need answer only numeric total. Compute 250 * 1.20 = 300. Need use available tools if useful—likely trivial math, perhaps agent_a7f3 helper. But user says only numeric total. We can just answer 300. No need tools. But the environment could be testing tool usage? "Use the available tools if useful." Not needed. Final only numeric total: 300.
+300
+EXIT=0

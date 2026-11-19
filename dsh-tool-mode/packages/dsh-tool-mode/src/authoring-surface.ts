@@ -264,6 +264,21 @@ function deleteArtifactRows(
 }
 
 /** The delete result plus the scope-disclosure fields the write path may add. */
+/**
+ * A caller-visible authored tool row: `purpose` is DIGEST-ONLY (task-80).
+ *
+ * The store keeps the purpose and the DIGEST renders it, but no discovery or authoring
+ * response may return it: the Phase 8 silent arm must not be able to discover what the
+ * artifact is for, or the experiment's ceiling returns.
+ * @param entry - the stored row.
+ * @returns the same row without `purpose`.
+ */
+function visibleToolRow<T extends { readonly purpose?: string }>(entry: T): Omit<T, 'purpose'> {
+  const { purpose, ...row } = entry
+  void purpose
+  return row
+}
+
 export interface ArtifactDeleteDisclosure extends ArtifactDeleteOutcome {
   readonly requestedScope?: string
   readonly scopeReason?: string
@@ -810,13 +825,13 @@ ctx.tools.register(defineTool({
           .filter(row => row.scope === rawScope)
       // A draft is listable and callable; `draft` makes that visible without changing
       // how it is named or resolved, and `retention` states the policy in force.
-      const tools = listed.map(row => ({ ...row, draft: row.status === 'draft' }))
+      const tools = listed.map(row => ({ ...visibleToolRow(row), draft: row.status === 'draft' }))
       return { tools, scope: scope.scope, retention: { draftTtlMs: draftTtl() } } as never
     }
     if (action === 'get') {
       const entry = authoringStore.getTool(nameOrId, scope.context)
       if (entry === undefined) throw new Error('unknown authored tool "' + nameOrId + '"; list the tools to see what exists')
-      return { tool: entry, scope: entry.scope } as never
+      return { tool: visibleToolRow(entry), scope: entry.scope } as never
     }
     if (action === 'delete') {
       const callerScope = scopeFor(exec)
@@ -861,7 +876,8 @@ ctx.tools.register(defineTool({
         authoringLedger.record({
           operation: 'demote', artifactKind: 'tool', name: entry.name, version: entry.version, scope: entry.scope,
         })
-        return { demoted: true, tool: authoringStore.getTool(nameOrId, scope.context) ?? null } as never
+        const demoted = authoringStore.getTool(nameOrId, scope.context)
+        return { demoted: true, tool: demoted === undefined ? null : visibleToolRow(demoted) } as never
       }
       const to = typeof request['to'] === 'string' ? request['to'] : ''
       const target = scopeFor(exec, to)
@@ -902,7 +918,7 @@ ctx.tools.register(defineTool({
         sessions: decision.evidence.sessions,
         promotedFrom: promoted.tool.promotedFrom,
       })
-      return { promoted: true, tool: promoted.tool, evidence: decision.evidence } as never
+      return { promoted: true, tool: visibleToolRow(promoted.tool), evidence: decision.evidence } as never
     }
     throw new Error('unknown action "' + String(action) + '"; expected define, clone, from-run, list, get, delete, promote or demote')
   },

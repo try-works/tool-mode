@@ -1,0 +1,6 @@
+dsh: reasoning:
+We need answer only numeric total. Compute 5000 * 1.0825 = 5412.5. Need use tools if useful. Simple calculation, but there's an agent tool weird. Could use decision? No. Just arithmetic. Reply only numeric total: 5412.5.
+
+Need ensure no extra.
+5412.5
+EXIT=0

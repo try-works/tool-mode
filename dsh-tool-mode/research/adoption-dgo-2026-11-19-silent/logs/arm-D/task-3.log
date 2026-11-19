@@ -1,0 +1,4 @@
+dsh: reasoning:
+We need answer only numeric total. Compute 99.95 * 1.05 = 104.9475. Need decide rounding? Invoice typically round to cents: 104.95. Question vague "What is the total?" Only numeric. 99.95 + 4.9975 = 104.9475. Could expect 104.95. Need maybe use calculator tool? Available agent_a7f3 adds numbers only. We can manually. Reply only numeric total. Which numeric? Probably 104.95. Let's think. If tax rate 0.05, total = 99.95*(1.05)=104.9475, rounds to 104.95 (currency). User says numeric total, likely expects 104.95. Reply only "104.95".
+104.95
+EXIT=0

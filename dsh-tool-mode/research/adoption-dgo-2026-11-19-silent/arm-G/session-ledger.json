@@ -1,8 +1,8 @@
 {
   "version": 1,
   "sessions": {
-    "session-bea9fa52-4c30-48cc-a001-25e4d83e522b": {
-      "sessionId": "session-bea9fa52-4c30-48cc-a001-25e4d83e522b",
+    "session-9cab7839-0650-4d71-9ff1-4454e9ef93dd": {
+      "sessionId": "session-9cab7839-0650-4d71-9ff1-4454e9ef93dd",
       "offered": [],
       "called": {
         "agent_a7f3": 1
@@ -12,7 +12,7 @@
           "agent_a7f3": 1
         },
         "agents": {
-          "session-bea9fa52-4c30-48cc-a001-25e4d83e522b": 1
+          "session-9cab7839-0650-4d71-9ff1-4454e9ef93dd": 1
         },
         "total": 1
       },
@@ -21,10 +21,10 @@
       "stepsSaved": null,
       "arm": "G",
       "saveOffers": 0,
-      "updatedAt": "2026-11-19T14:49:54.627Z"
+      "updatedAt": "2026-11-19T15:34:08.398Z"
     },
-    "session-93055fe3-0d64-4c57-8359-2a13676eb415": {
-      "sessionId": "session-93055fe3-0d64-4c57-8359-2a13676eb415",
+    "session-983405ec-5202-422e-b0f3-71be3c1a5004": {
+      "sessionId": "session-983405ec-5202-422e-b0f3-71be3c1a5004",
       "offered": [],
       "called": {
         "agent_a7f3": 1
@@ -34,7 +34,7 @@
           "agent_a7f3": 1
         },
         "agents": {
-          "session-93055fe3-0d64-4c57-8359-2a13676eb415": 1
+          "session-983405ec-5202-422e-b0f3-71be3c1a5004": 1
         },
         "total": 1
       },
@@ -43,10 +43,10 @@
       "stepsSaved": null,
       "arm": "G",
       "saveOffers": 0,
-      "updatedAt": "2026-11-19T14:49:42.148Z"
+      "updatedAt": "2026-11-19T15:33:52.234Z"
     },
-    "session-a2f31db4-0bc0-4b80-99a7-1287fdac937d": {
-      "sessionId": "session-a2f31db4-0bc0-4b80-99a7-1287fdac937d",
+    "session-b094ca59-e3ae-473c-a2f2-317a74a32791": {
+      "sessionId": "session-b094ca59-e3ae-473c-a2f2-317a74a32791",
       "offered": [],
       "called": {
         "agent_a7f3": 1
@@ -56,7 +56,7 @@
           "agent_a7f3": 1
         },
         "agents": {
-          "session-a2f31db4-0bc0-4b80-99a7-1287fdac937d": 1
+          "session-b094ca59-e3ae-473c-a2f2-317a74a32791": 1
         },
         "total": 1
       },
@@ -65,10 +65,10 @@
       "stepsSaved": null,
       "arm": "G",
       "saveOffers": 0,
-      "updatedAt": "2026-11-19T14:49:25.675Z"
+      "updatedAt": "2026-11-19T15:33:35.372Z"
     },
-    "session-c0676958-9f52-432f-92b3-80d8b38fea20": {
-      "sessionId": "session-c0676958-9f52-432f-92b3-80d8b38fea20",
+    "session-d415c9ee-cfbe-44cb-8f91-43132028f213": {
+      "sessionId": "session-d415c9ee-cfbe-44cb-8f91-43132028f213",
       "offered": [],
       "called": {
         "agent_a7f3": 1
@@ -78,7 +78,7 @@
           "agent_a7f3": 1
         },
         "agents": {
-          "session-c0676958-9f52-432f-92b3-80d8b38fea20": 1
+          "session-d415c9ee-cfbe-44cb-8f91-43132028f213": 1
         },
         "total": 1
       },
@@ -87,10 +87,10 @@
       "stepsSaved": null,
       "arm": "G",
       "saveOffers": 0,
-      "updatedAt": "2026-11-19T14:49:05.195Z"
+      "updatedAt": "2026-11-19T15:33:17.918Z"
     },
-    "session-7fd8f465-db04-48e1-99b8-adab6f392a0c": {
-      "sessionId": "session-7fd8f465-db04-48e1-99b8-adab6f392a0c",
+    "session-e9b079b0-ba87-4a59-8b2d-444572872e21": {
+      "sessionId": "session-e9b079b0-ba87-4a59-8b2d-444572872e21",
       "offered": [],
       "called": {
         "agent_a7f3": 1
@@ -100,7 +100,7 @@
           "agent_a7f3": 1
         },
         "agents": {
-          "session-7fd8f465-db04-48e1-99b8-adab6f392a0c": 1
+          "session-e9b079b0-ba87-4a59-8b2d-444572872e21": 1
         },
         "total": 1
       },
@@ -109,10 +109,10 @@
       "stepsSaved": null,
       "arm": "G",
       "saveOffers": 0,
-      "updatedAt": "2026-11-19T14:48:48.038Z"
+      "updatedAt": "2026-11-19T15:32:58.929Z"
     },
-    "session-2f909be9-d63a-4ac4-aa8b-a438bb302303": {
-      "sessionId": "session-2f909be9-d63a-4ac4-aa8b-a438bb302303",
+    "session-8f73c079-8000-4d41-ad50-6e08a04ff0d5": {
+      "sessionId": "session-8f73c079-8000-4d41-ad50-6e08a04ff0d5",
       "offered": [],
       "called": {
         "agent_a7f3": 1
@@ -122,7 +122,7 @@
           "agent_a7f3": 1
         },
         "agents": {
-          "session-2f909be9-d63a-4ac4-aa8b-a438bb302303": 1
+          "session-8f73c079-8000-4d41-ad50-6e08a04ff0d5": 1
         },
         "total": 1
       },
@@ -131,10 +131,10 @@
       "stepsSaved": null,
       "arm": "G",
       "saveOffers": 0,
-      "updatedAt": "2026-11-19T14:48:30.824Z"
+      "updatedAt": "2026-11-19T15:32:43.242Z"
     },
-    "session-3d04bd02-0966-484c-b65a-0eee43f44c72": {
-      "sessionId": "session-3d04bd02-0966-484c-b65a-0eee43f44c72",
+    "session-6df85229-2cf2-4b19-96d7-a6d8c352d42b": {
+      "sessionId": "session-6df85229-2cf2-4b19-96d7-a6d8c352d42b",
       "offered": [],
       "called": {
         "agent_a7f3": 1
@@ -144,7 +144,7 @@
           "agent_a7f3": 1
         },
         "agents": {
-          "session-3d04bd02-0966-484c-b65a-0eee43f44c72": 1
+          "session-6df85229-2cf2-4b19-96d7-a6d8c352d42b": 1
         },
         "total": 1
       },
@@ -153,10 +153,10 @@
       "stepsSaved": null,
       "arm": "G",
       "saveOffers": 0,
-      "updatedAt": "2026-11-19T14:48:17.172Z"
+      "updatedAt": "2026-11-19T15:32:28.088Z"
     },
-    "session-bcdad224-65ba-4795-988e-19e0677a2cef": {
-      "sessionId": "session-bcdad224-65ba-4795-988e-19e0677a2cef",
+    "session-873130ec-8b27-4e25-baa4-ee197c2506f6": {
+      "sessionId": "session-873130ec-8b27-4e25-baa4-ee197c2506f6",
       "offered": [],
       "called": {
         "agent_a7f3": 1
@@ -166,7 +166,7 @@
           "agent_a7f3": 1
         },
         "agents": {
-          "session-bcdad224-65ba-4795-988e-19e0677a2cef": 1
+          "session-873130ec-8b27-4e25-baa4-ee197c2506f6": 1
         },
         "total": 1
       },
@@ -175,10 +175,10 @@
       "stepsSaved": null,
       "arm": "G",
       "saveOffers": 0,
-      "updatedAt": "2026-11-19T14:48:02.579Z"
+      "updatedAt": "2026-11-19T15:32:11.636Z"
     },
-    "session-a3a8a862-43db-4af1-ab7e-4da1b9a88e4a": {
-      "sessionId": "session-a3a8a862-43db-4af1-ab7e-4da1b9a88e4a",
+    "session-0394816f-5f78-45cf-99df-8f37d5f69f3b": {
+      "sessionId": "session-0394816f-5f78-45cf-99df-8f37d5f69f3b",
       "offered": [],
       "called": {
         "agent_a7f3": 1
@@ -188,7 +188,7 @@
           "agent_a7f3": 1
         },
         "agents": {
-          "session-a3a8a862-43db-4af1-ab7e-4da1b9a88e4a": 1
+          "session-0394816f-5f78-45cf-99df-8f37d5f69f3b": 1
         },
         "total": 1
       },
@@ -197,10 +197,10 @@
       "stepsSaved": null,
       "arm": "G",
       "saveOffers": 0,
-      "updatedAt": "2026-11-19T14:47:44.215Z"
+      "updatedAt": "2026-11-19T15:31:57.058Z"
     },
-    "session-bb499625-e6fa-4082-9911-b486c18f72d3": {
-      "sessionId": "session-bb499625-e6fa-4082-9911-b486c18f72d3",
+    "session-209dea20-b832-42e1-a369-0953c923f97a": {
+      "sessionId": "session-209dea20-b832-42e1-a369-0953c923f97a",
       "offered": [],
       "called": {
         "agent_a7f3": 1
@@ -210,7 +210,7 @@
           "agent_a7f3": 1
         },
         "agents": {
-          "session-bb499625-e6fa-4082-9911-b486c18f72d3": 1
+          "session-209dea20-b832-42e1-a369-0953c923f97a": 1
         },
         "total": 1
       },
@@ -219,7 +219,7 @@
       "stepsSaved": null,
       "arm": "G",
       "saveOffers": 0,
-      "updatedAt": "2026-11-19T14:47:29.049Z"
+      "updatedAt": "2026-11-19T15:31:39.943Z"
     }
   }
 }

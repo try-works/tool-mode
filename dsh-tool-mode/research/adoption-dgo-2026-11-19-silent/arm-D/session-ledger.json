@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "sessions": {
+    "session-cce56aed-9967-4079-b9cd-e51bce30c751": {
+      "sessionId": "session-cce56aed-9967-4079-b9cd-e51bce30c751",
+      "offered": [],
+      "called": {
+        "pwsh": 1
+      },
+      "reach": {
+        "called": {
+          "pwsh": 1
+        },
+        "agents": {
+          "session-cce56aed-9967-4079-b9cd-e51bce30c751": 1
+        },
+        "total": 1
+      },
+      "authored": 0,
+      "reused": 0,
+      "stepsSaved": null,
+      "arm": "D",
+      "saveOffers": 0,
+      "updatedAt": "2026-11-19T15:31:21.494Z"
+    },
+    "session-c2313012-948a-47f7-bdc2-331c88179f3d": {
+      "sessionId": "session-c2313012-948a-47f7-bdc2-331c88179f3d",
+      "offered": [],
+      "called": {
+        "agent_a7f3": 1
+      },
+      "reach": {
+        "called": {
+          "agent_a7f3": 1
+        },
+        "agents": {
+          "session-c2313012-948a-47f7-bdc2-331c88179f3d": 1
+        },
+        "total": 1
+      },
+      "authored": 0,
+      "reused": 1,
+      "stepsSaved": null,
+      "arm": "D",
+      "saveOffers": 0,
+      "updatedAt": "2026-11-19T15:30:37.349Z"
+    }
+  }
+}

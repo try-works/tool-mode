@@ -4,68 +4,74 @@ Status: **valid silent result.** D had no usable signposting, G had the neutral 
 had the directive. No result was simulated.
 
 Thirty real headless sessions were run (10 per arm) on the local build at
-`5ed7569` + the auto-draft default flip. All 30 answers were correct.
+`3ac8df3` + the purpose-surface fix. All 30 answers were correct within one cent.
 
 ## The silent artifact
 
 - Name: `agent_a7f3`
 - Published description: `A helper.`
-- Purpose (digest-only, never a tool description): "Computes the amount due from a base
-  and a proportional rate. Arguments: a is the base amount, b is the rate."
+- Purpose (digest-only): "Computes the amount due from a base and a proportional rate.
+  Arguments: a is the base amount, b is the rate."
 - Input schema: opaque names `a` and `b`.
+- The purpose is **not** returned by `tool_mode_tools list/get`,
+  `tool_mode_list`'s authoring block, promote or demote. It reaches only the digest.
 - D sees the opaque name, description and `a`/`b`; no digest.
 - G sees the neutral list, including the purpose.
 - O sees the imperative line and the purpose.
 
-The purpose field is the only reason this run is silent. Without it, the tool's own
-description told D what it did (the earlier ceiling).
-
 ## Results
 
-| Arm | Sessions | Tool-calling sessions | Calls | Reuse rate | Correct | Offers | Drafts |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| D | 10 | **0** | 0 | **0.000** | 10/10 | 0 | 0 |
-| G | 10 | 10 | 10 | **1.000** | 10/10 | 0 | 0 |
-| O | 10 | 10 | 10 | **1.000** | 10/10 | 0 | 0 |
+| Arm | Sessions | Sessions with artifact use | Artifact calls | Session reuse | Correct within 1 cent | Exact cents |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| D | 10 | **1** | 1 | **10%** | 10/10 | 9/10 |
+| G | 10 | 10 | 10 | **100%** | 10/10 | 10/10 |
+| O | 10 | 10 | 10 | **100%** | 10/10 | 10/10 |
 
-D sessions answered by hand; one representative reasoning: "Simple: 100 * 1.10 = 110.
-No tools needed." G and O both discovered and called `agent_a7f3`.
+D made one extra `pwsh` call in a different session; it never called the artifact in
+that session. The artifact call rate is 1/10 sessions; the report script's call-level
+`reuseRate` for D is 0.5 (1 reused of 2 total calls), which is not the session metric.
 
-D has no session-ledger row because it made no tool call; the absence is the measurement,
-not a missing file.
+D's one artifact session is the only non-silent event: a solver guessed that
+`agent_a7f3` with `a`/`b` might compute the total. The other nine answered by hand.
+G and O called it in every session.
+
+D's ninth answer was `52.325` (mathematically correct, not rounded to cents); G and O
+returned `52.33`. That is why D is 9/10 exact cents but 10/10 within one cent.
 
 ## Kill rules
 
-- **G vs D: +100 percentage points.** The neutral digest clears the 10-point bar. Keep it.
-- **O vs D: +100 points.** The directive clears the bar against no signposting.
+- **G vs D: +90 percentage points** (100% vs 10%). The neutral digest clears the
+  10-point bar. Keep it.
+- **O vs D: +90 points.** The directive clears the bar against no signposting.
 - **O vs G: 0 points.** With one artifact and a purpose-bearing neutral list, the
   imperative adds no measured lift. This run supports the neutral list as sufficient for
   a single artifact; it does not show the directive is harmful.
 - **Offer:** not exercised; no session made three identical calls.
-- **Auto-draft:** not exercised; no session called `tool_mode_run`. Its functional gate is
-  the suite, not this adoption run. The shipped default was flipped to true only after
-  that suite passed; this report does not claim an adoption lift for it.
-- **Correctness:** 10/10 in every arm.
+- **Auto-draft:** not exercised; no session called `tool_mode_run`. Its functional suite
+  is green and the shipped default is true; this run claims no adoption lift for it.
+- **Correctness:** no regression; D's one unrounded answer is recorded above.
 
 ## Interpretation
 
-The digest is the lever: 0/10 without it, 10/10 with either form. The purpose metadata is
-what makes a silent artifact discoverable without publishing the purpose in the tool
-schema. The directive and neutral forms tie on a one-artifact task; a multi-artifact or
-distractor task is needed to test whether the imperative improves selection.
+The digest is the lever: 10% without it, 100% with either form. Hiding the purpose from
+every non-digest surface is what makes D silent. The directive and neutral forms tie on a
+one-artifact task; a multi-artifact or distractor task is needed to test whether the
+imperative improves selection.
 
 ## Evidence
 
-- `arm-D/` (no ledger — zero calls), `arm-G/`, `arm-O/`
-- `task-results.json`
-- `arm-D.yml`, `arm-G.yml`, `arm-O.yml`, `run.ps1`
+- `arm-D/` (ledger with one `agent_a7f3` call, one `pwsh` call), `arm-G/`, `arm-O/`
+- `task-results.json` — expected, answer, within-cent and exact-cents per task
+- `logs/` — all 30 raw task logs
+- `seed-agent_a7f3.json` — the exact artifact
+- `prompts.txt`, `arm-D.yml`, `arm-G.yml`, `arm-O.yml`, `run.ps1`
 
-The previous ceiling run remains at `research/adoption-dgo-2026-11-19-phase8/`; this
-report supersedes it as the Phase 8 result.
+The previous visible-tool ceiling is retained at
+`research/adoption-dgo-2026-11-19-phase8/`; this report supersedes it as the Phase 8
+result.
 
 ## Harness
 
 The sessions ran with the isolated headless profile and
-`DSH_PERMISSION_MODE=danger-full-access`. The `config-editor` warning from the previous
-run was repaired before this run; the remaining activation warning does not affect
-Tool Mode.
+`DSH_PERMISSION_MODE=danger-full-access`. The previous `config-editor` warning was
+repaired; it did not affect Tool Mode.

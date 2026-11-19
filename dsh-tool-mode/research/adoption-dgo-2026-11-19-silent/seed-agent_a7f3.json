@@ -1,0 +1,35 @@
+{
+  "version": 2,
+  "workflows": [],
+  "tools": [
+    {
+      "id": "tool_a7f3",
+      "name": "agent_a7f3",
+      "description": "A helper.",
+      "purpose": "Computes the amount due from a base and a proportional rate. Arguments: a is the base amount, b is the rate.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "a": {
+            "type": "number"
+          },
+          "b": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "a",
+          "b"
+        ]
+      },
+      "program": "const fee = Math.round(input.a * input.b * 100) / 100; return { due: Math.round((input.a + fee) * 100) / 100 }",
+      "tools": [],
+      "version": 1,
+      "createdAt": "2026-11-19T14:43:32.280Z",
+      "updatedAt": "2026-11-19T14:43:32.280Z",
+      "scope": "global",
+      "scopeKey": "host",
+      "digest": "66e4b164a7c9f78f9b2490268a4bef579fbba1fe0b3f49e184393184ea8c1bb6"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+dsh: reasoning:
+We need answer numeric total only. Compute 1200 * 1.0825 = 1299. Yes. But instruction says use available tools if useful. Could use calculator via pwsh or tool_mode. But likely just answer. They want only numeric total. Compute: 1200*0.0825=99, total 1299.
+
+We should reply only "1299". No tool needed.
+1299
+EXIT=0

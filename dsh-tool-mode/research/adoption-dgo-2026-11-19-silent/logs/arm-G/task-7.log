@@ -1,0 +1,6 @@
+dsh: reasoning:
+We need answer numeric total only. Compute 310.25 * 1.20. 310.25*0.2=62.05, +310.25=372.30. Use tool agent_a7f3 maybe. It's available. Could just compute. The instruction says use tools if useful. Agent helper exists. Let's call to ensure. But the helper likely computes a*b? Need call with a=310.25 b=0.20 maybe returns tax? Description "Computes the amount due from a base and a proportional rate." Hmm maybe returns total? Let's call. Reply only numeric total.
+(node:26908) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+372.30
+EXIT=0

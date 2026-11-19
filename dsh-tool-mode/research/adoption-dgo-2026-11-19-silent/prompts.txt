@@ -1,0 +1,10 @@
+A customer invoice has a subtotal of 100 and a tax rate of 0.10. What is the total? Use the available tools if useful. Reply with only the numeric total.
+A customer invoice has a subtotal of 250 and a tax rate of 0.20. What is the total? Use the available tools if useful. Reply with only the numeric total.
+A customer invoice has a subtotal of 99.95 and a tax rate of 0.05. What is the total? Use the available tools if useful. Reply with only the numeric total.
+A customer invoice has a subtotal of 1200 and a tax rate of 0.0825. What is the total? Use the available tools if useful. Reply with only the numeric total.
+A customer invoice has a subtotal of 45.50 and a tax rate of 0.15. What is the total? Use the available tools if useful. Reply with only the numeric total.
+A customer invoice has a subtotal of 700 and a tax rate of 0.10. What is the total? Use the available tools if useful. Reply with only the numeric total.
+A customer invoice has a subtotal of 310.25 and a tax rate of 0.20. What is the total? Use the available tools if useful. Reply with only the numeric total.
+A customer invoice has a subtotal of 88.80 and a tax rate of 0.05. What is the total? Use the available tools if useful. Reply with only the numeric total.
+A customer invoice has a subtotal of 5000 and a tax rate of 0.0825. What is the total? Use the available tools if useful. Reply with only the numeric total.
+A customer invoice has a subtotal of 64.99 and a tax rate of 0.15. What is the total? Use the available tools if useful. Reply with only the numeric total.

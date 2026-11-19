@@ -1,0 +1,6 @@
+dsh: reasoning:
+We need answer numeric total. Subtotal 100, tax rate 0.10 => total 110. Use agent_a7f3 computes amount due from base and proportional rate. Let's call with a=100, b=0.10.
+(node:2732) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+110
+EXIT=0
