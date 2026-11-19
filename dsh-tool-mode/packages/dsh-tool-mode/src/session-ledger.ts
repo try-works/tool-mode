@@ -17,6 +17,29 @@ import { dirname } from 'node:path'
 /** Most sessions retained. */
 export const MAX_SESSION_LEDGERS = 200
 
+/** Most distinct tool names retained in one root session's reach. */
+export const MAX_REACH_TOOLS = 100
+
+/** Most distinct agent session ids retained in one root session's reach. */
+export const MAX_REACH_AGENTS = 50
+
+/**
+ * The ROOT session's tree reach (task-65).
+ *
+ * `called` is the UNION of the root's own calls and every subagent's calls, so "looked
+ * and declined" and "never looked" are different observations. `agents` counts each
+ * agent's calls separately. Names and counts only: no arguments, no results, so a child
+ * cannot leak caller content into the root's record.
+ */
+export interface SessionReach {
+  /** Calls by tool name across the tree, bounded. */
+  readonly called: Record<string, number>
+  /** Calls per participating agent session id (children keyed by their LEAF id). */
+  readonly agents: Record<string, number>
+  /** Total calls recorded in the tree (not bounded by the name map size). */
+  readonly total: number
+}
+
 /** One session's adoption counters. */
 export interface SessionAdoption {
   readonly sessionId: string
@@ -24,6 +47,8 @@ export interface SessionAdoption {
   readonly offered: string[]
   /** Calls by tool name, bounded. */
   readonly called: Record<string, number>
+  /** The ROOT session's tree reach: union of the root and its subagents, names only. */
+  readonly reach: SessionReach
   /** Artifacts authored in this session. */
   authored: number
   /** Calls to an authored tool or workflow (reuse). */
@@ -43,6 +68,15 @@ export interface SessionLedger {
   readonly issue: string | undefined
   offered(sessionId: string, names: readonly string[]): void
   called(sessionId: string, name: string): void
+  /**
+   * Record one call into the ROOT session's tree reach (task-65).
+   * @param rootSessionId - the root session whose row carries the tree.
+   * @param agentSessionId - the LEAF agent that made the call (root or subagent).
+   * @param name - the tool name; arguments are never recorded.
+   */
+  treeCalled(rootSessionId: string, agentSessionId: string, name: string): void
+  /** Remove one session's ledger row entirely (root-session disposal). */
+  forget(sessionId: string): void
   authored(sessionId: string): void
   /** Record the experiment arm once; later calls are idempotent. */
   markArm(sessionId: string, arm: string): void
@@ -60,6 +94,34 @@ function empty(): LedgerDocument { return { version: 1, sessions: {} } }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+/**
+ * Read one persisted reach object, or the empty shape when it is absent/malformed.
+ * A pre-task-65 ledger has no `reach`; that is an absent measurement, never a zero
+ * claim, and the row still loads.
+ * @param raw - the untrusted stored value.
+ * @returns the validated reach.
+ */
+function readReach(raw: unknown): SessionReach {
+  if (!isRecord(raw)) return { called: {}, agents: {}, total: 0 }
+  const called: Record<string, number> = {}
+  if (isRecord(raw['called'])) {
+    for (const [name, count] of Object.entries(raw['called'])) {
+      if (typeof count === 'number' && Number.isFinite(count) && count >= 0) called[name] = count
+    }
+  }
+  const agents: Record<string, number> = {}
+  if (isRecord(raw['agents'])) {
+    for (const [agent, count] of Object.entries(raw['agents'])) {
+      if (typeof count === 'number' && Number.isFinite(count) && count >= 0) agents[agent] = count
+    }
+  }
+  return {
+    called,
+    agents,
+    total: typeof raw['total'] === 'number' && raw['total'] >= 0 ? raw['total'] : 0,
+  }
 }
 
 function read(file: string): { document: LedgerDocument; issue: string | undefined } {
@@ -80,6 +142,7 @@ function read(file: string): { document: LedgerDocument; issue: string | undefin
         sessionId: id,
         offered: row['offered'].filter((name): name is string => typeof name === 'string').slice(0, 200),
         called,
+        reach: readReach(row['reach']),
         authored: typeof row['authored'] === 'number' ? row['authored'] : 0,
         reused: typeof row['reused'] === 'number' ? row['reused'] : 0,
         stepsSaved: null,
@@ -118,8 +181,8 @@ export function createSessionLedger(options: { readonly file: string }): Session
     if (sessionId.length === 0) return
     const now = new Date().toISOString()
     const current = sessions[sessionId] ?? {
-      sessionId, offered: [], called: {}, authored: 0, reused: 0, stepsSaved: null,
-      arm: null, saveOffers: 0, updatedAt: now,
+      sessionId, offered: [], called: {}, reach: { called: {}, agents: {}, total: 0 },
+      authored: 0, reused: 0, stepsSaved: null, arm: null, saveOffers: 0, updatedAt: now,
     }
     const next = change(current)
     const bounded: Record<string, SessionAdoption> = { ...sessions, [sessionId]: { ...next, updatedAt: now } }
@@ -139,6 +202,28 @@ export function createSessionLedger(options: { readonly file: string }): Session
         called: { ...current.called, [name]: (current.called[name] ?? 0) + 1 },
         reused: current.reused + (name.startsWith('agent_') || name.startsWith('workflow_') ? 1 : 0),
       }))
+    },
+    treeCalled(rootSessionId, agentSessionId, name) {
+      if (rootSessionId.length === 0 || name.length === 0) return
+      update(rootSessionId, current => {
+        const called = { ...current.reach.called, [name]: (current.reach.called[name] ?? 0) + 1 }
+        const agents = { ...current.reach.agents, [agentSessionId]: (current.reach.agents[agentSessionId] ?? 0) + 1 }
+        return {
+          ...current,
+          reach: {
+            called: Object.fromEntries(Object.entries(called).slice(-MAX_REACH_TOOLS)),
+            agents: Object.fromEntries(Object.entries(agents).slice(-MAX_REACH_AGENTS)),
+            total: current.reach.total + 1,
+          },
+        }
+      })
+    },
+    forget(sessionId) {
+      if (sessions[sessionId] === undefined) return
+      const next = { ...sessions }
+      delete next[sessionId]
+      sessions = next
+      write(options.file, { version: 1, sessions })
     },
     authored(sessionId) {
       update(sessionId, current => ({ ...current, authored: current.authored + 1 }))

@@ -2405,6 +2405,16 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     recordingPolicy: config.recordReceipts === false ? 'none' : 'receipts',
     ...config.limits === undefined ? {} : { limits: config.limits },
   })
+  /**
+   * TASK-65: TRUE while a program's nested sub-call dispatches through the registry.
+   *
+   * A nested sub-call is represented ONCE, by the composition trace's `nested:` receipt.
+   * The called tool also records its own contract/composition receipt while this context
+   * is active; keeping both made one execution look like two top-level runs (U35/U36) and
+   * double-counted reach. The context is set only around the nested dispatch, never around
+   * the program itself, so the composition's own receipt and its trace rows are kept.
+   */
+  const nestedToolExecution = new AsyncLocalStorage<boolean>()
   const host: HostIdentity = {
     extension: '@try-works/dsh-tool-mode',
     extensionVersion: HOST_VERSION,
@@ -2416,6 +2426,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     // content, so retaining the last N costs little and makes the record
     // recoverable after the call rather than only during it.
     recordReceipt: receipt => {
+      // TASK-65: a nested sub-call is recorded once, by the composition trace. The
+      // called tool's own receipt is a DUPLICATE identity for the same execution.
+      if (nestedToolExecution.getStore() === true) return
       // Persist FIRST, then update the read cache. A failed write throws out of the
       // call path rather than presenting a receipt that would vanish on restart.
       receiptSurface.record(receipt)
@@ -3419,7 +3432,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       const caller = programAgentContext.getStore()
       const callerAgent = caller?.agent
       const callerToken = caller?.token
-      const result = await ctx.tools.execute({
+      // TASK-65: the nested execution is marked so the called tool's own receipt is
+      // suppressed (the composition trace owns this execution's identity).
+      const result = await nestedToolExecution.run(true, () => ctx.tools.execute({
         signal: new AbortController().signal,
         callId: `ptc_${name}_${Date.now().toString(36)}` as never,
         name,
@@ -3428,7 +3443,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         // only forwards the SAME agent and host token to the nested call.
         ...callerAgent === undefined ? {} : { agent: callerAgent as never },
         ...callerToken === undefined ? {} : { parent: callerToken as never },
-      })
+      }))
       if (result.isError) throw new Error(result.error?.message ?? `${name} failed`)
       return result.value
     },
@@ -3528,6 +3543,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   if (sessionLedger.issue !== undefined) {
     ctx.logger.warn('model-tools: session ledger: ' + sessionLedger.issue)
   }
+  // TASK-65: a disposed ROOT session's tree reach is removed with it. This is independent
+  // of artifact expiry: reach is measurement, and a measurement of a session that no
+  // longer exists must not survive. A leaf disposal is ignored (the root owns the tree).
+  ctx.on('session/disposed' as never, ((session: { header?: { id?: unknown; parentSession?: unknown } }) => {
+    const id = session.header?.id
+    if (id === undefined || session.header?.parentSession !== undefined) return
+    sessionLedger?.forget(String(id))
+  }) as never)
   const NON_OFFERABLE_TOOLS = new Set([
     'tool_mode_list', 'tool_mode_describe', 'tool_mode_workflows', 'tool_mode_tools', 'model_tools',
   ])
@@ -3543,6 +3566,12 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     if (sessionId !== undefined && sessionId.length > 0) {
       if (config.adoption?.experimentArm !== undefined) sessionLedger?.markArm(sessionId, config.adoption.experimentArm)
       sessionLedger?.called(sessionId, exec.name)
+      // TASK-65: record the call into the ROOT session's tree reach. A subagent's call
+      // must be visible to the root — "looked and declined" and "never looked" are
+      // different observations — and the LEAF id is kept as the per-agent key. The root
+      // chain comes from the existing scope resolver; without one the leaf IS the root.
+      const rootSessionId = scopeForAuthoringCaller?.(exec)?.rootSessionId ?? sessionId
+      sessionLedger?.treeCalled(rootSessionId, sessionId, exec.name)
     }
     const result = await next()
     if (repetitionTracker !== undefined
@@ -3955,6 +3984,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
                   operation: 'run', artifactKind: 'workflow', name: resolved.name, version: resolved.version,
                   outcome: 'failed', durationMs: Date.now() - started,
                 })
+                // TASK-65: a failed run is still a USE and a FAILURE; it is not a new
+                // session (the same caller session), so the durable evidence stays honest.
+                artifactUsage.record(scope.rootSessionId === undefined
+                  ? { receiptId, name: resolved.name, digest: resolved.digest, outcome: 'failed' }
+                  : { receiptId, name: resolved.name, digest: resolved.digest, outcome: 'failed', sessionId: scope.rootSessionId })
                 recordFailedComposition(receiptId, revision, 'workflow.' + resolved.name)
                 throw error
               }
@@ -4078,6 +4112,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
                 operation: 'run', artifactKind: 'tool', name: resolved.name, version: resolved.version,
                 outcome: 'failed', durationMs: Date.now() - started,
               })
+              // TASK-65: a failed run is a USE and a FAILURE, not a new session.
+              artifactUsage.record(scope.rootSessionId === undefined
+                ? { receiptId, name: resolved.name, digest: resolved.digest, outcome: 'failed' }
+                : { receiptId, name: resolved.name, digest: resolved.digest, outcome: 'failed', sessionId: scope.rootSessionId })
               recordFailedComposition(receiptId, revision, resolved.name)
               throw error
             }
