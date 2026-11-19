@@ -423,6 +423,10 @@ export interface PromoteDraftOptions {
   readonly to?: ArtifactScopeContext
   /** Keep the draft row after copying (default false: a promotion consumes the draft). */
   readonly keepSource?: boolean
+  /** The promoted row's lifecycle; default kept. */
+  readonly status?: ArtifactStatus
+  /** When an auto-kept draft expires; only used when status is draft. */
+  readonly expiresAt?: string
   /** Epoch milliseconds; defaults to the wall clock. */
   readonly now?: number
 }
@@ -1533,7 +1537,8 @@ export function createAgentAuthoringStore(options: { readonly file: string; read
         scope: source.scope,
         scopeKey: source.scopeKey,
         digest: source.digest,
-        status: 'kept',
+        status: options.status ?? 'kept',
+        ...(options.status === 'draft' && options.expiresAt !== undefined ? { expiresAt: options.expiresAt } : {}),
         promotedFrom,
         ...(source.createdBySession === undefined ? {} : { createdBySession: source.createdBySession }),
       }
@@ -1554,7 +1559,8 @@ export function createAgentAuthoringStore(options: { readonly file: string; read
       scope: target.scope,
       scopeKey: target.key,
       digest: source.digest,
-      status: 'kept',
+      status: options.status ?? 'kept',
+      ...(options.status === 'draft' && options.expiresAt !== undefined ? { expiresAt: options.expiresAt } : {}),
       promotedFrom,
       ...(source.createdBySession === undefined ? {} : { createdBySession: source.createdBySession }),
     }

@@ -13,7 +13,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { AsyncLocalStorage } from 'node:async_hooks'
 import { defineTool, type ParameterSchemaSpec, type ValueSchemaSpec } from '@deepseek-ai/dsh-tools'
-import type { AgentAuthoringStore, AgentToolDefinition } from './agent-authoring.ts'
+import type { AgentAuthoringStore, AgentToolDefinition, ArtifactScopeContext } from './agent-authoring.ts'
 import type { BuiltScopeContext } from './artifact-scope-context.ts'
 import { buildInvocationReceipt, type InvocationReceipt } from './receipt.ts'
 import { schemaShape, type RunCapture, type RunCaptureStore } from './run-capture.ts'
@@ -63,6 +63,8 @@ export interface RuntimeSurfaceDeps {
   readonly authoringStore?: () => AgentAuthoringStore | undefined
   /** Registers a just-saved draft so it is callable in this session; false means refused. */
   readonly registerDraft?: (definition: AgentToolDefinition) => boolean
+  /** Promotes a twice-used session draft to a workspace auto-keep; false means skipped. */
+  readonly promoteWorkspaceDraft?: (draft: AgentToolDefinition, from: ArtifactScopeContext) => boolean
 }
 
 /**
@@ -310,6 +312,20 @@ export function registerRuntimeTools(deps: RuntimeSurfaceDeps): void {
             ctx.logger.warn(
               'tool_mode_run: draft ' + draft.name + ' could not be registered, so it was discarded',
             )
+          } else if (adoption.autoKeep === 'session'
+            && draft.version >= 2
+            && Object.keys((draft.inputSchema['properties'] as Record<string, unknown> | undefined) ?? {}).length > 0) {
+            // Second successful run of the same content is the evidence threshold for a
+            // workspace copy. A constant/no-input program never qualifies: it is a one-off.
+            const from = scopeForAuthoringCaller(exec)?.context
+            if (from !== undefined) {
+              try {
+                deps.promoteWorkspaceDraft?.(draft, from)
+              } catch (error) {
+                ctx.logger.warn('tool_mode_run: workspace auto-keep failed: '
+                  + (error instanceof Error ? error.message : String(error)))
+              }
+            }
           }
         } catch (error) {
           ctx.logger.warn('tool_mode_run: draft not recorded: ' + (error instanceof Error ? error.message : String(error)))

@@ -1270,6 +1270,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
    * "cannot register yet", never "skip registration silently".
    */
   let registerAuthoredRef: ((definition: AgentToolDefinition) => boolean) | undefined
+  let unregisterAuthoredRef: ((name: string) => boolean) | undefined
   /** Workflow tools registered from the durable workflow store. */
   const workflowToolNames = new Set<string>()
   const workflowDisposers = new Map<string, () => void>()
@@ -3602,6 +3603,18 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     runCaptureStore: () => runCaptureStore,
     authoringStore: () => authoringStoreRef,
     registerDraft: (definition: AgentToolDefinition) => registerAuthoredRef?.(definition) ?? false,
+    promoteWorkspaceDraft: (draft, from) => {
+      const store = authoringStoreRef
+      const workspace = workspaceScopeRef
+      if (store === undefined || workspace === undefined) return false
+      const expiresAt = new Date(Date.now() + (config.adoption?.draftTtlMs ?? DEFAULT_DRAFT_TTL_MS)).toISOString()
+      const promoted = store.promoteDraft(draft.name, {
+        from, to: workspace.context, status: 'draft', expiresAt,
+      })
+      if (promoted.kind !== 'tool') return false
+      unregisterAuthoredRef?.(draft.name)
+      return registerAuthoredRef?.(promoted.tool) ?? false
+    },
     scopeForDraft: exec => {
       const keep = config.adoption?.autoKeep
         ?? (config.adoption?.autoDraft === false ? 'off' : 'session')
@@ -4457,6 +4470,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       toolContracts.delete(name)
       return true
     }
+    unregisterAuthoredRef = unregisterAuthored
     // BOOT: every stored authored tool is registered again, after the built-in tools, so a
     // restart is a continuation rather than a loss. Each entry is validated on load.
     {
