@@ -13,17 +13,10 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { AsyncLocalStorage } from 'node:async_hooks'
 import { defineTool, type ParameterSchemaSpec, type ValueSchemaSpec } from '@deepseek-ai/dsh-tools'
-import type { AgentAuthoringStore } from './agent-authoring.ts'
-import type { JsonValue } from './adapters/types.ts'
+import type { AgentAuthoringStore, AgentToolDefinition } from './agent-authoring.ts'
 import type { BuiltScopeContext } from './artifact-scope-context.ts'
 import { buildInvocationReceipt, type InvocationReceipt } from './receipt.ts'
-import { schemaShape, type RunCaptureStore } from './run-capture.ts'
-
-/** The shape-only draft schema for a run input; no input gets the no-argument schema. */
-function draftShape(input: unknown): Record<string, JsonValue> {
-  const shape = schemaShape(input)
-  return shape['type'] === 'object' ? shape : { type: 'object', properties: {} }
-}
+import { schemaShape, type RunCapture, type RunCaptureStore } from './run-capture.ts'
 import type { SandboxTempScope } from './sandbox-temp.ts'
 import type { ProgramRunner } from './tool-mode-run.ts'
 import { externalRefusal, serveProgram } from './tool-mode-run.ts'
@@ -63,6 +56,8 @@ export interface RuntimeSurfaceDeps {
   readonly adoption?: () => { readonly autoDraft: boolean; readonly draftTtlMs: number }
   /** The authoring store a draft is written to; absent means drafts are off. */
   readonly authoringStore?: () => AgentAuthoringStore | undefined
+  /** Registers a just-saved draft so it is callable in this session; false means refused. */
+  readonly registerDraft?: (definition: AgentToolDefinition) => boolean
 }
 
 /**
@@ -261,11 +256,12 @@ export function registerRuntimeTools(deps: RuntimeSurfaceDeps): void {
       // values. On by default so define-from-run works out of the box; the
       // profile can still turn it off with captureRunPrograms: false.
       const capture = runCaptureStore()
+      let recorded: RunCapture | undefined
       if (capture !== undefined) {
         const captured = args as { code?: unknown; tools?: unknown; input?: unknown }
         const program = typeof captured.code === 'string' ? captured.code : ''
         if (program.length > 0) {
-          capture.record({
+          recorded = capture.record({
             runId: receiptId,
             program,
             tools: Array.isArray(captured.tools) ? captured.tools.filter((tool): tool is string => typeof tool === 'string') : [],
@@ -282,30 +278,36 @@ export function registerRuntimeTools(deps: RuntimeSurfaceDeps): void {
       const draftStore = deps.authoringStore?.()
       // Drafts derive from CAPTURES: disabling captureRunPrograms disables drafts too,
       // so the two features cannot disagree about whether a run is remembered.
-      if (adoption?.autoDraft === true && draftStore !== undefined && capture !== undefined) {
-        const drafted = args as { code?: unknown; tools?: unknown; input?: unknown; description?: unknown }
-        const draftProgram = typeof drafted.code === 'string' ? drafted.code : ''
-        if (draftProgram.length > 0) {
-          try {
-            draftStore.saveDraft(
-              {
-                runId: report.meta.receiptId,
-                program: draftProgram,
-                tools: Array.isArray(drafted.tools) ? drafted.tools.filter((tool): tool is string => typeof tool === 'string') : [],
-                // A run with no input has no shape to observe, but a draft is a TOOL: it
-                // must still declare an object schema, so the empty shape becomes the
-                // canonical no-argument schema rather than an invalid one.
-                inputSchema: draftShape(drafted.input),
-                ...(typeof drafted.description === 'string' && drafted.description.length > 0
-                  ? { description: drafted.description }
-                  : {}),
-              },
-              scopeForAuthoringCaller(exec)?.context,
-              { ttlMs: adoption.draftTtlMs },
+      if (adoption?.autoDraft === true && draftStore !== undefined && recorded !== undefined) {
+        const drafted = args as { description?: unknown }
+        const draftScope = scopeForAuthoringCaller(exec)?.context
+        try {
+          const draft = draftStore.saveDraft(
+            {
+              // The RECORDED capture is the single source of truth for content identity,
+              // so the draft's schema is exactly the one `from-run` hashes later (F2).
+              runId: recorded.runId,
+              program: recorded.program,
+              tools: recorded.tools,
+              inputSchema: recorded.inputSchema,
+              ...(typeof drafted.description === 'string' && drafted.description.length > 0
+                ? { description: drafted.description }
+                : {}),
+            },
+            draftScope,
+            { ttlMs: adoption.draftTtlMs },
+          )
+          // A draft the registry refused would be listed and uncallable: discard it rather
+          // than leave a row that lies about being a tool (F1).
+          const registered = deps.registerDraft?.(draft) ?? false
+          if (!registered) {
+            draftStore.deleteTool(draft.name, draftScope)
+            ctx.logger.warn(
+              'tool_mode_run: draft ' + draft.name + ' could not be registered, so it was discarded',
             )
-          } catch (error) {
-            ctx.logger.warn('tool_mode_run: draft not recorded: ' + (error instanceof Error ? error.message : String(error)))
           }
+        } catch (error) {
+          ctx.logger.warn('tool_mode_run: draft not recorded: ' + (error instanceof Error ? error.message : String(error)))
         }
       }
       return { ...report, runId: report.meta.receiptId } as never

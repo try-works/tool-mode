@@ -696,6 +696,12 @@ ctx.tools.register(defineTool({
           },
         )
         const tool = promoted.kind === 'tool' ? promoted.tool : undefined
+        // A promoted row that is not registered answers `unknown tool` until a restart, so
+        // a refusal rolls the promotion back instead of returning a broken promise (F1).
+        if (tool !== undefined && !registerAuthored(tool)) {
+          authoringStore.deleteTool(tool.name, scope.context)
+          throw new Error('the promoted tool "' + tool.name + '" could not be registered; the promotion was rolled back')
+        }
         return {
           promoted: true,
           ...scopeDisclosure(scope),

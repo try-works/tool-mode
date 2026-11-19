@@ -1236,6 +1236,12 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
    * the draft hook inert rather than absent.
    */
   let authoringStoreRef: AgentAuthoringStore | undefined
+  /**
+   * Registration, once the authoring block has defined it. The run hook needs it to make a
+   * fresh draft callable in the session that created it; undefined before that point means
+   * "cannot register yet", never "skip registration silently".
+   */
+  let registerAuthoredRef: ((definition: AgentToolDefinition) => boolean) | undefined
   /** Workflow tools registered from the durable workflow store. */
   const workflowToolNames = new Set<string>()
   const workflowDisposers = new Map<string, () => void>()
@@ -3567,6 +3573,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     scheduleSandboxTempPrune,
     runCaptureStore: () => runCaptureStore,
     authoringStore: () => authoringStoreRef,
+    registerDraft: (definition: AgentToolDefinition) => registerAuthoredRef?.(definition) ?? false,
     adoption: () => ({
       autoDraft: config.adoption?.autoDraft === true,
       draftTtlMs: config.adoption?.draftTtlMs ?? DEFAULT_DRAFT_TTL_MS,
@@ -4380,6 +4387,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       }
     }
     /** Unregister one authored tool; false when no registration exists. */
+    registerAuthoredRef = registerAuthored
     const unregisterAuthored = (name: string): boolean => {
       const dispose = authoredDisposers.get(name)
       if (dispose === undefined) return false

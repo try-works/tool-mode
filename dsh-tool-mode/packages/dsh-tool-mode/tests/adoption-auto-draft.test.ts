@@ -132,7 +132,10 @@ describe('auto-draft after a successful run', () => {
     assert.deepEqual(draft['tools'], [])
     const schema = draft['inputSchema'] as { properties?: Record<string, unknown> }
     assert.deepEqual(Object.keys(schema.properties ?? {}), ['value'], 'shape-only schema, no values')
-    assert.equal(JSON.stringify(draft).includes('21'), false, 'input values must never be stored')
+    // Assert on the CONTENT fields, not the whole row: an ISO timestamp legitimately
+    // contains digit pairs like "21" and would make a whole-row search flaky.
+    assert.equal(JSON.stringify(draft['inputSchema']).includes('21'), false, 'schema must hold shapes, never values')
+    assert.equal(String(draft['program']).includes('21'), false, 'the program carries no input values')
   })
 
   it('leaves no draft when the run fails', async () => {
@@ -192,5 +195,64 @@ describe('auto-draft after a successful run', () => {
     // The refusal is a soft tool error whose text must name the flag to turn on.
     const refused = await call(ctx, 'tool_mode_tools', { action: 'from-run', runId: 'rcpt_missing' })
     assert.match(textOf(refused), /captureRunPrograms/)
+  })
+})
+
+describe('a draft is CALLABLE, not just listed', () => {
+  it('executes the auto-drafted tool immediately, with no restart', async () => {
+    const { ctx } = await mountHost(ENABLED)
+    await call(ctx, 'tool_mode_run', {
+      description: 'double',
+      code: 'return { doubled: input.value * 2 }',
+      tools: [],
+      input: { value: 21 },
+    })
+    const listed = JSON.parse(textOf(await call(ctx, 'tool_mode_tools', { action: 'list' }))) as {
+      tools: { name: string; draft?: boolean }[]
+    }
+    const draft = listed.tools.find(row => row.draft === true)
+    assert.ok(draft !== undefined, 'the draft must be listed')
+    const executed = await call(ctx, draft.name, { value: 21 })
+    const text = textOf(executed)
+    assert.doesNotMatch(text, /unknown tool/i, 'a listed draft must be registered')
+    assert.match(text, /42/)
+  })
+
+  it('executes a promoted tool under its readable name in the same session', async () => {
+    const { ctx } = await mountHost(ENABLED)
+    const run = JSON.parse(textOf(await call(ctx, 'tool_mode_run', {
+      description: 'double', code: 'return { doubled: input.value * 2 }', tools: [], input: { value: 2 },
+    }))) as { runId: string }
+    const promoted = JSON.parse(textOf(await call(ctx, 'tool_mode_tools', {
+      action: 'from-run', runId: run.runId, name: 'agent_double_value',
+    }))) as { tool: { name: string } }
+    assert.equal(promoted.tool.name, 'agent_double_value')
+    const executed = await call(ctx, 'agent_double_value', { value: 21 })
+    const text = textOf(executed)
+    assert.doesNotMatch(text, /unknown tool/i, 'the promoted tool must be registered')
+    assert.match(text, /42/)
+  })
+
+  it('promotes a run that had NO input, consuming the draft with an identical digest', async () => {
+    const { ctx, authoringFile } = await mountHost(ENABLED)
+    const run = JSON.parse(textOf(await call(ctx, 'tool_mode_run', {
+      description: 'constant', code: 'return 7', tools: [],
+    }))) as { runId: string }
+    const before = storedTools(authoringFile).filter(row => row['status'] === 'draft')
+    assert.equal(before.length, 1, 'the no-input run still leaves one draft')
+    const draftDigest = before[0]!['digest']
+
+    const promoted = JSON.parse(textOf(await call(ctx, 'tool_mode_tools', {
+      action: 'from-run', runId: run.runId, name: 'agent_constant_seven',
+    }))) as { tool: { name: string; digest?: string } }
+    assert.equal(promoted.tool.name, 'agent_constant_seven')
+
+    const rows = storedTools(authoringFile)
+    assert.equal(rows.filter(row => row['status'] === 'draft').length, 0, 'the draft was consumed, not duplicated')
+    const kept = rows.filter(row => row['name'] === 'agent_constant_seven')
+    assert.equal(kept.length, 1)
+    assert.equal(kept[0]!['digest'], draftDigest, 'promotion must not change content identity')
+    const executed = await call(ctx, 'agent_constant_seven', {})
+    assert.match(textOf(executed), /7/)
   })
 })

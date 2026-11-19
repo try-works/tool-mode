@@ -72,6 +72,36 @@ function empty(): CaptureDocument {
 }
 
 /** Derive a type-only schema from a JSON value; no values are copied. */
+/**
+ * The canonical shape of a run input, always a valid object schema.
+ *
+ * `schemaShape` answers honestly for what it saw, so a missing input yields `{}`. A draft
+ * is a TOOL, and a tool needs an object schema, so the canonical form of "no input" is the
+ * no-argument schema. Recording and hashing both use THIS function, which is what keeps a
+ * draft's content identity equal to the identity `from-run` computes for the same run.
+ * @param input - the run input; absent is legitimate.
+ * @returns a schema whose `type` is always 'object'.
+ */
+export function canonicalInputSchema(input: unknown): Record<string, JsonValue> {
+  return canonicalSchema(schemaShape(input))
+}
+
+/** The no-argument schema: what "no input" means to a tool. */
+const NO_INPUT_SCHEMA: Record<string, JsonValue> = { type: 'object', properties: {} }
+
+/**
+ * Normalise an ALREADY-SHAPED schema to a valid object schema.
+ *
+ * `record()` receives a shape, not a value: re-shaping it would produce a schema OF a
+ * schema. This only guarantees the `type: 'object'` contract, so the identity a draft is
+ * hashed from equals the identity `from-run` recomputes.
+ * @param schema - a schema produced by `schemaShape`.
+ * @returns the same schema, or the no-argument schema when it is not an object schema.
+ */
+export function canonicalSchema(schema: Record<string, JsonValue>): Record<string, JsonValue> {
+  return schema['type'] === 'object' ? schema : NO_INPUT_SCHEMA
+}
+
 export function schemaShape(value: unknown, depth = 0): Record<string, JsonValue> {
   if (depth > 8) return {}
   if (value === null) return { type: 'null' }
@@ -148,7 +178,7 @@ export function createRunCaptureStore(options: { readonly file: string }): RunCa
         at: input.at ?? new Date().toISOString(),
         program: input.program,
         tools: [...input.tools],
-        inputSchema: input.inputSchema,
+        inputSchema: canonicalSchema(input.inputSchema),
         ...input.parameterPaths === undefined ? {} : { parameterPaths: [...input.parameterPaths] },
         contracts: [...input.contracts],
       }
