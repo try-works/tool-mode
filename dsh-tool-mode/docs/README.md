@@ -14,3 +14,5 @@ Start with:
 - [Refactoring `index.ts`](refactor-index.md) (engineering plan)
 - [Adoption levers: implementation plan](adoption-levers-plan.md) (TDD + experiment)
 - [Adoption improvement plan](adoption-improvement-plan.md) (2026-11-19 findings; TDD + verification)
+- [Adoption red-first evidence](adoption-red-evidence.md) (reported red counts and gaps)
+- [Adoption verification findings](adoption-verification-report.md) (independent FAIL report)
