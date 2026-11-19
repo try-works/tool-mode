@@ -10,6 +10,7 @@
  */
 
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import type { JsonValue } from './adapters/types.ts'
 import { dirname } from 'node:path'
 
 /** How many run captures are retained. */
@@ -25,7 +26,7 @@ export interface RunCapture {
   readonly program: string
   readonly tools: readonly string[]
   /** A shape-only schema for the run input; never the input values. */
-  readonly inputSchema: Record<string, unknown>
+  readonly inputSchema: Record<string, JsonValue>
   /** Argument keys the run's tool calls were wired with (dotted paths, no values). */
   readonly parameterPaths?: readonly string[]
   /** The contracts the run actually called, in trace order. */
@@ -44,7 +45,7 @@ interface MutableRunCapture {
   at: string
   program: string
   tools: string[]
-  inputSchema: Record<string, unknown>
+  inputSchema: Record<string, JsonValue>
   parameterPaths?: readonly string[]
   contracts: string[]
   schemaSource?: 'observed'
@@ -71,7 +72,7 @@ function empty(): CaptureDocument {
 }
 
 /** Derive a type-only schema from a JSON value; no values are copied. */
-export function schemaShape(value: unknown, depth = 0): Record<string, unknown> {
+export function schemaShape(value: unknown, depth = 0): Record<string, JsonValue> {
   if (depth > 8) return {}
   if (value === null) return { type: 'null' }
   if (Array.isArray(value)) return { type: 'array', items: value.length > 0 ? schemaShape(value[0], depth + 1) : {} }
@@ -79,7 +80,7 @@ export function schemaShape(value: unknown, depth = 0): Record<string, unknown> 
   if (typeof value === 'number') return Number.isInteger(value) ? { type: 'integer' } : { type: 'number' }
   if (typeof value === 'boolean') return { type: 'boolean' }
   if (typeof value === 'object') {
-    const properties: Record<string, unknown> = {}
+    const properties: Record<string, JsonValue> = {}
     for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
       properties[key] = schemaShape(item, depth + 1)
     }

@@ -13,9 +13,17 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { AsyncLocalStorage } from 'node:async_hooks'
 import { defineTool, type ParameterSchemaSpec, type ValueSchemaSpec } from '@deepseek-ai/dsh-tools'
+import type { AgentAuthoringStore } from './agent-authoring.ts'
+import type { JsonValue } from './adapters/types.ts'
 import type { BuiltScopeContext } from './artifact-scope-context.ts'
 import { buildInvocationReceipt, type InvocationReceipt } from './receipt.ts'
 import { schemaShape, type RunCaptureStore } from './run-capture.ts'
+
+/** The shape-only draft schema for a run input; no input gets the no-argument schema. */
+function draftShape(input: unknown): Record<string, JsonValue> {
+  const shape = schemaShape(input)
+  return shape['type'] === 'object' ? shape : { type: 'object', properties: {} }
+}
 import type { SandboxTempScope } from './sandbox-temp.ts'
 import type { ProgramRunner } from './tool-mode-run.ts'
 import { externalRefusal, serveProgram } from './tool-mode-run.ts'
@@ -51,6 +59,10 @@ export interface RuntimeSurfaceDeps {
   readonly recordFailedComposition: (receiptId: string, revision: string, contract: string) => void
   readonly scheduleSandboxTempPrune: () => void
   readonly runCaptureStore: () => RunCaptureStore | undefined
+  /** Phase 4 draft policy; absent means drafts are off. */
+  readonly adoption?: () => { readonly autoDraft: boolean; readonly draftTtlMs: number }
+  /** The authoring store a draft is written to; absent means drafts are off. */
+  readonly authoringStore?: () => AgentAuthoringStore | undefined
 }
 
 /**
@@ -261,6 +273,39 @@ export function registerRuntimeTools(deps: RuntimeSurfaceDeps): void {
             parameterPaths: [...new Set(report.meta.calls.flatMap(call => call.argumentPaths ?? []))],
             contracts: report.meta.calls.map(call => call.name),
           })
+        }
+      }
+      // Phase 4: the SAME success also leaves a callable DRAFT, so authoring never starts
+      // from a blank page. A draft is a convenience, not a result: failing to write one
+      // must never fail a run that already succeeded, so it is logged and swallowed.
+      const adoption = deps.adoption?.()
+      const draftStore = deps.authoringStore?.()
+      // Drafts derive from CAPTURES: disabling captureRunPrograms disables drafts too,
+      // so the two features cannot disagree about whether a run is remembered.
+      if (adoption?.autoDraft === true && draftStore !== undefined && capture !== undefined) {
+        const drafted = args as { code?: unknown; tools?: unknown; input?: unknown; description?: unknown }
+        const draftProgram = typeof drafted.code === 'string' ? drafted.code : ''
+        if (draftProgram.length > 0) {
+          try {
+            draftStore.saveDraft(
+              {
+                runId: report.meta.receiptId,
+                program: draftProgram,
+                tools: Array.isArray(drafted.tools) ? drafted.tools.filter((tool): tool is string => typeof tool === 'string') : [],
+                // A run with no input has no shape to observe, but a draft is a TOOL: it
+                // must still declare an object schema, so the empty shape becomes the
+                // canonical no-argument schema rather than an invalid one.
+                inputSchema: draftShape(drafted.input),
+                ...(typeof drafted.description === 'string' && drafted.description.length > 0
+                  ? { description: drafted.description }
+                  : {}),
+              },
+              scopeForAuthoringCaller(exec)?.context,
+              { ttlMs: adoption.draftTtlMs },
+            )
+          } catch (error) {
+            ctx.logger.warn('tool_mode_run: draft not recorded: ' + (error instanceof Error ? error.message : String(error)))
+          }
         }
       }
       return { ...report, runId: report.meta.receiptId } as never

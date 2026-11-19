@@ -18,6 +18,8 @@ import {
   AGENT_TOOL_NAME_PATTERN,
   runAuthoredProgram,
   workflowToolName,
+  DEFAULT_DRAFT_TTL_MS,
+  draftNameForContent,
   type AgentAuthoringStore,
   type AgentToolDefinition,
   type AgentWorkflow,
@@ -45,6 +47,8 @@ export interface AuthoringScopeSettings {
 export interface AuthoringSurfaceDeps {
   readonly ctx: Context
   readonly store: AgentAuthoringStore
+  /** The draft retention window in force; absent means the shipped default. */
+  readonly adoption?: () => { readonly draftTtlMs: number }
   readonly ledger: AuthoringLedger
   readonly scopeFor: (exec: { agent?: unknown } | undefined, requested?: string) => BuiltScopeContext
   readonly sessionIdOfAgent: (agent: unknown) => string | undefined
@@ -286,6 +290,8 @@ function deleteDisclosure(outcome: ArtifactDeleteOutcome, scope: BuiltScopeConte
 export function registerAuthoringTools(deps: AuthoringSurfaceDeps): void {
   const ctx = deps.ctx
   const authoringStore = deps.store
+  /** The draft retention window in force, or the shipped default. */
+  const draftTtl = (): number => deps.adoption?.().draftTtlMs ?? DEFAULT_DRAFT_TTL_MS
   const authoringLedger = deps.ledger
   const scopeFor = deps.scopeFor
   const sessionIdOfAgent = deps.sessionIdOfAgent
@@ -678,6 +684,29 @@ ctx.tools.register(defineTool({
       if (capture === undefined) {
         throw new Error('no captured run "' + runId + '"; enable captureRunPrograms and run the program once first')
       }
+      // Phase 4: the DRAFT for this run's CONTENT is promoted in ONE call, and a caller-
+      // supplied name is the name it keeps. No draft falls through to the define path.
+      try {
+        const promoted = authoringStore.promoteDraft(
+          draftNameForContent({ program: capture.program, tools: capture.tools, inputSchema: capture.inputSchema }),
+          {
+            ...(nameOrId.length === 0 ? {} : { name: nameOrId }),
+            from: scope.context,
+            to: scope.context,
+          },
+        )
+        const tool = promoted.kind === 'tool' ? promoted.tool : undefined
+        return {
+          promoted: true,
+          ...scopeDisclosure(scope),
+          tool: tool === undefined
+            ? null
+            : { id: tool.id, name: tool.name, version: tool.version, updatedAt: tool.updatedAt, scope: tool.scope },
+        } as never
+      } catch (error) {
+        const code = typeof error === 'object' && error !== null && 'code' in error ? String(error['code']) : ''
+        if (code !== 'artifact-not-found') throw error
+      }
       if (nameOrId.length === 0) nameOrId = suggestAgentName(capture.runId)
       const inferred = inferRunInputSchema(capture)
       const explicitSchema = typeof request['inputSchema'] === 'object'
@@ -751,11 +780,14 @@ ctx.tools.register(defineTool({
     if (action === 'list') {
       const rows = authoringStore.listTools(scope.context, { all: includeAll })
       // Scope filtering selects rows from the annotated union (U26).
-      const tools = rawScope === undefined || rawScope === 'all'
+      const listed = rawScope === undefined || rawScope === 'all'
         ? rows
         : authoringStore.listTools(scope.context, { all: true })
           .filter(row => row.scope === rawScope)
-      return { tools, scope: scope.scope } as never
+      // A draft is listable and callable; `draft` makes that visible without changing
+      // how it is named or resolved, and `retention` states the policy in force.
+      const tools = listed.map(row => ({ ...row, draft: row.status === 'draft' }))
+      return { tools, scope: scope.scope, retention: { draftTtlMs: draftTtl() } } as never
     }
     if (action === 'get') {
       const entry = authoringStore.getTool(nameOrId, scope.context)

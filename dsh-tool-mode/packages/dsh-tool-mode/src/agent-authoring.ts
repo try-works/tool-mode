@@ -67,6 +67,20 @@ export const AUTHORING_SCHEMA_VERSION = 2
 export const LEGACY_AUTHORING_SCHEMA_VERSION = 1
 
 /**
+ * The default lifetime of an unkept draft: 24 hours from `updatedAt`.
+ *
+ * Additive within schema 2: `status` and `expiresAt` are OPTIONAL row fields, so an older
+ * build reading the same document drops them (the parsers rebuild rows field by field)
+ * and treats the rows as kept. That is deliberate: bumping the document version instead
+ * would make every older build quarantine the whole authoring file as 'unsupported
+ * schema version' (readDocument), losing the user's artifacts from view on a downgrade.
+ */
+export const DEFAULT_DRAFT_TTL_MS = 86_400_000
+
+/** Whether a row is a live library member or an unkept draft. */
+export type ArtifactStatus = 'draft' | 'kept'
+
+/**
  * The scope key that stands for "this host".
  *
  * Global rows are keyed by this constant rather than by the empty string so a missing
@@ -220,6 +234,10 @@ export class AuthoringError extends Error {
 
 /** One saved workflow, versioned on every update. */
 export interface AgentWorkflow {
+  /** Draft lifecycle: absent means kept. Additive in schema 2; older builds drop it. */
+  readonly status?: ArtifactStatus
+  /** When an unkept draft expires (ISO 8601); absent on kept rows. */
+  readonly expiresAt?: string
   readonly id: string
   readonly name: string
   readonly description: string
@@ -246,6 +264,10 @@ export interface AgentWorkflow {
 
 /** A workflow as `list` reports it: everything but the program. */
 export interface AgentWorkflowSummary {
+  /** Draft lifecycle: absent means kept. Additive in schema 2; older builds drop it. */
+  readonly status?: ArtifactStatus
+  /** When an unkept draft expires (ISO 8601); absent on kept rows. */
+  readonly expiresAt?: string
   readonly id: string
   readonly name: string
   /** The name a caller invokes (workflow_<name>). */
@@ -274,6 +296,10 @@ export interface AgentWorkflowSummary {
 
 /** One persisted authored tool. */
 export interface AgentToolDefinition {
+  /** Draft lifecycle: absent means kept. Additive in schema 2; older builds drop it. */
+  readonly status?: ArtifactStatus
+  /** When an unkept draft expires (ISO 8601); absent on kept rows. */
+  readonly expiresAt?: string
   readonly id: string
   readonly name: string
   readonly description: string
@@ -298,6 +324,10 @@ export interface AgentToolDefinition {
 
 /** An authored tool as `list` reports it: everything but the program. */
 export interface AgentToolSummary {
+  /** Draft lifecycle: absent means kept. Additive in schema 2; older builds drop it. */
+  readonly status?: ArtifactStatus
+  /** When an unkept draft expires (ISO 8601); absent on kept rows. */
+  readonly expiresAt?: string
   readonly id: string
   readonly name: string
   /** Authored tools are callable under their stored name. */
@@ -322,6 +352,85 @@ export interface AgentToolSummary {
   readonly shadowing: ArtifactShadow | null
   /** The nearest higher-scope row that hides this one; absent when it is a winner. */
   readonly shadowedBy?: ArtifactShadowedBy
+}
+
+/**
+ * The deterministic draft name for one run.
+ *
+ * Derived rather than stored: the run id is hashed so a second success for the same run
+ * finds the SAME row without adding a `runId` field to the row schema. The 8-hex body
+ * keeps the whole name inside the host's 64-character authored-name cap.
+ * @param runId - the run (receipt) id a capture was recorded under.
+ * @returns `agent_from_draft_<first 8 hex of sha256(runId)>`.
+ */
+export function draftToolName(digest: string): string {
+  return 'agent_from_draft_' + digest.slice(0, 8)
+}
+
+/** The content a draft's identity comes from. */
+export interface DraftContent {
+  readonly program: string
+  readonly tools: readonly string[]
+  readonly inputSchema: Record<string, JsonValue>
+}
+
+/**
+ * The SHA-256 a draft is identified by: program, bindings and input schema.
+ *
+ * Content, not the run id. Two runs of the SAME program are the same draft (a re-run
+ * refreshes `expiresAt` in place); a genuinely different program or schema is a different
+ * draft. That is what makes "a second success updates rather than accumulates" true
+ * without storing a run id on the row.
+ * @param content - the captured program, bindings and shape-only schema.
+ * @returns the lower-case hex SHA-256.
+ */
+export function draftContentDigest(content: DraftContent): string {
+  return createHash('sha256').update(canonicalJson({
+    program: content.program,
+    tools: [...content.tools],
+    inputSchema: content.inputSchema,
+  }), 'utf8').digest('hex')
+}
+
+/**
+ * The deterministic draft name for one captured content.
+ * @param content - the captured program, bindings and shape-only schema.
+ * @returns `agent_from_draft_<first 8 hex of the content digest>`.
+ */
+export function draftNameForContent(content: DraftContent): string {
+  return draftToolName(draftContentDigest(content))
+}
+
+/** Injected clock, so retention tests never sleep. */
+export interface DraftClock {
+  /** Epoch milliseconds; defaults to the wall clock. */
+  readonly now?: number
+  /** Overrides {@link DEFAULT_DRAFT_TTL_MS}. */
+  readonly ttlMs?: number
+}
+
+/** Options for one draft promotion. */
+export interface PromoteDraftOptions {
+  /** The name the promoted tool takes; defaults to the draft's own name. */
+  readonly name?: string
+  /** Where the draft resolves from; omitted means the caller's chain. */
+  readonly from?: ArtifactScopeContext
+  /** The target scope; omitted means the caller's write target. */
+  readonly to?: ArtifactScopeContext
+  /** Keep the draft row after copying (default false: a promotion consumes the draft). */
+  readonly keepSource?: boolean
+  /** Epoch milliseconds; defaults to the wall clock. */
+  readonly now?: number
+}
+
+/** What a caller supplies to save a draft distilled from a run. */
+export interface SaveDraftInput {
+  readonly runId: string
+  readonly program: string
+  readonly tools?: readonly string[]
+  readonly inputSchema: Record<string, JsonValue>
+  readonly description?: string | undefined
+  readonly catalogRevision?: string | undefined
 }
 
 /** What a caller supplies to save a workflow. */
@@ -373,6 +482,42 @@ export interface AgentAuthoringStore {
   getTool(nameOrId: string, context?: ArtifactScopeContext): AgentToolDefinition | undefined
   toolEntries(context?: ArtifactScopeContext): readonly AgentToolDefinition[]
   saveTool(input: SaveToolInput, context?: ArtifactScopeContext): AgentToolDefinition
+
+  /**
+   * Save (or refresh) the draft distilled from one successful run.
+   *
+   * The row is named by {@link draftToolName} so a repeat success for the same run UPDATES
+   * the draft instead of accumulating duplicates. Identity is scope-exact: a second
+   * session's draft for the same run is a different row, by construction.
+   * @param input - the captured program, bindings and shape-only schema.
+   * @param context - the caller's scope chain; omitted means global only.
+   * @param clock - injected clock/ttl, so tests do not sleep.
+   * @returns the stored draft row.
+   */
+  saveDraft(input: SaveDraftInput, context?: ArtifactScopeContext, clock?: DraftClock): AgentToolDefinition
+
+  /**
+   * Remove every expired, unkept draft visible to `context` and return what was removed.
+   *
+   * Bounded per call: the sweep is a janitor, not a full-table rewrite. Kept rows and
+   * promoted copies are never candidates.
+   * @param options - injected clock/ttl.
+   * @param context - the scope chain to sweep; omitted means global only.
+   * @returns the removed draft rows.
+   */
+  expireDrafts(options: DraftClock, context?: ArtifactScopeContext): readonly AgentToolDefinition[]
+
+  /**
+   * Promote one run's draft in a single write, optionally renaming it.
+   *
+   * The digest is preserved (content did not change), the draft is consumed unless
+   * `keepSource`, and the rename lands in the same atomic persist as the copy.
+   * @param runId - the run whose draft is promoted.
+   * @param options - name, scopes, keepSource and clock.
+   * @returns the promoted artifact, tagged by kind.
+   * @throws AuthoringError `artifact-not-found` when no draft exists for the run.
+   */
+  promoteDraft(runId: string, options: PromoteDraftOptions): PromotedArtifact
   deleteTool(nameOrId: string, context?: ArtifactScopeContext): boolean
 
   /**
@@ -628,6 +773,23 @@ function parseProvenance(raw: { readonly [key: string]: JsonValue }): RowProvena
 }
 
 /** Parse a workflow entry loaded from disk; undefined when it is not usable. */
+/**
+ * Optional draft fields, parsed additively. An absent status means KEPT: that is the
+ * schema-2 default, so a document written before drafts (or by an older build) reads as
+ * kept rows rather than as drafts that could expire.
+ * @param raw - one row from disk.
+ * @returns the draft fields that are present and valid.
+ */
+function draftFields(raw: JsonValue): { readonly status?: ArtifactStatus; readonly expiresAt?: string } {
+  if (!isRecord(raw)) return {}
+  const status = raw['status']
+  const expiresAt = raw['expiresAt']
+  return {
+    ...(status === 'draft' || status === 'kept' ? { status } : {}),
+    ...(typeof expiresAt === 'string' ? { expiresAt } : {}),
+  }
+}
+
 function parseWorkflowEntry(raw: JsonValue): AgentWorkflow | undefined {
   if (!isRecord(raw)) return undefined
   const { id, name, description, version, program, tools, inputSchema, createdAt, updatedAt, catalogRevision } = raw
@@ -644,6 +806,7 @@ function parseWorkflowEntry(raw: JsonValue): AgentWorkflow | undefined {
   const provenance = parseProvenance(raw)
   if (provenance === undefined) return undefined
   return {
+    ...draftFields(raw),
     id, name, description, version, program, tools: toolNames,
     inputSchema: schema,
     createdAt, updatedAt, catalogRevision,
@@ -674,6 +837,7 @@ function parseToolEntry(raw: JsonValue): AgentToolDefinition | undefined {
   const provenance = parseProvenance(raw)
   if (provenance === undefined) return undefined
   return {
+    ...draftFields(raw),
     id, name, description, inputSchema, program, tools: toolNames, version, createdAt, updatedAt,
     scope: provenance.scope,
     scopeKey: provenance.scopeKey,
@@ -1014,6 +1178,8 @@ function summarizeWorkflow(workflow: AgentWorkflow, entries: readonly AgentWorkf
     description: workflow.description, version: workflow.version,
     tools: workflow.tools, inputSchema: workflow.inputSchema, createdAt: workflow.createdAt, updatedAt: workflow.updatedAt,
     scope: workflow.scope, scopeKey: workflow.scopeKey, digest: workflow.digest,
+    ...(workflow.status === undefined ? {} : { status: workflow.status }),
+    ...(workflow.expiresAt === undefined ? {} : { expiresAt: workflow.expiresAt }),
     ...(workflow.promotedFrom === undefined ? {} : { promotedFrom: workflow.promotedFrom }),
     ...(workflow.createdBySession === undefined ? {} : { createdBySession: workflow.createdBySession }),
     shadowing: shadowingFor(entries, workflow, context),
@@ -1029,6 +1195,8 @@ function summarizeTool(tool: AgentToolDefinition, entries: readonly AgentToolDef
     description: tool.description, inputSchema: tool.inputSchema,
     tools: tool.tools, version: tool.version, createdAt: tool.createdAt, updatedAt: tool.updatedAt,
     scope: tool.scope, scopeKey: tool.scopeKey, digest: tool.digest,
+    ...(tool.status === undefined ? {} : { status: tool.status }),
+    ...(tool.expiresAt === undefined ? {} : { expiresAt: tool.expiresAt }),
     ...(tool.promotedFrom === undefined ? {} : { promotedFrom: tool.promotedFrom }),
     ...(tool.createdBySession === undefined ? {} : { createdBySession: tool.createdBySession }),
     shadowing: shadowingFor(entries, tool, context),
@@ -1216,7 +1384,159 @@ export function createAgentAuthoringStore(options: { readonly file: string; read
       assertScopesEnabled(resolved, scopesEnabled)
       return resolveAll(document.tools, resolved)
     },
-    saveTool(input, context) {
+    saveDraft(input, context, clock) {
+    const resolved = requireContext(context)
+    assertScopesEnabled(resolved, scopesEnabled)
+    const target = targetKey(resolved)
+    const nowMs = clock?.now ?? Date.now()
+    const at = new Date(nowMs).toISOString()
+    const program = requireProgram(input.program, input.runId)
+    const tools = requireToolNames(input.tools, input.runId)
+    const inputSchema = requireInputSchema(input.inputSchema)
+    const description = input.description?.trim() ?? 'Distilled from successful run ' + input.runId + '.'
+    // Deterministic identity from the CONTENT, then deterministic collision handling: a
+    // KEPT row owns the base name, so the draft takes the first free numeric suffix. A
+    // re-run of the same content finds its own row here and updates it in place.
+    const base = draftNameForContent({ program, tools, inputSchema })
+    let name = base
+    for (let suffix = 2; suffix <= 100; suffix += 1) {
+      const owner = document.tools.find(row =>
+        row.name === name && row.scope === target.scope && row.scopeKey === target.key)
+      if (owner === undefined || owner.status === 'draft') break
+      name = base + '_' + String(suffix)
+    }
+    const existing = document.tools.find(row =>
+      row.name === name && row.scope === target.scope && row.scopeKey === target.key)
+    const createdBySession = existing?.createdBySession
+      ?? resolved?.sessionId
+      ?? (target.scope === 'session' ? target.key : undefined)
+    const entry: AgentToolDefinition = {
+      id: existing?.id ?? 'agent_' + randomUUID(),
+      name,
+      description,
+      inputSchema,
+      program,
+      tools,
+      version: (existing?.version ?? 0) + 1,
+      createdAt: existing?.createdAt ?? at,
+      updatedAt: at,
+      scope: target.scope,
+      scopeKey: target.key,
+      digest: artifactDigest({ description, program, tools, inputSchema }),
+      status: 'draft',
+      expiresAt: new Date(nowMs + (clock?.ttlMs ?? DEFAULT_DRAFT_TTL_MS)).toISOString(),
+      ...(createdBySession === undefined ? {} : { createdBySession }),
+    }
+    persist({
+      ...document,
+      tools: existing === undefined
+        ? [...document.tools, entry]
+        : document.tools.map(row => row.id === existing.id ? entry : row),
+    })
+    return entry
+  },
+  expireDrafts(options, context) {
+    const resolved = requireContext(context)
+    assertScopesEnabled(resolved, scopesEnabled)
+    const at = new Date(options?.now ?? Date.now()).toISOString()
+    const doomed = document.tools.filter(row =>
+      row.status === 'draft'
+      && typeof row.expiresAt === 'string'
+      && row.expiresAt <= at
+      // No context means the HOST janitor (mount-time / session-end), which must sweep
+      // every scope; a scoped caller is confined to what it can see, so one session can
+      // never expire another session's drafts.
+      && (resolved === undefined || isVisible(row, resolved)))
+    const removed = doomed.slice(0, 200)
+    if (removed.length === 0) return []
+    const ids = new Set(removed.map(row => row.id))
+    persist({ ...document, tools: document.tools.filter(row => !ids.has(row.id)) })
+    return removed
+  },
+  promoteDraft(draftName, options) {
+    const from = requireContext(options.from)
+    const to = requireContext(options.to)
+    assertScopesEnabled(from, scopesEnabled)
+    assertScopesEnabled(to, scopesEnabled)
+    const target = targetKey(to)
+    const at = new Date(options.now ?? Date.now()).toISOString()
+    // The caller resolves the draft by its content-derived name; a suffix probe covers the
+    // rare collision where a KEPT row already owned the base name when the draft was made.
+    let source: AgentToolDefinition | undefined
+    for (let index = 1; index <= 100 && source === undefined; index += 1) {
+      const candidate = index === 1 ? draftName : draftName + '_' + String(index)
+      const row = findResolved(document.tools, candidate, from)
+      if (row !== undefined && row.status === 'draft') source = row
+      // Stop at the first absent candidate: suffixes are dense by construction.
+      else if (row === undefined) break
+    }
+    if (source === undefined) {
+      throw new AuthoringError('artifact-not-found', 'no draft named "' + draftName + '"; a successful run must be captured first')
+    }
+    const name = options.name ?? source.name
+    if (!AGENT_TOOL_NAME_PATTERN.test(name)) {
+      throw new AuthoringError('invalid-name', '"' + name + '" is not an authored tool name: it must match agent_[a-z0-9_]{2,60}')
+    }
+    const conflict = document.tools.find(row =>
+      row.name === name && row.scope === target.scope && row.scopeKey === target.key && row.id !== source.id)
+    if (conflict !== undefined) throw conflictError('tool', name, target, conflict.version)
+    const promotedFrom: PromotedFrom = {
+      scope: source.scope,
+      scopeKey: source.scopeKey,
+      version: source.version,
+      at,
+      // Required by the type: the binding subset travels with the provenance so a later
+      // drift in the resolved tool list stays diagnosable. Same list, no new claim.
+      tools: source.tools,
+      ...(to?.sessionId === undefined ? {} : { sessionId: to.sessionId }),
+    }
+    // keepSource returns the SAME row as a kept member (no second name at one scope);
+    // the default consumes the draft, so a kept library never accumulates duplicates.
+    if (options.keepSource === true) {
+      const kept: AgentToolDefinition = {
+        id: source.id,
+        name,
+        description: source.description,
+        inputSchema: source.inputSchema,
+        program: source.program,
+        tools: source.tools,
+        version: source.version,
+        createdAt: source.createdAt,
+        updatedAt: at,
+        scope: source.scope,
+        scopeKey: source.scopeKey,
+        digest: source.digest,
+        status: 'kept',
+        promotedFrom,
+        ...(source.createdBySession === undefined ? {} : { createdBySession: source.createdBySession }),
+      }
+      persist({ ...document, tools: document.tools.map(row => row.id === source.id ? kept : row) })
+      return { kind: 'tool', tool: kept }
+    }
+    const copy: AgentToolDefinition = {
+      id: 'agent_' + randomUUID(),
+      name,
+      description: source.description,
+      inputSchema: source.inputSchema,
+      program: source.program,
+      tools: source.tools,
+      version: 1,
+      createdAt: at,
+      updatedAt: at,
+      scope: target.scope,
+      scopeKey: target.key,
+      digest: source.digest,
+      status: 'kept',
+      promotedFrom,
+      ...(source.createdBySession === undefined ? {} : { createdBySession: source.createdBySession }),
+    }
+    persist({
+      ...document,
+      tools: [...document.tools.filter(row => row.id !== source.id), copy],
+    })
+    return { kind: 'tool', tool: copy }
+  },
+  saveTool(input, context) {
       const resolved = requireContext(context)
       assertScopesEnabled(resolved, scopesEnabled)
       const normalized = normalizeTool(input)

@@ -33,8 +33,10 @@ import { createInvocationAuthority, resolveApprovedRoots } from './authority.ts'
 import { createExternalGrantContext, createProgramRunner, TOOL_MODE_RUN_CONTRACT, PTC_SERVICE, type RunReport } from './tool-mode-run.ts'
 import {
   agentToolContract,
+  DEFAULT_DRAFT_TTL_MS,
   createAgentAuthoringStore,
   defaultAgentAuthoringFile,
+  type AgentAuthoringStore,
   runAuthoredProgram,
   workflowToolName,
   type AgentToolDefinition,
@@ -309,6 +311,10 @@ export interface Config {
     maxRepeats?: number
     /** D/G/O experiment arm; recorded once per session. */
     experimentArm?: 'D' | 'G' | 'O'
+    /** Phase 4: leave a callable draft after every successful run (off until the gate). */
+    autoDraft?: boolean
+    /** Phase 4: lifetime of an unkept draft in milliseconds (default 86400000). */
+    draftTtlMs?: number
   }
   /**
    * Authored-artifact scoping. Disabled by default: every artifact is global and
@@ -895,7 +901,9 @@ export const Config: z<Config> = z.object({
     prewarmAfterEnable: z.boolean().default(false),
     maxRepeats: z.number().min(2).default(3),
     experimentArm: z.union([z.const('D'), z.const('G'), z.const('O')]).required(false),
-  }).default({ saveOffer: true, digest: true, prewarmAfterEnable: false, maxRepeats: 3 }),
+    autoDraft: z.boolean().default(false),
+    draftTtlMs: z.number().min(0).default(86_400_000),
+  }).default({ saveOffer: true, digest: true, prewarmAfterEnable: false, maxRepeats: 3, autoDraft: false, draftTtlMs: 86_400_000 }),
   /**
    * Authored-artifact scoping. ENABLED by default: new artifacts are
    * session-scoped, existing global rows remain resolvable, and
@@ -1220,6 +1228,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   let authoredToolVisibleAt: ((name: string, scope: BuiltScopeContext) => boolean) | undefined
   /** Run capture for define-from-run; on by default, disabled by config. */
   let runCaptureStore: RunCaptureStore | undefined
+  /**
+   * The authoring store, once the authoring block has created it. It is created AFTER
+   * `registerRuntimeTools` runs (inside the allowAgentAuthoring branch), so the run hook
+   * reads this ref through a getter: undefined while authoring is disabled, which makes
+   * the draft hook inert rather than absent.
+   */
+  let authoringStoreRef: AgentAuthoringStore | undefined
   /** Workflow tools registered from the durable workflow store. */
   const workflowToolNames = new Set<string>()
   const workflowDisposers = new Map<string, () => void>()
@@ -3517,6 +3532,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     recordFailedComposition,
     scheduleSandboxTempPrune,
     runCaptureStore: () => runCaptureStore,
+    authoringStore: () => authoringStoreRef,
+    adoption: () => ({
+      autoDraft: config.adoption?.autoDraft === true,
+      draftTtlMs: config.adoption?.draftTtlMs ?? DEFAULT_DRAFT_TTL_MS,
+    }),
   })
 
   /* oxlint-disable anti-slop/require-safety-comment-for-type-assertion, anti-slop/no-chained-type-assertions, anti-slop/no-unknown-parameters, anti-slop/no-unsafe-dictionary-type, anti-slop/no-runtime-typeof -- SAFETY: this block is the JSON/registry boundary for agent-authored artifacts: it validates untrusted stored JSON and then casts DSH registry values at the plugin seam (the same boundary tool_mode_run uses). */
@@ -3626,6 +3646,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       file: authoringFile,
       scopeEnabled: scopingEnabled,
     })
+    authoringStoreRef = authoringStore
     if (authoringStore.issue !== undefined) {
       ctx.logger.warn('model-tools: agent authoring: ' + authoringStore.issue)
     }
@@ -3636,6 +3657,29 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     if (authoringLedger.issue !== undefined) {
       ctx.logger.warn('model-tools: authoring ledger: ' + authoringLedger.issue)
     }
+    /**
+     * Sweep expired drafts and record one bounded `expire` event per removed row.
+     *
+     * Called at mount (a restart must not resurrect drafts that outlived their bound) and
+     * at root-session end. Deliberately total: a sweep failure is logged, never thrown,
+     * because housekeeping must not be able to fail a mount or a session teardown.
+     */
+    const sweepDrafts = (): void => {
+      try {
+        for (const draft of authoringStore.expireDrafts({})) {
+          authoringLedger.record({
+            operation: 'expire',
+            artifactKind: 'tool',
+            name: draft.name,
+            version: draft.version,
+            scope: draft.scope,
+          })
+        }
+      } catch (error) {
+        ctx.logger.warn('model-tools: draft sweep: ' + (error instanceof Error ? error.message : String(error)))
+      }
+    }
+    sweepDrafts()
     // ctx.get() is the OPTIONAL service lookup: reading ctx.sessions directly
     // would require a Cordis injection declaration and break every mount that does
     // not load SessionStore (the authoring unit tests among them).
@@ -3842,6 +3886,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           scope: 'session', uses: evidence.uses, sessions: evidence.sessions,
         })
       }
+      // Drafts belong to the session that produced them: releasing the root session also
+      // releases anything past its bound. A draft that was kept has already left this set.
+      sweepDrafts()
     }) as never)
     /** The LIVE catalog revision, the same fact tool_mode_run reports (CODE-05). */
     const authoringRevision = (): string => String(extensionLifecycle?.generation ?? host.activationGeneration)
@@ -4186,6 +4233,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     registerAuthoringTools({
       ctx,
       store: authoringStore,
+    adoption: () => ({ draftTtlMs: config.adoption?.draftTtlMs ?? DEFAULT_DRAFT_TTL_MS }),
       ledger: authoringLedger,
       scopeFor,
       sessionIdOfAgent,
