@@ -80,8 +80,13 @@ function evidenceLine(candidate: AdoptionDigestCandidate): string {
   const percent = candidate.failures === 0
     ? ''
     : ' (' + String(Math.round((candidate.failures / Math.max(1, candidate.uses)) * 100)) + '% failed)'
+  // Only claim sessions when the caller actually observed some: an unknown or zero count
+  // printed as "0 sessions" would assert a fact from no data.
+  const sessions = candidate.sessions !== undefined && candidate.sessions > 0
+    ? ' across ' + String(candidate.sessions) + ' sessions'
+    : ''
   return 'Evidence: ' + String(candidate.uses) + ' uses, ' + String(candidate.failures) + ' ' + plural
-    + ' across ' + String(candidate.sessions ?? 0) + ' sessions' + percent + '.'
+    + sessions + percent + '.'
 }
 
 /**
@@ -121,7 +126,11 @@ export function buildDirectiveDigest(
     ? 'Use ' + callableName + stored + '.'
     : 'Use ' + callableName + stored + ' — ' + sentence(purpose)]
   const knownFailure = top.knownFailure === undefined ? undefined : truncate(oneLine(top.knownFailure), FRAGMENT_MAX_CHARS)
-  if (knownFailure !== undefined && knownFailure.length > 0) lines.push('Known failure: ' + sentence(knownFailure))
+  // The five-use rule gates the caveat and its counts together: a one-use failure is real
+  // evidence, but it is not enough to advertise a "known failure" mode yet.
+  if (top.uses >= 5 && knownFailure !== undefined && knownFailure.length > 0) {
+    lines.push('Known failure: ' + sentence(knownFailure))
+  }
   if (top.uses >= 5) lines.push(evidenceLine(top))
   const supporting = ranked.slice(1, 1 + maxSupporting).map(row => oneLine(row.callableName))
   if (supporting.length > 0) lines.push('Also available: ' + supporting.join(', ') + '.')

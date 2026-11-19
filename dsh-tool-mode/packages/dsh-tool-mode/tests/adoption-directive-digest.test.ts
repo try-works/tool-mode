@@ -49,6 +49,29 @@ describe('directive digest', () => {
     assert.doesNotMatch(text, /guaranteed|always works|reliable/i)
   })
 
+  it('gates the known failure at five uses, like the evidence line', () => {
+    for (const uses of [1, 4]) {
+      const text = buildDirectiveDigest([candidate({ name: 'young', uses, failures: 1, knownFailure: 'TOOL_BINDING_REFUSED' })])
+      assert.doesNotMatch(text, /Known failure/i)
+      assert.doesNotMatch(text, /Evidence:/)
+    }
+    const five = buildDirectiveDigest([candidate({ name: 'grown', uses: 5, failures: 1, knownFailure: 'TOOL_BINDING_REFUSED' })])
+    assert.match(five, /^Known failure: TOOL_BINDING_REFUSED\.$/m)
+    assert.match(five, /5 uses/)
+  })
+
+  it('omits a sessions claim when the count is zero or unknown', () => {
+    for (const sessions of [undefined, 0]) {
+      const base = candidate({ name: 'unknown', uses: 5, failures: 1 })
+      const row = sessions === undefined ? base : { ...base, sessions }
+      const text = buildDirectiveDigest([row])
+      assert.doesNotMatch(text, /sessions/)
+      assert.doesNotMatch(text, /0 sessions/)
+    }
+    const known = buildDirectiveDigest([candidate({ name: 'known', uses: 5, failures: 1, sessions: 3 })])
+    assert.match(known, /across 3 sessions/)
+  })
+
   it('does not invent a caveat when there is no failure evidence', () => {
     const text = buildDirectiveDigest([candidate({ name: 'flow', uses: 10, failures: 0 })])
     assert.doesNotMatch(text, /Known failure/i)

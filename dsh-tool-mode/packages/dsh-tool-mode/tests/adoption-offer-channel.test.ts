@@ -41,6 +41,13 @@ function contentText(result: { content?: readonly { type: string; text?: string 
   return (result.content ?? []).filter(block => block.type === 'text').map(block => block.text ?? '')
 }
 
+/** Narrow one call's result to the success arm, so the full result can be compared. */
+function successful(result: Awaited<ReturnType<typeof callAs>>) {
+  assert.equal(result.isError, false, JSON.stringify(result))
+  if (result.isError) throw new Error('the call must succeed')
+  return result
+}
+
 /** Three calls with the SAME argument shape (the tracker counts shape, not values). */
 async function repeatShape(ctx: Context, sessionId: string) {
   for (let index = 0; index < 3; index += 1) {
@@ -83,16 +90,32 @@ describe('Phase 5 — one bounded offer in the tool result', () => {
   it('is byte-identical to the baseline: flag off renders the untouched result, flag on adds ONE block', async () => {
     const baselineCtx = await mountPluginWithTongue({ adoption: { saveOffer: false } })
     await enableTongue(baselineCtx)
-    const baseline = await repeatShape(baselineCtx, 'session-b')
-    const baselineLines = contentText(baseline as never)
-    assert.equal(baselineLines.some(line => line.startsWith('Offer: ')), false, 'flag off must not augment')
+    const baselineRendered = successful(await repeatShape(baselineCtx, 'session-b'))
+    assert.equal(baselineRendered.content.some(block => (block.text ?? '').startsWith('Offer: ')), false, 'flag off must not augment')
 
     const offerCtx = await mountPluginWithTongue()
     await enableTongue(offerCtx)
-    const offered = await repeatShape(offerCtx, 'session-b')
-    const offeredLines = contentText(offered as never)
-    assert.deepEqual(offeredLines.slice(0, baselineLines.length), baselineLines, 'everything before the offer is unchanged')
-    assert.equal(offeredLines.length, baselineLines.length + 1, 'the offer is exactly one extra block')
+    const offeredRendered = successful(await repeatShape(offerCtx, 'session-b'))
+    assert.equal(offeredRendered.isError, baselineRendered.isError)
+    assert.deepEqual(offeredRendered.value, baselineRendered.value, 'the model-facing value is unchanged')
+
+    // Exactly ONE extra content block, and it is the offer.
+    assert.equal(offeredRendered.content.length, baselineRendered.content.length + 1)
+    const appended = offeredRendered.content[baselineRendered.content.length]
+    assert.ok(appended !== undefined)
+    assert.equal(appended.type, 'text')
+    assert.ok((appended.text ?? '').startsWith('Offer: '), 'the appended block is the offer')
+    assert.deepEqual(
+      offeredRendered.content.slice(0, baselineRendered.content.length),
+      baselineRendered.content,
+      'every baseline block is untouched',
+    )
+
+    // Whole-result byte identity modulo the per-context receipt id: the flag-on result IS
+    // the baseline result plus exactly that one block, serialized byte for byte.
+    const canonical = (json: string): string => json.replace(/"receiptId":"[^"]*"/g, '"receiptId":"<receipt>"')
+    const expected = { ...baselineRendered, content: [...baselineRendered.content, appended] }
+    assert.equal(canonical(JSON.stringify(offeredRendered)), canonical(JSON.stringify(expected)))
   })
 
   it('does not repeat the offer in the next result', async () => {

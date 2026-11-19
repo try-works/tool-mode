@@ -33,6 +33,19 @@ describe('quality metadata', () => {
     assert.doesNotMatch(text, /Known failure/i)
   })
 
+  it('shows no known failure and no percentage at one or four uses; both appear at five', () => {
+    for (const uses of [1, 4]) {
+      const text = buildDirectiveDigest([candidate({ name: 'young', uses, failures: 1, knownFailure: 'AUTHORING_SAVE_REFUSED' })])
+      assert.doesNotMatch(text, /Known failure/i)
+      assert.doesNotMatch(text, /%/)
+      assert.doesNotMatch(text, /Evidence:/)
+    }
+    const five = buildDirectiveDigest([candidate({ name: 'grown', uses: 5, failures: 1, knownFailure: 'AUTHORING_SAVE_REFUSED' })])
+    assert.match(five, /^Known failure: AUTHORING_SAVE_REFUSED\.$/m)
+    assert.match(five, /5 uses/)
+    assert.match(five, /20% failed/)
+  })
+
   it('renders uses/failures and the bounded known failure at five uses with one failure', () => {
     const store = createArtifactUsageStore(join(tempDir(), 'usage.json'))
     for (let index = 0; index < 4; index += 1) {
