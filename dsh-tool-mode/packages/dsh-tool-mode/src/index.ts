@@ -318,9 +318,18 @@ export interface Config {
     maxRepeats?: number
     /** D/G/O experiment arm; recorded once per session. */
     experimentArm?: 'D' | 'G' | 'O'
-    /** Phase 4: leave a callable draft after every successful run (default true). */
+    /**
+     * Where a successful run is automatically reusable: `off` captures only,
+     * `session` (default) leaves a draft in the caller session, `workspace` also
+     * persists it at workspace scope. Global is never automatic.
+     */
+    autoKeep?: 'off' | 'session' | 'workspace'
+    /**
+     * Deprecated: use autoKeep. Kept for one release. `false` maps to autoKeep:'off'
+     * unless autoKeep is set explicitly; a warning points at captureRunPrograms.
+     */
     autoDraft?: boolean
-    /** Phase 4: lifetime of an unkept draft in milliseconds (default 86400000). */
+    /** Lifetime of an unkept draft in milliseconds (default 86400000). */
     draftTtlMs?: number
   }
   /**
@@ -909,9 +918,10 @@ export const Config: z<Config> = z.object({
     prewarmAfterEnable: z.boolean().default(false),
     maxRepeats: z.number().min(2).default(3),
     experimentArm: z.union([z.const('D'), z.const('G'), z.const('O')]).required(false),
-    autoDraft: z.boolean().default(true),
+    autoKeep: z.union([z.const('off'), z.const('session'), z.const('workspace')]).required(false),
+    autoDraft: z.boolean().required(false),
     draftTtlMs: z.number().min(0).default(86_400_000),
-  }).default({ saveOffer: true, digest: true, digestMode: 'directive', prewarmAfterEnable: false, maxRepeats: 3, autoDraft: true, draftTtlMs: 86_400_000 }),
+  }).default({ saveOffer: true, digest: true, digestMode: 'directive', prewarmAfterEnable: false, maxRepeats: 3, draftTtlMs: 86_400_000 }),
   /**
    * Authored-artifact scoping. ENABLED by default: new artifacts are
    * session-scoped, existing global rows remain resolvable, and
@@ -1252,6 +1262,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
    * the draft hook inert rather than absent.
    */
   let authoringStoreRef: AgentAuthoringStore | undefined
+  /** The workspace scope, once built; used by autoKeep:'workspace' drafts. */
+  let workspaceScopeRef: BuiltScopeContext | undefined
   /**
    * Registration, once the authoring block has defined it. The run hook needs it to make a
    * fresh draft callable in the session that created it; undefined before that point means
@@ -3590,8 +3602,16 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     runCaptureStore: () => runCaptureStore,
     authoringStore: () => authoringStoreRef,
     registerDraft: (definition: AgentToolDefinition) => registerAuthoredRef?.(definition) ?? false,
+    scopeForDraft: exec => {
+      const keep = config.adoption?.autoKeep
+        ?? (config.adoption?.autoDraft === false ? 'off' : 'session')
+      if (keep === 'off') return undefined
+      if (keep === 'workspace') return workspaceScopeRef ?? scopeForAuthoringCaller?.(exec)
+      return scopeForAuthoringCaller?.(exec)
+    },
     adoption: () => ({
-      autoDraft: config.adoption?.autoDraft === true,
+      autoKeep: config.adoption?.autoKeep
+        ?? (config.adoption?.autoDraft === false ? 'off' : 'session'),
       draftTtlMs: config.adoption?.draftTtlMs ?? DEFAULT_DRAFT_TTL_MS,
     }),
   })
@@ -3841,6 +3861,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       cwd: process.cwd(),
       ...scopeSettings.workspaceRoot === 'auto' ? {} : { workspaceRoot: scopeSettings.workspaceRoot },
     })
+    workspaceScopeRef = workspaceScope
     /** The global-scope context: no caller, used for boot-time rows and prompt/offer scans. */
     const globalScope = buildScopeContext({
       config: { enabled: true, defaultScope: 'global' },

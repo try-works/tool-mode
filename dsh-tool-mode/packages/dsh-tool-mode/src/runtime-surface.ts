@@ -53,7 +53,12 @@ export interface RuntimeSurfaceDeps {
   readonly scheduleSandboxTempPrune: () => void
   readonly runCaptureStore: () => RunCaptureStore | undefined
   /** Phase 4 draft policy; absent means drafts are off. */
-  readonly adoption?: () => { readonly autoDraft: boolean; readonly draftTtlMs: number }
+  readonly adoption?: () => {
+    readonly autoKeep: 'off' | 'session' | 'workspace'
+    readonly draftTtlMs: number
+  }
+  /** The scope an auto-kept draft is written to; absent falls back to the caller scope. */
+  readonly scopeForDraft?: (exec: { agent?: unknown }) => BuiltScopeContext | undefined
   /** The authoring store a draft is written to; absent means drafts are off. */
   readonly authoringStore?: () => AgentAuthoringStore | undefined
   /** Registers a just-saved draft so it is callable in this session; false means refused. */
@@ -278,9 +283,9 @@ export function registerRuntimeTools(deps: RuntimeSurfaceDeps): void {
       const draftStore = deps.authoringStore?.()
       // Drafts derive from CAPTURES: disabling captureRunPrograms disables drafts too,
       // so the two features cannot disagree about whether a run is remembered.
-      if (adoption?.autoDraft === true && draftStore !== undefined && recorded !== undefined) {
+      if (adoption !== undefined && adoption.autoKeep !== 'off' && draftStore !== undefined && recorded !== undefined) {
         const drafted = args as { description?: unknown }
-        const draftScope = scopeForAuthoringCaller(exec)?.context
+        const draftScope = deps.scopeForDraft?.(exec)?.context ?? scopeForAuthoringCaller(exec)?.context
         try {
           const draft = draftStore.saveDraft(
             {
