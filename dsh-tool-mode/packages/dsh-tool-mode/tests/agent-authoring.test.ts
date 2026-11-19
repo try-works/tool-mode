@@ -654,7 +654,7 @@ describe('purpose metadata is digest-only (Phase 8)', () => {
     assert.equal(plain.purpose, undefined)
   })
 
-  it('define accepts purpose, list returns it, and the PUBLISHED tool description stays opaque', async () => {
+  it('define accepts purpose, list omits it, and the PUBLISHED tool description stays opaque', async () => {
     const ctx = await mountHost()
     const defined = await callOk(ctx, 'tool_mode_tools', {
       action: 'define', name: 'agent_a7f3', description: 'A helper.', purpose: PURPOSE,
