@@ -158,7 +158,7 @@ describe('prompt-section wiring (Phase 3 in index.ts)', () => {
     assert.ok(text.length <= 600, 'length ' + String(text.length))
   })
 
-  it('documents the limitation: a SESSION artifact never reaches the prompt (no caller)', async () => {
+  it('omits a session artifact when the assembly has no caller', async () => {
     const ctx = await mountPluginWithTongue()
     const saved = await ctx.tools.execute({
       signal: new AbortController().signal,
@@ -173,7 +173,7 @@ describe('prompt-section wiring (Phase 3 in index.ts)', () => {
     assert.equal(saved.isError, false, JSON.stringify(saved))
     const text = await sectionText(ctx)
     assert.doesNotMatch(text, /private-flow|workflow_private_flow/)
-    // Not fake isolation: there is genuinely no caller identity at assembly time.
+    // Not fake isolation: this assembly supplies no Agent, so session rows have no caller.
     assert.match(text, /^$|^Use /)
   })
 

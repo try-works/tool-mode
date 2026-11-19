@@ -50,6 +50,7 @@ import { registerAuthoringTools } from './authoring-surface.ts'
 import { createArtifactUsageStore, failureClassOf } from './artifact-usage.ts'
 import { createRepetitionTracker, type RepetitionCandidate, type RepetitionTracker } from './adoption-candidates.ts'
 import { buildDirectiveDigest, buildLibraryDigest } from './library-digest.ts'
+import { compactInputSignature } from './input-shape.ts'
 import type { AdoptionDigestCandidate } from './adoption-digest-ranking.ts'
 import { registerRuntimeTools } from './runtime-surface.ts'
 import { createModelToolsControl } from './discovery-surface.ts'
@@ -3398,12 +3399,20 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
    * TOOLS_SDK is "after the tool sections" by construction, so a map change moves this
    * section with it instead of silently reordering it.
    */
+  /**
+   * The per-assembly context DSH supplies. `dsh-agent` augments the public
+   * SystemPrompt context with the live Agent; this plugin consumes it structurally so
+   * it does not need that package as a dependency.
+   */
+  interface PromptAssemblyContext {
+    readonly agent?: { readonly id?: string; readonly sessionId?: string }
+  }
   const promptService = ctx.get('systemPrompt') as
     | {
       readonly section: (section: {
         readonly name: string
         readonly order: number
-        readonly text: string | ((context: unknown) => string)
+        readonly text: string | ((context: PromptAssemblyContext) => string)
       }) => () => void
       readonly getSectionOrder: (name: string) => number
     }
@@ -4081,50 +4090,63 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     if (config.adoption?.digest === true && promptService !== undefined) {
       const order = promptService.getSectionOrder('MCP_SERVERS') + 101
       /**
-       * The prompt section has NO caller identity: assembly happens before any tool call,
-       * so there is no session to resolve. Session-scope artifacts are therefore INVISIBLE
-       * here (never faked as another caller's), and the digest is limited to workspace and
-       * global rows. That limitation is deliberate and tested.
+       * DSH supplies the live Agent on the assembly context. That is the hook that makes
+       * a SESSION-scoped auto-draft visible at turn start: assembly happens before any
+       * tool call, but the caller is already known. Without an Agent (diagnostics), the
+       * digest falls back to the workspace/global rows it showed before.
        */
-      const digestRows = (): AdoptionDigestCandidate[] => {
+      const digestRows = (context: PromptAssemblyContext): AdoptionDigestCandidate[] => {
+        let selected: BuiltScopeContext | undefined
+        if (context.agent !== undefined) {
+          try {
+            selected = scopeFor({ agent: context.agent }, 'session')
+          } catch {
+            selected = undefined
+          }
+        }
+        const resolutionScope = selected?.context ?? workspaceScope.context
+        const callerSessionId = selected?.rootSessionId
         const seen = new Set<string>()
         const rows: AdoptionDigestCandidate[] = []
         const add = (
-          row: { name: string; callableName: string; description: string; status?: string },
-          scope: 'workspace' | 'global',
-          digest: string,
+          row: {
+            name: string
+            callableName: string
+            description: string
+            status?: string
+            inputSchema: Record<string, unknown>
+            scope: ArtifactScope
+            digest: string
+          },
         ): void => {
           if (seen.has(row.callableName)) return
           seen.add(row.callableName)
-          const evidence = artifactUsage.evidence(row.name, digest)
-          const quality = artifactUsage.quality(row.name, digest)
-          const usage = artifactUsage.rows().find(candidate => candidate.name === row.name && candidate.digest === digest)
+          const evidence = artifactUsage.evidence(row.name, row.digest)
+          const quality = artifactUsage.quality(row.name, row.digest)
+          const usage = artifactUsage.rows().find(candidate => candidate.name === row.name && candidate.digest === row.digest)
+          const callSignature = compactInputSignature(row.inputSchema)
           rows.push({
             name: row.name,
             callableName: row.callableName,
             description: row.description,
-            scope,
+            scope: row.scope,
             uses: evidence.uses,
             failures: evidence.failures,
             sessions: evidence.sessions,
             ...usage?.lastAt === undefined ? {} : { lastUsedAt: usage.lastAt },
             ...quality.knownFailure === undefined ? {} : { knownFailure: quality.knownFailure },
             ...row.status === 'draft' ? { unverified: true } : {},
+            ...row.scope === 'session' && callerSessionId !== undefined ? { sessionId: callerSessionId } : {},
+            ...callSignature === undefined ? {} : { callSignature: callSignature.signature, batch: callSignature.batch },
           })
         }
-        for (const workflow of authoringStore.listWorkflows(workspaceScope.context)) {
-          add(workflow, 'workspace', workflow.digest)
+        for (const workflow of authoringStore.listWorkflows(resolutionScope)) {
+          add(workflow)
         }
-        for (const tool of authoringStore.listTools(workspaceScope.context)) {
+        for (const tool of authoringStore.listTools(resolutionScope)) {
           // Phase 8: purpose is DIGEST-ONLY. The callable tool keeps its (possibly opaque)
           // description; the digest is the one surface that may say what the artifact is for.
-          add({ ...tool, description: tool.purpose ?? tool.description }, 'workspace', tool.digest)
-        }
-        for (const workflow of authoringStore.listWorkflows(globalScope.context)) {
-          add(workflow, 'global', workflow.digest)
-        }
-        for (const tool of authoringStore.listTools(globalScope.context)) {
-          add({ ...tool, description: tool.purpose ?? tool.description }, 'global', tool.digest)
+          add({ ...tool, description: tool.purpose ?? tool.description })
         }
         return rows
       }
@@ -4136,12 +4158,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
          * `neutral` emits the old list, which is what the Phase 8 G arm measures against
          * the D/O arms. `digest:false` stays a hard off for both.
          */
-        text: () => {
+        text: context => {
           if (config.adoption?.digest === false) return ''
-          const rows = digestRows()
+          const rows = digestRows(context)
+          const callerSessionId = context.agent === undefined ? undefined : sessionIdOfAgent(context.agent)
           return config.adoption?.digestMode === 'neutral'
             ? buildLibraryDigest(rows)
-            : buildDirectiveDigest(rows)
+            : buildDirectiveDigest(rows, callerSessionId === undefined ? {} : { sessionId: callerSessionId })
         },
       }), 'tool-mode library digest')
     }

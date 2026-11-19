@@ -123,9 +123,13 @@ export function buildDirectiveDigest(
    */
   const stored = top.name === top.callableName ? '' : ' (stored ' + truncate(oneLine(top.name), 60) + ')'
   const unverified = top.unverified === true ? ' (auto-kept, unverified)' : ''
+  /* The shape is part of the directive: E15 showed the artifact was used but its
+   * `texts[]` batch was ignored, so the call form must be visible before the first call. */
+  const callSignature = top.callSignature === undefined || top.callSignature.length === 0 ? '' : '(' + oneLine(top.callSignature) + ')'
+  const batchHint = top.batch === true ? ' Pass the whole list in one call.' : ''
   const lines: string[] = [purpose.length === 0
-    ? 'Use ' + callableName + stored + unverified + '.'
-    : 'Use ' + callableName + stored + unverified + ' — ' + sentence(purpose)]
+    ? 'Use ' + callableName + callSignature + stored + unverified + '.' + batchHint
+    : 'Use ' + callableName + callSignature + stored + unverified + ' — ' + sentence(purpose) + batchHint]
   const knownFailure = top.knownFailure === undefined ? undefined : truncate(oneLine(top.knownFailure), FRAGMENT_MAX_CHARS)
   // The five-use rule gates the caveat and its counts together: a one-use failure is real
   // evidence, but it is not enough to advertise a "known failure" mode yet.

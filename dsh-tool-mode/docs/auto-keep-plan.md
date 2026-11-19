@@ -1,6 +1,6 @@
 # Auto-keep and the `autoDraft` deprecation plan
 
-Status: implemented (0.5.98; lifecycle corrections in 0.5.99). This plan turns the accepted direction — **runs are stored and reusable by
+Status: implemented (0.5.98; lifecycle corrections in 0.5.99; session-start adoption in 0.5.100). This plan turns the accepted direction — **runs are stored and reusable by
 default; delete is the only required curation action** — into a sequenced, test-first
 change.
 
@@ -448,6 +448,44 @@ Adjacent auto-keep suite: **28/28**. Typecheck: exit 0. Evidence:
 
 The E14/E15 discovery result is unchanged: auto-keep moves authoring to the host, not
 adoption. A directive is still required.
+
+## Session-start adoption (0.5.100)
+
+The discovery step now has a real harness seam. DSH's `AssembleContext` carries the live
+`Agent` (`assembleContextFor(agent, signal)`), but the existing library digest ignored the
+context and therefore resolved only workspace/global rows. A session-scoped auto-draft was
+invisible in the system prompt by construction.
+
+The section callback now:
+
+- resolves the caller with `scopeFor({ agent })`, which also supplies the caller's workspace
+  and root session;
+- lists the artifacts visible through that scope chain, including session rows;
+- passes the caller session id to `buildDirectiveDigest`, so session rows are filtered to
+  their owner;
+- includes the compact call shape and, for a list-shaped input, the instruction to pass the
+  whole list in one call.
+
+The hook choice is deliberate:
+
+- `system-prompt/assemble` / `systemPrompt.section({ text(context) })` is assembled once per
+  request and receives the Agent. It is the right place for prompt text.
+- `agent/request` runs after assembly and explicitly cannot mutate messages.
+- `agent/pre-step` can replace the messages entering a step, but it is later and noisier
+  than the existing prompt section.
+- `systemPrompt.context` is the alternative if a durable user-role snapshot is preferred;
+  it would avoid changing the cached system prefix on every artifact change, at the cost of
+  another message in history.
+
+Tradeoff: the system prompt now changes when the caller's artifact set changes, which can
+invalidate prefix reuse from the first changed token. Adoption is the measured bottleneck
+(E14 0 calls unnamed vs E15 61 calls named), so this is the intended trade.
+
+Red/green: the first two cases in `tests/adoption-session-prompt.test.ts` were
+**0/2 -> 2/2**; a third case pins a workspace workflow beside the caller draft, so the suite
+is **3/3**. The tests prove the owner sees the draft with `{texts: string[]}` and another
+session's assembly does not. Evidence:
+[REPORT.md](../research/session-adoption/REPORT.md).
 
 ## Verification matrix
 

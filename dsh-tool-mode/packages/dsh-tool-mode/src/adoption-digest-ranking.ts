@@ -42,6 +42,10 @@ export interface AdoptionDigestCandidate {
   readonly sessionId?: string
   /** True for an auto-kept row that has not been verified by a human. */
   readonly unverified?: boolean
+  /** A compact call signature, for example `{ texts: string[] }`. */
+  readonly callSignature?: string
+  /** True when the input schema takes a list, so the digest can ask for one batched call. */
+  readonly batch?: boolean
 }
 
 /** Higher wins. Session is the caller's own scope. */
