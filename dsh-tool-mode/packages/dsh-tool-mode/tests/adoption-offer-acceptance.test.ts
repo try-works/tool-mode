@@ -82,7 +82,7 @@ describe('Phase 5b — accepting the offer', () => {
   })
 
   it('ignoring the offer creates no draft and no artifact', async () => {
-    const ctx = await mountPluginWithTongue({ adoption: { autoDraft: true } })
+    const ctx = await mountPluginWithTongue({ adoption: { autoKeep: 'session' } })
     await triggerOffer(ctx, 'session-ignore')
     // Surface it a few times, never accept it.
     let authoring = await authoringOf(ctx, 'session-ignore')

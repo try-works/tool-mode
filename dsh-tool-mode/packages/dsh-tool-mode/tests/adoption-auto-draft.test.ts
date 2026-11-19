@@ -4,8 +4,8 @@
  * Phase 4 makes authoring ambient: the agent runs a program, and the run itself leaves a
  * DRAFT it can keep with one `from-run`. These cases are behavioural, through the mounted
  * plugin and a fake PTC runtime, so they pin the plumbing (capture -> draft -> promote) and
- * not the sandbox. Drafts are ON by default (`adoption.autoDraft` defaults to true); the
- * explicit opt-in cases remain to prove the flag still works.
+ * not the sandbox. Drafts are ON by default (`adoption.autoKeep:'session'`); the
+ * explicit cases prove the policy still works.
  *
  * @module tests/adoption-auto-draft
  */
@@ -111,7 +111,7 @@ function storedTools(authoringFile: string): Record<string, unknown>[] {
   return Array.isArray(parsed.tools) ? parsed.tools as Record<string, unknown>[] : []
 }
 
-const ENABLED = { adoption: { autoDraft: true } }
+const ENABLED = { adoption: { autoKeep: 'session' } }
 
 describe('auto-draft after a successful run', () => {
   it('leaves exactly one draft carrying the run id, program and shape-only schema', async () => {

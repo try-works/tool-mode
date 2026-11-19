@@ -1,17 +1,9 @@
 /**
- * Phase 1 of docs/auto-keep-plan.md: autoDraft is deprecated for one release.
- *
- * The flag remains compatible, but false is no longer the recommended way to turn
- * automatic materialization off. captureRunPrograms is the hard switch. The false path
- * must still capture the run and support from-run, with one migration warning.
+ * Phase 2 completion: autoDraft is removed and autoKeep is the policy.
  *
  * @module tests/auto-keep-config
  */
 
-/*
- * This suite is the JSON/registry BOUNDARY: tool results are unknown and are cast to the
- * shape under test, and the fake PTC runtime takes untyped values by design.
- */
 /* oxlint-disable anti-slop/require-safety-comment-for-type-assertion, anti-slop/no-unknown-parameters, anti-slop/no-unknown-returns, anti-slop/no-unsafe-dictionary-type, anti-slop/no-runtime-typeof */
 
 import { after, describe, it } from 'node:test'
@@ -61,10 +53,7 @@ function makeFakeRuntime(): ProgramRuntime {
 const contexts: Context[] = []
 let counter = 0
 
-async function mountHost(
-  config: Record<string, unknown> = {},
-  onContext?: (ctx: Context) => void,
-): Promise<{ ctx: Context; authoringFile: string }> {
+async function mountHost(config: Record<string, unknown> = {}): Promise<{ ctx: Context; authoringFile: string }> {
   const dir = tempDir()
   const authoringFile = join(dir, 'agent-authoring.json')
   const ctx = new Context()
@@ -72,7 +61,6 @@ async function mountHost(
   await ctx.plugin(ToolRuntime)
   await ctx.plugin(SkillRegistry)
   ctx.provide(PTC_SERVICE, makeFakeRuntime())
-  onContext?.(ctx)
   await ctx.plugin(plugin, {
     stateFile: join(dir, 'state.json'),
     credentialsFile: join(dir, 'credentials.json'),
@@ -90,16 +78,17 @@ async function call(ctx: Context, name: string, args: unknown) {
     callId: ToolCallId(`config-${++counter}`),
     name,
     arguments: args,
-  })
+    agent: { id: 'session-config' },
+  } as never)
 }
 
 function textOf(result: { content: { type: string; text?: string }[] }): string {
   return result.content.filter(block => block.type === 'text').map(block => block.text).join('')
 }
 
-function storedTools(authoringFile: string): Record<string, unknown>[] {
+function storedTools(file: string): Record<string, unknown>[] {
   try {
-    const parsed = JSON.parse(readFileSync(authoringFile, 'utf8')) as { tools?: unknown }
+    const parsed = JSON.parse(readFileSync(file, 'utf8')) as { tools?: unknown }
     return Array.isArray(parsed.tools) ? parsed.tools as Record<string, unknown>[] : []
   } catch {
     return []
@@ -113,56 +102,31 @@ const RUN = {
   input: { value: 21 },
 }
 
-describe('autoDraft deprecation compatibility', () => {
-  it('omitted leaves one callable draft', async () => {
+describe('autoKeep config after autoDraft removal', () => {
+  it('omitted leaves one session draft', async () => {
     const { ctx, authoringFile } = await mountHost()
-    const result = await call(ctx, 'tool_mode_run', RUN)
-    assert.equal(result.isError, false, textOf(result))
-    const drafts = storedTools(authoringFile).filter(row => row['status'] === 'draft')
-    assert.equal(drafts.length, 1)
-  })
-
-  it('true behaves the same as omitted', async () => {
-    const { ctx, authoringFile } = await mountHost({ adoption: { autoDraft: true } })
     const result = await call(ctx, 'tool_mode_run', RUN)
     assert.equal(result.isError, false, textOf(result))
     assert.equal(storedTools(authoringFile).filter(row => row['status'] === 'draft').length, 1)
   })
 
-  it('false leaves no draft but still captures the run for from-run', async () => {
-    const { ctx, authoringFile } = await mountHost({ adoption: { autoDraft: false } })
-    const run = JSON.parse(textOf(await call(ctx, 'tool_mode_run', RUN))) as { runId: string; result: { doubled: number } }
-    assert.equal(run.result.doubled, 42)
-    assert.deepEqual(storedTools(authoringFile).filter(row => row['status'] === 'draft'), [])
-
+  it('autoKeep off captures only and leaves from-run available', async () => {
+    const { ctx, authoringFile } = await mountHost({ adoption: { autoKeep: 'off' } })
+    const run = JSON.parse(textOf(await call(ctx, 'tool_mode_run', RUN))) as { runId: string }
+    assert.deepEqual(storedTools(authoringFile), [])
     const defined = await call(ctx, 'tool_mode_tools', { action: 'from-run', runId: run.runId })
-    assert.equal(defined.isError, false, textOf(defined))
     assert.equal((JSON.parse(textOf(defined)) as { defined?: boolean }).defined, true)
-    assert.equal(storedTools(authoringFile).filter(row => row['status'] === 'draft').length, 0)
   })
 
-  it('warns once on false and points at captureRunPrograms', async () => {
-    const logs: string[] = []
-    let restore = () => {}
-    try {
-      await mountHost({ adoption: { autoDraft: false } }, ctx => {
-        const proto = Object.getPrototypeOf(ctx.logger) as { warn(...args: unknown[]): void }
-        const original = proto.warn
-        restore = () => { proto.warn = original }
-        proto.warn = function (this: unknown, ...args: unknown[]) {
-          logs.push(args.map(String).join(' '))
-          return original.apply(this, args)
-        }
-      })
-      const warnings = logs.filter(line => line.includes('autoDraft') && line.includes('captureRunPrograms'))
-      assert.equal(warnings.length, 1, JSON.stringify(logs))
-    } finally {
-      restore()
-    }
+  it('rejects the removed autoDraft key with a migration message', async () => {
+    await assert.rejects(
+      () => mountHost({ adoption: { autoDraft: false } }),
+      /autoDraft was removed.*autoKeep/s,
+    )
   })
 
   it('captureRunPrograms:false disables capture, drafts and from-run', async () => {
-    const { ctx, authoringFile } = await mountHost({ captureRunPrograms: false, adoption: { autoDraft: true } })
+    const { ctx, authoringFile } = await mountHost({ captureRunPrograms: false, adoption: { autoKeep: 'session' } })
     const run = await call(ctx, 'tool_mode_run', RUN)
     assert.equal(run.isError, false, textOf(run))
     const runId = (JSON.parse(textOf(run)) as { runId: string }).runId

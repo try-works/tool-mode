@@ -324,11 +324,6 @@ export interface Config {
      * persists it at workspace scope. Global is never automatic.
      */
     autoKeep?: 'off' | 'session' | 'workspace'
-    /**
-     * Deprecated: use autoKeep. Kept for one release. `false` maps to autoKeep:'off'
-     * unless autoKeep is set explicitly; a warning points at captureRunPrograms.
-     */
-    autoDraft?: boolean
     /** Lifetime of an unkept draft in milliseconds (default 86400000). */
     draftTtlMs?: number
   }
@@ -1163,13 +1158,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   }) as never)
   // §12: the fixed-false flags REFUSE unsupported values before anything runs.
   assertConfigV3DisabledFlags(config)
-  // autoDraft is deprecated: captureRunPrograms is the durable off switch. Keep the
-  // old false behavior for one release, but say so once instead of letting it become
-  // a silent capture-without-materialization mode.
-  if (config.adoption?.autoDraft === false) {
-    ctx.logger.warn(
-      'model-tools: adoption.autoDraft is deprecated and will be removed. '
-      + 'Use captureRunPrograms:false to disable capture, drafts and from-run.',
+  // autoDraft was removed after its deprecation release. The schema keeps a
+  // tombstone so an old config fails with a migration message instead of silently
+  // falling back to autoKeep:'session'.
+  if ((config.adoption as { autoDraft?: unknown } | undefined)?.autoDraft !== undefined) {
+    throw new Error(
+      'adoption.autoDraft was removed. Use adoption.autoKeep to choose '
+      + "'off' | 'session' | 'workspace'; use captureRunPrograms:false to disable "
+      + 'capture, drafts and from-run entirely.',
     )
   }
   /**
@@ -3616,15 +3612,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       return registerAuthoredRef?.(promoted.tool) ?? false
     },
     scopeForDraft: exec => {
-      const keep = config.adoption?.autoKeep
-        ?? (config.adoption?.autoDraft === false ? 'off' : 'session')
+      const keep = config.adoption?.autoKeep ?? 'session'
       if (keep === 'off') return undefined
       if (keep === 'workspace') return workspaceScopeRef ?? scopeForAuthoringCaller?.(exec)
       return scopeForAuthoringCaller?.(exec)
     },
     adoption: () => ({
-      autoKeep: config.adoption?.autoKeep
-        ?? (config.adoption?.autoDraft === false ? 'off' : 'session'),
+      autoKeep: config.adoption?.autoKeep ?? 'session',
       draftTtlMs: config.adoption?.draftTtlMs ?? DEFAULT_DRAFT_TTL_MS,
     }),
   })

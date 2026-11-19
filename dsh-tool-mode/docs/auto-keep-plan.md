@@ -403,6 +403,16 @@ The installed package and the source agree after a restart; a real run produces 
 callable artifact without a save call; the post-restart persistence and delete checks are
 recorded; the report states what was and was not measured.
 
+## Removal result (0.5.98)
+
+`adoption.autoDraft` is no longer a functional setting. The schema keeps a tombstone key
+so an old configuration fails with: "adoption.autoDraft was removed. Use adoption.autoKeep
+to choose 'off' | 'session' | 'workspace'..." — not a silent fallback. `autoKeep` is the
+policy. Evidence: [removal report](../research/auto-keep-removal/REPORT.md).
+
+The installed 0.5.98 build rejects the old key, accepts `autoKeep: session`, creates a
+session draft, and a restart shows the draft does not leak into the new session.
+
 ## Phase 7 run result (2026-11-20)
 
 Recorded in [REPORT.md](../research/auto-keep-phase7/REPORT.md). The packed **0.5.97**
