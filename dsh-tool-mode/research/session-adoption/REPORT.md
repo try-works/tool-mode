@@ -102,11 +102,14 @@ adjacent adoption/digest suites: **45/45**.
 
 ## Limits
 
-- 0.5.103 is packed and installed into the web profile; the running host still holds the
+- 0.5.104 is the source build under the remaining fixes; the running host still holds the
   old module graph until a full DSH stop/start, so the live task-turn probe is pending.
-- U42 (a declared-but-unbindable authored tool advertised in a subagent's bindings) and the
-  U26 list-after-promotion case are not fixed here. The latter is expected to improve with
-  the caller-workspace promotion fix, but it has not been re-probed.
+- U42 is fixed in 0.5.104: row removal now withdraws the registration when no visible
+  global/workspace/released-session row remains. Residual: the registry is process-global,
+  so a live row of another root can still be advertised; preflight correctly refuses it.
+- U26 was already fixed before 0.5.101; 0.5.104 adds the regression that proves
+  `list({scope:'workspace'})` returns the promoted row while a session row shadows normal
+  resolution.
 - The inventory is directive plus at most three supporting names, bounded to four lines and
   600 characters. It is not an exhaustive catalog; `tool_mode_tools list` remains the full
   bounded surface.

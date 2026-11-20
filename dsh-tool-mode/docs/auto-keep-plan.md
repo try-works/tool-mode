@@ -1,6 +1,6 @@
 # Auto-keep and the `autoDraft` deprecation plan
 
-Status: implemented (0.5.98; lifecycle corrections in 0.5.99; session-start adoption in 0.5.100; fail-open prompt in 0.5.101; async boot digest in 0.5.102; task-turn injection in 0.5.103). This plan turns the accepted direction — **runs are stored and reusable by
+Status: implemented (0.5.98; lifecycle corrections in 0.5.99; session-start adoption in 0.5.100; fail-open prompt in 0.5.101; async boot digest in 0.5.102; task-turn injection in 0.5.103; artifact verification + U42/U26 closure in 0.5.104). This plan turns the accepted direction — **runs are stored and reusable by
 default; delete is the only required curation action** — into a sequenced, test-first
 change.
 
@@ -523,6 +523,21 @@ warning; the counters remain available to a kept row that has no note.
 TDD: `tests/adoption-verification.test.ts` **0/2 red -> 3/3 green**, including a
 `define -> prompt digest` integration case. Evidence:
 [REPORT.md](../research/verification-field/REPORT.md).
+
+## U42/U26 closure (0.5.104)
+
+- **U42.** Registration and row lifetime were separate stores: sweep/session disposal removed
+  authored rows but never withdrew the tool registration, leaving a name advertised in the
+  binding snapshot while preflight refused it as `not-visible-at-scope`. `authoredRowRemains()`
+  + `withdrawAuthoredIfAbsent()` now withdraw only when no visible global/workspace/released-session
+  row remains; workflow dispatchers use the same rule. A surviving workspace copy stays
+  registered and bindable. Red: **3 tests, 1 pass/2 fail**; green: **3/3**. Residual: the
+  registry is process-global, so a live row of another root can still be advertised; preflight
+  correctly refuses that cross-root hand-down.
+- **U26.** The explicit-scope list already filters the annotated union (`listTools(context,
+  { all:true }).filter(row => row.scope === rawScope)`), so the 0.5.101 observation predates
+  the fix. Added regression: **1/1 green**, with the session row surviving and shadowing normal
+  resolution while `list({scope:'workspace'})` still returns the workspace row.
 
 ## Verification matrix
 
