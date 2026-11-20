@@ -18,7 +18,7 @@ import { Context } from '@deepseek-ai/cordis'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import SkillRegistry from '@deepseek-ai/dsh-skill'
-import { ToolCallId } from '@deepseek-ai/dsh-llm'
+import { createUserMessage, ToolCallId } from '@deepseek-ai/dsh-llm'
 
 import * as plugin from '../src/index.ts'
 import { PTC_SERVICE, setConfinementDemonstratedForTest } from '../src/ptc-runtime.ts'
@@ -115,6 +115,39 @@ describe('session artifacts in the per-turn prompt', () => {
     assert.match(text, new RegExp('Use ' + draft.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
     assert.match(text, /\{texts: string\[\]\}/)
     assert.match(text, /auto-kept, unverified/)
+    assert.doesNotMatch(text, /Evidence:/)
+    assert.match(text, /Verify its output on edge cases/)
+  })
+
+  it('appends the digest to the first task step, not only the standing section', async () => {
+    const ctx = await mountHost()
+    await call(ctx, 'tool_mode_run', RUN)
+    const task = createUserMessage({
+      content: [{ type: 'text', text: 'do the task' }],
+      source: { kind: 'user' },
+    })
+    const waterfall = (ctx as unknown as {
+      waterfall(name: never, payload: never, next: () => Promise<unknown>): Promise<unknown>
+    }).waterfall.bind(ctx)
+    const decision = await waterfall('agent/pre-step' as never, {
+      agent: { id: 'session-prompt' },
+      messages: [task],
+      turn: 1,
+      step: 1,
+      signal: new AbortController().signal,
+    } as never, async () => ({ kind: 'enter', messages: [task] })) as {
+      kind: string
+      messages: { content: { type: string; text?: string }[] }[]
+    }
+    assert.equal(decision.kind, 'enter')
+    const text = decision.messages
+      .flatMap(message => message.content)
+      .filter(block => block.type === 'text')
+      .map(block => block.text ?? '')
+      .join('\n')
+    assert.match(text, /Use agent_from_draft_/)
+    assert.match(text, /Verify its output on edge cases/)
+    assert.doesNotMatch(text, /Evidence:/)
   })
 
   it('does not leak one session auto-draft into another session assembly', async () => {

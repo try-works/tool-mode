@@ -147,7 +147,7 @@ import { createMcpHost, type PublishedTool } from './mcp/host-binding.ts'
 import { normalizeCachePolicy } from './mcp/protocol.ts'
 import { applyMcpExportPolicy } from './mcp/export-policy.ts'
 import type { ClientGrantConfig } from './mcp/client-grant.ts'
-import { ToolCallId } from '@deepseek-ai/dsh-llm'
+import { createUserMessage, ToolCallId } from '@deepseek-ai/dsh-llm'
 import { STANDARD_CONTRACTS, assertAgainstSchema, assertValidContract, assertValidOutput, compileSchema, projectSchemaToDsh, toDshParameters, type ToolContract, type ToolMeta } from '@try-works/tool-mode-contracts'
 import { renderSkillBody } from './skills.ts'
 import { loadPlaybooks } from './playbook.ts'
@@ -4089,17 +4089,23 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     }
     if (config.adoption?.digest === true && promptService !== undefined) {
       const order = promptService.getSectionOrder('MCP_SERVERS') + 101
+      type DigestPromptMessage = ReturnType<typeof createUserMessage>
+      type DigestPreStepDecision =
+        | { readonly kind: 'reject' }
+        | { readonly kind: 'enter'; readonly messages: readonly DigestPromptMessage[] }
       /**
-       * DSH supplies the live Agent on the assembly context. That is the hook that makes
-       * a SESSION-scoped auto-draft visible at turn start: assembly happens before any
-       * tool call, but the caller is already known. Without an Agent (diagnostics), the
-       * digest falls back to the workspace/global rows it showed before.
+       * Resolve the caller's visible artifacts. DSH supplies the live Agent on the
+       * assembly context and on the pre-step payload; both are the same identity, and
+       * `scopeFor` walks it to the root session plus the caller's workspace.
        */
-      const digestRows = (context: PromptAssemblyContext): AdoptionDigestCandidate[] => {
+      const digestForAgent = (agent: unknown): {
+        rows: AdoptionDigestCandidate[]
+        sessionId?: string
+      } => {
         let selected: BuiltScopeContext | undefined
-        if (context.agent !== undefined) {
+        if (agent !== undefined) {
           try {
-            selected = scopeFor({ agent: context.agent }, 'session')
+            selected = scopeFor({ agent }, 'session')
           } catch {
             selected = undefined
           }
@@ -4148,7 +4154,16 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           // description; the digest is the one surface that may say what the artifact is for.
           add({ ...tool, description: tool.purpose ?? tool.description })
         }
-        return rows
+        return {
+          rows,
+          ...callerSessionId === undefined ? {} : { sessionId: callerSessionId },
+        }
+      }
+      const digestTextForAgent = (agent: unknown): string => {
+        const digest = digestForAgent(agent)
+        return config.adoption?.digestMode === 'neutral'
+          ? buildLibraryDigest(digest.rows)
+          : buildDirectiveDigest(digest.rows, digest.sessionId === undefined ? {} : { sessionId: digest.sessionId })
       }
       ctx.effect(() => promptService.section({
         name: 'tool-mode:library',
@@ -4161,11 +4176,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         text: context => {
           if (config.adoption?.digest === false) return ''
           try {
-            const rows = digestRows(context)
-            const callerSessionId = context.agent === undefined ? undefined : sessionIdOfAgent(context.agent)
-            return config.adoption?.digestMode === 'neutral'
-              ? buildLibraryDigest(rows)
-              : buildDirectiveDigest(rows, callerSessionId === undefined ? {} : { sessionId: callerSessionId })
+            return digestTextForAgent(context.agent)
           } catch (error) {
             // A prompt section is an optional aid. A store or scope failure must never
             // break prompt assembly (and therefore startup or the first request).
@@ -4175,6 +4186,38 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           }
         },
       }), 'tool-mode library digest')
+      /**
+       * TASK-TURN PLACEMENT: the standing section is read as ambient capability, not
+       * as a task instruction. The measured contrast was 0/3 when only the section
+       * carried the digest and 3/3 when the same sentence was in the task prompt.
+       *
+       * The pre-step hook appends one separately-sourced user message to the FIRST
+       * step of the FIRST turn. It runs after `next()`, so it sees the admitted task
+       * message and returns the same messages plus the digest. A failure is logged and
+       * skipped: adoption must never break a step.
+       */
+      ctx.effect(() => ctx.on('agent/pre-step' as never, (async (
+        payload: { agent: unknown; messages: readonly DigestPromptMessage[]; turn: number; step: number },
+        next: () => Promise<DigestPreStepDecision>,
+      ): Promise<DigestPreStepDecision> => {
+        const decision = await next()
+        if (decision.kind === 'reject' || payload.turn !== 1 || payload.step !== 1) return decision
+        try {
+          const text = digestTextForAgent(payload.agent)
+          if (text.length === 0) return decision
+          return {
+            kind: 'enter',
+            messages: [...decision.messages, createUserMessage({
+              content: [{ type: 'text', text }],
+              source: { kind: 'user' },
+            })],
+          }
+        } catch (error) {
+          ctx.logger.warn('tool-mode task digest skipped: '
+            + (error instanceof Error ? error.message : String(error)))
+          return decision
+        }
+      }) as never), 'tool-mode task digest')
     }
     // Root-session end: receive the expired rows BEFORE deleting so the evidence
     // can be attached to the expire receipt. A crash cannot emit this event; the

@@ -1,6 +1,6 @@
 # Auto-keep and the `autoDraft` deprecation plan
 
-Status: implemented (0.5.98; lifecycle corrections in 0.5.99; session-start adoption in 0.5.100; fail-open prompt in 0.5.101; async boot digest in 0.5.102). This plan turns the accepted direction — **runs are stored and reusable by
+Status: implemented (0.5.98; lifecycle corrections in 0.5.99; session-start adoption in 0.5.100; fail-open prompt in 0.5.101; async boot digest in 0.5.102; task-turn injection in 0.5.103). This plan turns the accepted direction — **runs are stored and reusable by
 default; delete is the only required curation action** — into a sequenced, test-first
 change.
 
@@ -486,6 +486,31 @@ Red/green: the first two cases in `tests/adoption-session-prompt.test.ts` were
 is **3/3**. The tests prove the owner sees the draft with `{texts: string[]}` and another
 session's assembly does not. Evidence:
 [REPORT.md](../research/session-adoption/REPORT.md).
+
+## Task-turn placement and unverified framing (0.5.103)
+
+The live 0.5.101 check separated **content** from **placement** and **framing**:
+
+- the same digest in the standing Tool Mode section produced **0 artifact calls in 3/3**
+  runs (E19, E24, E25);
+- the same sentence in the task prompt produced calls in **3/3** (E20, E21, E23);
+- without a failure/verify clause, both solvers accepted a wrong output (E20, E22);
+  with the clause and a verify instruction, both were correct (E21, E23).
+
+So the build now appends the digest as a separately-sourced user message on the **first
+step of the first turn** through `agent/pre-step`. The standing section remains for the
+neutral experiment and as a fallback, but the task-turn message is the shipping placement.
+A digest failure is caught and skipped: adoption must never break a step.
+
+The counters describe exceptions, not correctness: a draft with 61 uses and 0 failures
+was still wrong (E22). An auto-kept row therefore no longer prints an `Evidence:` claim;
+it prints `Verify its output on edge cases before relying on it.` Only a kept row may show
+the usage counters. This is not a substitute for an artifact-specific verification field,
+which remains the next source-of-truth change.
+
+Tests: `adoption-session-prompt.test.ts` now covers both the section and the first task
+step, and fails if an unverified row shows `Evidence:` or omits the verify clause.
+Adjacent adoption/digest suites: **45/45**.
 
 ## Verification matrix
 

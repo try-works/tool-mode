@@ -127,16 +127,24 @@ export function buildDirectiveDigest(
    * `texts[]` batch was ignored, so the call form must be visible before the first call. */
   const callSignature = top.callSignature === undefined || top.callSignature.length === 0 ? '' : '(' + oneLine(top.callSignature) + ')'
   const batchHint = top.batch === true ? ' Pass the whole list in one call.' : ''
+  /**
+   * The usage counters record exceptions, not correctness: a draft with 61 calls and
+   * 0 failures was still wrong. An auto-kept row therefore gets a verification
+   * instruction and NO evidence claim; only a kept row may show the counters.
+   */
+  const verify = top.unverified === true
+    ? ' Verify its output on edge cases before relying on it.'
+    : ''
   const lines: string[] = [purpose.length === 0
-    ? 'Use ' + callableName + callSignature + stored + unverified + '.' + batchHint
-    : 'Use ' + callableName + callSignature + stored + unverified + ' — ' + sentence(purpose) + batchHint]
+    ? 'Use ' + callableName + callSignature + stored + unverified + '.' + batchHint + verify
+    : 'Use ' + callableName + callSignature + stored + unverified + ' — ' + sentence(purpose) + batchHint + verify]
   const knownFailure = top.knownFailure === undefined ? undefined : truncate(oneLine(top.knownFailure), FRAGMENT_MAX_CHARS)
   // The five-use rule gates the caveat and its counts together: a one-use failure is real
   // evidence, but it is not enough to advertise a "known failure" mode yet.
   if (top.uses >= 5 && knownFailure !== undefined && knownFailure.length > 0) {
     lines.push('Known failure: ' + sentence(knownFailure))
   }
-  if (top.uses >= 5) lines.push(evidenceLine(top))
+  if (top.uses >= 5 && top.unverified !== true) lines.push(evidenceLine(top))
   const supporting = ranked.slice(1, 1 + maxSupporting).map(row => oneLine(row.callableName))
   if (supporting.length > 0) lines.push('Also available: ' + supporting.join(', ') + '.')
 

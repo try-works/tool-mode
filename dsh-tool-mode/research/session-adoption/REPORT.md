@@ -81,13 +81,32 @@ trees it delayed the loader and the auth URL. It now uses `verifyUnchangedAsync(
 uses the worker-pool digest and reuses a fingerprint-matching verification, so the restore
 chain yields to boot. Regression: `tests/extension-restore-nonblocking.test.ts` proves the
 synchronous digest is never called and activation still completes. Plugin suite after the
-change: **2169 tests, 2165 pass, 4 skipped, 0 fail**.
+change and the task-turn delta: **2170 tests, 2163 pass, 7 skipped, 0 fail**.
+
+## Task-turn placement (0.5.103)
+
+The 0.5.101 live check found the content right but the placement wrong: the same digest in
+the standing Tool Mode section produced **0 calls in 3/3** runs; in the task prompt it
+produced calls in **3/3**. The build now appends the digest as a separately-sourced user
+message on the first step of the first turn via `agent/pre-step`. The standing section is
+kept for the neutral experiment; the task-turn message is the shipping placement.
+
+Framing was also corrected for unverified rows. The counters record exceptions, not
+correctness: a draft with 61 uses and 0 failures was wrong (E22). An auto-kept row no
+longer prints `Evidence:`; it prints `Verify its output on edge cases before relying on
+it.` Only a kept row may show counts. This is a generic safeguard, not the artifact-specific
+verification field the report calls for; that field remains open.
+
+Tests: `adoption-session-prompt.test.ts` covers both placements and the unverified framing;
+adjacent adoption/digest suites: **45/45**.
 
 ## Limits
 
-- 0.5.102 is packed and installed into the web profile; the running host still holds the
-  old module graph until a full DSH stop/start, so the boot-time and live prompt probes are
-  pending.
+- 0.5.103 is packed and installed into the web profile; the running host still holds the
+  old module graph until a full DSH stop/start, so the live task-turn probe is pending.
+- U42 (a declared-but-unbindable authored tool advertised in a subagent's bindings) and the
+  U26 list-after-promotion case are not fixed here. The latter is expected to improve with
+  the caller-workspace promotion fix, but it has not been re-probed.
 - The inventory is directive plus at most three supporting names, bounded to four lines and
   600 characters. It is not an exhaustive catalog; `tool_mode_tools list` remains the full
   bounded surface.
