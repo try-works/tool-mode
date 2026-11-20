@@ -1,6 +1,6 @@
 # U44 — digest metadata, authored describe, bindable offers
 
-**Build:** 0.5.105. **Status:** source + headless live verified.
+**Build:** 0.5.106. **Status:** source + headless live verified.
 
 ## 1. Metadata was rendered only for the imperative candidate
 
@@ -30,10 +30,13 @@ and adds regression coverage through the existing scoping/describe suites (**67/
 ## 3. U44b — offers that cannot run
 
 The save-offer builder now refuses a candidate whose name is not in the program binding
-lane (`bindableName(candidate.toolName, scopeFor(exec))`). This removes wrappers around
-`run_code` and the tool-mode control tools, which saved but failed with
-"program requested tools it may not use". The F9 test now uses `lang_detect` as the positive
-control and asserts `tool_mode_run` is not offered.
+lane (`bindableName(candidate.toolName, scopeFor(exec))`). The same filter is applied to
+`authoring.suggestions`, which is the list that produced the `repeat_tool_mode_run` /
+`repeat_run_code` suggestion. This removes wrappers around `run_code` and the tool-mode
+control tools, which saved but failed with "program requested tools it may not use". The F9
+test now uses `lang_detect` as the positive control and asserts `tool_mode_run` is absent from
+both pending offers and suggestions. Live on 0.5.106: after three `tool_mode_run` probes,
+`authoring.suggestions` and `authoring.pendingOffers` were both `[]`.
 
 ## Freshness caveat
 
@@ -46,4 +49,4 @@ or assert on the binding.
 - Full plugin suite: **2178 tests, 2171 pass, 7 skipped, 0 fail**.
 - Typecheck, build, `verify:built`, `verify:docs`, `verify:verification`, confinement and
   package checks pass.
-- 0.5.105 packed and installed in the web profile and in the disposable headless profile.
+- 0.5.106 packed and installed in the web profile and in the disposable headless profile.

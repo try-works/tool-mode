@@ -102,5 +102,11 @@ describe('F9 — management and decision_* calls never become save offers', () =
     assert.equal(names.some(name => name.startsWith('decision_')), false, 'every decision_* tool is suppressed by prefix')
     assert.equal(names.includes('lang_detect'), true, 'a bindable tool still offers')
     assert.equal(names.includes('tool_mode_run'), false, 'a control tool must not offer a dead wrapper')
+
+    const listed = await callAs(ctx, 'tool_mode_list', {})
+    const suggestions = ((listed as { value?: { authoring?: { suggestions?: { toolName: string }[] } } }).value?.authoring?.suggestions) ?? []
+    const suggested = suggestions.map(suggestion => suggestion.toolName)
+    assert.equal(suggested.includes('lang_detect'), true, 'a bindable tool still appears in suggestions')
+    assert.equal(suggested.includes('tool_mode_run'), false, 'a control tool must not appear in suggestions either')
   })
 })

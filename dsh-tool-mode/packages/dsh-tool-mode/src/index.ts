@@ -4092,7 +4092,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         ...repetitionTracker === undefined ? {} : {
           suggestions: (scope.rootSessionId ?? sessionIdOfAgent(exec.agent)) === undefined
             ? []
-            : repetitionTracker.suggestions((scope.rootSessionId ?? sessionIdOfAgent(exec.agent)) as string).map(suggestionFor),
+            : repetitionTracker.suggestions((scope.rootSessionId ?? sessionIdOfAgent(exec.agent)) as string)
+              .filter(candidate => bindableName(candidate.toolName, scope))
+              .map(suggestionFor),
         },
         /** Phase 5: the offers awaiting the next list (bounded, session-scoped). */
         pendingOffers: visibleOffers.map(offer => ({
