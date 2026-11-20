@@ -41,6 +41,19 @@ const VERIFICATION_POINTER = "… read the full text with tool_mode_tools {actio
 /** Supporting artifacts listed without an imperative. */
 const DEFAULT_MAX_SUPPORTING = 3
 
+/** R8: the author's claim about output granularity. NEVER inferred from program text. */
+export type AdvisoryVerifiability = 'per-item' | 'aggregate'
+
+/** A digest row plus the optional R8 claim. */
+export interface VerifiabilityCandidate extends AdoptionDigestCandidate {
+  /**
+   * `aggregate` means the artifact reports a total (or an aggregate) and cannot be
+   * verified item by item from its output alone; the digest says so and names the callable
+   * route to check one item at a time. Absent or `per-item` renders no caveat.
+   */
+  readonly verifiability?: AdvisoryVerifiability
+}
+
 /** One artifact line. */
 export interface LibraryDigestRow {
   readonly name: string
@@ -116,6 +129,31 @@ function sentence(text: string): string {
 }
 
 /**
+ * R8: the aggregate-only caveat, for the imperative candidate.
+ *
+ * Rendered ONLY on an explicit `aggregate` claim: per-item and absent hints invent
+ * nothing. It names the artifact's own callable name as the per-item route — that call can
+ * be made with a single item — so the caveat never points at a route the caller cannot run.
+ * @param candidate - the ranked candidate.
+ * @returns the caveat clause, or an empty string.
+ */
+function aggregateCaveat(candidate: VerifiabilityCandidate): string {
+  if (candidate.verifiability !== 'aggregate') return ''
+  return ' Aggregate-only output (not per-item verifiable): verify by calling '
+    + oneLine(candidate.callableName) + ' one item at a time.'
+}
+
+/**
+ * The compact supporting-row form of the same claim.
+ * @param candidate - a supporting candidate.
+ * @returns the bracket, or an empty string.
+ */
+function aggregateSupporting(candidate: VerifiabilityCandidate): string {
+  if (candidate.verifiability !== 'aggregate') return ''
+  return ' [aggregate-only; verify item by item with ' + oneLine(candidate.callableName) + ']'
+}
+
+/**
  * Render the evidence line (allowed from five uses).
  *
  * Counts always state what was observed. A percentage is added only when a failure was
@@ -147,7 +185,7 @@ function evidenceLine(candidate: AdoptionDigestCandidate): string {
  * @returns the prompt text, or an empty string when disabled or nothing is eligible.
  */
 export function buildDirectiveDigest(
-  rows: readonly AdoptionDigestCandidate[],
+  rows: readonly VerifiabilityCandidate[],
   options: DirectiveDigestOptions = {},
 ): string {
   if (options.enabled === false) return ''
@@ -185,9 +223,14 @@ export function buildDirectiveDigest(
     : top.unverified === true
       ? ' Verify its output on edge cases before relying on it.'
       : ''
+  /**
+   * R8: the aggregate caveat is appended to the directive line (never a second line, so the
+   * 6-line budget is unchanged), and only when the author made the claim.
+   */
+  const aggregate = aggregateCaveat(top)
   const lines: string[] = [purpose.length === 0
-    ? 'Use ' + callableName + callSignature + stored + unverified + '.' + batchHint + verify
-    : 'Use ' + callableName + callSignature + stored + unverified + ' — ' + sentence(purpose) + batchHint + verify]
+    ? 'Use ' + callableName + callSignature + stored + unverified + '.' + batchHint + verify + aggregate
+    : 'Use ' + callableName + callSignature + stored + unverified + ' — ' + sentence(purpose) + batchHint + verify + aggregate]
   const knownFailure = top.knownFailure === undefined ? undefined : truncate(oneLine(top.knownFailure), FRAGMENT_MAX_CHARS)
   // The five-use rule gates the caveat and its counts together: a one-use failure is real
   // evidence, but it is not enough to advertise a "known failure" mode yet.
@@ -214,7 +257,7 @@ export function buildDirectiveDigest(
     const verification = row.verification === undefined
       ? ''
       : ' [Verify: ' + renderVerification(row.verification).text + ']'
-    return name + (purpose.length === 0 ? '' : ' — ' + purpose) + verification
+    return name + (purpose.length === 0 ? '' : ' — ' + purpose) + verification + aggregateSupporting(row)
   })
   if (supporting.length > 0) {
     const line = 'Also available: ' + supporting.join('; ')

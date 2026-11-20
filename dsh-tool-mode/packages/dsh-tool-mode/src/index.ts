@@ -50,8 +50,8 @@ import { registerAuthoringTools } from './authoring-surface.ts'
 import { createArtifactUsageStore, failureClassOf } from './artifact-usage.ts'
 import { createRepetitionTracker, type RepetitionCandidate, type RepetitionTracker } from './adoption-candidates.ts'
 import { buildDirectiveDigest, buildLibraryDigest } from './library-digest.ts'
+import type { VerifiabilityCandidate } from './library-digest.ts'
 import { compactInputSignature } from './input-shape.ts'
-import type { AdoptionDigestCandidate } from './adoption-digest-ranking.ts'
 import { registerRuntimeTools } from './runtime-surface.ts'
 import { createModelToolsControl } from './discovery-surface.ts'
 import { captureDisclosure } from './authoring-quality.ts'
@@ -1259,6 +1259,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
    * the draft hook inert rather than absent.
    */
   let authoringStoreRef: AgentAuthoringStore | undefined
+  /** Usage recorder, installed with the authoring block; the run hook may precede it. */
+  let recordAutoKeepRef: ((name: string, digest: string, sessionId?: string) => void) | undefined
   /** The workspace scope, once built; used by autoKeep:'workspace' drafts. */
   let workspaceScopeRef: BuiltScopeContext | undefined
   /**
@@ -3610,6 +3612,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     runCaptureStore: () => runCaptureStore,
     authoringStore: () => authoringStoreRef,
     registerDraft: (definition: AgentToolDefinition) => registerAuthoredRef?.(definition) ?? false,
+    recordAutoKeep: (draft, exec) => {
+      const scope = scopeForAuthoringCaller?.(exec)
+      recordAutoKeepRef?.(draft.name, draft.digest, scope?.rootSessionId)
+    },
     promoteWorkspaceDraft: (draft, from) => {
       const store = authoringStoreRef
       if (store === undefined) return false
@@ -3809,6 +3815,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       ctx.logger.warn('model-tools: agent authoring: ' + authoringStore.issue)
     }
     const artifactUsage = createArtifactUsageStore(join(dirname(authoringFile), 'artifact-usage.json'))
+    recordAutoKeepRef = (name, digest, sessionId) => artifactUsage.record({
+      receiptId: host.nextReceiptId(),
+      name,
+      digest,
+      outcome: 'ok',
+      ...(sessionId === undefined ? {} : { sessionId }),
+    })
     const authoringLedger = createAuthoringLedger({
       file: join(dirname(authoringFile), 'authoring-receipts.json'),
     })
@@ -4136,7 +4149,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
        * `scopeFor` walks it to the root session plus the caller's workspace.
        */
       const digestForAgent = (agent: unknown): {
-        rows: AdoptionDigestCandidate[]
+        rows: VerifiabilityCandidate[]
         sessionId?: string
       } => {
         let selected: BuiltScopeContext | undefined
@@ -4150,7 +4163,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         const resolutionScope = selected?.context ?? workspaceScope.context
         const callerSessionId = selected?.rootSessionId
         const seen = new Set<string>()
-        const rows: AdoptionDigestCandidate[] = []
+        const rows: VerifiabilityCandidate[] = []
         const add = (
           row: {
             name: string
@@ -4158,6 +4171,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             description: string
             status?: string
             verification?: string
+            verifiability?: 'per-item' | 'aggregate'
             inputSchema: Record<string, unknown>
             scope: ArtifactScope
             digest: string
@@ -4181,6 +4195,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             ...quality.knownFailure === undefined ? {} : { knownFailure: quality.knownFailure },
             ...row.status === 'draft' ? { unverified: true } : {},
             ...row.verification === undefined ? {} : { verification: row.verification },
+            ...row.verifiability === undefined ? {} : { verifiability: row.verifiability },
             ...row.scope === 'session' && callerSessionId !== undefined ? { sessionId: callerSessionId } : {},
             ...callSignature === undefined ? {} : { callSignature: callSignature.signature, batch: callSignature.batch },
           })
@@ -4500,18 +4515,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       }
     }
     {
-      const bootNames = new Set<string>()
-      for (const workflow of authoringStore.workflowEntries()) {
-        if (bootNames.has(workflow.name)) continue
-        bootNames.add(workflow.name)
+      // R6: register ONE dispatcher per durable workflow name, across every workspace key.
+      // The dispatcher resolves the caller's workspace at call time, so boot must enumerate
+      // durable rows, not only the host-cwd workspace. Session rows stay private.
+      for (const workflow of authoringStore.durableWorkflowEntries()) {
         registerWorkflow(workflow)
-      }
-      if (scopingEnabled) {
-        for (const workflow of authoringStore.workflowEntries(workspaceScope.context)) {
-          if (bootNames.has(workflow.name)) continue
-          bootNames.add(workflow.name)
-          registerWorkflow(workflow)
-        }
       }
     }
     ctx.effect(() => () => {
@@ -4667,18 +4675,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     // BOOT: every stored authored tool is registered again, after the built-in tools, so a
     // restart is a continuation rather than a loss. Each entry is validated on load.
     {
-      const bootNames = new Set<string>()
-      for (const definition of authoringStore.toolEntries()) {
-        if (bootNames.has(definition.name)) continue
-        bootNames.add(definition.name)
+      // R6: every persisted durable authored tool, not just global + the host-cwd workspace.
+      // registerAuthored is name-idempotent; the dispatcher resolves the caller's scope.
+      for (const definition of authoringStore.durableToolEntries()) {
         registerAuthored(definition)
-      }
-      if (scopingEnabled) {
-        for (const definition of authoringStore.toolEntries(workspaceScope.context)) {
-          if (bootNames.has(definition.name)) continue
-          bootNames.add(definition.name)
-          registerAuthored(definition)
-        }
       }
     }
     ctx.effect(() => () => {

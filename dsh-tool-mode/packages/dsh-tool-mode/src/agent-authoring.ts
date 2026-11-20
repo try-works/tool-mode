@@ -81,6 +81,16 @@ export const DEFAULT_DRAFT_TTL_MS = 86_400_000
 export type ArtifactStatus = 'draft' | 'kept'
 
 /**
+ * R8: the author's verifiability CLAIM for a tool (never inferred from program text).
+ *
+ * - `per-item`: a caller can verify each result on its own; the digest renders no caveat;
+ * - `aggregate`: only the batch output is meaningful, so the digest must say so and name the
+ *   callable per-item route.
+ */
+export const VERIFIABILITY_VALUES = ['per-item', 'aggregate'] as const
+export type Verifiability = (typeof VERIFIABILITY_VALUES)[number]
+
+/**
  * The scope key that stands for "this host".
  *
  * Global rows are keyed by this constant rather than by the empty string so a missing
@@ -205,6 +215,7 @@ export type AuthoringErrorCode =
   | 'invalid-description'
   | 'invalid-program'
   | 'invalid-tools'
+  | 'invalid-verifiability'
   | 'invalid-schema'
   | 'unknown'
   | 'gated'
@@ -307,6 +318,8 @@ export interface AgentToolDefinition {
   readonly purpose?: string
   /** Author-supplied verification or known-failure note; rendered by the digest. */
   readonly verification?: string
+  /** R8: the author's per-item/aggregate verifiability claim, or absent when none was made. */
+  readonly verifiability?: Verifiability
   /** The JSON Schema the caller's arguments are validated against. */
   readonly inputSchema: Record<string, JsonValue>
   readonly program: string
@@ -341,6 +354,8 @@ export interface AgentToolSummary {
   readonly purpose?: string
   /** Author-supplied verification or known-failure note; rendered by the digest. */
   readonly verification?: string
+  /** R8: the author's per-item/aggregate verifiability claim, or absent when none was made. */
+  readonly verifiability?: Verifiability
   readonly inputSchema: Record<string, JsonValue>
   readonly tools: readonly string[]
   readonly version: number
@@ -409,6 +424,75 @@ export function draftNameForContent(content: DraftContent): string {
   return draftToolName(draftContentDigest(content))
 }
 
+/** The content that defines a tool's SHAPE for auto-keep dedupe (R7). */
+export interface ToolShapeContent {
+  readonly program: string
+  readonly tools: readonly string[]
+  readonly inputSchema: Record<string, JsonValue>
+}
+
+/** What one auto-keep write returns. */
+export interface AutoKeepResult {
+  /** The canonical row for the shape, or the draft just written when none existed. */
+  readonly tool: AgentToolDefinition
+  /** True when the canonical row was found and reused (no new row was written). */
+  readonly reused: boolean
+  /** The normalized shape fingerprint used for the lookup (and available for digest grouping). */
+  readonly fingerprint: string
+}
+
+const SHAPE_ANNOTATION_KEYS = new Set(['description', 'title', 'examples', 'default', '$comment'])
+
+/** A deterministic structural key for a JSON schema: annotation-free and key-sorted. */
+function canonicalSchemaShape(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalSchemaShape)
+  if (value !== null && typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    const out: Record<string, unknown> = {}
+    for (const key of Object.keys(record).sort()) {
+      if (SHAPE_ANNOTATION_KEYS.has(key)) continue
+      out[key] = canonicalSchemaShape(record[key])
+    }
+    return out
+  }
+  return value
+}
+
+/**
+ * Normalize program TEXT to its shape: comments removed and whitespace runs collapsed.
+ *
+ * DELIBERATELY TEXTUAL, not a parser: the claim is only "the same program with different
+ * formatting is the same shape", never "two different programs are equal". A comment-looking
+ * sequence inside a string literal is normalized too; that errs toward dedupe, and an author
+ * who needs exact text keeps a distinct input schema or program.
+ */
+function normalizeProgramShape(program: string): string {
+  return program
+    .replace(/\/\*[\s\S]*?\*\//gu, ' ')
+    .replace(/(^|[^:/])\/\/[^\n]*/gu, '$1 ')
+    .replace(/\s+/gu, ' ')
+    .trim()
+}
+
+/**
+ * R7: the SHA-256 fingerprint of a tool's normalized SHAPE.
+ *
+ * The shape is: program text (comments and whitespace normalized), the SORTED UNIQUE tool
+ * bindings, and the annotation-free key-sorted input-schema structure. Description, purpose,
+ * verification and verifiability are NOT part of it: they may differ between runs of the same
+ * program without creating a second capability.
+ * @param content - the run's program, bindings and input schema.
+ * @returns a stable lowercase hex fingerprint.
+ */
+export function toolShapeFingerprint(content: ToolShapeContent): string {
+  const shape = {
+    program: normalizeProgramShape(content.program),
+    tools: [...new Set(content.tools)].sort(),
+    inputSchema: canonicalSchemaShape(content.inputSchema),
+  }
+  return createHash('sha256').update(JSON.stringify(shape)).digest('hex')
+}
+
 /** Injected clock, so retention tests never sleep. */
 export interface DraftClock {
   /** Epoch milliseconds; defaults to the wall clock. */
@@ -448,6 +532,8 @@ export interface SaveDraftInput {
   readonly purpose?: string | undefined
   /** Author-supplied verification or known-failure note; rendered by the digest. */
   readonly verification?: string | undefined
+  /** R8: the author's per-item/aggregate verifiability claim; validated, never guessed. */
+  readonly verifiability?: Verifiability | undefined
   readonly catalogRevision?: string | undefined
 }
 
@@ -476,6 +562,8 @@ export interface SaveToolInput {
   readonly purpose?: string | undefined
   /** Author-supplied verification or known-failure note; rendered by the digest. */
   readonly verification?: string | undefined
+  /** R8: the author's per-item/aggregate verifiability claim; validated, never guessed. */
+  readonly verifiability?: Verifiability | undefined
   readonly inputSchema: Record<string, JsonValue>
   readonly program: string
   readonly tools?: readonly string[]
@@ -510,6 +598,29 @@ export interface AgentAuthoringStore {
   listTools(context?: ArtifactScopeContext, options?: ListOptions): AgentToolSummary[]
   getTool(nameOrId: string, context?: ArtifactScopeContext): AgentToolDefinition | undefined
   toolEntries(context?: ArtifactScopeContext): readonly AgentToolDefinition[]
+  /**
+   * Every DURABLE authored tool row across ALL scope keys (workspace + global), save order.
+   *
+   * Unlike {@link toolEntries}, this is NOT resolved through one caller's chain: it is the
+   * BOOT-REGISTRATION view added for R6. A row stored under workspace A used to be invisible
+   * to a host process running in workspace B, so a fresh caller in workspace A found the
+   * persisted artifact advertised-but-unregistered. Rows are unresolved (the caller registers
+   * each unique NAME once and the dispatcher resolves the caller's scope at call time), so the
+   * same name may appear once per workspace key.
+   *
+   * SESSION ROWS ARE EXCLUDED BY CONSTRUCTION: a session artifact belongs to one root and must
+   * never be registered for another workspace or session.
+   * @returns the full rows (programs included), in save order.
+   */
+  durableToolEntries(): readonly AgentToolDefinition[]
+  /**
+   * Every DURABLE workflow row across ALL scope keys (workspace + global), save order.
+   *
+   * Same contract as {@link durableToolEntries}: unresolved, session rows excluded, one entry
+   * per stored row (so a name may appear at several workspace keys).
+   * @returns the full rows (programs included), in save order.
+   */
+  durableWorkflowEntries(): readonly AgentWorkflow[]
   saveTool(input: SaveToolInput, context?: ArtifactScopeContext): AgentToolDefinition
 
   /**
@@ -524,6 +635,23 @@ export interface AgentAuthoringStore {
    * @returns the stored draft row.
    */
   saveDraft(input: SaveDraftInput, context?: ArtifactScopeContext, clock?: DraftClock): AgentToolDefinition
+
+  /**
+   * R7: save the auto-keep row for one successful run, REUSING the canonical row for the same
+   * normalized SHAPE instead of adding a copy.
+   *
+   * Lookup order: a durable (workspace/global) row in ANY workspace key first, then the
+   * CALLER'S OWN session draft. Another root's session row is never reused. A hit is returned
+   * unchanged with \`reused: true\` (the caller records the use/evidence on that row); a miss
+   * writes a draft exactly like {@link saveDraft}. The fingerprint covers the program text
+   * (whitespace/comments normalized), the SORTED tool bindings and the input-schema shape —
+   * never description, purpose, verification or verifiability.
+   * @param input - the captured run (same fields as saveDraft).
+   * @param context - the caller's scope chain; also the draft target when nothing matches.
+   * @param clock - injected clock/ttl for the miss path.
+   * @returns the canonical or newly written row, the fingerprint, and whether it was reused.
+   */
+  saveAutoKeep(input: SaveDraftInput, context?: ArtifactScopeContext, clock?: DraftClock): AutoKeepResult
 
   /**
    * Remove every expired, unkept draft visible to `context` and return what was removed.
@@ -748,6 +876,7 @@ interface NormalizedTool {
   readonly description: string
   readonly purpose?: string
   readonly verification?: string
+  readonly verifiability?: Verifiability
   readonly inputSchema: Record<string, JsonValue>
   readonly program: string
   readonly tools: readonly string[]
@@ -768,15 +897,40 @@ function normalizeVerification(value: string | undefined): string | undefined {
   return verification.length === 0 ? undefined : verification
 }
 
+/**
+ * Validate an OPTIONAL R8 verifiability claim.
+ *
+ * Unlike purpose/verification this is a CLOSED vocabulary: a caller that passes anything else
+ * is refused rather than silently persisted as "no claim" (the R8 hint is advisory to the
+ * digest, so guessing would be worse than a loud refusal). Absent/blank means no claim.
+ * @param value - the caller's claim (untrusted at this boundary).
+ * @returns the claim, or undefined when none was made.
+ * @throws AuthoringError `invalid-verifiability` for an unknown value.
+ */
+function requireVerifiability(value: unknown): Verifiability | undefined {
+  if (value === undefined || value === null) return undefined
+  if (typeof value === 'string') {
+    const claim = value.trim()
+    if (claim.length === 0) return undefined
+    if (claim === 'per-item' || claim === 'aggregate') return claim
+  }
+  throw new AuthoringError(
+    'invalid-verifiability',
+    'verifiability must be "per-item" or "aggregate"; got ' + JSON.stringify(value),
+  )
+}
+
 function normalizeTool(input: SaveToolInput): NormalizedTool {
   const name = requireAgentToolName(input.name)
   const purpose = normalizePurpose(input.purpose)
   const verification = normalizeVerification(input.verification)
+  const verifiability = requireVerifiability(input.verifiability)
   return {
     name,
     description: requireDescription(input.description, name),
     ...purpose === undefined ? {} : { purpose },
     ...verification === undefined ? {} : { verification },
+    ...verifiability === undefined ? {} : { verifiability },
     inputSchema: requireInputSchema(input.inputSchema),
     program: requireProgram(input.program, name),
     tools: requireToolNames(input.tools, name),
@@ -887,10 +1041,19 @@ function parseToolEntry(raw: JsonValue): AgentToolDefinition | undefined {
   if (provenance === undefined) return undefined
   const purpose = typeof raw['purpose'] === 'string' ? normalizePurpose(raw['purpose']) : undefined
   const verification = typeof raw['verification'] === 'string' ? normalizeVerification(raw['verification']) : undefined
+  let verifiability: Verifiability | undefined
+  try {
+    verifiability = requireVerifiability(raw['verifiability'])
+  } catch {
+    // A corrupt claim makes the row unreadable, the same way a bad schema does: refusing it
+    // is louder than loading a tool whose digest would silently lose its R8 caveat.
+    return undefined
+  }
   return {
     ...draftFields(raw),
     id, name, description, ...purpose === undefined ? {} : { purpose },
     ...verification === undefined ? {} : { verification },
+    ...verifiability === undefined ? {} : { verifiability },
     inputSchema, program, tools: toolNames, version, createdAt, updatedAt,
     scope: provenance.scope,
     scopeKey: provenance.scopeKey,
@@ -1248,6 +1411,7 @@ function summarizeTool(tool: AgentToolDefinition, entries: readonly AgentToolDef
     description: tool.description, inputSchema: tool.inputSchema,
     ...(tool.purpose === undefined ? {} : { purpose: tool.purpose }),
     ...(tool.verification === undefined ? {} : { verification: tool.verification }),
+    ...(tool.verifiability === undefined ? {} : { verifiability: tool.verifiability }),
     tools: tool.tools, version: tool.version, createdAt: tool.createdAt, updatedAt: tool.updatedAt,
     scope: tool.scope, scopeKey: tool.scopeKey, digest: tool.digest,
     ...(tool.status === undefined ? {} : { status: tool.status }),
@@ -1347,6 +1511,63 @@ export function createAgentAuthoringStore(options: { readonly file: string; read
     document = next
   }
 
+  const saveDraftRow = (input: SaveDraftInput, context?: ArtifactScopeContext, clock?: DraftClock): AgentToolDefinition => {
+    const resolved = requireContext(context)
+    assertScopesEnabled(resolved, scopesEnabled)
+    const target = targetKey(resolved)
+    const nowMs = clock?.now ?? Date.now()
+    const at = new Date(nowMs).toISOString()
+    const program = requireProgram(input.program, input.runId)
+    const tools = requireToolNames(input.tools, input.runId)
+    const inputSchema = requireInputSchema(input.inputSchema)
+    const description = input.description?.trim() ?? 'Distilled from successful run ' + input.runId + '.'
+    const purpose = normalizePurpose(input.purpose)
+    const verification = normalizeVerification(input.verification)
+    const verifiability = requireVerifiability(input.verifiability)
+    // Deterministic identity from the CONTENT, then deterministic collision handling: a
+    // KEPT row owns the base name, so the draft takes the first free numeric suffix. A
+    // re-run of the same content finds its own row here and updates it in place.
+    const base = draftNameForContent({ program, tools, inputSchema })
+    let name = base
+    for (let suffix = 2; suffix <= 100; suffix += 1) {
+      const owner = document.tools.find(row =>
+        row.name === name && row.scope === target.scope && row.scopeKey === target.key)
+      if (owner === undefined || owner.status === 'draft') break
+      name = base + '_' + String(suffix)
+    }
+    const existing = document.tools.find(row =>
+      row.name === name && row.scope === target.scope && row.scopeKey === target.key)
+    const createdBySession = existing?.createdBySession
+      ?? resolved?.sessionId
+      ?? (target.scope === 'session' ? target.key : undefined)
+    const entry: AgentToolDefinition = {
+      id: existing?.id ?? 'agent_' + randomUUID(),
+      name,
+      description,
+      ...purpose === undefined ? {} : { purpose },
+      ...verification === undefined ? {} : { verification },
+      ...verifiability === undefined ? {} : { verifiability },
+      inputSchema,
+      program,
+      tools,
+      version: (existing?.version ?? 0) + 1,
+      createdAt: existing?.createdAt ?? at,
+      updatedAt: at,
+      scope: target.scope,
+      scopeKey: target.key,
+      digest: artifactDigest({ description, program, tools, inputSchema }),
+      status: 'draft',
+      expiresAt: new Date(nowMs + (clock?.ttlMs ?? DEFAULT_DRAFT_TTL_MS)).toISOString(),
+      ...(createdBySession === undefined ? {} : { createdBySession }),
+    }
+    persist({
+      ...document,
+      tools: existing === undefined
+        ? [...document.tools, entry]
+        : document.tools.map(row => row.id === existing.id ? entry : row),
+    })
+    return entry
+  }
   return {
     file: options.file,
     issue,
@@ -1369,6 +1590,11 @@ export function createAgentAuthoringStore(options: { readonly file: string; read
       const resolved = requireContext(context)
       assertScopesEnabled(resolved, scopesEnabled)
       return resolveAll(document.workflows, resolved)
+    },
+    // R6: see durableToolEntries. Workflows travel the same boot path (stored name alias is
+    // registered by the composition root from these rows).
+    durableWorkflowEntries() {
+      return document.workflows.filter(row => row.scope !== 'session')
     },
     saveWorkflow(input, context) {
       const resolved = requireContext(context)
@@ -1439,61 +1665,35 @@ export function createAgentAuthoringStore(options: { readonly file: string; read
       assertScopesEnabled(resolved, scopesEnabled)
       return resolveAll(document.tools, resolved)
     },
-    saveDraft(input, context, clock) {
-    const resolved = requireContext(context)
-    assertScopesEnabled(resolved, scopesEnabled)
-    const target = targetKey(resolved)
-    const nowMs = clock?.now ?? Date.now()
-    const at = new Date(nowMs).toISOString()
-    const program = requireProgram(input.program, input.runId)
-    const tools = requireToolNames(input.tools, input.runId)
-    const inputSchema = requireInputSchema(input.inputSchema)
-    const description = input.description?.trim() ?? 'Distilled from successful run ' + input.runId + '.'
-    const purpose = normalizePurpose(input.purpose)
-    const verification = normalizeVerification(input.verification)
-    // Deterministic identity from the CONTENT, then deterministic collision handling: a
-    // KEPT row owns the base name, so the draft takes the first free numeric suffix. A
-    // re-run of the same content finds its own row here and updates it in place.
-    const base = draftNameForContent({ program, tools, inputSchema })
-    let name = base
-    for (let suffix = 2; suffix <= 100; suffix += 1) {
-      const owner = document.tools.find(row =>
-        row.name === name && row.scope === target.scope && row.scopeKey === target.key)
-      if (owner === undefined || owner.status === 'draft') break
-      name = base + '_' + String(suffix)
-    }
-    const existing = document.tools.find(row =>
-      row.name === name && row.scope === target.scope && row.scopeKey === target.key)
-    const createdBySession = existing?.createdBySession
-      ?? resolved?.sessionId
-      ?? (target.scope === 'session' ? target.key : undefined)
-    const entry: AgentToolDefinition = {
-      id: existing?.id ?? 'agent_' + randomUUID(),
-      name,
-      description,
-      ...purpose === undefined ? {} : { purpose },
-      ...verification === undefined ? {} : { verification },
-      inputSchema,
-      program,
-      tools,
-      version: (existing?.version ?? 0) + 1,
-      createdAt: existing?.createdAt ?? at,
-      updatedAt: at,
-      scope: target.scope,
-      scopeKey: target.key,
-      digest: artifactDigest({ description, program, tools, inputSchema }),
-      status: 'draft',
-      expiresAt: new Date(nowMs + (clock?.ttlMs ?? DEFAULT_DRAFT_TTL_MS)).toISOString(),
-      ...(createdBySession === undefined ? {} : { createdBySession }),
-    }
-    persist({
-      ...document,
-      tools: existing === undefined
-        ? [...document.tools, entry]
-        : document.tools.map(row => row.id === existing.id ? entry : row),
-    })
-    return entry
-  },
+    // R6: the boot-registration view. No context and no resolution: every row that survives a
+    // restart is offered, whatever workspace key it lives under. Session rows are excluded.
+    durableToolEntries() {
+      return document.tools.filter(row => row.scope !== 'session')
+    },
+    saveDraft: saveDraftRow,
+    saveAutoKeep(input, context, clock) {
+      const resolved = requireContext(context)
+      assertScopesEnabled(resolved, scopesEnabled)
+      const program = requireProgram(input.program, input.runId)
+      const tools = requireToolNames(input.tools, input.runId)
+      const inputSchema = requireInputSchema(input.inputSchema)
+      const fingerprint = toolShapeFingerprint({ program, tools, inputSchema })
+      const callerSession = resolved?.scope === 'session' ? resolved.scopeKey : undefined
+      /** Only rows this caller can actually resolve: same workspace, global, or own session. */
+      const visibleToCaller = (row: AgentToolDefinition): boolean =>
+        row.scope === 'global'
+        || (row.scope === 'workspace' && row.scopeKey === resolved?.workspaceKey)
+        || (row.scope === 'session' && row.scopeKey === callerSession)
+      // Canonical VISIBLE durable row first, then the caller's own draft. A row from a
+      // DIFFERENT workspace is not reused: the dispatcher would resolve the caller's scope
+      // and either miss it or leak another workspace's content across the boundary.
+      const candidates = document.tools.filter(row =>
+        visibleToCaller(row)
+        && toolShapeFingerprint({ program: row.program, tools: row.tools, inputSchema: row.inputSchema }) === fingerprint)
+      const match = candidates.find(row => row.scope !== 'session') ?? candidates[0]
+      if (match !== undefined) return { tool: match, reused: true, fingerprint }
+      return { tool: saveDraftRow(input, context, clock), reused: false, fingerprint }
+    },
   expireDrafts(options, context) {
     const resolved = requireContext(context)
     assertScopesEnabled(resolved, scopesEnabled)
@@ -1559,6 +1759,7 @@ export function createAgentAuthoringStore(options: { readonly file: string; read
         description: source.description,
         ...(source.purpose === undefined ? {} : { purpose: source.purpose }),
         ...(verification === undefined ? {} : { verification }),
+        ...(source.verifiability === undefined ? {} : { verifiability: source.verifiability }),
         inputSchema: source.inputSchema,
         program: source.program,
         tools: source.tools,
@@ -1582,6 +1783,7 @@ export function createAgentAuthoringStore(options: { readonly file: string; read
       description: source.description,
       ...(source.purpose === undefined ? {} : { purpose: source.purpose }),
       ...(verification === undefined ? {} : { verification }),
+      ...(source.verifiability === undefined ? {} : { verifiability: source.verifiability }),
       inputSchema: source.inputSchema,
       program: source.program,
       tools: source.tools,
@@ -1618,12 +1820,14 @@ export function createAgentAuthoringStore(options: { readonly file: string; read
       // the stored value for the same reason.)
       const purpose = normalized.purpose ?? existing?.purpose
       const verification = normalized.verification ?? existing?.verification
+      const verifiability = normalized.verifiability ?? existing?.verifiability
       const entry: AgentToolDefinition = {
         id: existing?.id ?? 'agent_' + randomUUID(),
         name: normalized.name,
         description: normalized.description,
         ...purpose === undefined ? {} : { purpose },
         ...verification === undefined ? {} : { verification },
+        ...verifiability === undefined ? {} : { verifiability },
         inputSchema: normalized.inputSchema,
         program: normalized.program,
         tools: normalized.tools,
@@ -1681,6 +1885,7 @@ export function createAgentAuthoringStore(options: { readonly file: string; read
           description: source.description,
           ...(source.purpose === undefined ? {} : { purpose: source.purpose }),
           ...(source.verification === undefined ? {} : { verification: source.verification }),
+          ...(source.verifiability === undefined ? {} : { verifiability: source.verifiability }),
           inputSchema: source.inputSchema,
           program: source.program,
           tools: source.tools,

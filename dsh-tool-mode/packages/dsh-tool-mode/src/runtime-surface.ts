@@ -66,6 +66,8 @@ export interface RuntimeSurfaceDeps {
   readonly registerDraft?: (definition: AgentToolDefinition) => boolean
   /** Promotes a twice-used session draft to a workspace auto-keep; false means skipped. */
   readonly promoteWorkspaceDraft?: (draft: AgentToolDefinition, from: ArtifactScopeContext) => boolean
+  /** Records one auto-keep hit as evidence on the canonical artifact (R7). */
+  readonly recordAutoKeep?: (draft: AgentToolDefinition, exec: { agent?: unknown }) => void
 }
 
 /**
@@ -306,7 +308,13 @@ export function registerRuntimeTools(deps: RuntimeSurfaceDeps): void {
           // The run is still captured for `from-run`; it simply does not become a
           // first-class draft of its own.
         } else try {
-          const draft = draftStore.saveDraft(
+          /**
+           * R7: auto-keep is keyed by the normalized program shape, not by runId. The store
+           * returns the canonical row for this shape (creating one only on a miss); the
+           * runtime records one hit on that same row so three same-shape runs become
+           * `uses:3`, not three artifacts.
+           */
+          const autoKept = draftStore.saveAutoKeep(
             {
               // The RECORDED capture is the single source of truth for content identity,
               // so the draft's schema is exactly the one `from-run` hashes later (F2).
@@ -323,6 +331,8 @@ export function registerRuntimeTools(deps: RuntimeSurfaceDeps): void {
             draftScope,
             { ttlMs: adoption.draftTtlMs },
           )
+          const draft = autoKept.tool
+          deps.recordAutoKeep?.(draft, exec)
           // A draft the registry refused would be listed and uncallable: discard it rather
           // than leave a row that lies about being a tool (F1).
           const registered = deps.registerDraft?.(draft) ?? false
@@ -332,7 +342,7 @@ export function registerRuntimeTools(deps: RuntimeSurfaceDeps): void {
               'tool_mode_run: draft ' + draft.name + ' could not be registered, so it was discarded',
             )
           } else if (adoption.autoKeep === 'session'
-            && draft.version >= 2
+            && (autoKept.reused || draft.version >= 2)
             && !hasSideEffectTools(draft.tools)
             && Object.keys((draft.inputSchema['properties'] as Record<string, unknown> | undefined) ?? {}).length > 0) {
             // Second successful run of the same content is the evidence threshold for a

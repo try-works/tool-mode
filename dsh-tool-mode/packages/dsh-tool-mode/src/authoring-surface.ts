@@ -266,6 +266,26 @@ function deleteArtifactRows(
 }
 
 /** The delete result plus the scope-disclosure fields the write path may add. */
+/** R8: only the two documented claims are accepted; anything else is refused, not guessed. */
+function verifiabilityOf(value: unknown): 'per-item' | 'aggregate' | undefined {
+  if (value === undefined || value === null) return undefined
+  if (value === 'per-item' || value === 'aggregate') return value
+  throw new Error('verifiability must be "per-item" or "aggregate"; got ' + JSON.stringify(value))
+}
+
+/**
+ * Read a stored row's claim without throwing.
+ *
+ * A row written by an older build (or edited by hand) simply carries no claim, which is the
+ * same as `per-item`: nothing is inferred.
+ * @param entry - the stored row.
+ * @returns the stored claim, or undefined.
+ */
+function storedVerifiability(entry: object): 'per-item' | 'aggregate' | undefined {
+  const value = (entry as { readonly verifiability?: unknown }).verifiability
+  return value === 'per-item' || value === 'aggregate' ? value : undefined
+}
+
 /**
  * A caller-visible authored tool row: `purpose` is DIGEST-ONLY (task-80).
  *
@@ -637,6 +657,16 @@ ctx.tools.register(defineTool({
      */
     purpose: { type: 'string', description: 'Optional purpose shown ONLY in the artifact digest, never as the tool description.' },
     verification: { type: 'string', description: 'Optional verification or known-failure note rendered by the artifact digest; not a correctness claim.' },
+    /**
+     * R8: the author's CLAIM about output granularity. `aggregate` tells the digest the
+     * output is a total/aggregate and cannot be verified per item from the output alone; the
+     * digest then names the callable per-item route. Never inferred from program text.
+     */
+    verifiability: {
+      type: 'string',
+      enum: ['per-item', 'aggregate'],
+      description: 'Optional claim: "aggregate" means the output is aggregate-only and the digest should say so; "per-item" or absent makes no claim.',
+    },
     inputSchema: { type: 'json', description: 'JSON Schema for the call arguments (object root with declared properties).' },
     program: { type: 'string', description: 'The Code Mode program body; the call arguments arrive as the input variable.' },
     tools: {
@@ -679,10 +709,14 @@ ctx.tools.register(defineTool({
       if (authoringStore.getTool(target, scope.context) !== undefined) {
         throw new Error('tool "' + target + '" already exists; choose a new target name')
       }
+      const cloneVerifiability = request['verifiability'] === undefined
+        ? storedVerifiability(source)
+        : verifiabilityOf(request['verifiability'])
       const entry = authoringStore.saveTool({
         name: target,
         description: typeof request['description'] === 'string' ? request['description'] : source.description,
         ...(source.verification === undefined ? {} : { verification: source.verification }),
+        ...cloneVerifiability === undefined ? {} : { verifiability: cloneVerifiability },
         inputSchema: typeof request['inputSchema'] === 'object' && request['inputSchema'] !== null && !Array.isArray(request['inputSchema'])
           ? request['inputSchema'] as Record<string, JsonValue>
           : source.inputSchema,
@@ -717,14 +751,17 @@ ctx.tools.register(defineTool({
       // Phase 4: the DRAFT for this run's CONTENT is promoted in ONE call, and a caller-
       // supplied name is the name it keeps. No draft falls through to the define path.
       try {
+        const proposedVerifiability = verifiabilityOf(request['verifiability'])
+        const promoteOptions = {
+          ...(nameOrId.length === 0 ? {} : { name: nameOrId }),
+          from: scope.context,
+          to: scope.context,
+          ...(typeof request['verification'] === 'string' ? { verification: request['verification'] } : {}),
+          ...proposedVerifiability === undefined ? {} : { verifiability: proposedVerifiability },
+        }
         const promoted = authoringStore.promoteDraft(
           draftNameForContent({ program: capture.program, tools: capture.tools, inputSchema: capture.inputSchema }),
-          {
-            ...(nameOrId.length === 0 ? {} : { name: nameOrId }),
-            from: scope.context,
-            to: scope.context,
-            ...(typeof request['verification'] === 'string' ? { verification: request['verification'] } : {}),
-          },
+          promoteOptions,
         )
         const tool = promoted.kind === 'tool' ? promoted.tool : undefined
         // A promoted row that is not registered answers `unknown tool` until a restart, so
@@ -802,15 +839,18 @@ ctx.tools.register(defineTool({
       }
       const purpose = typeof request['purpose'] === 'string' ? request['purpose'] : undefined
       const verification = typeof request['verification'] === 'string' ? request['verification'] : undefined
-      const entry = authoringStore.saveTool({
+      const verifiability = verifiabilityOf(request['verifiability'])
+      const saveInput = {
         name: nameOrId,
         description: typeof request['description'] === 'string' ? request['description'] : '',
         ...purpose === undefined ? {} : { purpose },
         ...verification === undefined ? {} : { verification },
+        ...verifiability === undefined ? {} : { verifiability },
         inputSchema: inputSchema as Record<string, JsonValue>,
         program: typeof request['program'] === 'string' ? request['program'] : '',
         tools: Array.isArray(request['tools']) ? request['tools'].filter((tool): tool is string => typeof tool === 'string') : [],
-      }, scope.context)
+      }
+      const entry = authoringStore.saveTool(saveInput, scope.context)
       // The dispatcher resolves the caller's scope at call time. Only the first
       // row for a name needs a registration; later scope shadows reuse it.
       if (!authoredToolNames.has(entry.name) && !registerAuthored(entry)) {
