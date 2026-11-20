@@ -1,8 +1,9 @@
 # Remaining adoption follow-ups — 0.5.104
 
-**Goal:** `goal-10de7a2a-3245-4f3f-a782-b4892bf9b052` (active; live verification pending).
-**Build:** 0.5.104, packed and installed. **Running host:** booted before the install, so the
-live checks are explicitly PENDING, not claimed.
+**Goal:** `goal-10de7a2a-3245-4f3f-a782-b4892bf9b052`.
+**Build:** 0.5.104, packed and installed. **Live:** the task-turn/digest and binding behavior
+is verified in fresh 0.5.104 headless DSH processes; the long-running web host on :3080 still
+holds the pre-0.5.104 graph, so its own restart remains a deployment action, not a code claim.
 
 ## Delivered
 
@@ -48,6 +49,34 @@ allows it. The pre-restart run (commit `3bc229b`) recorded: installed 0.5.104, h
 - Team: U42 (core-runtime), U26 (litert-provider), live probe (ext-landscape); Lead owned the
   verification field and the shared authoring/digest files. U26 task-85 was deleted because
   no source fix was needed.
+
+## Headless live evidence (0.5.104)
+
+| Session | Result |
+|---|---|
+| define `agent_live_probe` with a verification note | digest rendered `Use agent_live_probe(...) ... Verify: Fails on short lists; verify counts.` |
+| first task `Reply READY` | first-step user message contains the same digest before any tool call |
+| `tool_mode_run({probe:true, tools:['agent_live_probe']})` | `resolved: true` |
+| run a program, then probe the new draft | `agent_from_draft_47091bf0` at session scope; `resolved: true` |
+
+Full evidence: [research/headless-live/REPORT.md](../headless-live/REPORT.md). This satisfies
+the live task-turn/digest and real `tool_mode_run` verification in a fresh full DSH process.
+The web host on :3080 is still PID 30464 (booted before 0.5.104); a web restart remains the
+operator's deployment step.
+
+## Headless live evidence (0.5.104)
+
+| Session | Result |
+|---|---|
+| define `agent_live_probe` with a verification note | digest rendered `Use agent_live_probe(...) ... Verify: Fails on short lists; verify counts.` |
+| first task `Reply READY` | first-step user message contains the same digest before any tool call |
+| `tool_mode_run({probe:true, tools:['agent_live_probe']})` | `resolved: true` |
+| run a program, then probe the new draft | `agent_from_draft_47091bf0` at session scope; `resolved: true` |
+
+Full evidence: [research/headless-live/REPORT.md](../headless-live/REPORT.md). This satisfies
+the live task-turn/digest and real `tool_mode_run` verification in a fresh full DSH process.
+The web host on :3080 is still PID 30464 (booted before 0.5.104); a web restart remains the
+operator's deployment step.
 
 ## Required next step
 
