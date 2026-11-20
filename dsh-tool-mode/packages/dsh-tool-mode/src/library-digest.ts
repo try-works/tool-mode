@@ -132,9 +132,14 @@ export function buildDirectiveDigest(
    * 0 failures was still wrong. An auto-kept row therefore gets a verification
    * instruction and NO evidence claim; only a kept row may show the counters.
    */
-  const verify = top.unverified === true
-    ? ' Verify its output on edge cases before relying on it.'
-    : ''
+  const verification = top.verification === undefined
+    ? undefined
+    : truncate(oneLine(top.verification), FRAGMENT_MAX_CHARS)
+  const verify = verification !== undefined && verification.length > 0
+    ? ' Verify: ' + sentence(verification)
+    : top.unverified === true
+      ? ' Verify its output on edge cases before relying on it.'
+      : ''
   const lines: string[] = [purpose.length === 0
     ? 'Use ' + callableName + callSignature + stored + unverified + '.' + batchHint + verify
     : 'Use ' + callableName + callSignature + stored + unverified + ' — ' + sentence(purpose) + batchHint + verify]
@@ -144,7 +149,7 @@ export function buildDirectiveDigest(
   if (top.uses >= 5 && knownFailure !== undefined && knownFailure.length > 0) {
     lines.push('Known failure: ' + sentence(knownFailure))
   }
-  if (top.uses >= 5 && top.unverified !== true) lines.push(evidenceLine(top))
+  if (top.uses >= 5 && top.unverified !== true && verification === undefined) lines.push(evidenceLine(top))
   const supporting = ranked.slice(1, 1 + maxSupporting).map(row => oneLine(row.callableName))
   if (supporting.length > 0) lines.push('Also available: ' + supporting.join(', ') + '.')
 

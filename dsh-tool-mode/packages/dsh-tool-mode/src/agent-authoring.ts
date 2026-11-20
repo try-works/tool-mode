@@ -305,6 +305,8 @@ export interface AgentToolDefinition {
   readonly description: string
   /** Digest-only purpose (Phase 8); never published as the tool description. */
   readonly purpose?: string
+  /** Author-supplied verification or known-failure note; rendered by the digest. */
+  readonly verification?: string
   /** The JSON Schema the caller's arguments are validated against. */
   readonly inputSchema: Record<string, JsonValue>
   readonly program: string
@@ -337,6 +339,8 @@ export interface AgentToolSummary {
   readonly description: string
   /** Digest-only purpose (Phase 8); never published as the tool description. */
   readonly purpose?: string
+  /** Author-supplied verification or known-failure note; rendered by the digest. */
+  readonly verification?: string
   readonly inputSchema: Record<string, JsonValue>
   readonly tools: readonly string[]
   readonly version: number
@@ -427,6 +431,8 @@ export interface PromoteDraftOptions {
   readonly status?: ArtifactStatus
   /** When an auto-kept draft expires; only used when status is draft. */
   readonly expiresAt?: string
+  /** Optional verification/known-failure note to set on the promoted copy. */
+  readonly verification?: string | undefined
   /** Epoch milliseconds; defaults to the wall clock. */
   readonly now?: number
 }
@@ -440,6 +446,8 @@ export interface SaveDraftInput {
   readonly description?: string | undefined
   /** Digest-only purpose (Phase 8); the automatic path copies the run description here. */
   readonly purpose?: string | undefined
+  /** Author-supplied verification or known-failure note; rendered by the digest. */
+  readonly verification?: string | undefined
   readonly catalogRevision?: string | undefined
 }
 
@@ -466,6 +474,8 @@ export interface SaveToolInput {
    * arm see an opaque tool while the digest arms see a meaningful purpose.
    */
   readonly purpose?: string | undefined
+  /** Author-supplied verification or known-failure note; rendered by the digest. */
+  readonly verification?: string | undefined
   readonly inputSchema: Record<string, JsonValue>
   readonly program: string
   readonly tools?: readonly string[]
@@ -737,6 +747,7 @@ interface NormalizedTool {
   readonly name: string
   readonly description: string
   readonly purpose?: string
+  readonly verification?: string
   readonly inputSchema: Record<string, JsonValue>
   readonly program: string
   readonly tools: readonly string[]
@@ -750,13 +761,22 @@ function normalizePurpose(value: string | undefined): string | undefined {
   return purpose.length === 0 ? undefined : purpose
 }
 
+/** Normalize an OPTIONAL verification/known-failure note: absent and blank both mean "none". */
+function normalizeVerification(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined
+  const verification = value.trim()
+  return verification.length === 0 ? undefined : verification
+}
+
 function normalizeTool(input: SaveToolInput): NormalizedTool {
   const name = requireAgentToolName(input.name)
   const purpose = normalizePurpose(input.purpose)
+  const verification = normalizeVerification(input.verification)
   return {
     name,
     description: requireDescription(input.description, name),
     ...purpose === undefined ? {} : { purpose },
+    ...verification === undefined ? {} : { verification },
     inputSchema: requireInputSchema(input.inputSchema),
     program: requireProgram(input.program, name),
     tools: requireToolNames(input.tools, name),
@@ -866,9 +886,11 @@ function parseToolEntry(raw: JsonValue): AgentToolDefinition | undefined {
   const provenance = parseProvenance(raw)
   if (provenance === undefined) return undefined
   const purpose = typeof raw['purpose'] === 'string' ? normalizePurpose(raw['purpose']) : undefined
+  const verification = typeof raw['verification'] === 'string' ? normalizeVerification(raw['verification']) : undefined
   return {
     ...draftFields(raw),
     id, name, description, ...purpose === undefined ? {} : { purpose },
+    ...verification === undefined ? {} : { verification },
     inputSchema, program, tools: toolNames, version, createdAt, updatedAt,
     scope: provenance.scope,
     scopeKey: provenance.scopeKey,
@@ -1225,6 +1247,7 @@ function summarizeTool(tool: AgentToolDefinition, entries: readonly AgentToolDef
     id: tool.id, name: tool.name, callableName: tool.name,
     description: tool.description, inputSchema: tool.inputSchema,
     ...(tool.purpose === undefined ? {} : { purpose: tool.purpose }),
+    ...(tool.verification === undefined ? {} : { verification: tool.verification }),
     tools: tool.tools, version: tool.version, createdAt: tool.createdAt, updatedAt: tool.updatedAt,
     scope: tool.scope, scopeKey: tool.scopeKey, digest: tool.digest,
     ...(tool.status === undefined ? {} : { status: tool.status }),
@@ -1427,6 +1450,7 @@ export function createAgentAuthoringStore(options: { readonly file: string; read
     const inputSchema = requireInputSchema(input.inputSchema)
     const description = input.description?.trim() ?? 'Distilled from successful run ' + input.runId + '.'
     const purpose = normalizePurpose(input.purpose)
+    const verification = normalizeVerification(input.verification)
     // Deterministic identity from the CONTENT, then deterministic collision handling: a
     // KEPT row owns the base name, so the draft takes the first free numeric suffix. A
     // re-run of the same content finds its own row here and updates it in place.
@@ -1448,6 +1472,7 @@ export function createAgentAuthoringStore(options: { readonly file: string; read
       name,
       description,
       ...purpose === undefined ? {} : { purpose },
+      ...verification === undefined ? {} : { verification },
       inputSchema,
       program,
       tools,
@@ -1508,6 +1533,7 @@ export function createAgentAuthoringStore(options: { readonly file: string; read
       throw new AuthoringError('artifact-not-found', 'no draft named "' + draftName + '"; a successful run must be captured first')
     }
     const name = options.name ?? source.name
+    const verification = normalizeVerification(options.verification) ?? source.verification
     if (!AGENT_TOOL_NAME_PATTERN.test(name)) {
       throw new AuthoringError('invalid-name', '"' + name + '" is not an authored tool name: it must match agent_[a-z0-9_]{2,60}')
     }
@@ -1532,6 +1558,7 @@ export function createAgentAuthoringStore(options: { readonly file: string; read
         name,
         description: source.description,
         ...(source.purpose === undefined ? {} : { purpose: source.purpose }),
+        ...(verification === undefined ? {} : { verification }),
         inputSchema: source.inputSchema,
         program: source.program,
         tools: source.tools,
@@ -1554,6 +1581,7 @@ export function createAgentAuthoringStore(options: { readonly file: string; read
       name,
       description: source.description,
       ...(source.purpose === undefined ? {} : { purpose: source.purpose }),
+      ...(verification === undefined ? {} : { verification }),
       inputSchema: source.inputSchema,
       program: source.program,
       tools: source.tools,
@@ -1589,11 +1617,13 @@ export function createAgentAuthoringStore(options: { readonly file: string; read
       // replaces it. (An explicitly empty purpose normalizes to absent and falls back to
       // the stored value for the same reason.)
       const purpose = normalized.purpose ?? existing?.purpose
+      const verification = normalized.verification ?? existing?.verification
       const entry: AgentToolDefinition = {
         id: existing?.id ?? 'agent_' + randomUUID(),
         name: normalized.name,
         description: normalized.description,
         ...purpose === undefined ? {} : { purpose },
+        ...verification === undefined ? {} : { verification },
         inputSchema: normalized.inputSchema,
         program: normalized.program,
         tools: normalized.tools,
@@ -1650,6 +1680,7 @@ export function createAgentAuthoringStore(options: { readonly file: string; read
           name: source.name,
           description: source.description,
           ...(source.purpose === undefined ? {} : { purpose: source.purpose }),
+          ...(source.verification === undefined ? {} : { verification: source.verification }),
           inputSchema: source.inputSchema,
           program: source.program,
           tools: source.tools,

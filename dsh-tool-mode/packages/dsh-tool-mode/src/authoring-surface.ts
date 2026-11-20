@@ -633,6 +633,7 @@ ctx.tools.register(defineTool({
      * while its silent arm sees only the opaque name/description.
      */
     purpose: { type: 'string', description: 'Optional purpose shown ONLY in the artifact digest, never as the tool description.' },
+    verification: { type: 'string', description: 'Optional verification or known-failure note rendered by the artifact digest; not a correctness claim.' },
     inputSchema: { type: 'json', description: 'JSON Schema for the call arguments (object root with declared properties).' },
     program: { type: 'string', description: 'The Code Mode program body; the call arguments arrive as the input variable.' },
     tools: {
@@ -678,6 +679,7 @@ ctx.tools.register(defineTool({
       const entry = authoringStore.saveTool({
         name: target,
         description: typeof request['description'] === 'string' ? request['description'] : source.description,
+        ...(source.verification === undefined ? {} : { verification: source.verification }),
         inputSchema: typeof request['inputSchema'] === 'object' && request['inputSchema'] !== null && !Array.isArray(request['inputSchema'])
           ? request['inputSchema'] as Record<string, JsonValue>
           : source.inputSchema,
@@ -718,6 +720,7 @@ ctx.tools.register(defineTool({
             ...(nameOrId.length === 0 ? {} : { name: nameOrId }),
             from: scope.context,
             to: scope.context,
+            ...(typeof request['verification'] === 'string' ? { verification: request['verification'] } : {}),
           },
         )
         const tool = promoted.kind === 'tool' ? promoted.tool : undefined
@@ -793,10 +796,12 @@ ctx.tools.register(defineTool({
         throw new Error('a tool named "' + nameOrId + '" is already registered; choose another agent_* name')
       }
       const purpose = typeof request['purpose'] === 'string' ? request['purpose'] : undefined
+      const verification = typeof request['verification'] === 'string' ? request['verification'] : undefined
       const entry = authoringStore.saveTool({
         name: nameOrId,
         description: typeof request['description'] === 'string' ? request['description'] : '',
         ...purpose === undefined ? {} : { purpose },
+        ...verification === undefined ? {} : { verification },
         inputSchema: inputSchema as Record<string, JsonValue>,
         program: typeof request['program'] === 'string' ? request['program'] : '',
         tools: Array.isArray(request['tools']) ? request['tools'].filter((tool): tool is string => typeof tool === 'string') : [],

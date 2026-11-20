@@ -512,6 +512,18 @@ Tests: `adoption-session-prompt.test.ts` now covers both the section and the fir
 step, and fails if an unverified row shows `Evidence:` or omits the verify clause.
 Adjacent adoption/digest suites: **45/45**.
 
+## Artifact-specific verification (0.5.104)
+
+The generic verify clause is not a source of truth. Authored tools now accept an optional
+`verification` note through `define`/`from-run`; `saveTool`, `saveDraft`, clone and
+promotion preserve it. The digest renders `Verify: <note>` and suppresses the counter-based
+`Evidence:` line for that row. An artifact without a note keeps the generic unverified
+warning; the counters remain available to a kept row that has no note.
+
+TDD: `tests/adoption-verification.test.ts` **0/2 red -> 3/3 green**, including a
+`define -> prompt digest` integration case. Evidence:
+[REPORT.md](../research/verification-field/REPORT.md).
+
 ## Verification matrix
 
 ```text

@@ -3814,6 +3814,33 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       ctx.logger.warn('model-tools: authoring ledger: ' + authoringLedger.issue)
     }
     /**
+     * True while ANY row of this name can still answer from a scope we can check
+     * (this host's global row, a workspace row, or the released session's own row
+     * before it went). Session rows of OTHER roots are not enumerable through the
+     * store API; this mirrors the existing delete path's scope check.
+     */
+    const authoredRowRemains = (name: string, sessionId?: string): boolean => {
+      if (authoringStore.getTool(name) !== undefined) return true
+      const workspaceScope = workspaceScopeRef
+      if (workspaceScope !== undefined && authoringStore.getTool(name, workspaceScope.context) !== undefined) return true
+      if (sessionId !== undefined
+        && authoringStore.getTool(name, { scope: 'session', scopeKey: sessionId, sessionId }) !== undefined) {
+        return true
+      }
+      return false
+    }
+    /**
+     * Retire an authored tool's REGISTRATION when its last visible row is gone (U42).
+     *
+     * The registry snapshot is what advertises bindings; the store is what preflight
+     * resolves against. Removing a row without withdrawing its registration left a
+     * name advertised but unbindable (the session-draft phantom).
+     */
+    const withdrawAuthoredIfAbsent = (name: string, sessionId?: string): void => {
+      if (authoredRowRemains(name, sessionId)) return
+      unregisterAuthoredRef?.(name)
+    }
+    /**
      * Sweep expired drafts and record one bounded `expire` event per removed row.
      *
      * Called at mount (a restart must not resurrect drafts that outlived their bound) and
@@ -3830,6 +3857,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             version: draft.version,
             scope: draft.scope,
           })
+          // U42 parity: an expired draft must not stay in the binding snapshot.
+          withdrawAuthoredIfAbsent(draft.name)
         }
       } catch (error) {
         ctx.logger.warn('model-tools: draft sweep: ' + (error instanceof Error ? error.message : String(error)))
@@ -4120,6 +4149,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             callableName: string
             description: string
             status?: string
+            verification?: string
             inputSchema: Record<string, unknown>
             scope: ArtifactScope
             digest: string
@@ -4142,6 +4172,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             ...usage?.lastAt === undefined ? {} : { lastUsedAt: usage.lastAt },
             ...quality.knownFailure === undefined ? {} : { knownFailure: quality.knownFailure },
             ...row.status === 'draft' ? { unverified: true } : {},
+            ...row.verification === undefined ? {} : { verification: row.verification },
             ...row.scope === 'session' && callerSessionId !== undefined ? { sessionId: callerSessionId } : {},
             ...callSignature === undefined ? {} : { callSignature: callSignature.signature, batch: callSignature.batch },
           })
@@ -4241,6 +4272,19 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           operation: 'expire', artifactKind: 'tool', name: tool.name, version: tool.version,
           scope: 'session', uses: evidence.uses, sessions: evidence.sessions,
         })
+        // U42 parity: the row is gone, so its registration (the advertised binding) must go
+        // too — unless a workspace/global copy still answers the name.
+        withdrawAuthoredIfAbsent(tool.name, root)
+      }
+      // The same parity for workflow dispatchers: workflow_<name> is a binding too.
+      for (const workflow of expired.workflows) {
+        const toolName = workflowToolName(workflow.name)
+        const stillThere = authoringStore.getWorkflow(workflow.name, workspaceScope.context) !== undefined
+          || authoringStore.getWorkflow(workflow.name) !== undefined
+        if (stillThere) continue
+        workflowDisposers.get(toolName)?.()
+        workflowDisposers.delete(toolName)
+        workflowToolNames.delete(toolName)
       }
       // Drafts belong to the session that produced them: releasing the root session also
       // releases anything past its bound. A draft that was kept has already left this set.
