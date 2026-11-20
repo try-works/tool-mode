@@ -1,6 +1,7 @@
 # Live probe — fix requirements (R1-R5)
 
-Status: **MEASURED — 8/8 checks, 0 failed, exit 0.** Installed build **0.5.108**, disposable
+Status: **MEASURED — 8/8 checks, 0 failed, exit 0.** Installed build **0.5.108** from npm
+(`latest`, integrity `sha512-euU8tb2n24iyZIfXC9W9dlSOChanJvi7v+W0jvjCYbqTUEBRvITZ/XBNMxw68kJkAtSx9EdywedbKlnN/pzCjg==`), disposable
 headless profile `E:/tmp/dsh-exp-f838ffd2a4d64f09b3c0da1d97fad8a1`, newest session
 `session-19fa58c0-7092-4697-b422-10ddad58658b` (62 records).
 

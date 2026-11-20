@@ -186,8 +186,12 @@ Run in this order; a failure stops the release:
 - **R5:** 0.5.106 filter already green; `offer-runnability.test.ts` accepts and runs a
   legitimate offer and excludes control-tool offers.
 - **Gate:** full plugin suite **2196 tests, 2189 pass, 7 skipped, 0 fail**; typecheck, build,
-  docs/verification, anti-slop and disposable live probe green. Web host restart remains an
-  operator step because this session runs inside that host.
+  docs/verification, anti-slop and disposable live probe green (8/8 measured).
+- **Release:** published `@try-works/dsh-tool-mode@0.5.108` to npm (`latest`), then installed
+  the web and disposable profiles from the registry at integrity
+  `sha512-euU8tb2n24iyZIfXC9W9dlSOChanJvi7v+W0jvjCYbqTUEBRvITZ/XBNMxw68kJkAtSx9EdywedbKlnN/pzCjg==`;
+  the profile lock now resolves the registry package, not the local tarball. A full web host
+  restart loads it.
 
 ## 8. Definition of done
 
