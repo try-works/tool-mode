@@ -277,8 +277,43 @@ export function registerDiscoveryControlTools(deps: DiscoveryControlDeps): void 
           catalogRevision: { type: 'string' },
           tools: { type: 'array' },
           unavailable: { type: 'array' },
-          /** Authored artifacts and the read-only repeated-shape report. */
-          authoring: { type: 'object', additionalProperties: true },
+          /**
+           * Authored artifacts and the read-only repeated-shape report.
+           *
+           * Each authored row carries `bindable`: the binding resolver's answer for
+           * the row's CALLABLE name (`workflow_<name>` for a workflow), which is the
+           * same value `tool_mode_run({probe:true}).preflight[i].resolved` reports.
+           * Declared here so a schema-driven client can rely on the field; the rows
+           * keep additionalProperties for the authoring metadata beside it.
+           */
+          authoring: {
+            type: 'object',
+            additionalProperties: true,
+            properties: {
+              tools: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  additionalProperties: true,
+                  properties: {
+                    name: { type: 'string' },
+                    bindable: { type: 'boolean' },
+                  },
+                },
+              },
+              workflows: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  additionalProperties: true,
+                  properties: {
+                    name: { type: 'string' },
+                    bindable: { type: 'boolean' },
+                  },
+                },
+              },
+            },
+          },
         },
       },
       render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],

@@ -56,6 +56,8 @@ export interface AuthoringSurfaceDeps {
   readonly registerWorkflow: (workflow: AgentWorkflow) => boolean
   readonly registerAuthored: (definition: AgentToolDefinition) => boolean
   readonly unregisterAuthored: (name: string) => boolean
+  /** Release a stored-name workflow alias held by the registry, if any. */
+  readonly releaseWorkflowAlias?: ((name: string) => boolean) | undefined
   readonly workflowDisposers: Map<string, () => void>
   readonly workflowToolNames: Set<string>
   readonly authoredToolNames: Set<string>
@@ -314,6 +316,7 @@ export function registerAuthoringTools(deps: AuthoringSurfaceDeps): void {
   const registerWorkflow = deps.registerWorkflow
   const registerAuthored = deps.registerAuthored
   const unregisterAuthored = deps.unregisterAuthored
+  const releaseWorkflowAlias = deps.releaseWorkflowAlias
   const workflowDisposers = deps.workflowDisposers
   const workflowToolNames = deps.workflowToolNames
   const authoredToolNames = deps.authoredToolNames
@@ -792,6 +795,8 @@ ctx.tools.register(defineTool({
       // Collision is checked BEFORE persisting: a definition that cannot own its name is
       // refused, not stored to fail later. A re-define of one of OUR tools is an update.
       const stored = authoringStore.getTool(nameOrId, scope.context)
+      // R1-A collision: a workflow's stored-name alias yields to a real authored tool.
+      if (stored === undefined) releaseWorkflowAlias?.(nameOrId)
       if (stored === undefined && !authoredToolNames.has(nameOrId) && ctx.tools.schemas().some(schema => schema.name === nameOrId)) {
         throw new Error('a tool named "' + nameOrId + '" is already registered; choose another agent_* name')
       }

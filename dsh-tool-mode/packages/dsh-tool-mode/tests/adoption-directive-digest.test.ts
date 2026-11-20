@@ -4,7 +4,7 @@
  * The neutral bullet list was inert in the internal reports (0/2); a directive naming the
  * artifact was 3/3. The rules: exactly one imperative line, the artifact's purpose, an
  * evidence-backed known failure (never an invented caveat), a compact non-imperative list of
- * the rest, four lines / 600 characters at most, recomputed per assembly, caller-scope
+ * the rest, six lines / 1000 characters at most, recomputed per assembly, caller-scope
  * isolated, and empty when the flag is off.
  */
 
@@ -90,15 +90,15 @@ describe('directive digest', () => {
     assert.doesNotMatch(text, /^Use workflow_second/m)
   })
 
-  it('stays under 600 characters and four lines', () => {
+  it('stays under 1000 characters and six lines', () => {
     const rows = Array.from({ length: 12 }, (_, index) => candidate({
       name: 'long_' + String(index),
       description: 'A very long purpose sentence that keeps going to exercise the bound. '.repeat(4),
       lastUsedAt: '2026-06-01T00:00:00.000Z',
     }))
     const text = buildDirectiveDigest(rows)
-    assert.ok(text.length <= 600, 'length ' + String(text.length))
-    assert.ok(text.split('\n').length <= 4, 'lines ' + String(text.split('\n').length))
+    assert.ok(text.length <= 1000, 'length ' + String(text.length))
+    assert.ok(text.split('\n').length <= 6, 'lines ' + String(text.split('\n').length))
     assert.match(text, /^Use /)
   })
 
@@ -155,7 +155,7 @@ describe('prompt-section wiring (Phase 3 in index.ts)', () => {
     const text = await sectionText(ctx)
     assert.match(text, /^Use workflow_digest_flow \(stored digest-flow\) — Counts languages across a list\.$/m)
     assert.equal(text.split('\n').filter(line => line.startsWith('Use ')).length, 1)
-    assert.ok(text.length <= 600, 'length ' + String(text.length))
+    assert.ok(text.length <= 1000, 'length ' + String(text.length))
   })
 
   it('omits a session artifact when the assembly has no caller', async () => {

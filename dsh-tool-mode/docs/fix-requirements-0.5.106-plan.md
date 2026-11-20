@@ -1,6 +1,6 @@
 # Fix requirements for 0.5.106 — TDD and verification plan
 
-Status: proposed. Target release: **0.5.107**. Source report:
+Status: implemented (0.5.108). Target release: **0.5.108**. Source report:
 `research/reports/2026-11-20-fix-requirements-0.5.106.md` (external research checkout;
 evidence `2026-11-20-0.5.106-verification-rendered.md`, runlog E29).
 
@@ -106,7 +106,9 @@ reported failure.
 - Assert no rendered value ends mid-token (no `->h…`).
 - Add an over-budget case: the value is cut at a word boundary and ends with
   `… read the full text with tool_mode_tools {action:'get'}`; the pointer is not optional.
-- Assert the existing 600-character / 4-line cap still holds.
+- Assert the revised 1000-character / 6-line cap. It was raised from 600/4 after the live
+  probe showed the full 176-character verification plus two supporting artifacts exceeded
+  600 and the loop dropped the ENTIRE `Also available` line — E26/E27/E28 in a new form.
 
 **Implementation:**
 
@@ -169,7 +171,25 @@ Run in this order; a failure stops the release:
 10. Commit code, tests, plan/report, verification artifacts; push. Do not commit stray tarballs
     except the current release tarball if the repository convention keeps one.
 
-## 7. Definition of done
+## 7. Outcome (0.5.108)
+
+- **R1-A:** authored tool, stored workflow name, `workflow_*` spelling, and nested workflow
+  all bind and run. `registerWorkflow` now registers the stored name as an alias when it is
+  a legal identifier; a real authored tool can take that name over, preserving the
+  both-kinds verb test.
+- **R2:** `digest-executable.test.ts` executes the top and supporting names; 0 refusals.
+- **R3:** 176-character report value renders whole on top and supporting rows; over-budget
+  values cut at a word boundary with the explicit pointer. Cap raised to 1000/6 because
+  600/4 dropped the whole supporting line in the live fixture.
+- **R4:** authored list rows expose `bindable` matching `probe:true`; refusal text names the
+  unknown tool, reason and action.
+- **R5:** 0.5.106 filter already green; `offer-runnability.test.ts` accepts and runs a
+  legitimate offer and excludes control-tool offers.
+- **Gate:** full plugin suite **2196 tests, 2189 pass, 7 skipped, 0 fail**; typecheck, build,
+  docs/verification, anti-slop and disposable live probe green. Web host restart remains an
+  operator step because this session runs inside that host.
+
+## 8. Definition of done
 
 | Req | Done when |
 |---|---|
@@ -180,7 +200,7 @@ Run in this order; a failure stops the release:
 | R5 | Accepting an offer either yields a runnable artifact or refuses by name and saves nothing. |
 | Gate | Full suite green, typecheck/build/docs/verification green, 0.5.107 installed, live probe recorded, report committed. |
 
-## 8. Parallel work split (optional, disjoint scopes)
+## 9. Parallel work split (optional, disjoint scopes)
 
 - **Lead:** Phase 0 fixtures, R1 decision gate, digest integration, full release/live gate.
 - **Binding stream:** `runtime-surface.ts`, `discovery-binding.ts`, `index.ts` binding/registration;
@@ -191,12 +211,12 @@ Run in this order; a failure stops the release:
 Do not let two agents edit `index.ts` concurrently; sequence the binding and offer patches,
 and have the Lead review the combined diff and run the full gate.
 
-## 9. Risks and rollback
+## 10. Risks and rollback
 
 - **R1 authority weakening:** do not add a parallel authorization path. If the live binding
   cannot be made consistent without bypassing `authorizeProgramTools`, choose R1-B.
 - **Digest budget:** full verification text can crowd out evidence lines. Keep the explicit
-  truncation pointer and a test for the 600/4 cap; do not silently drop the six cases.
+  truncation pointer and a test for the 1000/6 cap; do not silently drop the six cases.
 - **Existing artifacts:** a restored session draft may be stale. Reproduce with a freshly
   defined artifact first, then with the report's restored row; record which case fails.
 - **Rollback:** each phase is a separate commit; revert the digest route change if R1-A is

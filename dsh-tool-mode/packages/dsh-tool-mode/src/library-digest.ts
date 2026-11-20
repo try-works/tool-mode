@@ -16,11 +16,28 @@ import {
 } from './adoption-digest-ranking.ts'
 
 /** Default cap for the directive digest, as the plan requires. */
-export const DIRECTIVE_DIGEST_MAX_CHARS = 600
-/** Default line cap for the directive digest. */
-export const DIRECTIVE_DIGEST_MAX_LINES = 4
+export const DIRECTIVE_DIGEST_MAX_CHARS = 1000
+/**
+ * Default line cap for the directive digest.
+ *
+ * R3 raised this from 4 to 6: the 176-character report value plus TWO supporting
+ * artifacts' bounded purposes and verification notes exceed 600 characters, and the
+ * previous loop dropped the ENTIRE `Also available` line. That is exactly the E26/E27/E28
+ * failure in a new form. 1000/6 keeps the full verification and all three entries.
+ */
+export const DIRECTIVE_DIGEST_MAX_LINES = 6
 /** Purpose and known-failure fragments stay single-line and bounded. */
 const FRAGMENT_MAX_CHARS = 120
+/**
+ * The explicit verification budget (R3, plan Phase 3 starts at 240 characters).
+ *
+ * The report's value is 176 characters: it fits WHOLE, and it must — the six word->code
+ * mappings are what makes verification cheap. A longer value is cut at a word boundary and
+ * ends with the pointer below.
+ */
+const VERIFICATION_MAX_CHARS = 240
+/** The pointer a budget-cut verification ends with. It is not optional. */
+const VERIFICATION_POINTER = "… read the full text with tool_mode_tools {action:'get'}"
 /** Supporting artifacts listed without an imperative. */
 const DEFAULT_MAX_SUPPORTING = 3
 
@@ -48,9 +65,39 @@ function oneLine(text: string): string {
   return text.replace(/\s+/g, ' ').trim()
 }
 
+/**
+ * Cut at the last whitespace boundary at or below `max`.
+ *
+ * NEVER `slice` a token in half: the report's failure was `'Terve'->h…`, which told a solver
+ * that short words are unreliable while hiding WHICH words. A cut that lands mid-token is
+ * worse than an earlier cut at a boundary.
+ */
+function truncateAtWord(text: string, max: number): string {
+  if (text.length <= max) return text
+  const cut = text.slice(0, Math.max(0, max))
+  const boundary = cut.lastIndexOf(' ')
+  const head = boundary > 0 ? cut.slice(0, boundary) : cut
+  return head.replace(/[\s,;:]+$/, '')
+}
+
 function truncate(text: string, max: number): string {
   if (text.length <= max) return text
-  return text.slice(0, Math.max(0, max - 1)).trimEnd() + '…'
+  return truncateAtWord(text, Math.max(0, max - 1)) + '…'
+}
+
+/**
+ * Render a verification value under the explicit budget (R3).
+ *
+ * Fits: the WHOLE normalized value. Over budget: a word-boundary prefix plus the exact
+ * pointer `… read the full text with tool_mode_tools {action:'get'}`.
+ * @param value - the stored verification.
+ * @returns the rendered text and whether it was cut.
+ */
+function renderVerification(value: string) {
+  const normalized = oneLine(value)
+  if (normalized.length <= VERIFICATION_MAX_CHARS) return { text: normalized, truncated: false }
+  const room = Math.max(0, VERIFICATION_MAX_CHARS - VERIFICATION_POINTER.length - 1)
+  return { text: truncateAtWord(normalized, room) + ' ' + VERIFICATION_POINTER, truncated: true }
 }
 
 /** Options for the directive digest. */
@@ -132,11 +179,9 @@ export function buildDirectiveDigest(
    * 0 failures was still wrong. An auto-kept row therefore gets a verification
    * instruction and NO evidence claim; only a kept row may show the counters.
    */
-  const verification = top.verification === undefined
-    ? undefined
-    : truncate(oneLine(top.verification), FRAGMENT_MAX_CHARS)
-  const verify = verification !== undefined && verification.length > 0
-    ? ' Verify: ' + sentence(verification)
+  const verification = top.verification === undefined ? undefined : renderVerification(top.verification)
+  const verify = verification !== undefined && verification.text.length > 0
+    ? ' Verify: ' + (verification.truncated ? verification.text : sentence(verification.text))
     : top.unverified === true
       ? ' Verify its output on edge cases before relying on it.'
       : ''
@@ -159,12 +204,24 @@ export function buildDirectiveDigest(
   const supporting = ranked.slice(1, 1 + maxSupporting).map(row => {
     const name = oneLine(row.callableName)
     const purpose = truncate(oneLine(row.description), 55).replace(/[.;]+$/, '')
+    /**
+     * R3: supporting artifacts carry the SAME full verification as the top candidate — a
+     * field that renders only for rank 1 is invisible whenever the artifact ranks second
+     * (E26/E27/E28). The 55-character mid-token cap is gone; the shared budget applies.
+     */
+    // The value renders VERBATIM inside the bracket (its own closing period included):
+    // punctuation is part of the stored text, and the R3 contract is "render it in full".
     const verification = row.verification === undefined
       ? ''
-      : ' [Verify: ' + truncate(oneLine(row.verification), 55).replace(/[.;]+$/, '') + ']'
+      : ' [Verify: ' + renderVerification(row.verification).text + ']'
     return name + (purpose.length === 0 ? '' : ' — ' + purpose) + verification
   })
-  if (supporting.length > 0) lines.push('Also available: ' + supporting.join('; ') + '.')
+  if (supporting.length > 0) {
+    const line = 'Also available: ' + supporting.join('; ')
+    // A verification bracket carries its own punctuation; adding another period after ']'
+    // would render '…agree.].' — one closing mark is enough.
+    lines.push(line.endsWith(']') ? line : line + '.')
+  }
 
   const bounded = lines.slice(0, maxLines)
   let text = bounded.join('\n')

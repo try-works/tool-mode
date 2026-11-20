@@ -1271,6 +1271,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   /** Workflow tools registered from the durable workflow store. */
   const workflowToolNames = new Set<string>()
   const workflowDisposers = new Map<string, () => void>()
+  /** Stored-name aliases held by workflow dispatchers, so a real tool can take the name over. */
+  const workflowAliases = new Map<string, { readonly canonical: string; readonly dispose: () => void; active: boolean }>()
   /** Cycle guard for workflow-calls-workflow composition. */
   const workflowCallStack = new AsyncLocalStorage<ReadonlySet<string>>()
   /** Per-session adoption ledger (offered/called/authored/reused). */
@@ -4080,13 +4082,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
            */
           const { purpose, ...visible } = tool
           void purpose
-          return { ...visible, ...evidence, quality: qualityOf(evidence) }
+          return { ...visible, ...evidence, quality: qualityOf(evidence), bindable: bindableName(tool.name, scope) }
         }),
         toolsTotal: allTools.length,
         toolsLimit: TOOL_LIST_LIMIT,
         workflows: authoringStore.listWorkflows(scope.context).map(workflow => {
           const evidence = artifactUsage.evidence(workflow.name, workflow.digest)
-          return { ...workflow, ...evidence, quality: qualityOf(evidence) }
+          return { ...workflow, ...evidence, quality: qualityOf(evidence), bindable: bindableName(workflowToolName(workflow.name), scope) }
         }),
         recent: authoringLedger.list().slice(-20),
         ...repetitionTracker === undefined ? {} : {
@@ -4393,7 +4395,12 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         return false
       }
       try {
-        const dispose = ctx.tools.register(defineTool({
+        // R1-A: one definition, registered under the callable spelling and, when the
+        // stored workflow name is itself a legal program identifier, under that name too.
+        // The digest is written in call syntax; an alias the registry actually serves is
+        // honest, while a resolver-only alias would advertise a binding execution cannot
+        // deliver.
+        const definition = defineTool({
           name: toolName,
           description: workflow.description,
           parameters,
@@ -4459,8 +4466,31 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
               return (report.result ?? null) as never
             })
           },
-        }))
-        workflowDisposers.set(toolName, dispose)
+        })
+        const dispose = ctx.tools.register(definition)
+        const storedName = workflow.name
+        const aliasName = storedName !== toolName
+          && /^[A-Za-z_$][A-Za-z0-9_$]{0,253}$/.test(storedName)
+          && !ctx.tools.schemas().some(schema => schema.name === storedName)
+          ? storedName
+          : undefined
+        // Same definition under the alias; only the advertised name differs. A collision
+        // skips the alias rather than stealing another tool's name.
+        const disposeAlias = aliasName === undefined
+          ? undefined
+          : ctx.tools.register({ ...definition, name: aliasName } as never)
+        if (aliasName !== undefined && disposeAlias !== undefined) {
+          workflowAliases.set(aliasName, { canonical: toolName, dispose: disposeAlias, active: true })
+        }
+        workflowDisposers.set(toolName, () => {
+          dispose()
+          const alias = aliasName === undefined ? undefined : workflowAliases.get(aliasName)
+          if (alias?.active === true) {
+            alias.active = false
+            alias.dispose()
+            workflowAliases.delete(aliasName as string)
+          }
+        })
         workflowToolNames.add(toolName)
         return true
       } catch (error) {
@@ -4488,10 +4518,20 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       for (const dispose of workflowDisposers.values()) dispose()
       workflowDisposers.clear()
       workflowToolNames.clear()
+      workflowAliases.clear()
     }, 'workflow tools teardown')
 
     /** The registered authored tools, so delete and teardown unregister exactly one each. */
     const authoredDisposers = new Map<string, () => void>()
+    /** Release a stored-name workflow alias so a real authored tool can take the name. */
+    const releaseWorkflowAlias = (name: string): boolean => {
+      const alias = workflowAliases.get(name)
+      if (alias === undefined) return false
+      alias.active = false
+      alias.dispose()
+      workflowAliases.delete(name)
+      return true
+    }
     /**
      * Register one stored authored tool.
      *
@@ -4501,6 +4541,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
      */
     const registerAuthored = (definition: AgentToolDefinition): boolean => {
       if (authoredToolNames.has(definition.name)) return true
+      /**
+       * R1-A + verb resolution: a workflow's stored-name alias may hold a name that a real
+       * authored tool now claims. The tool wins; the workflow remains callable as
+       * `workflow_<name>`. This keeps a name held by BOTH kinds resolvable by the caller's
+       * chosen verb instead of permanently blocked by the alias.
+       */
+      releaseWorkflowAlias(definition.name)
       if (ctx.tools.schemas().some(schema => schema.name === definition.name)) {
         ctx.logger.warn(
           'model-tools: authored tool ' + definition.name + ' was not registered: a tool with that name already exists',
@@ -4651,6 +4698,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       registerWorkflow,
       registerAuthored,
       unregisterAuthored,
+      releaseWorkflowAlias,
       workflowDisposers,
       workflowToolNames,
       authoredToolNames,

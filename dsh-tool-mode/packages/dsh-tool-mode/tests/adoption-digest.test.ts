@@ -34,7 +34,7 @@ describe('library digest', () => {
     assert.match(section.text, /workflow_digest_flow/)
     assert.match(section.text, /digest-flow/)
     assert.match(section.text, /Counts languages/)
-    assert.ok(section.text.length <= 600)
+    assert.ok(section.text.length <= 1000)
   })
 })
 describe('digest mode — the neutral G arm (Phase 8)', () => {
