@@ -323,14 +323,20 @@ describe('HLM-01 — the host pipeline serves declarative recipes through a scri
 
   it('DEFAULT OFF: without harnessModel (and no harnessProvider), declarative activation refuses rather than registering nothing', async () => {
     const { ctx, storeDir } = await mountDeclarative({})
-    // Give the restore chain time to attempt publication and record the refusal.
-    await new Promise(resolve => setTimeout(resolve, 600))
+    // The restore chain yields to boot now (async digest), so poll the durable
+    // outcome instead of assuming 600 ms is enough.
+    const deadline = Date.now() + 15_000
+    let state = new ExtensionStore(storeDir).readProfileState('default').value[0]
+    while (Date.now() < deadline) {
+      state = new ExtensionStore(storeDir).readProfileState('default').value[0]
+      if (state?.observedActivation === 'failed' || state?.observedActivation === 'quarantined') break
+      await new Promise(resolve => setTimeout(resolve, 25))
+    }
     assert.equal(
       ctx.tools.schemas().some(schema => schema.name === 'text_title'),
       false,
       'no provider means no declarative tools',
     )
-    const state = new ExtensionStore(storeDir).readProfileState('default').value[0]
     assert.ok(
       state?.observedActivation === 'failed' || state?.observedActivation === 'quarantined',
       `the extension must be failed or quarantined, not ${state?.observedActivation}`,

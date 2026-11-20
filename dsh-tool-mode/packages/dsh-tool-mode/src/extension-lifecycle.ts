@@ -276,7 +276,15 @@ void (async () => {
       const record = installedRecords.find(candidate =>
         candidate.extensionId === entry.extensionId && candidate.version === entry.version)
       if (record !== undefined) {
-        const integrity = store.verifyUnchanged(record)
+        /**
+         * ASYNC, CACHED DIGEST: this is the boot path. The synchronous
+         * `verifyUnchanged` hashes the whole installed tree on the event loop; with
+         * 16 extensions and multi-GB dependency trees that held the loader open for
+         * minutes before the auth URL appeared. The async form uses the SDK's
+         * worker-pool digest and reuses a fingerprint-matching verification, so the
+         * restore chain yields instead of blocking the host's first paint.
+         */
+        const integrity = await store.verifyUnchangedAsync(record)
         if (!integrity.unchanged) {
           const reason = integrity.diagnostic ?? 'the installed content changed'
           /**

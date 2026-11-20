@@ -174,12 +174,13 @@ describe('the host restores an approved extension on startup', () => {
 
     const ctx = await mountPlugin({ extensionStore: storeDir })
     const deadline = Date.now() + 15_000
-    await new Promise(resolve => setTimeout(resolve, 400))
+    // The restore chain yields to boot now (async digest), so poll the durable
+    // outcome instead of assuming a fixed 400 ms is enough. The assertion is on the
+    // OUTCOME; a slow refusal must still pass.
     while (Date.now() < deadline) {
-      // The restore loop settles quickly; a short wait is enough for the refusal to
-      // land. The assert is on the OUTCOME, so a slow refusal also passes.
+      const current = store.readProfileState('default').value[0]
+      if (current?.observedActivation === 'failed' || current?.observedActivation === 'quarantined') break
       await new Promise(resolve => setTimeout(resolve, 25))
-      break
     }
 
     // THE ASSERTION THAT MATTERS: the tool never reaches the registry, because a

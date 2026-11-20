@@ -60,7 +60,7 @@ The section is the smallest change because the digest already lived there. If pr
 invalidation becomes measurable, moving the same rows to `systemPrompt.context` is a
 contained follow-up.
 
-## Startup hardening (0.5.101)
+## Startup hardening (0.5.101 / 0.5.102)
 
 The prompt section is now fail-open: any scope/store/digest failure is caught, logged as
 `tool-mode library digest skipped: ...`, and returns an empty section. A missing aid must
@@ -73,10 +73,21 @@ remained. `pnpm@11.28.5` is now installed globally, and the 0.5.101 install succ
 the normal command. That missing tool, not the tool-mode prompt section, is the concrete
 failure observed; it is not claimed as the only cause of the earlier startup trouble.
 
+### Boot path: async, cached integrity (0.5.102)
+
+The restore chain used the SDK's synchronous `verifyUnchanged()` before activation. That
+hashes each installed tree on the event loop; with ~16 extensions and multi-GB dependency
+trees it delayed the loader and the auth URL. It now uses `verifyUnchangedAsync()`, which
+uses the worker-pool digest and reuses a fingerprint-matching verification, so the restore
+chain yields to boot. Regression: `tests/extension-restore-nonblocking.test.ts` proves the
+synchronous digest is never called and activation still completes. Plugin suite after the
+change: **2169 tests, 2165 pass, 4 skipped, 0 fail**.
+
 ## Limits
 
-- 0.5.101 is packed and installed into the web profile; the loaded host still has the
-  previous module graph until a full DSH stop/start, so the live 0.5.101 probe is pending.
+- 0.5.102 is packed and installed into the web profile; the running host still holds the
+  old module graph until a full DSH stop/start, so the boot-time and live prompt probes are
+  pending.
 - The inventory is directive plus at most three supporting names, bounded to four lines and
   600 characters. It is not an exhaustive catalog; `tool_mode_tools list` remains the full
   bounded surface.
