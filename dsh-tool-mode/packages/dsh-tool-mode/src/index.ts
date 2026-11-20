@@ -4007,6 +4007,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         // ONE-shot property independent of that state.
         if (equivalentToolExists(candidate.toolName, exec)) return undefined
         if (pendingOffers.has(candidate.id)) return undefined
+        // U44b: never offer a wrapper around a tool the program lane cannot bind. The
+        // offer is a promise that accepting it produces a runnable artifact; `run_code`
+        // and the tool-mode control tools are deliberately outside that lane.
+        if (!bindableName(candidate.toolName, scopeFor(exec))) return undefined
         const suggestion = suggestionFor(candidate)
         // The RESULT line is bounded, so the captured schema stays in the pending record.
         const compact: Record<string, unknown> = { ...suggestion.command.arguments }

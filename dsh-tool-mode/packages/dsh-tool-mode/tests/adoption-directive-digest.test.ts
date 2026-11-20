@@ -86,7 +86,7 @@ describe('directive digest', () => {
     ])
     assert.match(text, /^Use workflow_first\b/m)
     assert.equal(imperativeCount(text), 1)
-    assert.match(text, /^Also available: workflow_second, workflow_third\.$/m)
+    assert.match(text, /^Also available: workflow_second — Purpose of second; workflow_third — Purpose of third\.$/m)
     assert.doesNotMatch(text, /^Use workflow_second/m)
   })
 

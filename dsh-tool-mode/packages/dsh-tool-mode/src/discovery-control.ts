@@ -513,6 +513,36 @@ export function registerDiscoveryControlTools(deps: DiscoveryControlDeps): void 
           ? workflowToolName(row.name)
           : requestedName
         const described = await describeOne(lookupName, bindableScope)
+        const isWorkflowRow = row !== undefined && authoring?.workflows.includes(row) === true
+        const callableName = row === undefined
+          ? lookupName
+          : isWorkflowRow ? workflowToolName(row.name) : row.name
+        /**
+         * U44a: an AUTHORED artifact is described from its stored row, not only from the
+         * registry projection. The documented list -> describe path must not dead-end on
+         * the agent's own tools when a registration is scope-shadowed or awaiting restart.
+         * The row carries the real input schema; `bindable` stays the live answer.
+         */
+        if (row !== undefined) {
+          const bindable = bindableName(callableName, bindableScope)
+          entries.push({
+            ...described,
+            name: callableName,
+            callable: bindable,
+            bindable,
+            description: row.description,
+            parameters: row.inputSchema,
+            scope: row.scope,
+            ...row.shadowing === null ? {} : { shadowing: row.shadowing },
+            storedName: row.name,
+            callableName,
+            ...bindable ? {} : {
+              reason: 'the authored artifact is stored but its registration is not visible to this caller; it may be scope-shadowed or await a restart',
+              action: 'Call it from the scope that owns it, promote it to this workspace, or restart after the registration is created.',
+            },
+          })
+          continue
+        }
         // A KNOWN catalog name that cannot be called is EXPLAINED, not refused (P4).
         if (described.callable === false) {
           entries.push(described)
@@ -525,18 +555,7 @@ export function registerDiscoveryControlTools(deps: DiscoveryControlDeps): void 
           && described.model === undefined) {
           throw new Error(`unknown tool ${JSON.stringify(requestedName)}`)
         }
-        const isWorkflowRow = row !== undefined && authoring?.workflows.includes(row) === true
-        entries.push(row === undefined
-          ? described
-          : {
-              ...described,
-              scope: row.scope,
-              ...row.shadowing === null ? {} : { shadowing: row.shadowing },
-              // U37: report the STORED artifact name beside the callable one. A workflow
-              // resolved by either spelling keeps both; an authored tool's are equal.
-              storedName: row.name,
-              callableName: isWorkflowRow ? workflowToolName(row.name) : row.name,
-            })
+        entries.push(described)
       }
       return { catalogRevision: catalogRevision(), tools: entries } as never
     },

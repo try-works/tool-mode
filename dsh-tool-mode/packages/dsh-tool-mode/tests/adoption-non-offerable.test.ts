@@ -88,7 +88,10 @@ async function repeat(ctx: Context, name: string, args: unknown): Promise<void> 
 describe('F9 — management and decision_* calls never become save offers', () => {
   it('suppresses model_tools_manage and every decision_* tool, while a normal control shape still offers', async () => {
     const ctx = await mountHost()
-    // Positive control: tool_mode_run is NOT a management/discovery/decision tool.
+    // Positive control: lang_detect is a bindable model tool.
+    await repeat(ctx, 'lang_detect', { text: 'hello' })
+    // U44b: tool_mode_run is a control tool outside the program binding lane; an offer
+    // wrapping it would save and then fail to run.
     await repeat(ctx, 'tool_mode_run', { probe: true, tools: [] })
     await repeat(ctx, 'model_tools_manage', { action: 'installed' })
     await repeat(ctx, 'decision_combine', { facts: { a: 1 }, judgments: {}, rules: [], fallback: 'done' })
@@ -97,6 +100,7 @@ describe('F9 — management and decision_* calls never become save offers', () =
     const names = offers.map(offer => offer.toolName)
     assert.equal(names.includes('model_tools_manage'), false, 'the management surface must not be offered')
     assert.equal(names.some(name => name.startsWith('decision_')), false, 'every decision_* tool is suppressed by prefix')
-    assert.equal(names.includes('tool_mode_run'), true, 'the tracker still offers for a normal shape')
+    assert.equal(names.includes('lang_detect'), true, 'a bindable tool still offers')
+    assert.equal(names.includes('tool_mode_run'), false, 'a control tool must not offer a dead wrapper')
   })
 })

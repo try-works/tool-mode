@@ -53,6 +53,24 @@ describe('artifact-specific verification', () => {
     assert.doesNotMatch(text, /Evidence:/)
   })
 
+  it('renders purpose and verification on a supporting artifact, not only the imperative one', () => {
+    const text = buildDirectiveDigest([
+      {
+        name: 'agent_primary', callableName: 'agent_primary', description: 'Primary artifact.',
+        scope: 'workspace', uses: 3, failures: 0, sessions: 1,
+      },
+      {
+        name: 'agent_probe_both', callableName: 'agent_probe_both',
+        description: 'PROBE-PURPOSE-MARKER-doubles-and-triples',
+        verification: 'PROBE-VERIF-MARKER-2: wrong on negatives.',
+        scope: 'workspace', uses: 0, failures: 0, sessions: 0,
+      },
+    ] as never)
+    assert.match(text, /Also available: .*agent_probe_both/)
+    assert.match(text, /PROBE-PURPOSE-MARKER-doubles-and-triples/)
+    assert.match(text, /PROBE-VERIF-MARKER-2/)
+  })
+
   it('accepts verification on define and renders it in the prompt digest', async () => {
     const ctx = await mountPluginWithTongue()
     const defined = await callTool(ctx, 'tool_mode_tools', {

@@ -150,8 +150,21 @@ export function buildDirectiveDigest(
     lines.push('Known failure: ' + sentence(knownFailure))
   }
   if (top.uses >= 5 && top.unverified !== true && verification === undefined) lines.push(evidenceLine(top))
-  const supporting = ranked.slice(1, 1 + maxSupporting).map(row => oneLine(row.callableName))
-  if (supporting.length > 0) lines.push('Also available: ' + supporting.join(', ') + '.')
+  /**
+   * Supporting rows are not just names. A field that reaches only the imperative
+   * candidate is invisible whenever an artifact ranks second — E28 put both markers on
+   * one tool and saw neither because it was in "Also available". Carry the same metadata
+   * here, bounded per entry.
+   */
+  const supporting = ranked.slice(1, 1 + maxSupporting).map(row => {
+    const name = oneLine(row.callableName)
+    const purpose = truncate(oneLine(row.description), 55).replace(/[.;]+$/, '')
+    const verification = row.verification === undefined
+      ? ''
+      : ' [Verify: ' + truncate(oneLine(row.verification), 55).replace(/[.;]+$/, '') + ']'
+    return name + (purpose.length === 0 ? '' : ' — ' + purpose) + verification
+  })
+  if (supporting.length > 0) lines.push('Also available: ' + supporting.join('; ') + '.')
 
   const bounded = lines.slice(0, maxLines)
   let text = bounded.join('\n')

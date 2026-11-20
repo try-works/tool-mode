@@ -1,6 +1,6 @@
 # Auto-keep and the `autoDraft` deprecation plan
 
-Status: implemented (0.5.98; lifecycle corrections in 0.5.99; session-start adoption in 0.5.100; fail-open prompt in 0.5.101; async boot digest in 0.5.102; task-turn injection in 0.5.103; artifact verification + U42/U26 closure in 0.5.104). This plan turns the accepted direction — **runs are stored and reusable by
+Status: implemented (0.5.98; lifecycle corrections in 0.5.99; session-start adoption in 0.5.100; fail-open prompt in 0.5.101; async boot digest in 0.5.102; task-turn injection in 0.5.103; artifact verification + U42/U26 closure in 0.5.104; U44 render/describe/offer fixes in 0.5.105). This plan turns the accepted direction — **runs are stored and reusable by
 default; delete is the only required curation action** — into a sequenced, test-first
 change.
 
@@ -538,6 +538,22 @@ TDD: `tests/adoption-verification.test.ts` **0/2 red -> 3/3 green**, including a
   { all:true }).filter(row => row.scope === rawScope)`), so the 0.5.101 observation predates
   the fix. Added regression: **1/1 green**, with the session row surviving and shadowing normal
   resolution while `list({scope:'workspace'})` still returns the workspace row.
+
+## U44 closure (0.5.105)
+
+- **Metadata on supporting artifacts.** The digest rendered `purpose` and `verification`
+  only on the imperative candidate; an artifact ranked second appeared as a bare name.
+  `Also available` now carries a bounded purpose and `[Verify: ...]` note per entry. Live
+  headless 0.5.105 shows both marker strings in the first-step prompt.
+- **Authored describe.** `tool_mode_describe` now builds an authored artifact's entry from
+  its stored row (schema, scope, stored/callable name) instead of requiring a registry
+  projection; an unregistered row is explained, not `unknown tool`.
+- **Bindable offers.** The save-offer builder refuses a name outside the program binding
+  lane, so a `run_code` wrapper is no longer proposed. F9 now uses `lang_detect` as its
+  positive control.
+
+Evidence: [REPORT.md](../research/u44/REPORT.md). Full plugin suite **2178 tests, 2171 pass,
+7 skipped, 0 fail**.
 
 ## Verification matrix
 
