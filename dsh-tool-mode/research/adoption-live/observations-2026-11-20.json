@@ -1,0 +1,178 @@
+{
+  "capturedAt": "2026-11-20T07:40:35.465Z",
+  "capturedBy": "live-probe subagent session f7423328 (root session-a03968b1-b255-4281-ba62-d2a842a81cce)",
+  "note": "These are in-session tool observations. The probe script cannot make in-process tool calls, so it reports these checks PENDING and folds this file in via --observations. Everything here was produced by READ-ONLY calls (list / probe:true); no draft was minted and no artifact was mutated.",
+  "runningBuildSchemaFeatures": {
+    "tool_mode_run.probe": true,
+    "tool_mode_run.runId": true,
+    "tool_mode_run.preflight": true,
+    "tool_mode_tools.actions": [
+      "define",
+      "clone",
+      "from-run",
+      "list",
+      "get",
+      "delete",
+      "promote",
+      "demote"
+    ],
+    "tool_mode_workflows.actions": [
+      "save",
+      "clone",
+      "list",
+      "get",
+      "delete",
+      "run",
+      "promote",
+      "demote"
+    ],
+    "tool_mode_list.scope": true
+  },
+  "toolModeList": {
+    "catalogRevision": "17",
+    "authoredToolsAdvertised": [
+      {
+        "name": "agent_from_draft_69543846",
+        "bindable": false
+      },
+      {
+        "name": "agent_from_draft_051ab807",
+        "bindable": false
+      }
+    ],
+    "controlToolsBindable": {
+      "model_tools": false,
+      "tool_mode_run": false,
+      "tool_mode_workflows": false,
+      "tool_mode_tools": false
+    },
+    "authoringInventory": {
+      "tools": [],
+      "toolsTotal": 0,
+      "workflows": [],
+      "workflowsTotal": 0
+    },
+    "observation": "both promoted drafts are ADVERTISED in this session callable list while the authoring inventory reports none — consistent with an inventory resolved at the caller scope and a registration that is NOT scope-filtered"
+  },
+  "bindabilityProbes": [
+    {
+      "request": {
+        "tool_mode_run": {
+          "probe": true,
+          "tools": [
+            "agent_from_draft_051ab807"
+          ]
+        }
+      },
+      "preflight": [
+        {
+          "name": "agent_from_draft_051ab807",
+          "scope": "session",
+          "scopeKey": "session-a03968b1-b255-4281-ba62-d2a842a81cce",
+          "resolved": false,
+          "reason": "not-visible-at-scope",
+          "action": "Save the artifact with scope \"session\" (or call it from the scope that owns it)."
+        }
+      ],
+      "gateOpen": true
+    },
+    {
+      "request": {
+        "tool_mode_run": {
+          "probe": true,
+          "tools": [
+            "agent_from_draft_69543846"
+          ]
+        }
+      },
+      "preflight": [
+        {
+          "name": "agent_from_draft_69543846",
+          "scope": "session",
+          "scopeKey": "session-a03968b1-b255-4281-ba62-d2a842a81cce",
+          "resolved": false,
+          "reason": "not-visible-at-scope"
+        }
+      ],
+      "gateOpen": true
+    },
+    {
+      "request": {
+        "tool_mode_run": {
+          "probe": true,
+          "tools": [
+            "lang_detect"
+          ]
+        }
+      },
+      "preflight": [
+        {
+          "name": "lang_detect",
+          "scope": "session",
+          "scopeKey": "session-a03968b1-b255-4281-ba62-d2a842a81cce",
+          "resolved": true
+        }
+      ],
+      "gateOpen": true,
+      "control": true
+    }
+  ],
+  "bindabilityInterpretation": "Non-resolution is CORRECT for these two rows: on disk both are workspace scope with scopeKey \"d:\\deepseek-harness\" and \"d:\\dev\\tool-mode-internal\", while this session workspace is \"D:\\DEV\\dsh-model-as-tool\". The reportable defect is the ADVERTISEMENT (they appear in the callable tool list and in no resolvable scope), not the refusal. The \"action\" text is misleading: it recommends saving at session scope, which is not the reason the row is invisible.",
+  "toolModeToolsListAll": {
+    "request": {
+      "action": "list",
+      "scope": "all",
+      "all": true
+    },
+    "response": {
+      "tools": [],
+      "total": 0,
+      "limit": 20,
+      "scope": "session",
+      "retention": {
+        "draftTtlMs": 86400000
+      }
+    },
+    "observation": "the scope:\"all\" filter was IGNORED on the running build: the response echoes scope \"session\" and total 0 while 2 tool rows exist on disk. Not exercised further because the running graph is not the target build."
+  },
+  "authoringRowsOnDisk": [
+    {
+      "kind": "workflow",
+      "name": "g1_lang_counts",
+      "scope": "session",
+      "scopeKey": "session-0232f88b-82af-4909-957b-7c5f7ed6e370",
+      "version": 1
+    },
+    {
+      "kind": "workflow",
+      "name": "g2_word_stats",
+      "scope": "session",
+      "scopeKey": "session-0232f88b-82af-4909-957b-7c5f7ed6e370",
+      "version": 1
+    },
+    {
+      "kind": "tool",
+      "name": "agent_from_draft_69543846",
+      "scope": "workspace",
+      "scopeKey": "d:\\deepseek-harness",
+      "version": 1,
+      "status": "draft",
+      "promotedFrom": {
+        "scope": "session",
+        "version": 2
+      }
+    },
+    {
+      "kind": "tool",
+      "name": "agent_from_draft_051ab807",
+      "scope": "workspace",
+      "scopeKey": "d:\\dev\\tool-mode-internal",
+      "version": 1,
+      "promotedFrom": {
+        "scope": "session",
+        "version": 1
+      }
+    }
+  ],
+  "historicalBugEvidence": "agent_from_draft_69543846 is keyed to \"d:\\deepseek-harness\" — the host process cwd. docs/auto-keep-plan.md (0.5.99) records exactly this mis-targeting: promotion used workspaceScopeRef instead of from.workspaceKey. The row is the leftover artefact of that bug and is still advertised."
+}

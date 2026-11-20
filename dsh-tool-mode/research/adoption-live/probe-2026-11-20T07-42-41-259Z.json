@@ -1,0 +1,338 @@
+{
+  "at": "2026-11-20T07:42:41.259Z",
+  "targetVersion": "0.5.103",
+  "node": "v24.11.0",
+  "cwd": "D:\\DEV\\tool-mode\\dsh-tool-mode",
+  "checks": [
+    {
+      "id": "versions",
+      "title": "source / installed / boot ordering",
+      "status": "measured",
+      "detail": "installed 0.5.103 at 2026-11-20T07:25:45.577Z, but the host booted at 2026-11-20T05:45:27.313Z (100 min EARLIER): the running graph cannot be 0.5.103",
+      "evidence": {
+        "sourceVersion": "0.5.103",
+        "sourceGitHead": "028056a",
+        "installedVersion": "0.5.103",
+        "installedAt": "2026-11-20T07:25:45.577Z",
+        "installedLibHash": "661a6532abda2e89",
+        "repoLibHash": "661a6532abda2e89",
+        "targetVersion": "0.5.103",
+        "bootAt": "2026-11-20T13:45:27.3137930+08:00",
+        "bootAtUtc": "2026-11-20T05:45:27.313Z",
+        "bootPid": "30464",
+        "loadedVerdict": "older-than-target",
+        "gapMs": 6018264
+      }
+    },
+    {
+      "id": "auth",
+      "title": "auth/boot reachability (independent of restore)",
+      "status": "measured",
+      "detail": "http://127.0.0.1:3080 answered HTTP 401 in 101 ms. Extension restore was NOT consulted for this answer and is NOT claimed complete",
+      "evidence": {
+        "webUrl": "http://127.0.0.1:3080",
+        "httpStatus": 401,
+        "elapsedMs": 101,
+        "startupLog": {
+          "path": "C:\\Users\\erikb\\.dsh\\logs\\startup-2026-11-18T11-03-53.863Z-d00a0652-98b0-486d-9684-f975d5a2bc59.log",
+          "at": "2026-11-18T11:03:53.884Z",
+          "isFailureDump": true,
+          "mentionsRestore": false
+        },
+        "extensionRestoreObserved": "not observed",
+        "assumption": "none: reachability is an HTTP measurement, not a restore-complete signal"
+      }
+    },
+    {
+      "id": "digest",
+      "title": "task-turn digest delivery",
+      "status": "absent",
+      "detail": "the digest text appears in 92 record(s), but in NO user/message: it is being QUOTED (assistant/message, tool/call, tool/ptc-dispatch-start, tool/ptc-dispatch, system/message, tool/result, job/registered, job/settled), not delivered as a first-step task message. Expected when the running build predates 0.5.103",
+      "evidence": {
+        "transcript": "C:\\Users\\erikb\\.dsh\\sessions\\--D-DEV-dsh-model-as-tool--\\session-a03968b1-b255-4281-ba62-d2a842a81cce\\session.v4.jsonl.zstd",
+        "frames": 21619,
+        "tornFinalFrame": false,
+        "records": 48760,
+        "parsedFailures": 0,
+        "marker": "Verify its output on edge cases",
+        "callMarker": "Use agent_from_draft",
+        "hitsByRecordType": {
+          "assistant/message": 27,
+          "tool/call": 15,
+          "tool/ptc-dispatch-start": 15,
+          "tool/ptc-dispatch": 21,
+          "system/message": 2,
+          "tool/result": 8,
+          "job/registered": 2,
+          "job/settled": 2
+        },
+        "userMessageHits": 0,
+        "firstMarkerAt": "2026-11-19T11:46:07.401Z",
+        "lastMarkerAt": "2026-11-20T07:37:14.461Z"
+      }
+    },
+    {
+      "id": "artifacts",
+      "title": "authored artifacts and scopes",
+      "status": "measured",
+      "detail": "4 row(s); 2 workspace, 2 promoted; 2 workspace row(s) belong to OTHER directories (unresolvable here by design)",
+      "evidence": {
+        "documentVersion": 2,
+        "cwd": "D:\\DEV\\tool-mode\\dsh-tool-mode",
+        "rows": [
+          {
+            "kind": "workflows",
+            "name": "g1_lang_counts",
+            "scope": "session",
+            "scopeKey": "session-0232f88b-82af-4909-957b-7c5f7ed6e370",
+            "version": 1,
+            "digest": "06faef69c28a"
+          },
+          {
+            "kind": "workflows",
+            "name": "g2_word_stats",
+            "scope": "session",
+            "scopeKey": "session-0232f88b-82af-4909-957b-7c5f7ed6e370",
+            "version": 1,
+            "digest": "06b1a66750f0"
+          },
+          {
+            "kind": "tools",
+            "name": "agent_from_draft_69543846",
+            "scope": "workspace",
+            "scopeKey": "d:\\deepseek-harness",
+            "version": 1,
+            "digest": "b2982230d956",
+            "status": "draft",
+            "promotedFrom": {
+              "scope": "session",
+              "version": 2
+            },
+            "visibleFromCwd": false
+          },
+          {
+            "kind": "tools",
+            "name": "agent_from_draft_051ab807",
+            "scope": "workspace",
+            "scopeKey": "d:\\dev\\tool-mode-internal",
+            "version": 1,
+            "digest": "2732e621eb4f",
+            "promotedFrom": {
+              "scope": "session",
+              "version": 1
+            },
+            "visibleFromCwd": false
+          }
+        ],
+        "workspaceElsewhere": [
+          "agent_from_draft_69543846",
+          "agent_from_draft_051ab807"
+        ]
+      }
+    },
+    {
+      "status": "pending",
+      "evidence": {
+        "blockedBy": "the running host predates 0.5.103; a full DSH stop/start is required before any 0.5.103 behavior can be observed",
+        "call": "tool_mode_run({ code: \"return { probe: Date.now() }\", tools: [], description: \"adoption probe 0.5.103\" })",
+        "expect": "a new agent_from_draft_<hash> appears in tool_mode_list with scope=session, and tool_mode_tools list (scope all) shows it",
+        "thenVerify": "tool_mode_run({ probe: true, tools: [\"<the new agent_from_draft_name>\"] }) → resolved: true"
+      },
+      "id": "draft",
+      "title": "create a session auto-draft with tool_mode_run",
+      "detail": "PENDING: after the restart, run the call below and expect a NEW agent_from_draft_* row at session scope in this session"
+    },
+    {
+      "status": "pending",
+      "evidence": {
+        "blockedBy": "the running host predates 0.5.103; a full DSH stop/start is required before any 0.5.103 behavior can be observed",
+        "prep": "tool_mode_workflows({ action: \"promote\", name: \"<name>\", to: \"workspace\" }) from the owning session (or tool_mode_tools for an agent_ tool)",
+        "call": "tool_mode_run({ probe: true, tools: [\"<promoted name>\"] })",
+        "expectBindable": "preflight[0].resolved === true; then a real run declaring it must execute",
+        "observedFailureIfUnfixed": "preflight[0].resolved === false with reason \"not-visible-at-scope\" (the U42 advertised-but-unbindable result)",
+        "delegatedCheck": "repeat the SAME probe from a subagent session whose workspaceKey is that workspace: the binding set must include it"
+      },
+      "id": "bindability",
+      "title": "promoted workspace artifact bindable in a delegated binding set",
+      "detail": "PENDING: needs a 0.5.103 graph AND a caller whose workspaceKey matches the promoted row"
+    }
+  ],
+  "observations": {
+    "capturedAt": "2026-11-20T07:40:35.465Z",
+    "capturedBy": "live-probe subagent session f7423328 (root session-a03968b1-b255-4281-ba62-d2a842a81cce)",
+    "note": "These are in-session tool observations. The probe script cannot make in-process tool calls, so it reports these checks PENDING and folds this file in via --observations. Everything here was produced by READ-ONLY calls (list / probe:true); no draft was minted and no artifact was mutated.",
+    "runningBuildSchemaFeatures": {
+      "tool_mode_run.probe": true,
+      "tool_mode_run.runId": true,
+      "tool_mode_run.preflight": true,
+      "tool_mode_tools.actions": [
+        "define",
+        "clone",
+        "from-run",
+        "list",
+        "get",
+        "delete",
+        "promote",
+        "demote"
+      ],
+      "tool_mode_workflows.actions": [
+        "save",
+        "clone",
+        "list",
+        "get",
+        "delete",
+        "run",
+        "promote",
+        "demote"
+      ],
+      "tool_mode_list.scope": true
+    },
+    "toolModeList": {
+      "catalogRevision": "17",
+      "authoredToolsAdvertised": [
+        {
+          "name": "agent_from_draft_69543846",
+          "bindable": false
+        },
+        {
+          "name": "agent_from_draft_051ab807",
+          "bindable": false
+        }
+      ],
+      "controlToolsBindable": {
+        "model_tools": false,
+        "tool_mode_run": false,
+        "tool_mode_workflows": false,
+        "tool_mode_tools": false
+      },
+      "authoringInventory": {
+        "tools": [],
+        "toolsTotal": 0,
+        "workflows": [],
+        "workflowsTotal": 0
+      },
+      "observation": "both promoted drafts are ADVERTISED in this session callable list while the authoring inventory reports none — consistent with an inventory resolved at the caller scope and a registration that is NOT scope-filtered"
+    },
+    "bindabilityProbes": [
+      {
+        "request": {
+          "tool_mode_run": {
+            "probe": true,
+            "tools": [
+              "agent_from_draft_051ab807"
+            ]
+          }
+        },
+        "preflight": [
+          {
+            "name": "agent_from_draft_051ab807",
+            "scope": "session",
+            "scopeKey": "session-a03968b1-b255-4281-ba62-d2a842a81cce",
+            "resolved": false,
+            "reason": "not-visible-at-scope",
+            "action": "Save the artifact with scope \"session\" (or call it from the scope that owns it)."
+          }
+        ],
+        "gateOpen": true
+      },
+      {
+        "request": {
+          "tool_mode_run": {
+            "probe": true,
+            "tools": [
+              "agent_from_draft_69543846"
+            ]
+          }
+        },
+        "preflight": [
+          {
+            "name": "agent_from_draft_69543846",
+            "scope": "session",
+            "scopeKey": "session-a03968b1-b255-4281-ba62-d2a842a81cce",
+            "resolved": false,
+            "reason": "not-visible-at-scope"
+          }
+        ],
+        "gateOpen": true
+      },
+      {
+        "request": {
+          "tool_mode_run": {
+            "probe": true,
+            "tools": [
+              "lang_detect"
+            ]
+          }
+        },
+        "preflight": [
+          {
+            "name": "lang_detect",
+            "scope": "session",
+            "scopeKey": "session-a03968b1-b255-4281-ba62-d2a842a81cce",
+            "resolved": true
+          }
+        ],
+        "gateOpen": true,
+        "control": true
+      }
+    ],
+    "bindabilityInterpretation": "Non-resolution is CORRECT for these two rows: on disk both are workspace scope with scopeKey \"d:\\deepseek-harness\" and \"d:\\dev\\tool-mode-internal\", while this session workspace is \"D:\\DEV\\dsh-model-as-tool\". The reportable defect is the ADVERTISEMENT (they appear in the callable tool list and in no resolvable scope), not the refusal. The \"action\" text is misleading: it recommends saving at session scope, which is not the reason the row is invisible.",
+    "toolModeToolsListAll": {
+      "request": {
+        "action": "list",
+        "scope": "all",
+        "all": true
+      },
+      "response": {
+        "tools": [],
+        "total": 0,
+        "limit": 20,
+        "scope": "session",
+        "retention": {
+          "draftTtlMs": 86400000
+        }
+      },
+      "observation": "the scope:\"all\" filter was IGNORED on the running build: the response echoes scope \"session\" and total 0 while 2 tool rows exist on disk. Not exercised further because the running graph is not the target build."
+    },
+    "authoringRowsOnDisk": [
+      {
+        "kind": "workflow",
+        "name": "g1_lang_counts",
+        "scope": "session",
+        "scopeKey": "session-0232f88b-82af-4909-957b-7c5f7ed6e370",
+        "version": 1
+      },
+      {
+        "kind": "workflow",
+        "name": "g2_word_stats",
+        "scope": "session",
+        "scopeKey": "session-0232f88b-82af-4909-957b-7c5f7ed6e370",
+        "version": 1
+      },
+      {
+        "kind": "tool",
+        "name": "agent_from_draft_69543846",
+        "scope": "workspace",
+        "scopeKey": "d:\\deepseek-harness",
+        "version": 1,
+        "status": "draft",
+        "promotedFrom": {
+          "scope": "session",
+          "version": 2
+        }
+      },
+      {
+        "kind": "tool",
+        "name": "agent_from_draft_051ab807",
+        "scope": "workspace",
+        "scopeKey": "d:\\dev\\tool-mode-internal",
+        "version": 1,
+        "promotedFrom": {
+          "scope": "session",
+          "version": 1
+        }
+      }
+    ],
+    "historicalBugEvidence": "agent_from_draft_69543846 is keyed to \"d:\\deepseek-harness\" — the host process cwd. docs/auto-keep-plan.md (0.5.99) records exactly this mis-targeting: promotion used workspaceScopeRef instead of from.workspaceKey. The row is the leftover artefact of that bug and is still advertised."
+  }
+}
