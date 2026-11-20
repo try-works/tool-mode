@@ -1,6 +1,6 @@
 # Session-start adoption through the DSH prompt hook
 
-**Date:** 2026-11-20. **Build:** 0.5.100 source (0.5.99 + this change). **Question:** can
+**Date:** 2026-11-20. **Build:** 0.5.101 source (0.5.100 + fail-open guard). **Question:** can
 the harness present the caller's stored tools/workflows at the start of a request so
 auto-keep does not depend on an agent deciding to look?
 
@@ -26,7 +26,7 @@ That is why E14's session auto-draft was not in the prompt, and why "listed" nev
 
 ## What changed
 
-- The section callback now reads `context.agent` and calls `scopeFor({ agent })`.
+- The section callback now reads `context.agent` and calls `scopeFor({ agent }, 'session')`.
 - The resulting scope chain supplies session, workspace and global rows (winners only).
 - Session rows carry the caller's root session id, so `buildDirectiveDigest` shows them to
   their owner and filters them out for every other session.
@@ -60,11 +60,23 @@ The section is the smallest change because the digest already lived there. If pr
 invalidation becomes measurable, moving the same rows to `systemPrompt.context` is a
 contained follow-up.
 
+## Startup hardening (0.5.101)
+
+The prompt section is now fail-open: any scope/store/digest failure is caught, logged as
+`tool-mode library digest skipped: ...`, and returns an empty section. A missing aid must
+not block prompt assembly or DSH startup.
+
+A separate environment fault was found while installing this build: `dsh plugin add`
+failed with `'pnpm' is not recognized as an internal or external command`. The DSH plugin
+manager needs pnpm on PATH; it was missing while only temporary pnpm tool directories
+remained. `pnpm@11.28.5` is now installed globally, and the 0.5.101 install succeeded with
+the normal command. That missing tool, not the tool-mode prompt section, is the concrete
+failure observed; it is not claimed as the only cause of the earlier startup trouble.
+
 ## Limits
 
-- 0.5.100 is packed and installed into the web profile; the loaded host still has the
-  previous module graph until a full DSH stop/start, so this is source-verified, not
-  live-verified on the running host.
+- 0.5.101 is packed and installed into the web profile; the loaded host still has the
+  previous module graph until a full DSH stop/start, so the live 0.5.101 probe is pending.
 - The inventory is directive plus at most three supporting names, bounded to four lines and
   600 characters. It is not an exhaustive catalog; `tool_mode_tools list` remains the full
   bounded surface.

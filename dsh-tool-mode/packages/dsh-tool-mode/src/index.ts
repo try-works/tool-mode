@@ -4160,11 +4160,19 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
          */
         text: context => {
           if (config.adoption?.digest === false) return ''
-          const rows = digestRows(context)
-          const callerSessionId = context.agent === undefined ? undefined : sessionIdOfAgent(context.agent)
-          return config.adoption?.digestMode === 'neutral'
-            ? buildLibraryDigest(rows)
-            : buildDirectiveDigest(rows, callerSessionId === undefined ? {} : { sessionId: callerSessionId })
+          try {
+            const rows = digestRows(context)
+            const callerSessionId = context.agent === undefined ? undefined : sessionIdOfAgent(context.agent)
+            return config.adoption?.digestMode === 'neutral'
+              ? buildLibraryDigest(rows)
+              : buildDirectiveDigest(rows, callerSessionId === undefined ? {} : { sessionId: callerSessionId })
+          } catch (error) {
+            // A prompt section is an optional aid. A store or scope failure must never
+            // break prompt assembly (and therefore startup or the first request).
+            ctx.logger.warn('tool-mode library digest skipped: '
+              + (error instanceof Error ? error.message : String(error)))
+            return ''
+          }
         },
       }), 'tool-mode library digest')
     }

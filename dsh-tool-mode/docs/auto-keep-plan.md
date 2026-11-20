@@ -1,6 +1,6 @@
 # Auto-keep and the `autoDraft` deprecation plan
 
-Status: implemented (0.5.98; lifecycle corrections in 0.5.99; session-start adoption in 0.5.100). This plan turns the accepted direction — **runs are stored and reusable by
+Status: implemented (0.5.98; lifecycle corrections in 0.5.99; session-start adoption in 0.5.100; fail-open prompt in 0.5.101). This plan turns the accepted direction — **runs are stored and reusable by
 default; delete is the only required curation action** — into a sequenced, test-first
 change.
 
