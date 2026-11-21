@@ -216,6 +216,7 @@ export type AuthoringErrorCode =
   | 'invalid-program'
   | 'invalid-tools'
   | 'invalid-verifiability'
+  | 'invalid-per-item'
   | 'invalid-schema'
   | 'unknown'
   | 'gated'
@@ -320,6 +321,8 @@ export interface AgentToolDefinition {
   readonly verification?: string
   /** R8: the author's per-item/aggregate verifiability claim, or absent when none was made. */
   readonly verifiability?: Verifiability
+  /** R11: the program supports `input.perItem = true` and returns one labelled row per input item. */
+  readonly perItem?: boolean
   /** The JSON Schema the caller's arguments are validated against. */
   readonly inputSchema: Record<string, JsonValue>
   readonly program: string
@@ -356,6 +359,8 @@ export interface AgentToolSummary {
   readonly verification?: string
   /** R8: the author's per-item/aggregate verifiability claim, or absent when none was made. */
   readonly verifiability?: Verifiability
+  /** R11: the program supports `input.perItem = true` and returns labelled rows. */
+  readonly perItem?: boolean
   readonly inputSchema: Record<string, JsonValue>
   readonly tools: readonly string[]
   readonly version: number
@@ -564,6 +569,8 @@ export interface SaveToolInput {
   readonly verification?: string | undefined
   /** R8: the author's per-item/aggregate verifiability claim; validated, never guessed. */
   readonly verifiability?: Verifiability | undefined
+  /** R11: declare that the program supports `input.perItem = true` and returns labelled rows. */
+  readonly perItem?: boolean | undefined
   readonly inputSchema: Record<string, JsonValue>
   readonly program: string
   readonly tools?: readonly string[]
@@ -877,6 +884,7 @@ interface NormalizedTool {
   readonly purpose?: string
   readonly verification?: string
   readonly verifiability?: Verifiability
+  readonly perItem?: boolean
   readonly inputSchema: Record<string, JsonValue>
   readonly program: string
   readonly tools: readonly string[]
@@ -920,18 +928,50 @@ function requireVerifiability(value: unknown): Verifiability | undefined {
   )
 }
 
+/** R11: validate the OPTIONAL perItem declaration; only a real boolean declares it. */
+function requirePerItem(value: unknown): boolean | undefined {
+  if (value === undefined || value === null) return undefined
+  if (typeof value === 'boolean') return value ? true : undefined
+  throw new AuthoringError('invalid-per-item', 'perItem must be a boolean; got ' + JSON.stringify(value))
+}
+
+/**
+ * R11: a declared perItem mode ADDS the `perItem` argument to the tool's own schema.
+ *
+ * The author writes the program; the host owns the calling convention, so the switch is
+ * present in the schema the model sees and the dispatcher validates (never a hidden
+ * argument a caller has to guess).
+ */
+function withPerItemArgument(inputSchema: Record<string, JsonValue>, perItem: boolean | undefined): Record<string, JsonValue> {
+  if (perItem !== true) return inputSchema
+  const properties = inputSchema['properties']
+  if (typeof properties !== 'object' || properties === null || Array.isArray(properties)) {
+    return { ...inputSchema, properties: { perItem: { type: 'boolean', description: 'Return one labelled row per input item.' } } }
+  }
+  if ('perItem' in properties) return inputSchema
+  return {
+    ...inputSchema,
+    properties: {
+      ...properties as Record<string, JsonValue>,
+      perItem: { type: 'boolean', description: 'Return one labelled row per input item.' },
+    },
+  }
+}
+
 function normalizeTool(input: SaveToolInput): NormalizedTool {
   const name = requireAgentToolName(input.name)
   const purpose = normalizePurpose(input.purpose)
   const verification = normalizeVerification(input.verification)
   const verifiability = requireVerifiability(input.verifiability)
+  const perItem = requirePerItem(input.perItem)
   return {
     name,
     description: requireDescription(input.description, name),
     ...purpose === undefined ? {} : { purpose },
     ...verification === undefined ? {} : { verification },
     ...verifiability === undefined ? {} : { verifiability },
-    inputSchema: requireInputSchema(input.inputSchema),
+    ...perItem === undefined ? {} : { perItem },
+    inputSchema: withPerItemArgument(requireInputSchema(input.inputSchema), perItem),
     program: requireProgram(input.program, name),
     tools: requireToolNames(input.tools, name),
   }
@@ -1041,6 +1081,7 @@ function parseToolEntry(raw: JsonValue): AgentToolDefinition | undefined {
   if (provenance === undefined) return undefined
   const purpose = typeof raw['purpose'] === 'string' ? normalizePurpose(raw['purpose']) : undefined
   const verification = typeof raw['verification'] === 'string' ? normalizeVerification(raw['verification']) : undefined
+  const perItem = raw['perItem'] === true ? true : undefined
   let verifiability: Verifiability | undefined
   try {
     verifiability = requireVerifiability(raw['verifiability'])
@@ -1054,6 +1095,7 @@ function parseToolEntry(raw: JsonValue): AgentToolDefinition | undefined {
     id, name, description, ...purpose === undefined ? {} : { purpose },
     ...verification === undefined ? {} : { verification },
     ...verifiability === undefined ? {} : { verifiability },
+    ...perItem === undefined ? {} : { perItem },
     inputSchema, program, tools: toolNames, version, createdAt, updatedAt,
     scope: provenance.scope,
     scopeKey: provenance.scopeKey,
@@ -1412,6 +1454,7 @@ function summarizeTool(tool: AgentToolDefinition, entries: readonly AgentToolDef
     ...(tool.purpose === undefined ? {} : { purpose: tool.purpose }),
     ...(tool.verification === undefined ? {} : { verification: tool.verification }),
     ...(tool.verifiability === undefined ? {} : { verifiability: tool.verifiability }),
+    ...(tool.perItem === undefined ? {} : { perItem: true }),
     tools: tool.tools, version: tool.version, createdAt: tool.createdAt, updatedAt: tool.updatedAt,
     scope: tool.scope, scopeKey: tool.scopeKey, digest: tool.digest,
     ...(tool.status === undefined ? {} : { status: tool.status }),
@@ -1821,6 +1864,7 @@ export function createAgentAuthoringStore(options: { readonly file: string; read
       const purpose = normalized.purpose ?? existing?.purpose
       const verification = normalized.verification ?? existing?.verification
       const verifiability = normalized.verifiability ?? existing?.verifiability
+      const perItem = normalized.perItem ?? existing?.perItem
       const entry: AgentToolDefinition = {
         id: existing?.id ?? 'agent_' + randomUUID(),
         name: normalized.name,
@@ -1828,6 +1872,7 @@ export function createAgentAuthoringStore(options: { readonly file: string; read
         ...purpose === undefined ? {} : { purpose },
         ...verification === undefined ? {} : { verification },
         ...verifiability === undefined ? {} : { verifiability },
+        ...perItem === undefined ? {} : { perItem },
         inputSchema: normalized.inputSchema,
         program: normalized.program,
         tools: normalized.tools,

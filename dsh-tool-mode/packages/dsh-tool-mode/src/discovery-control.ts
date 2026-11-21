@@ -179,10 +179,20 @@ export function registerDiscoveryControlTools(deps: DiscoveryControlDeps): void 
     const output = ctx.tools.get(name)?.output.schema
     return Object.keys(parameters ?? {}).length > 0 || Object.keys(output ?? {}).length > 0
   }
-  const describeOne = async (name: string, scope?: BuiltScopeContext) => {
+  const describeOne = async (name: string, scope: BuiltScopeContext | undefined, exec: { agent?: unknown }) => {
     const { resolved, installed } = deps.view()
     const registrySchema = ctx.tools.schemas().find(schema => schema.name === name)
     const definition = ctx.tools.get(name)
+    /**
+     * R8: an authored row carries facts the registry schema cannot — the verifiability
+     * claim and the R11 perItem declaration. Read them from the SAME caller-visible
+     * snapshot list uses, so describe and list cannot disagree.
+     */
+    const authoredSnapshot = authoringSnapshot?.(exec)
+    const authoredTool = authoredSnapshot?.tools.find(tool => tool.name === name || tool.callableName === name)
+    const authoredWorkflow = authoredSnapshot?.workflows.find(workflow =>
+      workflow.name === name || workflow.callableName === name)
+    void authoredWorkflow
     const modelItem = resolved.find(item => {
       const primary = installed.get(item.entry.id)?.toolName ?? item.entry.tool?.name ?? ''
       return primary === name
@@ -216,7 +226,16 @@ export function registerDiscoveryControlTools(deps: DiscoveryControlDeps): void 
     }
     const owner = undefined
     const inputSchema = registrySchema?.parameters ?? {}
-    const outputSchema = definition?.output.schema ?? {}
+    const declaredOutput = definition?.output.schema ?? {}
+    // R8: an authored program's return value is arbitrary JSON; an EMPTY schema reads as
+    // "nothing comes back". Say what is true — any JSON value — and name perItem rows.
+    const outputSchema = authoredTool === undefined
+      ? declaredOutput
+      : {
+          description: authoredTool.perItem === true
+            ? 'Any JSON value returned by the stored program; with perItem:true it returns one labelled row per input item.'
+            : 'Any JSON value returned by the stored program; no static output type is declared.',
+        }
     const skill = modelItem === undefined ? undefined : describeSkill(modelItem.entry.skill as never)
     const contract = STANDARD_CONTRACTS.find(candidate => candidate.toolName === name)
       ?? [TOOL_MODE_LIST_CONTRACT, TOOL_MODE_DESCRIBE_CONTRACT].find(candidate => candidate.toolName === name)
@@ -225,6 +244,8 @@ export function registerDiscoveryControlTools(deps: DiscoveryControlDeps): void 
       callable: true as const,
       bindable: bindableName(name, scope),
       ...contractFactsFor(name),
+      ...authoredTool?.verifiability === undefined ? {} : { verifiability: authoredTool.verifiability },
+      ...authoredTool?.perItem === true ? { perItem: true } : {},
       description: registrySchema?.description ?? descriptor?.summary ?? '',
       parameters: inputSchema,
       outputSchema,
@@ -554,7 +575,7 @@ export function registerDiscoveryControlTools(deps: DiscoveryControlDeps): void 
         const lookupName = row !== undefined && authoring?.workflows.includes(row) === true
           ? workflowToolName(row.name)
           : requestedName
-        const described = await describeOne(lookupName, bindableScope)
+        const described = await describeOne(lookupName, bindableScope, exec)
         const isWorkflowRow = row !== undefined && authoring?.workflows.includes(row) === true
         const callableName = row === undefined
           ? lookupName

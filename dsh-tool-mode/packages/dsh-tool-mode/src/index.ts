@@ -1159,6 +1159,39 @@ function absorbVolatileConfig(config: Config): void {
   }
 }
 
+/**
+ * R11: validate the declared perItem contract at run time.
+ *
+ * The author owns the program; the host owns the calling convention. When the caller asks
+ * for per-item output the result must be a labelled row array whose length matches the
+ * input's first array argument — a mismatch is refused rather than returned as if verified.
+ */
+function assertPerItemRun(
+  artifact: { readonly name: string; readonly perItem?: boolean },
+  args: unknown,
+  result: unknown,
+): void {
+  const input = typeof args === 'object' && args !== null ? args as Record<string, unknown> : {}
+  if (input['perItem'] !== true) return
+  if (artifact.perItem !== true) {
+    throw new Error('authored tool "' + artifact.name + '" does not declare perItem mode; '
+      + 'define it with perItem:true to request labelled rows')
+  }
+  let expected: number | undefined
+  for (const [key, value] of Object.entries(input)) {
+    if (key === 'perItem') continue
+    if (Array.isArray(value)) { expected = value.length; break }
+  }
+  if (!Array.isArray(result)) {
+    throw new Error('perItem mode must return one labelled row per input item; got '
+      + (result === null ? 'null' : typeof result))
+  }
+  if (expected !== undefined && result.length !== expected) {
+    throw new Error('perItem mode returned ' + String(result.length) + ' row(s) for '
+      + String(expected) + ' input item(s)')
+  }
+}
+
 export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   // Volatile fields arrive as live references; the rest of apply reads values.
   absorbVolatileConfig(config)
@@ -3772,7 +3805,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
        * repeat. Flag-off leaves this listener out of the offer path entirely.
        */
       if (candidate !== undefined && offerSupport !== undefined) {
-        const offer = offerSupport.build(candidate, sessionId, exec)
+        /**
+         * R5: pendingOffers is filtered by the ROOT session (the caller's tree), so the
+         * offer must be STORED under that same identity. Storing the leaf id made every
+         * subagent offer invisible — accepted by the tracker, then never listed.
+         */
+        const offerSessionId = scopeForAuthoringCaller?.(exec)?.rootSessionId ?? sessionId
+        const offer = offerSupport.build(candidate, offerSessionId, exec)
         if (offer !== undefined) {
           pendingOffers.set(offer.id, offer)
           while (pendingOffers.size > MAX_PENDING_OFFERS) {
@@ -4199,6 +4238,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             scope: ArtifactScope
             digest: string
             tools?: readonly string[]
+            perItem?: boolean
           },
         ): void => {
           if (seen.has(row.callableName)) return
@@ -4229,6 +4269,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             ...row.verification === undefined ? {} : { verification: row.verification },
             ...row.verifiability === undefined ? {} : { verifiability: row.verifiability },
             ...row.tools === undefined || row.tools.length === 0 ? {} : { nestedTools: row.tools },
+            ...row.perItem === true ? { perItem: true } : {},
             ...row.scope === 'session' && callerSessionId !== undefined ? { sessionId: callerSessionId } : {},
             ...callSignature === undefined ? {} : { callSignature: callSignature.signature, batch: callSignature.batch },
           })
@@ -4665,6 +4706,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
                 }),
               ))
               scheduleSandboxTempPrune()
+              assertPerItemRun(resolved, args, report.result)
             } catch (error) {
               authoringLedger.record({
                 operation: 'run', artifactKind: 'tool', name: resolved.name, version: resolved.version,

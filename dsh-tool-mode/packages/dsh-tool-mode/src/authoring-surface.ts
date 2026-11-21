@@ -669,6 +669,10 @@ ctx.tools.register(defineTool({
       enum: ['per-item', 'aggregate'],
       description: 'Optional claim: "aggregate" means the output is aggregate-only and the digest should say so; "per-item" or absent makes no claim.',
     },
+    perItem: {
+      type: 'boolean',
+      description: 'R11: declare that the program supports input.perItem = true and returns one labelled row per input item.',
+    },
     inputSchema: { type: 'json', description: 'JSON Schema for the call arguments (object root with declared properties).' },
     program: { type: 'string', description: 'The Code Mode program body; the call arguments arrive as the input variable.' },
     tools: {
@@ -719,6 +723,7 @@ ctx.tools.register(defineTool({
         description: typeof request['description'] === 'string' ? request['description'] : source.description,
         ...(source.verification === undefined ? {} : { verification: source.verification }),
         ...cloneVerifiability === undefined ? {} : { verifiability: cloneVerifiability },
+        ...source.perItem === true ? { perItem: true } : {},
         inputSchema: typeof request['inputSchema'] === 'object' && request['inputSchema'] !== null && !Array.isArray(request['inputSchema'])
           ? request['inputSchema'] as Record<string, JsonValue>
           : source.inputSchema,
@@ -848,6 +853,7 @@ ctx.tools.register(defineTool({
         ...purpose === undefined ? {} : { purpose },
         ...verification === undefined ? {} : { verification },
         ...verifiability === undefined ? {} : { verifiability },
+        ...request['perItem'] === true ? { perItem: true } : {},
         inputSchema: inputSchema as Record<string, JsonValue>,
         program: typeof request['program'] === 'string' ? request['program'] : '',
         tools: Array.isArray(request['tools']) ? request['tools'].filter((tool): tool is string => typeof tool === 'string') : [],

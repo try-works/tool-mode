@@ -55,6 +55,8 @@ export interface VerifiabilityCandidate extends AdoptionDigestCandidate {
   readonly verifiability?: AdvisoryVerifiability
   /** The artifact's declared nested tools; the cheapest per-item route names one of them. */
   readonly nestedTools?: readonly string[]
+  /** R11: the artifact declares a one-call perItem mode returning labelled rows. */
+  readonly perItem?: boolean
 }
 
 /** One artifact line. */
@@ -154,6 +156,10 @@ function aggregateCaveat(candidate: VerifiabilityCandidate): string {
  * invented.
  */
 function verificationRoute(candidate: VerifiabilityCandidate): string {
+  // R11: a declared perItem mode is the one-call route; it beats the nested-tool loop.
+  if (candidate.perItem === true) {
+    return 'verify with ' + oneLine(candidate.callableName) + ' using perItem: true (one labelled row per item).'
+  }
   const tool = candidate.nestedTools?.find(name => name.trim().length > 0)
   return tool === undefined
     ? 'verify each item against an independent source (no per-item route is declared).'
@@ -167,6 +173,9 @@ function verificationRoute(candidate: VerifiabilityCandidate): string {
  */
 function aggregateSupporting(candidate: VerifiabilityCandidate): string {
   if (candidate.verifiability !== 'aggregate') return ''
+  if (candidate.perItem === true) {
+    return ' [aggregate-only; verify with ' + oneLine(candidate.callableName) + ' using perItem:true]'
+  }
   const tool = candidate.nestedTools?.find(name => name.trim().length > 0)
   return tool === undefined
     ? ' [aggregate-only; no per-item route declared]'
