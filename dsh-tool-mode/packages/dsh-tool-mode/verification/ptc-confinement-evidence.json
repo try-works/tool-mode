@@ -2,8 +2,8 @@
   "kind": "ptc-confinement-evidence",
   "version": 1,
   "passed": true,
-  "generatedAt": "2026-11-21T12:01:35.315Z",
-  "packageVersion": "0.5.111",
+  "generatedAt": "2026-11-21T12:41:32.030Z",
+  "packageVersion": "0.5.112",
   "platform": "win32",
   "node": "v24.11.0",
   "tests": [

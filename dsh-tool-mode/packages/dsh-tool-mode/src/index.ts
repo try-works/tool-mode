@@ -4184,6 +4184,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         }
         const resolutionScope = selected?.context ?? workspaceScope.context
         const callerSessionId = selected?.rootSessionId
+        const callerScope = selected ?? workspaceScope
         const seen = new Set<string>()
         const rows: VerifiabilityCandidate[] = []
         const add = (
@@ -4200,6 +4201,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           },
         ): void => {
           if (seen.has(row.callableName)) return
+          /**
+           * F3 (0.5.110 report): store-visibility is NOT callability. A session-scope row
+           * survives a restart in the store while its registration is gone (boot mounts
+           * durable rows only), so the digest recommended workflow_g1_lang_counts — a
+           * route the solver could not call — and never named the workspace artifact it
+           * could. The suggestions lane already applies this same bindableName filter.
+           */
+          if (!bindableName(row.callableName, callerScope)) return
           seen.add(row.callableName)
           const evidence = artifactUsage.evidence(row.name, row.digest)
           const quality = artifactUsage.quality(row.name, row.digest)

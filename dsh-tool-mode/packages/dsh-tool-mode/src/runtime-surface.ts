@@ -189,10 +189,15 @@ export function registerRuntimeTools(deps: RuntimeSurfaceDeps): void {
       }
       const unresolved = preflight.filter(entry => !entry.resolved)
       if (unresolved.length > 0) {
-        throw new Error('the program requested tools it cannot bind:\n'
+        /**
+         * ONE LINE, self-contained (R4, 0.5.110 report): downstream surfaces have shown
+         * only the first line of a tool error, so the name/reason/action must not live on
+         * line two. "…cannot bind:" and stop was the observed failure.
+         */
+        throw new Error('the program requested tools it cannot bind: '
           + unresolved.map(entry =>
-            `  ${entry.name}: ${entry.reason} at ${entry.scope} scope (${entry.scopeKey}) — ${entry.action}`,
-          ).join('\n'))
+            `${entry.name} (${entry.reason} at ${entry.scope} scope (${entry.scopeKey}) — ${entry.action})`,
+          ).join('; '))
       }
       if (typeof request.code !== 'string' || request.code.trim().length === 0) {
         throw new Error('tool_mode_run needs a non-empty code body; use probe:true to resolve tools without executing')

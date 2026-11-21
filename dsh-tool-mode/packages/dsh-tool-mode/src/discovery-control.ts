@@ -241,9 +241,16 @@ export function registerDiscoveryControlTools(deps: DiscoveryControlDeps): void 
       semantics: contract?.semantics ?? {},
       limits: contract?.limits ?? {},
       unsupported: (contract?.unsupported ?? []).slice(0, 64),
-      dataHandling: modelItem === undefined
-        ? 'This host-owned discovery tool reads the local registry; it does not send model input anywhere.'
-        : describeDataHandling(modelItem.entry),
+      dataHandling: modelItem !== undefined
+        ? describeDataHandling(modelItem.entry)
+        : authoredToolNames.has(name) || workflowToolNames.has(name)
+          /**
+           * F4 (0.5.110 report): a stored artifact is NOT a host-owned discovery tool and
+           * its input really flows — to the stored program and the tools it declares. The
+           * discovery-lane boilerplate described a data path the artifact does not have.
+           */
+          ? 'This stored artifact runs its stored program on this device through Code Mode; its input goes to the program and the tools it declares, not to a remote provider.'
+          : 'This host-owned discovery tool reads the local registry; it does not send model input anywhere.',
       recovery:
         'If a model tool is unavailable, prepare and enable it through the operator surface; fix validation errors '
         + 'instead of retrying unchanged; never silently substitute a remote provider.',
