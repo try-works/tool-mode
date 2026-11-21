@@ -4250,6 +4250,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
            * could. The suggestions lane already applies this same bindableName filter.
            */
           if (!bindableName(row.callableName, callerScope)) return
+          /**
+           * R15: an auto-kept draft whose nested tool is gone is a dangling advertised route
+           * ("unauthorized" when obeyed). Deletion cascades, but an artifact can also vanish
+           * by another path (session disposal, extension deactivation); the digest may never
+           * name a draft that cannot run.
+           */
+          if (row.status === 'draft' && (row.tools ?? []).some(tool => !bindableName(tool, callerScope))) return
           seen.add(row.callableName)
           const evidence = artifactUsage.evidence(row.name, row.digest)
           const quality = artifactUsage.quality(row.name, row.digest)

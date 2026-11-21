@@ -621,6 +621,15 @@ export interface AgentAuthoringStore {
    */
   durableToolEntries(): readonly AgentToolDefinition[]
   /**
+   * R15: every auto-kept DRAFT row (any scope) whose declared tools include `toolName`.
+   *
+   * Deleting an artifact must not leave a wrapper that advertises the deleted route. This
+   * is the lookup the delete path uses to clean such drafts up.
+   * @param toolName - the deleted artifact's callable name.
+   * @returns the stale draft rows, in save order.
+   */
+  staleDraftsFor(toolName: string): readonly AgentToolDefinition[]
+  /**
    * Every DURABLE workflow row across ALL scope keys (workspace + global), save order.
    *
    * Same contract as {@link durableToolEntries}: unresolved, session rows excluded, one entry
@@ -1897,6 +1906,10 @@ export function createAgentAuthoringStore(options: { readonly file: string; read
           : document.tools.map(row => row.id === existing.id ? entry : row),
       })
       return entry
+    },
+    staleDraftsFor(toolName) {
+      return document.tools.filter(row =>
+        row.status === 'draft' && row.tools.some(tool => tool === toolName))
     },
     deleteTool(key, context) {
       const resolved = requireContext(context)

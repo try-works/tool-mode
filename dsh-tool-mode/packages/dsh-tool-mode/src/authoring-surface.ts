@@ -252,6 +252,22 @@ function deleteArtifactRows(
     ? before.filter(row => !remaining.some(left => left.scope === row.scope && left.scopeKey === row.scopeKey))
     : []
   const deleted = removed && remaining.length === 0
+  /**
+   * R15: when the LAST row answering this name is gone, auto-kept drafts that wrapped it are
+   * dangling — they would be advertised but fail as "unauthorized". Delete those drafts at
+   * their own scope; kept artifacts are never touched.
+   */
+  if (deleted) {
+    const wrappedName = kind === 'workflow' ? workflowToolName(entry.name) : entry.name
+    for (const draft of store.staleDraftsFor(wrappedName)) {
+      store.deleteTool(draft.id, {
+        scope: draft.scope,
+        scopeKey: draft.scopeKey,
+        workspaceKey: draft.scope === 'workspace' ? draft.scopeKey : '',
+        ...(draft.scope === 'session' ? { sessionId: draft.scopeKey } : {}),
+      })
+    }
+  }
   return {
     deleted,
     complete: deleted,

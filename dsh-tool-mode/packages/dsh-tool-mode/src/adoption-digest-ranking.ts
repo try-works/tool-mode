@@ -2,10 +2,10 @@
  * Phase 3: pure ranking for the directive digest.
  *
  * The digest may name only ONE artifact imperatively, so preference must be explainable and
- * stable. Priority is CALLER (the session scope) over workspace over global; within a scope
- * the most recent use wins; every remaining tie is broken by callable name. A low-quality
- * artifact (`uses > 0 && failures >= uses / 2`) is removed entirely: the digest must not
- * tell an agent to reuse something that fails half the time.
+ * stable. R14: EVIDENCE comes first — uses, then fewer failures; an author verification
+ * clause and "kept over draft" break ties before scope or recency. Recency is a tie-break,
+ * never a reason to recommend a 0-use draft over a 100-use artifact. A low-quality artifact
+ * (`uses > 0 && failures >= uses / 2`) is removed entirely.
  *
  * This module performs no I/O and keeps no state, so the host can recompute the order on
  * every prompt assembly.
@@ -74,8 +74,21 @@ function lastUsedMs(candidate: AdoptionDigestCandidate): number {
   return Number.isFinite(parsed) ? parsed : Number.NEGATIVE_INFINITY
 }
 
-/** One deterministic comparison, narrowest first. */
+/** One deterministic comparison, evidence first. */
 function compareCandidates(left: AdoptionDigestCandidate, right: AdoptionDigestCandidate): number {
+  // R14: evidence outranks everything. A fresh draft must never displace a used artifact.
+  const byUses = right.uses - left.uses
+  if (byUses !== 0) return byUses
+  const byFailures = left.failures - right.failures
+  if (byFailures !== 0) return byFailures
+  // A kept artifact outranks an auto-kept draft at equal evidence.
+  const byDraft = Number(left.unverified === true) - Number(right.unverified === true)
+  if (byDraft !== 0) return byDraft
+  // An author's verification clause weighs in favour of being surfaced.
+  const byClause = Number(right.verification !== undefined) - Number(left.verification !== undefined)
+  if (byClause !== 0) return byClause
+  const bySessions = (right.sessions ?? 0) - (left.sessions ?? 0)
+  if (bySessions !== 0) return bySessions
   const byScope = ADOPTION_SCOPE_PRIORITY[right.scope] - ADOPTION_SCOPE_PRIORITY[left.scope]
   if (byScope !== 0) return byScope
   const byRecent = lastUsedMs(right) - lastUsedMs(left)

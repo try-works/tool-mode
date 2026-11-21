@@ -1,11 +1,10 @@
 /**
  * Phase 3: the directive-digest ranking is pure and deterministic.
  *
- * Priority is CALLER (the session scope) over workspace over global; within one scope the
- * most recent use wins, and every remaining tie is broken by the callable name so two
- * assemblies over the same evidence produce the same order. A low-quality artifact
- * (`uses > 0 && failures >= uses / 2`) is never a candidate: the digest must not tell an
- * agent to reuse something that fails half the time.
+ * R14: EVIDENCE is the primary key (uses, then fewer failures); kept-over-draft and an
+ * author verification clause break ties before scope or recency. Recency and caller scope
+ * are late tie-breaks, never a reason to prefer a 0-use draft over a used artifact. A
+ * low-quality artifact (`uses > 0 && failures >= uses / 2`) is never a candidate.
  */
 
 import assert from 'node:assert/strict'
@@ -63,6 +62,33 @@ describe('adoption digest ranking', () => {
     ])
     assert.equal(ranked.length, 1)
     assert.equal(ranked[0]?.scope, 'session')
+  })
+
+  it('R14: evidence outranks a fresh draft and caller scope', () => {
+    const ranked = rankAdoptionCandidates([
+      candidate({
+        name: 'fresh_kept', scope: 'session', sessionId: 'caller-1', uses: 0,
+        lastUsedAt: '2026-11-22T00:00:00.000Z',
+      }),
+      candidate({ name: 'proven', scope: 'workspace', uses: 100, failures: 0 }),
+    ])
+    assert.deepEqual(ranked.map(row => row.name), ['proven', 'fresh_kept'])
+  })
+
+  it('R14: a verification clause wins an equal-evidence tie', () => {
+    const ranked = rankAdoptionCandidates([
+      candidate({ name: 'plain', uses: 5, failures: 0 }),
+      candidate({ name: 'clause', uses: 5, failures: 0, verification: 'check the totals against the grid' }),
+    ])
+    assert.deepEqual(ranked.map(row => row.name), ['clause', 'plain'])
+  })
+
+  it('R14: a kept artifact outranks an auto-kept draft at equal evidence', () => {
+    const ranked = rankAdoptionCandidates([
+      candidate({ name: 'draft', uses: 2, unverified: true }),
+      candidate({ name: 'kept', uses: 2 }),
+    ])
+    assert.deepEqual(ranked.map(row => row.name), ['kept', 'draft'])
   })
 
   it('never ranks a low-quality artifact as a candidate', () => {
