@@ -8,10 +8,13 @@
  * This module renders a bounded, NON-IMPERATIVE capability index of the model tools that are
  * REGISTERED RIGHT NOW. It deliberately carries no `Use ...` line: the artifact directive must
  * stay the single imperative, or a weak model tool displaces the artifact the caller needs
- * (E46 used the lang detector on a greeting task because the digest named it). R17's evidence
- * bounds the guidance: on-device tools pay off for high-volume detection, binary calls,
- * extraction beyond context and embedding/vision work — not for one-off judgments the solver
- * already makes well.
+ * (E46 used the lang detector on a greeting task because the digest named it).
+ *
+ * E47/R17 NARROWED the surface: adoption flips only for a per-item, clause-bearing wrapper,
+ * and a weak judgment tool that gets used is pure overhead (Laya 1/6, 2/6 accuracy, overridden
+ * by the solver). The index therefore promotes only the payoff band — high-volume detection,
+ * speech/OCR, embeddings and extraction of large inputs — and deliberately does NOT list
+ * judgment (or planning) tools the solver dominates.
  *
  * @module on-device-surface
  */
@@ -20,7 +23,7 @@ import { STANDARD_CONTRACTS } from '@try-works/tool-mode-contracts'
 
 /** The capability classes, in render order. */
 const CAPABILITY_ORDER = [
-  'judgment', 'extraction', 'embedding', 'vision', 'speech', 'language', 'text', 'planning',
+  'extraction', 'embedding', 'vision', 'speech', 'language', 'text',
 ] as const
 type Capability = typeof CAPABILITY_ORDER[number]
 
@@ -31,9 +34,11 @@ type Capability = typeof CAPABILITY_ORDER[number]
  * model id. A contract absent here is not surfaced (an unknown class would be a guess).
  */
 const CONTRACT_CAPABILITY: Readonly<Record<string, Capability>> = Object.freeze({
-  decision_choose: 'judgment',
-  decision_test: 'judgment',
-  decision_score: 'judgment',
+  /**
+   * R17: judgment is INTENTIONALLY absent. E47 measured 0/3 -> 2/2 adoption for a per-item
+   * Laya wrapper, but both solvers overrode its 1/6 and 2/6 verdicts: the call bought no
+   * information, so listing it here made solvers spend a call and discard the answer.
+   */
   structured_extract: 'extraction',
   extract_with_repair: 'extraction',
   multimodal_embed: 'embedding',
@@ -48,7 +53,7 @@ const CONTRACT_CAPABILITY: Readonly<Record<string, Capability>> = Object.freeze(
   stt_transcribe: 'speech',
   lang_detect: 'language',
   text_title: 'text',
-  tools_plan: 'planning',
+  /** R17: planning is the solver's own reasoning band; not promoted for the same reason. */
 })
 
 /** One callable catalog model, with the name it is ACTUALLY registered under. */
@@ -126,9 +131,10 @@ export function buildOnDeviceCapabilityIndex(input: OnDeviceCapabilityInput): st
    * solver's own answer is better, and that reuse needs the per-item + clause shape.
    */
   const text = 'On-device model tools (registered now): ' + rendered.join('; ') + '. '
-    + 'They run locally and suit high-volume detection, binary yes/no calls, extraction beyond '
-    + 'your context, and embedding or vision work; for a one-off judgment or a trivial extraction '
-    + 'your own answer is usually better. To reuse one, wrap it in an artifact that runs it per '
-    + 'item and states a verification clause.'
+    + 'They run locally and pay off where you are genuinely worse or slower: high-volume detection, '
+    + 'speech/OCR, embeddings, and extraction of large inputs. Judgment tools are deliberately not '
+    + 'listed — a verdict you would override is overhead, not evidence. To reuse one, wrap it in an '
+    + 'artifact that runs it per item and states a verification clause; a single-record wrapper earns '
+    + 'no adoption (E47).'
   return text.length <= ON_DEVICE_MAX_CHARS ? text : text.slice(0, ON_DEVICE_MAX_CHARS - 1).trimEnd() + '…'
 }

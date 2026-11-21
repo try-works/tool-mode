@@ -71,9 +71,8 @@ async function sectionText(ctx: Context, name: string): Promise<string> {
 describe('R16 — capability index (pure)', () => {
   it('groups registered contract tools by capability', () => {
     const text = buildOnDeviceCapabilityIndex({
-      registeredTools: ['decision_test', 'structured_extract', 'text_embed', 'describe_image', 'stt_transcribe', 'lang_detect'],
+      registeredTools: ['structured_extract', 'text_embed', 'describe_image', 'stt_transcribe', 'lang_detect'],
     })
-    assert.match(text, /judgment — decision_test/)
     assert.match(text, /extraction — structured_extract/)
     assert.match(text, /embedding — text_embed/)
     assert.match(text, /vision — describe_image/)
@@ -81,10 +80,19 @@ describe('R16 — capability index (pure)', () => {
     assert.match(text, /language — lang_detect/)
   })
 
+  it('R17: never promotes judgment or planning tools the solver dominates', () => {
+    const text = buildOnDeviceCapabilityIndex({
+      registeredTools: ['decision_choose', 'decision_test', 'decision_score', 'tools_plan', 'lang_detect'],
+    })
+    assert.match(text, /lang_detect/)
+    assert.doesNotMatch(text, /decision_/)
+    assert.doesNotMatch(text, /tools_plan/)
+    assert.doesNotMatch(text, /judgment/)
+  })
+
   it('never names a tool that is not registered', () => {
-    const text = buildOnDeviceCapabilityIndex({ registeredTools: ['decision_test'] })
-    assert.match(text, /decision_test/)
-    assert.doesNotMatch(text, /structured_extract/)
+    const text = buildOnDeviceCapabilityIndex({ registeredTools: ['structured_extract'] })
+    assert.match(text, /structured_extract/)
     assert.doesNotMatch(text, /text_embed/)
   })
 
@@ -113,8 +121,9 @@ describe('R16 — capability index (pure)', () => {
     const text = buildOnDeviceCapabilityIndex({ registeredTools: ['text_embed', 'text_rerank', 'semantic_rank', ...tools] })
     assert.ok(text.length <= ON_DEVICE_MAX_CHARS, 'length ' + String(text.length))
     assert.ok(!/^Use /m.test(text), 'the capability index is never imperative: ' + text)
-    assert.match(text, /your own answer is usually better/)
+    assert.match(text, /genuinely worse or slower/)
     assert.match(text, /verification clause/)
+    assert.match(text, /single-record wrapper earns no adoption/)
     const embeddingNames = /embedding — ([^.;]+)/.exec(text)?.[1]?.split(', ') ?? []
     assert.ok(embeddingNames.length <= ON_DEVICE_MAX_NAMES_PER_CLASS, String(embeddingNames.length))
   })
@@ -125,20 +134,20 @@ describe('R16 — the standing section is wired to the live registry', () => {
     const dir = tempDir()
     const ctx = await mountHost(dir)
     const before = await sectionText(ctx, 'tool-mode:on-device')
-    assert.doesNotMatch(before, /decision_test/, 'not registered yet: ' + before)
+    assert.doesNotMatch(before, /structured_extract/, 'not registered yet: ' + before)
 
     ctx.tools.register(defineTool({
-      name: 'decision_test',
-      description: 'Answer a stated yes/no question on device.',
-      parameters: { question: { type: 'string', required: true } },
+      name: 'structured_extract',
+      description: 'Extract a record on device.',
+      parameters: { text: { type: 'string', required: true } },
       output: { schema: { type: 'object', additionalProperties: false, properties: {} }, render: () => [] },
-      async execute() { return { decision: 'yes' } },
+      async execute() { return {} },
     }))
 
     const onDevice = await sectionText(ctx, 'tool-mode:on-device')
-    assert.match(onDevice, /judgment — decision_test/)
+    assert.match(onDevice, /extraction — structured_extract/)
     const library = await sectionText(ctx, 'tool-mode:library')
-    assert.ok(!library.includes('decision_test'), 'the artifact directive must stay clean: ' + library)
+    assert.ok(!library.includes('structured_extract'), 'the artifact directive must stay clean: ' + library)
   })
 
   it('re-reads the registry, so a disposed tool disappears', async () => {
