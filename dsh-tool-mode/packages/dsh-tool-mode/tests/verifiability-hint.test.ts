@@ -34,15 +34,24 @@ function candidate(overrides: Partial<Row> & { readonly name: string }): Row {
 }
 
 describe('R8 — the aggregate caveat (digest)', () => {
-  it('renders the aggregate caveat and names the callable per-item route', () => {
-    const text = buildDirectiveDigest([
+  it('renders the aggregate caveat with the cheapest route it can name', () => {
+    // R11: one Code Mode program looping the declared nested tool (7.8 s at 60 items),
+    // never the artifact per-item (~118 s, deadline).
+    const withRoute = buildDirectiveDigest([
+      candidate({
+        name: 'agent_counts', description: 'Counts matches in a batch.',
+        verifiability: 'aggregate', nestedTools: ['lang_detect'],
+      }),
+    ])
+    assert.match(withRoute, /Aggregate-only output/)
+    assert.match(withRoute, /not per-item verifiable/)
+    assert.match(withRoute, /one Code Mode program looping lang_detect over the list/)
+    assert.match(withRoute, /^Use agent_counts\b/m)
+    // No declared nested tool: no route is invented.
+    const noRoute = buildDirectiveDigest([
       candidate({ name: 'agent_counts', description: 'Counts matches in a batch.', verifiability: 'aggregate' }),
     ])
-    assert.match(text, /Aggregate-only output/)
-    assert.match(text, /not per-item verifiable/)
-    // The route it names is the callable name, so the caller can run one item at a time.
-    assert.match(text, /verify by calling agent_counts one item at a time/)
-    assert.match(text, /^Use agent_counts\b/m)
+    assert.match(noRoute, /no per-item route is declared/)
   })
 
   it('renders no caveat for per-item or for no hint (never inferred)', () => {
@@ -62,7 +71,7 @@ describe('R8 — the aggregate caveat (digest)', () => {
     assert.ok(line !== undefined)
     assert.match(line, /agent_batch/)
     assert.match(line, /aggregate-only/i)
-    assert.match(line, /verify item by item with agent_batch|verify by calling agent_batch/)
+    assert.match(line, /no per-item route declared/)
   })
 
   it('preserves U44 verification and purpose next to the caveat, inside the 1000/6 cap', () => {

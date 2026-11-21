@@ -31,6 +31,6 @@ describe('R8 — the host digest renders the stored aggregate claim', () => {
     const assembly = await service.assemble({ agent: { id: 'session-r8-wiring' } } as never)
     const text = assembly.sections.find(section => section.name === 'tool-mode:library')?.text ?? ''
     assert.match(text, /Aggregate-only output \(not per-item verifiable\)/)
-    assert.match(text, /agent_aggregate_live one item at a time/)
+    assert.match(text, /no per-item route is declared/)
   })
 })

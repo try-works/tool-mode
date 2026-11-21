@@ -48,10 +48,13 @@ export type AdvisoryVerifiability = 'per-item' | 'aggregate'
 export interface VerifiabilityCandidate extends AdoptionDigestCandidate {
   /**
    * `aggregate` means the artifact reports a total (or an aggregate) and cannot be
-   * verified item by item from its output alone; the digest says so and names the callable
-   * route to check one item at a time. Absent or `per-item` renders no caveat.
+   * verified item by item from its output alone; the digest says so and names the cheapest
+   * executable route (R11) it can derive from the declared nested tools. Absent or
+   * `per-item` renders no caveat.
    */
   readonly verifiability?: AdvisoryVerifiability
+  /** The artifact's declared nested tools; the cheapest per-item route names one of them. */
+  readonly nestedTools?: readonly string[]
 }
 
 /** One artifact line. */
@@ -139,8 +142,22 @@ function sentence(text: string): string {
  */
 function aggregateCaveat(candidate: VerifiabilityCandidate): string {
   if (candidate.verifiability !== 'aggregate') return ''
-  return ' Aggregate-only output (not per-item verifiable): verify by calling '
-    + oneLine(candidate.callableName) + ' one item at a time.'
+  return ' Aggregate-only output (not per-item verifiable): ' + verificationRoute(candidate)
+}
+
+/**
+ * R11: the cheapest executable per-item route the host can name.
+ *
+ * Measured on 0.5.112 at 60 items: one Code Mode program looping the declared nested tool
+ * is 7.8 s; looping the artifact per-item is ~118 s (deadline). The old "one item at a
+ * time" instruction named the worst route. When no nested tool is declared, no route is
+ * invented.
+ */
+function verificationRoute(candidate: VerifiabilityCandidate): string {
+  const tool = candidate.nestedTools?.find(name => name.trim().length > 0)
+  return tool === undefined
+    ? 'verify each item against an independent source (no per-item route is declared).'
+    : 'verify with one Code Mode program looping ' + oneLine(tool) + ' over the list.'
 }
 
 /**
@@ -150,7 +167,10 @@ function aggregateCaveat(candidate: VerifiabilityCandidate): string {
  */
 function aggregateSupporting(candidate: VerifiabilityCandidate): string {
   if (candidate.verifiability !== 'aggregate') return ''
-  return ' [aggregate-only; verify item by item with ' + oneLine(candidate.callableName) + ']'
+  const tool = candidate.nestedTools?.find(name => name.trim().length > 0)
+  return tool === undefined
+    ? ' [aggregate-only; no per-item route declared]'
+    : ' [aggregate-only; verify in one Code Mode program looping ' + oneLine(tool) + ']'
 }
 
 /**
@@ -170,7 +190,8 @@ function evidenceLine(candidate: AdoptionDigestCandidate): string {
   const sessions = candidate.sessions !== undefined && candidate.sessions > 0
     ? ' across ' + String(candidate.sessions) + (candidate.sessions === 1 ? ' session' : ' sessions')
     : ''
-  return 'Evidence: ' + String(candidate.uses) + ' uses, ' + String(candidate.failures) + ' ' + plural
+  // R13: crash-free is NOT correctness. Name the measurement, never "evidence".
+  return 'Completed without a recorded error: ' + String(candidate.uses) + ' uses, ' + String(candidate.failures) + ' ' + plural
     + sessions + percent + '.'
 }
 

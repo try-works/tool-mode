@@ -557,11 +557,13 @@ ctx.tools.register(defineTool({
         operation: 'run', artifactKind: 'workflow', name: entry.name, version: entry.version,
         durationMs: Date.now() - started,
       })
+      const callerSessionId = sessionIdOfAgent(exec.agent)
       recordAuthoredRun(receiptId, revision, 'tool_mode_workflows', report, {
         name: entry.name,
         digest: entry.digest,
         scope: entry.scope,
         ...scope.rootSessionId === undefined ? {} : { sessionId: scope.rootSessionId },
+        ...callerSessionId === undefined ? {} : { callerSessionId },
       })
       return {
         runId: receiptId,

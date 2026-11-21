@@ -193,7 +193,7 @@ describe('F3 — real failed runs feed the directive digest', () => {
     assert.deepEqual(five.failureClasses, ['failed'])
     const text = buildDirectiveDigest([candidateOf(five)], { sessionId: 'session-a' })
     assert.match(text, /Known failure: failed\./, 'the digest reports the evidence-backed class')
-    assert.match(text, /Evidence: 5 uses, 1 failure/)
+    assert.match(text, /Completed without a recorded error: 5 uses, 1 failure/)
   })
 
   it('a success-only artifact never gains a failure class', async () => {

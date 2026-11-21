@@ -4198,6 +4198,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             inputSchema: Record<string, unknown>
             scope: ArtifactScope
             digest: string
+            tools?: readonly string[]
           },
         ): void => {
           if (seen.has(row.callableName)) return
@@ -4227,6 +4228,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             ...row.status === 'draft' ? { unverified: true } : {},
             ...row.verification === undefined ? {} : { verification: row.verification },
             ...row.verifiability === undefined ? {} : { verifiability: row.verifiability },
+            ...row.tools === undefined || row.tools.length === 0 ? {} : { nestedTools: row.tools },
             ...row.scope === 'session' && callerSessionId !== undefined ? { sessionId: callerSessionId } : {},
             ...callSignature === undefined ? {} : { callSignature: callSignature.signature, batch: callSignature.batch },
           })
@@ -4355,7 +4357,15 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       revision: string,
       contract: string,
       report: RunReport,
-      artifact?: { name: string; digest: string; scope: ArtifactScope; sessionId?: string },
+      artifact?: {
+        name: string
+        digest: string
+        scope: ArtifactScope
+        /** The ROOT session (scope root), kept for tree accounting. */
+        sessionId?: string
+        /** R12: the IMMEDIATE caller (leaf subagent), so parallel runs partition cleanly. */
+        callerSessionId?: string
+      },
     ): void => {
       for (const call of report.meta.calls) {
         host.recordReceipt?.(buildInvocationReceipt({
@@ -4372,6 +4382,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           parentReceiptId: receiptId,
           runId: receiptId,
           ...call.callId === undefined ? {} : { callId: call.callId },
+          ...artifact?.sessionId === undefined ? {} : { rootSessionId: artifact.sessionId },
+          ...artifact?.callerSessionId === undefined ? {} : { sessionId: artifact.callerSessionId },
           outcome: call.ok ? 'ok' : 'failed',
         }))
       }
@@ -4401,7 +4413,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         dataFlowCoverage: report.meta.dataFlowCoverage,
         outcome: 'ok',
         ...artifact === undefined ? {} : {
-          ...artifact.sessionId === undefined ? {} : { sessionId: artifact.sessionId, rootSessionId: artifact.sessionId },
+          // R12: the caller and the root are DIFFERENT identities; collapsing them made
+          // parallel subagent receipts unpartitionable.
+          ...artifact.callerSessionId === undefined
+            ? artifact.sessionId === undefined ? {} : { sessionId: artifact.sessionId, rootSessionId: artifact.sessionId }
+            : { sessionId: artifact.callerSessionId, ...artifact.sessionId === undefined ? {} : { rootSessionId: artifact.sessionId } },
           artifactScope: artifact.scope,
           artifactName: artifact.name,
           artifactDigest: artifact.digest,
@@ -4503,11 +4519,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
                 operation: 'run', artifactKind: 'workflow', name: resolved.name, version: resolved.version,
                 durationMs: Date.now() - started,
               })
+              const callerSessionId = sessionIdOfAgent(exec.agent)
               recordAuthoredRun(receiptId, revision, 'workflow.' + resolved.name, report, {
                 name: resolved.name,
                 digest: resolved.digest,
                 scope: resolved.scope,
                 ...scope.rootSessionId === undefined ? {} : { sessionId: scope.rootSessionId },
+                ...callerSessionId === undefined ? {} : { callerSessionId },
               })
               return (report.result ?? null) as never
             })
@@ -4664,11 +4682,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
               operation: 'run', artifactKind: 'tool', name: resolved.name, version: resolved.version,
               durationMs: Date.now() - started,
             })
+            const callerSessionId = sessionIdOfAgent(exec.agent)
             recordAuthoredRun(receiptId, revision, resolved.name, report, {
               name: resolved.name,
               digest: resolved.digest,
               scope: resolved.scope,
               ...scope.rootSessionId === undefined ? {} : { sessionId: scope.rootSessionId },
+              ...callerSessionId === undefined ? {} : { callerSessionId },
             })
             // The stored program's value, STRUCTURED: a composed step can read its
             // fields without parsing a JSON document first.
