@@ -134,6 +134,20 @@ test('Code Mode has its own card and reads the sub-call trace', () => {
     toolName: 'tool_mode_run',
   })
   assert.equal(rendered.type, 'div')
+  // A settled result carries arguments under block.call.argsRaw; they must reach the card
+  // and its expanded arguments body, not only the program/result.
+  const settledArgs = views['internals'] as { argsText: (block: unknown) => string }
+  assert.equal(settledArgs.argsText({ call: { argsRaw: '{"x":1}' } }), '{"x":1}')
+  const settledCard = Card({
+    block: {
+      phase: 'result', isError: false, call: { name: 'tool_mode_run', argsRaw: '{"code":"return 1","tools":[]}' },
+      args: {}, content: [{ type: 'text', text: '{"result":1,"logs":[]}' }],
+    },
+    toolName: 'tool_mode_run',
+  })
+  const settledJson = JSON.stringify(settledCard)
+  assert.ok(settledJson.includes('arguments'), 'expanded card must have an arguments section')
+  assert.ok(settledJson.includes('return 1'), 'expanded card must show the recorded arguments')
   // A run with no trace says so instead of inventing calls.
   const noTrace = Card({ block: { phase: 'result', isError: false, args: { raw: '{}' }, content: [{ type: 'text', text: '{"result":null,"logs":[]}' }] }, toolName: 'tool_mode_run' })
   assert.equal(noTrace.type, 'div')

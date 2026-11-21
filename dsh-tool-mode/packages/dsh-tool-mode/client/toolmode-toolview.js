@@ -76,6 +76,10 @@ function createToolviews(createElement) {
     /** The raw arguments text of any phase, or ''. */
     function argsText(block) {
       if (!block || typeof block !== 'object') return ''
+      // A settled result carries the paired call head as block.call. The ToolArgs view
+      // (block.args) exposes fields, not necessarily a raw string, so reading only it made
+      // every completed Tool Mode card render "(none)" for its arguments.
+      if (block.call && typeof block.call.argsRaw === 'string' && block.call.argsRaw.length > 0) return block.call.argsRaw
       if (typeof block.argsRaw === 'string' && block.argsRaw.length > 0) return block.argsRaw
       if (block.args && typeof block.args.raw === 'string') return block.args.raw
       return ''
@@ -382,6 +386,7 @@ function createToolviews(createElement) {
       const requested = args && Array.isArray(args.tools) ? args.tools : []
       const code = args && typeof args.code === 'string' ? args.code : ''
       const logs = payload && Array.isArray(payload.logs) ? payload.logs : []
+      const rawArgs = argsText(block)
 
       return h('div', {
         style: {
@@ -445,7 +450,10 @@ function createToolviews(createElement) {
       h('details', { style: { marginTop: 6 } },
         h('summary', { style: { cursor: 'pointer', fontSize: 12 } }, 'program, arguments and result'),
         h('div', { style: { marginTop: 4 } },
-          h('div', { style: { fontSize: 11, color: '#5b6675' } }, 'program'),
+          h('div', { style: { fontSize: 11, color: '#5b6675' } }, 'arguments'),
+          h('pre', { style: { margin: 0, maxHeight: 160, overflow: 'auto', fontSize: 11 } },
+            pretty(rawArgs)),
+          h('div', { style: { fontSize: 11, color: '#5b6675', marginTop: 4 } }, 'program'),
           h('pre', { style: { margin: 0, maxHeight: 220, overflow: 'auto', fontSize: 11 } },
             code.length > 0 ? code : '(none)'),
           h('div', { style: { fontSize: 11, color: '#5b6675', marginTop: 4 } }, 'result'),
