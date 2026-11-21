@@ -671,6 +671,12 @@ export const MODEL_TOOLS_SPEC: ModelToolsSpec = {
         }[]
         readonly installed: number
         readonly runnable: number
+        readonly receipts?: readonly {
+          readonly receiptId: string
+          readonly kind: string
+          readonly outcome: string | null
+          readonly at: string
+        }[]
       }
       if (result.credentialNote !== undefined) {
         return [{ type: 'text', text: result.credentialNote }]
@@ -683,15 +689,39 @@ export const MODEL_TOOLS_SPEC: ModelToolsSpec = {
         ? `${result.action}: ${result.changed === true ? 'done' : 'no change'}`
           + `${result.persisted === true ? ', remembered across restarts' : ''}. `
         : ''
-      const lines = result.models.map(model =>
+      const models = Array.isArray(result.models) ? result.models : []
+      const lines = models.map(model =>
         `- [${model.installed ? 'installed' : model.runnable ? 'ready' : 'unavailable'}] `
         + `${model.id} (\`${model.tool}\`)${model.choice === 'none' ? '' : ` (${model.choice} by you)`}: `
         + `${model.summary}`
         + (model.runnable || model.installed ? '' : `\n  why not: ${model.reason}`),
       )
+      /**
+       * A RECEIPTS payload carries no model list (models: [] while installed/runnable
+       * stay populated), so the old shared renderer printed "N of 0 catalogued models"
+       * and dropped the receipts the action exists to show. Render each payload for what
+       * it is; the model-count line only appears when a model list is actually present.
+       */
+      const receipts = result.receipts
+      if (Array.isArray(receipts)) {
+        const shown = receipts.slice(0, 20)
+        const more = receipts.length - shown.length
+        const receiptLines = shown.map(receipt =>
+          `- ${receipt.receiptId} · ${receipt.kind} · ${receipt.outcome ?? 'pending'} · ${receipt.at}`,
+        )
+        return [{
+          type: 'text',
+          text: `${headline}${receipts.length} receipt(s) in the loaded window.`
+            + `\n\n${receiptLines.join('\n')}`
+            + (more > 0 ? `\n… ${more} more` : ''),
+        }]
+      }
+      if (models.length === 0) {
+        return [{ type: 'text', text: `${headline}No model list in this result.` }]
+      }
       return [{
         type: 'text',
-        text: `${headline}${result.installed} of ${result.models.length} catalogued models are installed as tools; `
+        text: `${headline}${result.installed} of ${models.length} catalogued models are installed as tools; `
           + `${result.runnable} can run on this machine.\n\n${lines.join('\n')}`,
       }]
     },

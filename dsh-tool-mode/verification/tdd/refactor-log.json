@@ -1,46 +1,10 @@
 {
-  "generatedAt": "2026-11-21T12:41:33.989Z",
+  "generatedAt": "2026-11-21T14:32:09.078Z",
   "boundaries": [
     "packages/dsh-tool-mode/tests/architecture.test.ts — model-free host boundary",
     "packages/dsh-tool-mode/tests/mcp-conformance.test.ts — protocol identity"
   ],
   "runs": [
-    {
-      "generatedAt": "2026-11-15T08:20:44.630Z",
-      "commit": "108fa8b52cdffb43eb8e8cc8fd3d94a7ce11d689",
-      "dirty": true,
-      "counts": {
-        "PASS": 309,
-        "FAIL": 0,
-        "BLOCKED": 8,
-        "NOT_RUN": 0,
-        "NOT_APPLICABLE": 0
-      }
-    },
-    {
-      "generatedAt": "2026-11-15T08:43:52.022Z",
-      "commit": "108fa8b52cdffb43eb8e8cc8fd3d94a7ce11d689",
-      "dirty": true,
-      "counts": {
-        "PASS": 309,
-        "FAIL": 0,
-        "BLOCKED": 8,
-        "NOT_RUN": 0,
-        "NOT_APPLICABLE": 0
-      }
-    },
-    {
-      "generatedAt": "2026-11-15T09:16:39.117Z",
-      "commit": "e3d6430ecf2478259f20cab756b0f39d22279f0e",
-      "dirty": true,
-      "counts": {
-        "PASS": 309,
-        "FAIL": 0,
-        "BLOCKED": 8,
-        "NOT_RUN": 0,
-        "NOT_APPLICABLE": 0
-      }
-    },
     {
       "generatedAt": "2026-11-15T10:15:34.401Z",
       "commit": "ab94236fd075395976ce752fe05883e9af14616d",
@@ -596,6 +560,42 @@
     {
       "generatedAt": "2026-11-21T12:41:33.989Z",
       "commit": "9deeb228f966f6c9fc6f3102149b611c009d32c2",
+      "dirty": true,
+      "counts": {
+        "PASS": 309,
+        "FAIL": 0,
+        "BLOCKED": 8,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-21T14:29:35.120Z",
+      "commit": "7d337ee45f2c2bf301501261541b1752ee66944a",
+      "dirty": true,
+      "counts": {
+        "PASS": 309,
+        "FAIL": 0,
+        "BLOCKED": 8,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-21T14:31:09.222Z",
+      "commit": "7d337ee45f2c2bf301501261541b1752ee66944a",
+      "dirty": true,
+      "counts": {
+        "PASS": 309,
+        "FAIL": 0,
+        "BLOCKED": 8,
+        "NOT_RUN": 0,
+        "NOT_APPLICABLE": 0
+      }
+    },
+    {
+      "generatedAt": "2026-11-21T14:32:09.078Z",
+      "commit": "7d337ee45f2c2bf301501261541b1752ee66944a",
       "dirty": true,
       "counts": {
         "PASS": 309,
