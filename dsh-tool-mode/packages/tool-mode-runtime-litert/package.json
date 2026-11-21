@@ -1,6 +1,6 @@
 {
   "name": "@try-works/tool-mode-runtime-litert",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Socket-free LiteRT.js runtime for Tool Mode: a fetch-interception shim plus an Effect LitertSession that serializes inference",
   "license": "Apache-2.0",
   "publishConfig": {
@@ -35,7 +35,7 @@
   "dependencies": {
     "@litertjs/core": "2.5.3",
     "@try-works/tool-mode-extension-sdk": "0.1.0",
-    "@try-works/tool-mode-runtime-core": "0.1.0",
+    "@try-works/tool-mode-runtime-core": "0.1.1",
     "@try-works/tool-mode-runtime-recipes": "0.1.0"
   },
   "peerDependencies": {

@@ -1,6 +1,6 @@
 {
   "name": "@try-works/tool-mode-runtime-processors",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Pure, deterministic processors for the local runtime: UTF-16 offset normalisation, sliding windows, BIOES span decoding and deterministic PII detection",
   "license": "Apache-2.0",
   "publishConfig": {

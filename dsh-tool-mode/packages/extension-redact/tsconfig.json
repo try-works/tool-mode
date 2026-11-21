@@ -21,6 +21,7 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "skipLibCheck": true,
+    "plugins": [{ "name": "@effect/language-service" }],
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,

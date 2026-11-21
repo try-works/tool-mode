@@ -106,7 +106,15 @@ describe('manifest — code-free declarative package (preparatory)', () => {
       assert.equal(entries.includes(forbidden), false, 'a code-free package must not ship ' + forbidden)
     }
     const pkg = packageIdentity()
-    assert.equal(pkg.dependencies, undefined, 'the package must not depend on a runtime')
+    // c96e433 made the runtime provider a real dependency: a declarative package
+    // declares exactly the one runtime that executes its recipe, and nothing else.
+    const runtimeDependencies = Object.keys(pkg.dependencies ?? {})
+    assert.deepEqual(
+      runtimeDependencies,
+      runtimeDependencies.filter(name => name.startsWith('@try-works/tool-mode-runtime-')),
+      'a declarative package may declare only a runtime provider dependency',
+    )
+    assert.equal(runtimeDependencies.length, 1, 'the package declares exactly one runtime provider')
     assert.equal(pkg.devDependencies, undefined, 'the package ships no code to compile')
     assert.equal(pkg.exports, undefined, 'a declarative package has no module entry to export')
   })

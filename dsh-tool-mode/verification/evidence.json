@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-11-20T18:21:19.797Z",
+  "generatedAt": "2026-11-21T11:46:26.197Z",
   "git": {
-    "commit": "ad3a069a9bed43a9a1fe6b79230cd7fac654b77e",
+    "commit": "04e574c74b9b260f232181df00aee87f150c071a",
     "branch": "main",
     "dirty": true
   },
@@ -66,14 +66,14 @@
     },
     {
       "path": "package-lock.json",
-      "sha256": "2cf06927815feac5b1a34f133bddd6010a66da216f3b3bed2d00f863329ef594",
-      "bytes": 85840
+      "sha256": "084ebbad851ecc9bd6cefa7aa23e25fb1114e3882c67807b5bcacaad310eeb52",
+      "bytes": 86299
     }
   ],
   "packages": [
     {
       "name": "@try-works/dsh-tool-mode",
-      "version": "0.5.109",
+      "version": "0.5.110",
       "path": "packages/dsh-tool-mode"
     },
     {

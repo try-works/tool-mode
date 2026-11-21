@@ -1,0 +1,114 @@
+{
+  "at": "2026-11-20T08:00:52.270Z",
+  "targetVersion": "0.5.103",
+  "node": "v24.11.0",
+  "cwd": "D:\\DEV\\tool-mode\\dsh-tool-mode",
+  "checks": [
+    {
+      "id": "versions",
+      "title": "source / installed / boot ordering",
+      "status": "measured",
+      "detail": "installed 0.5.104 at 2026-11-20T07:52:26.554Z, but the host booted at 2026-11-20T05:45:27.313Z (127 min EARLIER): the running graph cannot be 0.5.104",
+      "evidence": {
+        "sourceVersion": "0.5.104",
+        "sourceGitHead": "2f0e593",
+        "installedVersion": "0.5.104",
+        "installedAt": "2026-11-20T07:52:26.554Z",
+        "installedLibHash": "c065361cb47edcbf",
+        "repoLibHash": "c065361cb47edcbf",
+        "targetVersion": "0.5.103",
+        "bootAt": "2026-11-20T13:45:27.3137930+08:00",
+        "bootAtUtc": "2026-11-20T05:45:27.313Z",
+        "bootPid": "30464",
+        "loadedVerdict": "older-than-target",
+        "gapMs": 7619241
+      }
+    },
+    {
+      "id": "auth",
+      "title": "auth/boot reachability (independent of restore)",
+      "status": "measured",
+      "detail": "http://127.0.0.1:3080 answered HTTP 401 in 64 ms. Extension restore was NOT consulted for this answer and is NOT claimed complete",
+      "evidence": {
+        "webUrl": "http://127.0.0.1:3080",
+        "httpStatus": 401,
+        "elapsedMs": 64,
+        "startupLog": {
+          "path": "E:\\tmp\\dsh-exp-f838ffd2a4d64f09b3c0da1d97fad8a1\\logs\\startup-2026-11-19T21-09-33.357Z-41703fc1-ac75-4de5-925e-90ff78af244f.log",
+          "at": "2026-11-19T21:09:33.364Z",
+          "isFailureDump": true,
+          "mentionsRestore": false
+        },
+        "extensionRestoreObserved": "not observed",
+        "assumption": "none: reachability is an HTTP measurement, not a restore-complete signal"
+      }
+    },
+    {
+      "id": "digest",
+      "title": "task-turn digest delivery",
+      "status": "absent",
+      "detail": "neither the 0.5.103 wording nor a digest call shape appears in 23 records: no digest reached this session",
+      "evidence": {
+        "transcript": "E:\\tmp\\dsh-exp-f838ffd2a4d64f09b3c0da1d97fad8a1\\sessions\\--E-tmp-dsh-exp-f838ffd2a4d64f09b3c0da1d97fad8a1--\\session-3af36b8b-5ff8-4f0f-a2ea-5f116fa55861\\session.v4.jsonl.zstd",
+        "frames": 8,
+        "tornFinalFrame": false,
+        "records": 23,
+        "parsedFailures": 0,
+        "marker": "Verify its output on edge cases",
+        "callMarker": "Use agent_from_draft",
+        "hitsByRecordType": {},
+        "userMessageHits": 0
+      }
+    },
+    {
+      "id": "artifacts",
+      "title": "authored artifacts and scopes",
+      "status": "measured",
+      "detail": "1 row(s); 1 workspace, 0 promoted; 1 workspace row(s) belong to OTHER directories (unresolvable here by design)",
+      "evidence": {
+        "documentVersion": 2,
+        "cwd": "D:\\DEV\\tool-mode\\dsh-tool-mode",
+        "rows": [
+          {
+            "kind": "tools",
+            "name": "agent_live_probe",
+            "scope": "workspace",
+            "scopeKey": "e:\\tmp\\dsh-exp-f838ffd2a4d64f09b3c0da1d97fad8a1",
+            "version": 1,
+            "digest": "ba8588e4237e",
+            "visibleFromCwd": false
+          }
+        ],
+        "workspaceElsewhere": [
+          "agent_live_probe"
+        ]
+      }
+    },
+    {
+      "status": "pending",
+      "evidence": {
+        "blockedBy": "the running host predates 0.5.103; a full DSH stop/start is required before any 0.5.103 behavior can be observed",
+        "call": "tool_mode_run({ code: \"return { probe: Date.now() }\", tools: [], description: \"adoption probe 0.5.103\" })",
+        "expect": "a new agent_from_draft_<hash> appears in tool_mode_list with scope=session, and tool_mode_tools list (scope all) shows it",
+        "thenVerify": "tool_mode_run({ probe: true, tools: [\"<the new agent_from_draft_name>\"] }) → resolved: true"
+      },
+      "id": "draft",
+      "title": "create a session auto-draft with tool_mode_run",
+      "detail": "PENDING: after the restart, run the call below and expect a NEW agent_from_draft_* row at session scope in this session"
+    },
+    {
+      "status": "pending",
+      "evidence": {
+        "blockedBy": "the running host predates 0.5.103; a full DSH stop/start is required before any 0.5.103 behavior can be observed",
+        "prep": "tool_mode_workflows({ action: \"promote\", name: \"<name>\", to: \"workspace\" }) from the owning session (or tool_mode_tools for an agent_ tool)",
+        "call": "tool_mode_run({ probe: true, tools: [\"<promoted name>\"] })",
+        "expectBindable": "preflight[0].resolved === true; then a real run declaring it must execute",
+        "observedFailureIfUnfixed": "preflight[0].resolved === false with reason \"not-visible-at-scope\" (the U42 advertised-but-unbindable result)",
+        "delegatedCheck": "repeat the SAME probe from a subagent session whose workspaceKey is that workspace: the binding set must include it"
+      },
+      "id": "bindability",
+      "title": "promoted workspace artifact bindable in a delegated binding set",
+      "detail": "PENDING: needs a 0.5.103 graph AND a caller whose workspaceKey matches the promoted row"
+    }
+  ]
+}

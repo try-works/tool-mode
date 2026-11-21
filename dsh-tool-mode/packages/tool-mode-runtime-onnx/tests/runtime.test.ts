@@ -135,7 +135,7 @@ describe('onnxLayer', () => {
         onnxLayer({ modelBytes: new Uint8Array([1]), loader: fake.loader }),
         Effect.gen(function* () {
           yield* OnnxSession
-          return yield* Effect.fail(new Error('after the session was acquired'))
+          return yield* new InferenceFailed({ provider: 'onnx', phase: 'run', message: 'after the session was acquired' })
         }),
       ),
     )
@@ -176,9 +176,7 @@ describe('onnxLayer', () => {
     const failure = await rejection(
       withLayer(
         onnxLayer({ modelBytes: new Uint8Array([1]), loader: { ...fake.loader, ...broken } }),
-        Effect.gen(function* () {
-          yield* OnnxSession
-        }),
+        OnnxSession,
       ),
     )
     assert.ok(failure instanceof RuntimeUnavailable)
@@ -191,9 +189,7 @@ describe('onnxLayer', () => {
     const failure = await rejection(
       withLayer(
         onnxLayer({ modelBytes: new Uint8Array([1]), loader: { load: async () => Promise.reject(typed) } }),
-        Effect.gen(function* () {
-          yield* OnnxSession
-        }),
+        OnnxSession,
       ),
     )
     assert.equal(failure, typed)

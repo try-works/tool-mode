@@ -85,23 +85,19 @@ export function clearProcessor(): ProcessorDefinition<void, ClearBinding> {
       Effect.gen(function* () {
         const audio = request.audio.samples
         if (audio.length === 0) {
-          return yield* Effect.fail(
-            new InvalidInput({ field: 'audio_path', message: 'the audio has no samples to enhance' }),
-          )
+          return yield* new InvalidInput({ field: 'audio_path', message: 'the audio has no samples to enhance' })
         }
         // Bound the work by the HOST's result budget, not by an invented fixed duration:
         // base64 is 4/3 of the WAV, and the response must serialize within maxResultBytes.
         const maxSamples = maxSamplesForResultBudget(request.context.limits.maxResultBytes)
         if (maxSamples < 1) {
-          return yield* Effect.fail(
-            new InvalidInput({
-              field: 'input',
-              message:
-                'the host result budget of '
-                + String(request.context.limits.maxResultBytes)
-                + ' bytes cannot hold an enhanced WAV',
-            }),
-          )
+          return yield* new InvalidInput({
+            field: 'input',
+            message:
+              'the host result budget of '
+              + String(request.context.limits.maxResultBytes)
+              + ' bytes cannot hold an enhanced WAV',
+          })
         }
         const processedSamples = Math.min(audio.length, maxSamples)
 
@@ -138,33 +134,27 @@ export function clearProcessor(): ProcessorDefinition<void, ClearBinding> {
           })
           const output = outputs[request.binding.output]
           if (output === undefined) {
-            return yield* Effect.fail(
-              new InferenceFailed({
-                provider: PROVIDER,
-                phase: 'post',
-                message: 'the graph produced no output named ' + JSON.stringify(request.binding.output),
-              }),
-            )
+            return yield* new InferenceFailed({
+              provider: PROVIDER,
+              phase: 'post',
+              message: 'the graph produced no output named ' + JSON.stringify(request.binding.output),
+            })
           }
           if (!(output.data instanceof Float32Array)) {
-            return yield* Effect.fail(
-              new InferenceFailed({
-                provider: PROVIDER,
-                phase: 'post',
-                message: 'the graph output ' + JSON.stringify(request.binding.output) + ' is not a float32 tensor',
-              }),
-            )
+            return yield* new InferenceFailed({
+              provider: PROVIDER,
+              phase: 'post',
+              message: 'the graph output ' + JSON.stringify(request.binding.output) + ' is not a float32 tensor',
+            })
           }
           if (output.data.length < CLEAR_CHUNK_FRAMES * CLEAR_N_FREQ * 2) {
-            return yield* Effect.fail(
-              new InferenceFailed({
-                provider: PROVIDER,
-                phase: 'post',
-                message:
-                  'the graph output ' + JSON.stringify(request.binding.output) + ' has '
-                  + String(output.data.length) + ' values; a full window needs ' + String(CLEAR_CHUNK_FRAMES * CLEAR_N_FREQ * 2),
-              }),
-            )
+            return yield* new InferenceFailed({
+              provider: PROVIDER,
+              phase: 'post',
+              message:
+                'the graph output ' + JSON.stringify(request.binding.output) + ' has '
+                + String(output.data.length) + ' values; a full window needs ' + String(CLEAR_CHUNK_FRAMES * CLEAR_N_FREQ * 2),
+            })
           }
           scatterEnhanced({
             enhanced: output.data,

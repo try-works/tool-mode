@@ -1,6 +1,6 @@
 {
   "name": "@try-works/extension-redact",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "type": "module",
   "description": "First-party Tool Mode extension implementing redaction over the Desert Ant Labs Redact LiteRT artifact",
   "license": "Apache-2.0",
@@ -34,10 +34,10 @@
   },
   "dependencies": {
     "@try-works/tool-mode-extension-sdk": "0.1.0",
-    "@try-works/tool-mode-runtime-core": "0.1.0",
-    "@try-works/tool-mode-runtime-dsh": "0.1.0",
-    "@try-works/tool-mode-runtime-litert": "0.1.0",
-    "@try-works/tool-mode-runtime-processors": "0.1.0",
+    "@try-works/tool-mode-runtime-core": "0.1.1",
+    "@try-works/tool-mode-runtime-dsh": "0.1.1",
+    "@try-works/tool-mode-runtime-litert": "0.1.1",
+    "@try-works/tool-mode-runtime-processors": "0.1.1",
     "effect": "4.1.2",
     "tokenizers": "0.23.2"
   },

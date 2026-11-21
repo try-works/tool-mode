@@ -1,6 +1,6 @@
 # Tool Mode — final report
 
-**Generated** 2026-11-20T18:21:19.797Z from commit `ad3a069a9bed43a9a1fe6b79230cd7fac654b77e` (branch `main`, working tree DIRTY — this describes a state that exists in no commit).
+**Generated** 2026-11-21T11:46:26.197Z from commit `04e574c74b9b260f232181df00aee87f150c071a` (branch `main`, working tree DIRTY — this describes a state that exists in no commit).
 **Regenerate** with `npm run final-report`; `npm run final-report:check` fails when this file is stale and is wired into `npm run verify`.
 
 ## The headline, before the detail
@@ -29,33 +29,33 @@ Read from every `packages/*/package.json` at generation time (name and version, 
 
 | Package | Version |
 | --- | --- |
-| `@try-works/dsh-tool-mode` | 0.5.109 |
-| `@try-works/extension-clear-recipe` | 0.1.1 |
+| `@try-works/dsh-tool-mode` | 0.5.110 |
+| `@try-works/extension-clear-recipe` | 0.1.2 |
 | `@try-works/extension-declarative-recipes` | 0.1.0 |
 | `@try-works/extension-desert-ant-tongue` | 0.1.3 |
 | `@try-works/extension-desert-ant-voz` | 0.1.5 |
-| `@try-works/extension-ear-recipe` | 0.1.1 |
+| `@try-works/extension-ear-recipe` | 0.1.2 |
 | `@try-works/extension-embeddinggemma` | 0.1.2 |
-| `@try-works/extension-emo-recipe` | 0.1.1 |
+| `@try-works/extension-emo-recipe` | 0.1.2 |
 | `@try-works/extension-laya` | 1.0.4 |
 | `@try-works/extension-minilm-embed` | 1.0.0 |
 | `@try-works/extension-minilm-rerank` | 1.0.0 |
 | `@try-works/extension-mirage` | 0.1.2 |
-| `@try-works/extension-moderator-recipe` | 0.1.1 |
+| `@try-works/extension-moderator-recipe` | 0.1.2 |
 | `@try-works/extension-needle` | 0.1.3 |
-| `@try-works/extension-redact` | 0.1.1 |
-| `@try-works/extension-shapes-recipe` | 0.1.1 |
-| `@try-works/extension-uhm-recipe` | 0.1.1 |
+| `@try-works/extension-redact` | 0.1.3 |
+| `@try-works/extension-shapes-recipe` | 0.1.2 |
+| `@try-works/extension-uhm-recipe` | 0.1.2 |
 | `@try-works/harness-vision` | 0.1.0 |
 | `@try-works/tool-mode-contracts` | 0.1.1 |
 | `@try-works/tool-mode-extension-sdk` | 0.1.5 |
 | `@try-works/tool-mode-harness-text` | 0.1.0 |
 | `@try-works/tool-mode-recipes` | 0.1.0 |
-| `@try-works/tool-mode-runtime-core` | 0.1.0 |
-| `@try-works/tool-mode-runtime-dsh` | 0.1.0 |
-| `@try-works/tool-mode-runtime-litert` | 0.1.0 |
-| `@try-works/tool-mode-runtime-onnx` | 0.1.0 |
-| `@try-works/tool-mode-runtime-processors` | 0.1.0 |
+| `@try-works/tool-mode-runtime-core` | 0.1.1 |
+| `@try-works/tool-mode-runtime-dsh` | 0.1.1 |
+| `@try-works/tool-mode-runtime-litert` | 0.1.1 |
+| `@try-works/tool-mode-runtime-onnx` | 0.1.1 |
+| `@try-works/tool-mode-runtime-processors` | 0.1.1 |
 | `@try-works/tool-mode-runtime-recipes` | 0.1.0 |
 
 ## The requirements that are done
@@ -392,7 +392,7 @@ These are not implementation gaps. There is no artifact to integrate, and no fur
 
 ## What actually runs on this host
 
-RECORDED at the verification run named in the header (2026-11-20T18:21:19.797Z); `npm run verify` re-runs the same check, so this block is a snapshot rather than a standing claim:
+RECORDED at the verification run named in the header (2026-11-21T11:46:26.197Z); `npm run verify` re-runs the same check, so this block is a snapshot rather than a standing claim:
 
 ```
 $ npm run verify:built

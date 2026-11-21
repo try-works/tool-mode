@@ -2637,7 +2637,7 @@ function createToolInsights(createElement, reactLib) {
         "id": "@try-works/extension-clear-recipe",
         "name": "clear recipe",
         "package": "@try-works/extension-clear-recipe",
-        "version": "0.1.1",
+        "version": "0.1.2",
         "license": "Apache-2.0",
         "summary": "Ships NO CODE.",
         "models": [
@@ -2729,7 +2729,7 @@ function createToolInsights(createElement, reactLib) {
         "id": "@try-works/extension-ear-recipe",
         "name": "ear recipe",
         "package": "@try-works/extension-ear-recipe",
-        "version": "0.1.1",
+        "version": "0.1.2",
         "license": "Apache-2.0",
         "summary": "Ships NO CODE.",
         "models": [
@@ -2805,7 +2805,7 @@ function createToolInsights(createElement, reactLib) {
         "id": "@try-works/extension-emo-recipe",
         "name": "emo recipe",
         "package": "@try-works/extension-emo-recipe",
-        "version": "0.1.1",
+        "version": "0.1.2",
         "license": "Apache-2.0",
         "summary": "Ships NO CODE.",
         "models": [
@@ -2959,7 +2959,7 @@ function createToolInsights(createElement, reactLib) {
         "id": "@try-works/extension-moderator-recipe",
         "name": "moderator recipe",
         "package": "@try-works/extension-moderator-recipe",
-        "version": "0.1.1",
+        "version": "0.1.2",
         "license": "Apache-2.0",
         "summary": "Ships NO CODE.",
         "models": [
@@ -3023,7 +3023,7 @@ function createToolInsights(createElement, reactLib) {
         "id": "@try-works/extension-redact",
         "name": "redact",
         "package": "@try-works/extension-redact",
-        "version": "0.1.1",
+        "version": "0.1.3",
         "license": "Apache-2.0",
         "summary": "PII and secret redaction over the Desert Ant Labs Redact LiteRT artifact, exposed as the redact_text tool.",
         "models": [
@@ -3049,7 +3049,7 @@ function createToolInsights(createElement, reactLib) {
         "id": "@try-works/extension-shapes-recipe",
         "name": "shapes recipe",
         "package": "@try-works/extension-shapes-recipe",
-        "version": "0.1.1",
+        "version": "0.1.2",
         "license": "Apache-2.0",
         "summary": "Ships NO CODE.",
         "models": [
@@ -3075,7 +3075,7 @@ function createToolInsights(createElement, reactLib) {
         "id": "@try-works/extension-uhm-recipe",
         "name": "uhm recipe",
         "package": "@try-works/extension-uhm-recipe",
-        "version": "0.1.1",
+        "version": "0.1.2",
         "license": "Apache-2.0",
         "summary": "Ships NO CODE.",
         "models": [

@@ -316,7 +316,7 @@ export const earMelProcessor: RecipeProcessor = {
       const candidates = candidatesOf(totals, offsets.length, languages)
       const top = candidates[0]
       if (top === undefined) {
-        return yield* Effect.fail(new InferenceFailed({ provider: 'litert', phase: 'post', message: 'the model produced no language candidates' }))
+        return yield* new InferenceFailed({ provider: 'litert', phase: 'post', message: 'the model produced no language candidates' })
       }
       return {
         language: top.language,

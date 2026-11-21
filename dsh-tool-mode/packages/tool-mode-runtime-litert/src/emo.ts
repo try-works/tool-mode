@@ -212,13 +212,11 @@ export const emoTextProcessor: RecipeProcessor = {
       const raw = yield* session.run(packFeeds(meta, tokenizer, options.text))
       const probabilities = raw[OUTPUT_NAME]
       if (!(probabilities instanceof Float32Array) || probabilities.length !== meta.labels.length) {
-        return yield* Effect.fail(
-          new RuntimeUnavailable({
-            provider: 'litert',
-            reason:
-              'the emo model returned ' + String(probabilities?.length ?? 'no') + ' probabilities for ' + String(meta.labels.length) + ' labels',
-          }),
-        )
+        return yield* new RuntimeUnavailable({
+          provider: 'litert',
+          reason:
+            'the emo model returned ' + String(probabilities?.length ?? 'no') + ' probabilities for ' + String(meta.labels.length) + ' labels',
+        })
       }
       return yield* Effect.try({
         try: () => {

@@ -182,7 +182,7 @@ export function runRedactPipeline(
 ): Effect.Effect<RuntimeResult, InvalidInput | InferenceFailed> {
   return Effect.gen(function* () {
     if (typeof text !== 'string' || text.length === 0) {
-      return yield* Effect.fail(new InvalidInput({ field: 'text', message: 'text must be a non-empty string' }))
+      return yield* new InvalidInput({ field: 'text', message: 'text must be a non-empty string' })
     }
 
     const tokens = yield* Effect.tryPromise({
@@ -190,13 +190,11 @@ export function runRedactPipeline(
       catch: (cause) => failed('run', 'the redact tokenizer failed', cause),
     })
     if (tokens.ids.length !== tokens.mask.length || tokens.ids.length !== tokens.offsets.length) {
-      return yield* Effect.fail(
-        failed(
-          'post',
-          'the tokenizer returned inconsistent ids, mask and offsets ('
-          + String(tokens.ids.length) + '/' + String(tokens.mask.length) + '/'
-          + String(tokens.offsets.length) + ')',
-        ),
+      return yield* failed(
+        'post',
+        'the tokenizer returned inconsistent ids, mask and offsets ('
+        + String(tokens.ids.length) + '/' + String(tokens.mask.length) + '/'
+        + String(tokens.offsets.length) + ')',
       )
     }
 

@@ -150,6 +150,7 @@ import type { ClientGrantConfig } from './mcp/client-grant.ts'
 import { createUserMessage, ToolCallId } from '@deepseek-ai/dsh-llm'
 import { STANDARD_CONTRACTS, assertAgainstSchema, assertValidContract, assertValidOutput, compileSchema, projectSchemaToDsh, toDshParameters, type ToolContract, type ToolMeta } from '@try-works/tool-mode-contracts'
 import { renderSkillBody } from './skills.ts'
+import { parseDisabledSkills } from './skill-contract.ts'
 import { loadPlaybooks } from './playbook.ts'
 import { commandExists, DEFAULT_CLI_COMMAND } from './transport.ts'
 import {
@@ -228,6 +229,12 @@ On-device model tools run beside your other tools.
 - **per-call receipts.** Every invocation records a receipt; read them with \`model_tools\` action \`receipts\` instead of re-running a call.
 - **author your own.** \`tool_mode_workflows\` saves/re-runs programs; \`tool_mode_tools\` defines persistent \`agent_*\` tools (callable after the defining run; a program's bindings are fixed at start). Running is gated.`
 
+/** Operator controls for the skill guidance published beside tools. */
+export interface SkillGuidanceConfig {
+  /** Skill names or ids to stop publishing; entries may be comma-separated. */
+  readonly disabled?: string[]
+}
+
 /** Plugin configuration. */
 export interface Config {
   /** Catalog document to load; defaults to the bundled Desert Ant catalog. */
@@ -254,6 +261,15 @@ export interface Config {
   exposeUnavailable?: boolean
   /** Publish one skill per registered tool. Default true. */
   registerSkills?: boolean
+  /**
+   * Operator controls for published skill guidance (reuse-evidence plan §9).
+   *
+   * A disabled skill stops being published; its TOOL stays registered and callable, which
+   * is the whole difference from `exclude`. The set can be extended from the environment
+   * with DSH_TOOL_MODE_DISABLE_SKILLS, so one skill can be killed without editing a config
+   * document. Operator-only: nothing model-visible can change it.
+   */
+  skills?: SkillGuidanceConfig
   /** Register the `model_tools` inspection tool. Default true. */
   registerControlTool?: boolean
   /**
@@ -1906,6 +1922,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const excluded = new Set(config.exclude ?? [])
   const exposeUnavailable = config.exposeUnavailable ?? false
   const registerSkills = config.registerSkills ?? true
+  /** Names and ids the operator has switched off; a disabled skill never reaches the catalog. */
+  const disabledSkills = parseDisabledSkills(config.skills?.disabled, process.env['DSH_TOOL_MODE_DISABLE_SKILLS'])
   const confidentialTools = new Set(config.confidentialTools ?? [])
   const { resolve: bindingPreflight, bindable: bindableName } = createBindingResolver({
     toolNames: () => ctx.tools.schemas().map(schema => schema.name),
@@ -3110,7 +3128,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
 
     const record: InstalledModel = { entry, toolName, dispose }
 
-    if (registerSkills) {
+    const skillDisabled = disabledSkills.has(entry.skill.name)
+    if (registerSkills && skillDisabled) {
+      ctx.logger.info(`model-tools: skill ${entry.skill.name} is disabled by configuration; ${toolName} stays registered`)
+    }
+    if (registerSkills && !skillDisabled) {
       const skills = ctx.get('skills')
       if (skills !== undefined) {
         const body = renderSkillBody(entry, playbooks.get(entry.id))
@@ -5880,6 +5902,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
          */
         registerSkill: (skill): (() => void) => {
           if (!registerSkills) return () => {}
+          if (disabledSkills.has(skill.name)) {
+            ctx.logger.info(`model-tools: skill ${skill.name} is disabled by configuration; its tool stays registered`)
+            return () => {}
+          }
           const record = selectedInstalled(skill.ownerExtension)
           if (record === undefined) {
             ctx.logger.warn(
@@ -5898,6 +5924,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             return () => {}
           }
           const declared = discovery.manifest.skills.find(candidate => candidate.name === skill.name)
+          if (declared !== undefined && disabledSkills.has(declared.id)) {
+            ctx.logger.info(`model-tools: skill ${declared.id} is disabled by configuration; its tool stays registered`)
+            return () => {}
+          }
           if (declared === undefined) {
             ctx.logger.warn(`model-tools: ${skill.ownerExtension} declares no skill named ${skill.name}`)
             return () => {}

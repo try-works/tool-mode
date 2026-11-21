@@ -150,12 +150,7 @@ describe('provider', () => {
 
   it('builds the layer once and releases it when the provided program ends', async () => {
     const { layer, observed } = fakeProvider()
-    const providerValue = await runWith(
-      layer,
-      Effect.gen(function* () {
-        return yield* RuntimeProvider
-      }),
-    )
+    const providerValue = await runWith(layer, RuntimeProvider)
     assert.equal(providerValue.id, 'redact-litert')
     assert.deepEqual(providerValue.formats, ['tflite'])
     assert.equal(observed.builds, 1)

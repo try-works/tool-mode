@@ -124,22 +124,18 @@ export function uhmProcessor(): ProcessorDefinition<readonly string[], UhmBindin
           })
           const output = outputs[request.binding.outputName]
           if (output === undefined) {
-            return yield* Effect.fail(
-              new InferenceFailed({
-                provider: PROVIDER,
-                phase: 'post',
-                message: 'the graph produced no output named ' + JSON.stringify(request.binding.outputName),
-              }),
-            )
+            return yield* new InferenceFailed({
+              provider: PROVIDER,
+              phase: 'post',
+              message: 'the graph produced no output named ' + JSON.stringify(request.binding.outputName),
+            })
           }
           if (!(output.data instanceof Float32Array)) {
-            return yield* Effect.fail(
-              new InferenceFailed({
-                provider: PROVIDER,
-                phase: 'post',
-                message: 'the graph output ' + JSON.stringify(request.binding.outputName) + ' is not a float32 tensor',
-              }),
-            )
+            return yield* new InferenceFailed({
+              provider: PROVIDER,
+              phase: 'post',
+              message: 'the graph output ' + JSON.stringify(request.binding.outputName) + ' is not a float32 tensor',
+            })
           }
           runs.push({ window, data: output.data, dims: output.dims })
         }

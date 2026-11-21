@@ -162,6 +162,14 @@ const INVOICE_TEXT =
   'Invoice AC-4471 dated 2026-03-02 is due 2026-04-01. '
   + 'Line items: 3x aluminium bracket, 1x shipping. Total: 418.75 EUR.'
 
+/**
+ * A source inside the engine's admission envelope (about 100 characters).
+ *
+ * INVOICE_TEXT is longer than the guard allows, so a test whose subject is the ARTIFACT
+ * check must use a shorter document or it fails on length before reaching the check.
+ */
+const SHORT_TEXT = 'Invoice AC-4471 due 2026-04-01. Total: 418.75 EUR.'
+
 describe('EXT-19 — creating a provider is a handle, not a load', () => {
   it('returns quickly and runs no engine', async () => {
     const started = Date.now()
@@ -302,7 +310,7 @@ describe('MOD-20 — an unprepared deployment REFUSES, and names what is missing
     await assert.rejects(
       (await provider({ ...NO_ENVIRONMENT })).invoke({
         implementationId: 'needle3-native-structured-extract',
-        input: { text: INVOICE_TEXT, instruction: 'record the invoice', schema: INVOICE_SCHEMA },
+        input: { text: SHORT_TEXT, instruction: 'record the invoice', schema: INVOICE_SCHEMA },
         context: invocation(),
       }),
       /not prepared on this machine/,
@@ -370,7 +378,9 @@ describe('SEC-06 — an extraction source is authorized by the HOST before it is
     const contextUnderTest = invocation()
     const dir = scratch()
     const document = join(dir, 'invoice.txt')
-    writeFileSync(document, INVOICE_TEXT, 'utf8')
+    // A document inside the admission envelope: this test's subject is the AUTHORIZATION
+    // ordering, and INVOICE_TEXT would be refused for length before the artifact check.
+    writeFileSync(document, SHORT_TEXT, 'utf8')
     await assert.rejects(
       (await provider({ ...NO_ENVIRONMENT })).invoke({
         implementationId: 'needle3-native-structured-extract',

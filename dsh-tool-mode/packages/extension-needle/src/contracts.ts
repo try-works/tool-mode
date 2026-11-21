@@ -113,8 +113,10 @@ export const STRUCTURED_EXTRACT_CONTRACT: OwnedContract = {
     + 'grammar by the engine, so a returned object is well-formed by construction; this '
     + 'package then RE-VALIDATES it and reports every violation instead of discarding the '
     + 'attempt, because a well-formed object is not automatically a correct one. Fields '
-    + 'the engine could not ground are reported in the engine\'s own grounding report. It '
-    + 'does not answer questions, does not summarise, and does not call tools.',
+    + 'the engine could not ground are reported in the engine\'s own grounding report. The '
+    + 'measured working envelope is about 100 characters of source text; a longer source is '
+    + 'refused with input-too-long before the engine starts, rather than returning a silent '
+    + 'null. It does not answer questions, does not summarise, and does not call tools.',
   inputSchema: './schema/structured-extract.input.json',
   outputSchema: './schema/structured-extract.output.json',
   implementationId: 'needle3-native-structured-extract',
@@ -152,7 +154,9 @@ export const EXTRACT_WITH_REPAIR_CONTRACT: OwnedContract = {
     + 'time with those findings as repair feedback, and the result reports every attempt. '
     + 'At most two engine calls are made, `valid` is never true with an unresolved issue, '
     + 'and an engine failure is raised as an error rather than returned as an empty '
-    + 'record. It does not answer questions, does not summarise, and does not call tools.',
+    + 'record. The same ~100-character working envelope applies; longer source is refused '
+    + 'with input-too-long. It does not answer questions, does not summarise, and does not '
+    + 'call tools.',
   inputSchema: './schema/extract-with-repair.input.json',
   outputSchema: './schema/extract-with-repair.output.json',
   implementationId: 'needle3-native-extract-with-repair',

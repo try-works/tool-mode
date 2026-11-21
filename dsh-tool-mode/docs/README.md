@@ -20,3 +20,4 @@ Start with:
 - [Final adoption verification](adoption-final-verification.md) (PASS WITH FINDINGS)
 - [Silent Phase 8 run](<../research/adoption-dgo-2026-11-19-silent/REPORT.md>) (D 10% vs G/O 100%)
 - [Auto-keep and autoDraft deprecation plan](auto-keep-plan.md) (proposal)
+- [Reuse evidence plan](reuse-evidence-plan.md) (what to build from the external concept review; proposal, revised after adversarial review)
