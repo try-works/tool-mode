@@ -51,6 +51,7 @@ import { createArtifactUsageStore, failureClassOf } from './artifact-usage.ts'
 import { createRepetitionTracker, type RepetitionCandidate, type RepetitionTracker } from './adoption-candidates.ts'
 import { buildDirectiveDigest, buildLibraryDigest } from './library-digest.ts'
 import type { VerifiabilityCandidate } from './library-digest.ts'
+import { buildOnDeviceCapabilityIndex, type OnDeviceCatalogModel } from './on-device-surface.ts'
 import { compactInputSignature } from './input-shape.ts'
 import { registerRuntimeTools } from './runtime-surface.ts'
 import { createModelToolsControl } from './discovery-surface.ts'
@@ -4321,6 +4322,45 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           }
         },
       }), 'tool-mode library digest')
+      /**
+       * R16: the catalog's on-device tools were adoption-inert because only AUTHORED
+       * artifacts reached the standing section. This second section lists the model tools
+       * that are registered RIGHT NOW by capability. It is descriptive and never imperative:
+       * the library digest's single `Use ...` line stays authoritative (E46: a weak tool in
+       * the digest is used even when inappropriate, so a capability index must not compete).
+       */
+      const registeredToolNames = (): Set<string> =>
+        new Set(ctx.tools.schemas().map(schema => schema.name))
+      const callableCatalogModels = (names: Set<string>): OnDeviceCatalogModel[] => {
+        const models: OnDeviceCatalogModel[] = []
+        for (const item of resolved) {
+          const candidates = [
+            item.entry.tool?.name,
+            ...(item.entry.operations ?? []).map(operation => operation.tool.name),
+          ]
+          const tool = candidates.find(candidate => candidate !== undefined && names.has(candidate))
+          if (tool !== undefined) models.push({ tool, capability: item.entry.capability })
+        }
+        return models
+      }
+      ctx.effect(() => promptService.section({
+        name: 'tool-mode:on-device',
+        order: order + 1,
+        text: () => {
+          if (config.adoption?.digest === false) return ''
+          try {
+            const names = registeredToolNames()
+            return buildOnDeviceCapabilityIndex({
+              registeredTools: [...names],
+              catalogModels: callableCatalogModels(names),
+            })
+          } catch (error) {
+            ctx.logger.warn('tool-mode on-device index skipped: '
+              + (error instanceof Error ? error.message : String(error)))
+            return ''
+          }
+        },
+      }), 'tool-mode on-device capability index')
       /**
        * TASK-TURN PLACEMENT: the standing section is read as ambient capability, not
        * as a task instruction. The measured contrast was 0/3 when only the section
