@@ -1,5 +1,9 @@
 # Fix plan — R17 narrowing: promote only the on-device payoff band
 
+> **SUPERSEDED by 0.5.119 (operator direction): no model tool may be demoted or omitted
+> from the capability index. The E47 evidence is retained as GUIDANCE (wrapper shape and
+> payoff band), never as an exclusion. See fix-r17-restore-plan.md.**
+
 Target: 0.5.118. E47 measured what R16's surface needed: wrappers flip adoption only when
 they are per-item + clause-bearing (agent_judge_greeting 0/3 -> 2/2), and a weak judgment tool
 that IS adopted costs a call and is overridden (Laya 1/6 and 2/6, solvers corrected to 6/6).

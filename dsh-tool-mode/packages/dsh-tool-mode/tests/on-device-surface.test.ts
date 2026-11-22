@@ -71,8 +71,9 @@ async function sectionText(ctx: Context, name: string): Promise<string> {
 describe('R16 — capability index (pure)', () => {
   it('groups registered contract tools by capability', () => {
     const text = buildOnDeviceCapabilityIndex({
-      registeredTools: ['structured_extract', 'text_embed', 'describe_image', 'stt_transcribe', 'lang_detect'],
+      registeredTools: ['decision_test', 'structured_extract', 'text_embed', 'describe_image', 'stt_transcribe', 'lang_detect'],
     })
+    assert.match(text, /judgment — decision_test/)
     assert.match(text, /extraction — structured_extract/)
     assert.match(text, /embedding — text_embed/)
     assert.match(text, /vision — describe_image/)
@@ -80,14 +81,25 @@ describe('R16 — capability index (pure)', () => {
     assert.match(text, /language — lang_detect/)
   })
 
-  it('R17: never promotes judgment or planning tools the solver dominates', () => {
+  it('renders every capability class, including text and planning', () => {
+    const text = buildOnDeviceCapabilityIndex({
+      registeredTools: [
+        'decision_test', 'structured_extract', 'text_embed', 'describe_image',
+        'stt_transcribe', 'lang_detect', 'text_title', 'tools_plan',
+      ],
+    })
+    for (const header of ['judgment', 'extraction', 'embedding', 'vision', 'speech', 'language', 'text', 'planning']) {
+      assert.match(text, new RegExp(String(header) + ' — '), String(header) + ' must render: ' + text)
+    }
+  })
+
+  it('never demotes a registered tool: judgment and planning are listed too', () => {
     const text = buildOnDeviceCapabilityIndex({
       registeredTools: ['decision_choose', 'decision_test', 'decision_score', 'tools_plan', 'lang_detect'],
     })
+    assert.match(text, /judgment — decision_choose, decision_test, decision_score/)
+    assert.match(text, /planning — tools_plan/)
     assert.match(text, /lang_detect/)
-    assert.doesNotMatch(text, /decision_/)
-    assert.doesNotMatch(text, /tools_plan/)
-    assert.doesNotMatch(text, /judgment/)
   })
 
   it('never names a tool that is not registered', () => {
